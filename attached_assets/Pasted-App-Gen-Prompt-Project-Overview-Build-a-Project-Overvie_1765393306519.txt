@@ -1,0 +1,80 @@
+App Gen Prompt – Project Overview
+
+Build a “Project Overview” page at route /projects/:projectId.
+Show basic project header info, a list or timeline of stages, a summary of milestones, and high-level task stats.
+Include actions to “Edit Stages”, “Manage Milestones”, “Open Task Board”, and “Configure Views” which route to the respective pages for this project.
+Use the JSON view schema provided.
+
+JSON – Project Overview
+{
+  "id": "project_overview",
+  "name": "Project Overview",
+  "route": "/projects/:projectId",
+  "primary_entity": "Project",
+  "data_sources": [
+    {
+      "id": "project",
+      "entity": "Project",
+      "endpoint": "/api/projects/{{route.projectId}}",
+      "method": "GET"
+    },
+    {
+      "id": "stages",
+      "entity": "ProjectStage",
+      "endpoint": "/api/projects/{{route.projectId}}/stages",
+      "method": "GET"
+    },
+    {
+      "id": "milestones",
+      "entity": "Milestone",
+      "endpoint": "/api/projects/{{route.projectId}}/milestones",
+      "method": "GET"
+    },
+    {
+      "id": "task_stats",
+      "entity": "ProjectTaskStats",
+      "endpoint": "/api/projects/{{route.projectId}}/task-stats",
+      "method": "GET"
+    }
+  ],
+  "entities": {
+    "Project": [
+      { "id": "id", "label": "Project Id", "type": "string", "source": "id" },
+      { "id": "name", "label": "Project Name", "type": "string", "source": "name" },
+      { "id": "client_name", "label": "Client", "type": "string", "source": "client.name" },
+      { "id": "status", "label": "Status", "type": "string", "source": "status" },
+      { "id": "phase", "label": "Phase", "type": "string", "source": "phase" },
+      { "id": "owner_name", "label": "Owner", "type": "string", "source": "owner.name" },
+      { "id": "start_date", "label": "Start Date", "type": "date", "source": "start_date" },
+      { "id": "end_date", "label": "End Date", "type": "date", "source": "end_date" }
+    ],
+    "ProjectStage": [
+      { "id": "id", "label": "Stage Id", "type": "string", "source": "id" },
+      { "id": "name", "label": "Stage Name", "type": "string", "source": "name" },
+      { "id": "order_index", "label": "Order", "type": "number", "source": "order_index" },
+      { "id": "type", "label": "Stage Type", "type": "string", "source": "type" }
+    ],
+    "Milestone": [
+      { "id": "id", "label": "Milestone Id", "type": "string", "source": "id" },
+      { "id": "name", "label": "Milestone Name", "type": "string", "source": "name" },
+      { "id": "stage_id", "label": "Stage Id", "type": "string", "source": "stage_id" },
+      { "id": "target_date", "label": "Target Date", "type": "date", "source": "target_date" },
+      { "id": "status", "label": "Status", "type": "string", "source": "status" },
+      { "id": "progress_percent", "label": "Progress %", "type": "number", "source": "progress_percent" }
+    ],
+    "ProjectTaskStats": [
+      { "id": "total_tasks", "label": "Total Tasks", "type": "number", "source": "total_tasks" },
+      { "id": "completed_tasks", "label": "Completed Tasks", "type": "number", "source": "completed_tasks" },
+      { "id": "at_risk_tasks", "label": "At Risk Tasks", "type": "number", "source": "at_risk_tasks" }
+    ]
+  },
+  "filters": [],
+  "actions": [
+    { "id": "edit_stages", "label": "Edit Stages", "type": "navigation", "target_route": "/projects/{{Project.id}}/stages" },
+    { "id": "manage_milestones", "label": "Manage Milestones", "type": "navigation", "target_route": "/projects/{{Project.id}}/milestones" },
+    { "id": "open_task_board", "label": "Open Task Board", "type": "navigation", "target_route": "/projects/{{Project.id}}/tasks" },
+    { "id": "configure_views", "label": "Configure Views", "type": "navigation", "target_route": "/projects/{{Project.id}}/views" }
+  ],
+  "parameters": [],
+  "state": {}
+}

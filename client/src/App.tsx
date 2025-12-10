@@ -13,6 +13,7 @@ import ProjectImport from "@/pages/project-import";
 import ProjectImportMapping from "@/pages/project-import-mapping";
 
 import ProjectImportPreview from "@/pages/project-import-preview";
+import ProjectOverview from "@/pages/project-overview";
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/projects/import" component={ProjectImport} />
       <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
       <Route path="/projects/import/:sessionId/preview" component={ProjectImportPreview} />
+      <Route path="/projects/:projectId" component={ProjectOverview} />
       <Route component={NotFound} />
     </Switch>
   );
