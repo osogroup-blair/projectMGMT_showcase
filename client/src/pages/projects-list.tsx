@@ -14,10 +14,15 @@ import {
   AlertTriangle,
   User as UserIcon,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Pencil,
+  Trash2,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Select, 
   SelectContent, 
@@ -40,6 +45,34 @@ import { Shell } from "@/components/layout/shell";
 import { Link } from "wouter";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 // Extended Project Interface for this view
 interface ExtendedProject extends Project {
@@ -49,6 +82,7 @@ interface ExtendedProject extends Project {
   startDate: string;
   endDate: string;
   riskLevel: "Low" | "Medium" | "High";
+  description?: string;
 }
 
 // Enriched Mock Data
@@ -64,15 +98,42 @@ const ENRICHED_PROJECTS: ExtendedProject[] = PROJECTS.map(p => ({
   startDate: "2023-10-01",
   endDate: "2023-12-15",
   riskLevel: p.status === "Overdue" ? "High" : 
-             p.progress && p.progress < 50 && p.status === "In Progress" ? "Medium" : "Low"
+             p.progress && p.progress < 50 && p.status === "In Progress" ? "Medium" : "Low",
+  description: "A strategic initiative to overhaul the core systems and improve user experience across all digital touchpoints."
 }));
 
 export default function ProjectsList() {
+  const { toast } = useToast();
+  
+  // State for Projects Data
+  const [projects, setProjects] = useState<ExtendedProject[]>(ENRICHED_PROJECTS);
+  
+  // Filters State
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterRisk, setFilterRisk] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredProjects = ENRICHED_PROJECTS.filter(project => {
+  // Dialog & Form State
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [currentProject, setCurrentProject] = useState<ExtendedProject | null>(null);
+  
+  const [formData, setFormData] = useState<Partial<ExtendedProject>>({
+    name: "",
+    client: "",
+    status: "Upcoming",
+    phase: "Planning",
+    owner: "",
+    startDate: "",
+    endDate: "",
+    riskLevel: "Low",
+    description: "",
+    progress: 0
+  });
+
+  // Filter Logic
+  const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           project.client.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || project.status === filterStatus;
@@ -80,6 +141,101 @@ export default function ProjectsList() {
     
     return matchesSearch && matchesStatus && matchesRisk;
   });
+
+  // CRUD Handlers
+  const handleCreate = () => {
+    const newProject: ExtendedProject = {
+      id: `new-${Date.now()}`,
+      name: formData.name || "New Project",
+      client: formData.client || "Internal",
+      status: formData.status as any || "Upcoming",
+      deadline: formData.endDate || "TBD",
+      progress: formData.progress || 0,
+      phase: formData.phase || "Planning",
+      owner: formData.owner || TEAM[0].name,
+      startDate: formData.startDate || new Date().toISOString().split('T')[0],
+      endDate: formData.endDate || "",
+      riskLevel: formData.riskLevel as any || "Low",
+      description: formData.description || ""
+    };
+
+    setProjects([newProject, ...projects]);
+    setIsCreateOpen(false);
+    resetForm();
+    toast({
+      title: "Project Created",
+      description: `${newProject.name} has been successfully created.`,
+    });
+  };
+
+  const handleUpdate = () => {
+    if (!currentProject) return;
+
+    const updatedProjects = projects.map(p => 
+      p.id === currentProject.id 
+        ? { ...p, ...formData } as ExtendedProject
+        : p
+    );
+
+    setProjects(updatedProjects);
+    setIsEditOpen(false);
+    setCurrentProject(null);
+    resetForm();
+    toast({
+      title: "Project Updated",
+      description: "Changes have been saved successfully.",
+    });
+  };
+
+  const handleDelete = () => {
+    if (!currentProject) return;
+
+    setProjects(projects.filter(p => p.id !== currentProject.id));
+    setIsDeleteOpen(false);
+    setCurrentProject(null);
+    toast({
+      title: "Project Deleted",
+      description: "The project has been permanently removed.",
+      variant: "destructive"
+    });
+  };
+
+  const openEditDialog = (project: ExtendedProject) => {
+    setCurrentProject(project);
+    setFormData({
+      name: project.name,
+      client: project.client,
+      status: project.status,
+      phase: project.phase,
+      owner: project.owner,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      riskLevel: project.riskLevel,
+      description: project.description,
+      progress: project.progress
+    });
+    setIsEditOpen(true);
+  };
+
+  const openDeleteDialog = (project: ExtendedProject) => {
+    setCurrentProject(project);
+    setIsDeleteOpen(true);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      client: "",
+      status: "Upcoming",
+      phase: "Planning",
+      owner: "",
+      startDate: "",
+      endDate: "",
+      riskLevel: "Low",
+      description: "",
+      progress: 0
+    });
+  };
 
   return (
     <Shell>
@@ -97,10 +253,116 @@ export default function ProjectsList() {
                 Import Project
               </Button>
             </Link>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Project
-            </Button>
+            
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2" onClick={resetForm}>
+                  <Plus className="h-4 w-4" />
+                  Create Project
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Project</DialogTitle>
+                  <DialogDescription>
+                    Fill in the details below to create a new project workspace.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Project Name</Label>
+                      <Input 
+                        id="name" 
+                        placeholder="e.g. Website Rebrand" 
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="client">Client</Label>
+                      <Input 
+                        id="client" 
+                        placeholder="e.g. Acme Corp" 
+                        value={formData.client}
+                        onChange={(e) => setFormData({...formData, client: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select 
+                        value={formData.status} 
+                        onValueChange={(val) => setFormData({...formData, status: val as any})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Upcoming">Upcoming</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="On Hold">On Hold</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="owner">Project Owner</Label>
+                      <Select 
+                        value={formData.owner} 
+                        onValueChange={(val) => setFormData({...formData, owner: val})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select owner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TEAM.map(member => (
+                            <SelectItem key={member.id} value={member.name}>{member.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="startDate">Start Date</Label>
+                      <Input 
+                        id="startDate" 
+                        type="date" 
+                        value={formData.startDate}
+                        onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endDate">End Date</Label>
+                      <Input 
+                        id="endDate" 
+                        type="date" 
+                        value={formData.endDate}
+                        onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea 
+                      id="description" 
+                      placeholder="Brief description of the project goals..."
+                      value={formData.description}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                  <Button onClick={handleCreate}>Create Project</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -237,9 +499,31 @@ export default function ProjectsList() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/projects/${project.id}`}>
+                            View Details
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEditDialog(project)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit Project
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={() => openDeleteDialog(project)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete Project
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -249,7 +533,7 @@ export default function ProjectsList() {
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-4 border-t">
             <div className="text-xs text-muted-foreground">
-              Showing <strong>1-10</strong> of <strong>{ENRICHED_PROJECTS.length}</strong> projects
+              Showing <strong>1-{filteredProjects.length}</strong> of <strong>{projects.length}</strong> projects
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" disabled className="h-8 w-8 p-0">
@@ -262,6 +546,159 @@ export default function ProjectsList() {
           </div>
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Update the project details below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Project Name</Label>
+                <Input 
+                  id="edit-name" 
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-client">Client</Label>
+                <Input 
+                  id="edit-client" 
+                  value={formData.client}
+                  onChange={(e) => setFormData({...formData, client: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select 
+                  value={formData.status} 
+                  onValueChange={(val) => setFormData({...formData, status: val as any})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Upcoming">Upcoming</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="On Hold">On Hold</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-owner">Project Owner</Label>
+                <Select 
+                  value={formData.owner} 
+                  onValueChange={(val) => setFormData({...formData, owner: val})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TEAM.map(member => (
+                      <SelectItem key={member.id} value={member.name}>{member.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-progress">Progress (%)</Label>
+                <Input 
+                  id="edit-progress" 
+                  type="number" 
+                  min="0"
+                  max="100"
+                  value={formData.progress}
+                  onChange={(e) => setFormData({...formData, progress: parseInt(e.target.value) || 0})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-risk">Risk Level</Label>
+                <Select 
+                  value={formData.riskLevel} 
+                  onValueChange={(val) => setFormData({...formData, riskLevel: val as any})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select risk" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-startDate">Start Date</Label>
+                <Input 
+                  id="edit-startDate" 
+                  type="date" 
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-endDate">End Date</Label>
+                <Input 
+                  id="edit-endDate" 
+                  type="date" 
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea 
+                id="edit-description" 
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdate}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the project
+              <span className="font-semibold text-foreground"> {currentProject?.name} </span>
+              and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Shell>
   );
 }
