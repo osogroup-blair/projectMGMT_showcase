@@ -178,6 +178,7 @@ export interface StageTemplate {
   name: string;
   description?: string;
   defaultTasks: string[]; // List of TaskTemplate IDs
+  defaultRoles: string[]; // List of RoleTemplate IDs required for this stage
 }
 
 export interface MappingTemplate {
@@ -218,6 +219,7 @@ export interface TaskTemplate {
   defaultPriority: "Low" | "Medium" | "High";
   defaultEstimateHours: number;
   requiredRole?: string; // Role Type
+  assignedRoleId?: string; // Specific Role Template ID
 }
 
 export interface StatusOption {
@@ -765,9 +767,10 @@ export const GUIDANCE_ITEMS: GuidanceItem[] = [
 ];
 
 export const STAGE_TEMPLATES: StageTemplate[] = [
-  { id: "st_discovery", name: "Discovery Phase", defaultTasks: ["tt1", "tt2"] },
-  { id: "st_design", name: "Design Phase", defaultTasks: ["tt4"] },
-  { id: "st_dev", name: "Development Phase", defaultTasks: ["tt3"] },
+  { id: "st_discovery", name: "Discovery Phase", defaultTasks: ["tt1", "tt2"], defaultRoles: ["rt3"] }, // Business Analyst
+  { id: "st_design", name: "Design Phase", defaultTasks: ["tt4"], defaultRoles: [] },
+  { id: "st_dev", name: "Development Phase", defaultTasks: ["tt3"], defaultRoles: ["rt2"] }, // DevOps
+
   { id: "st_qa", name: "QA Phase", defaultTasks: [] },
   { id: "st_launch", name: "Launch Phase", defaultTasks: [] }
 ];

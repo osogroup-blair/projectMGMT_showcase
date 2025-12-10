@@ -148,6 +148,7 @@ export default function AdminTemplates() {
     if (type === "stage") { 
       initialData.name = ""; 
       initialData.defaultTasks = []; 
+      initialData.defaultRoles = [];
       // Initialize assigned frameworks for new stage
       initialData.assignedFrameworks = selectedFrameworkFilter !== 'all' ? [selectedFrameworkFilter] : [];
     }
@@ -667,8 +668,8 @@ export default function AdminTemplates() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Stage Tasks</Label>
+                  <Label>Default Tasks</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
                     {!isTaskFormOpen && (
                         <Button 
                             variant="outline" 
@@ -825,6 +826,29 @@ export default function AdminTemplates() {
                         )}
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Required Roles</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                    {roleTemplates.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <div 
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                            formData.defaultRoles?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                          )}
+                          onClick={() => toggleSelection(formData.defaultRoles || [], item.id, 'defaultRoles')}
+                        >
+                          {formData.defaultRoles?.includes(item.id) && <Check className="w-3 h-3" />}
+                        </div>
+                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultRoles || [], item.id, 'defaultRoles')}>
+                          {item.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Select roles that are required for this stage.</p>
                 </div>
               </div>
             )}

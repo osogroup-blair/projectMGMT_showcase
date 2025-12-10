@@ -48,6 +48,7 @@ import {
   TEAM,
   DELIVERABLE_TEMPLATES,
   EPIC_TEMPLATES,
+  TASK_TEMPLATES,
 } from "@/lib/mock-data";
 
 const STEPS = [
@@ -135,21 +136,46 @@ export default function ProjectWizard() {
         setDeliverables(templateDeliverables);
       }
 
-      // Populate Roles
+      // Populate Roles (Aggregated from Project, Framework Stages, and Tasks)
+      const uniqueRoleIds = new Set<string>();
+      
+      // 1. From Project Template
       if (template.defaultRoles) {
-        const templateRoles = template.defaultRoles.map(rid => {
-            const rTemplate = ROLE_TEMPLATES.find(rt => rt.id === rid);
-            if (!rTemplate) return null;
-            return {
-                id: `r-${Date.now()}-${Math.random()}`,
-                name: rTemplate.name,
-                description: rTemplate.description,
-                roleType: rTemplate.defaultRoleType,
-                assigneeId: null
-            };
-        }).filter(Boolean);
-        setRoles(templateRoles);
+        template.defaultRoles.forEach(rid => uniqueRoleIds.add(rid));
       }
+
+      // 2. From Framework Stages & Tasks
+      if (framework) {
+        framework.defaultStages.forEach(sid => {
+            const stage = STAGE_TEMPLATES.find(st => st.id === sid);
+            if (stage) {
+                // Stage required roles
+                stage.defaultRoles?.forEach(rid => uniqueRoleIds.add(rid));
+                
+                // Task required roles
+                stage.defaultTasks?.forEach(tid => {
+                    const task = TASK_TEMPLATES.find(t => t.id === tid);
+                    if (task?.assignedRoleId) {
+                        uniqueRoleIds.add(task.assignedRoleId);
+                    }
+                });
+            }
+        });
+      }
+
+      const aggregatedRoles = Array.from(uniqueRoleIds).map(rid => {
+          const rTemplate = ROLE_TEMPLATES.find(rt => rt.id === rid);
+          if (!rTemplate) return null;
+          return {
+              id: `r-${Date.now()}-${Math.random()}`,
+              name: rTemplate.name,
+              description: rTemplate.description,
+              roleType: rTemplate.defaultRoleType,
+              assigneeId: null
+          };
+      }).filter(Boolean);
+      
+      setRoles(aggregatedRoles);
     }
   };
 
@@ -159,6 +185,47 @@ export default function ProjectWizard() {
     if (framework) {
       const frameworkStages = framework.defaultStages.map(sid => STAGE_TEMPLATES.find(st => st.id === sid)).filter(Boolean);
       setStages(frameworkStages);
+
+      // Re-calculate roles based on new framework (preserving project template roles if possible, but simpler to rebuild)
+      // Note: We might lose project-level roles if we just rebuild from stages.
+      // Better strategy: Keep roles that came from Project Template, replace Stage-derived roles.
+      // For prototype simplicity, let's rebuild, assuming Project Template is the source of truth for Project Roles.
+      
+      const uniqueRoleIds = new Set<string>();
+      
+      // 1. From Project Template (if selected)
+      if (projectData.templateId) {
+          const template = PROJECT_TEMPLATES.find(t => t.id === projectData.templateId);
+          template?.defaultRoles?.forEach(rid => uniqueRoleIds.add(rid));
+      }
+
+      // 2. From New Framework Stages
+      framework.defaultStages.forEach(sid => {
+          const stage = STAGE_TEMPLATES.find(st => st.id === sid);
+          if (stage) {
+              stage.defaultRoles?.forEach(rid => uniqueRoleIds.add(rid));
+              stage.defaultTasks?.forEach(tid => {
+                  const task = TASK_TEMPLATES.find(t => t.id === tid);
+                  if (task?.assignedRoleId) {
+                      uniqueRoleIds.add(task.assignedRoleId);
+                  }
+              });
+          }
+      });
+
+      const aggregatedRoles = Array.from(uniqueRoleIds).map(rid => {
+          const rTemplate = ROLE_TEMPLATES.find(rt => rt.id === rid);
+          if (!rTemplate) return null;
+          return {
+              id: `r-${Date.now()}-${Math.random()}`,
+              name: rTemplate.name,
+              description: rTemplate.description,
+              roleType: rTemplate.defaultRoleType,
+              assigneeId: null
+          };
+      }).filter(Boolean);
+      
+      setRoles(aggregatedRoles);
     }
   };
 
