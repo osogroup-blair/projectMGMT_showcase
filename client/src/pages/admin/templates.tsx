@@ -144,7 +144,7 @@ export default function AdminTemplates() {
     // Initialize empty form data based on type
     const initialData: any = { description: "" };
     if (type === "project") { initialData.name = ""; initialData.defaultRoles = []; initialData.defaultDeliverables = []; initialData.defaultFrameworkId = ""; }
-    if (type === "framework") { initialData.name = ""; initialData.defaultStages = []; }
+    if (type === "framework") { initialData.name = ""; initialData.defaultStages = []; initialData.defaultRoles = []; }
     if (type === "stage") { 
       initialData.name = ""; 
       initialData.defaultTasks = []; 
@@ -617,25 +617,49 @@ export default function AdminTemplates() {
 
             {/* Framework Specific Fields */}
             {currentType === 'framework' && (
-              <div className="space-y-3 pt-2">
-                <Label>Default Stages</Label>
-                <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
-                  {stageTemplates.map(item => (
-                    <div key={item.id} className="flex items-center space-x-2">
-                      <div 
-                        className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
-                          formData.defaultStages?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
-                        )}
-                        onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}
-                      >
-                        {formData.defaultStages?.includes(item.id) && <Check className="w-3 h-3" />}
+              <div className="space-y-6 pt-2">
+                <div className="space-y-3">
+                  <Label>Default Stages</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                    {stageTemplates.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <div 
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                            formData.defaultStages?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                          )}
+                          onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}
+                        >
+                          {formData.defaultStages?.includes(item.id) && <Check className="w-3 h-3" />}
+                        </div>
+                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}>
+                          {item.name}
+                        </Label>
                       </div>
-                      <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}>
-                        {item.name}
-                      </Label>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Default Roles</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                    {roleTemplates.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <div 
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                            formData.defaultRoles?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                          )}
+                          onClick={() => toggleSelection(formData.defaultRoles || [], item.id, 'defaultRoles')}
+                        >
+                          {formData.defaultRoles?.includes(item.id) && <Check className="w-3 h-3" />}
+                        </div>
+                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultRoles || [], item.id, 'defaultRoles')}>
+                          {item.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
