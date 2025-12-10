@@ -448,7 +448,7 @@ export const TASKS: Task[] = [
 ];
 
 export const TEAM: TeamMember[] = [
-  { id: "1", name: "Joy Mason", role: "Product Manager", status: "Online", email: "joy.mason@nexus.com" },
+  { id: "1", name: "Nym Bull", role: "Product Manager", status: "Online", email: "nym.bull@nexus.com" },
   { id: "2", name: "Jessica Lin", role: "Project Manager", status: "In Meeting", email: "jessica.lin@nexus.com" },
   { id: "3", name: "Susan Smith", role: "UX Designer", status: "Online", email: "susan.smith@nexus.com" },
   { id: "4", name: "Jason Ho", role: "CEO", status: "Offline", email: "jason.ho@nexus.com" },
