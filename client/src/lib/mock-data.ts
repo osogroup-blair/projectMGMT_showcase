@@ -771,8 +771,8 @@ export const STAGE_TEMPLATES: StageTemplate[] = [
   { id: "st_design", name: "Design Phase", defaultTasks: ["tt4"], defaultRoles: [] },
   { id: "st_dev", name: "Development Phase", defaultTasks: ["tt3"], defaultRoles: ["rt2"] }, // DevOps
 
-  { id: "st_qa", name: "QA Phase", defaultTasks: [] },
-  { id: "st_launch", name: "Launch Phase", defaultTasks: [] }
+  { id: "st_qa", name: "QA Phase", defaultTasks: [], defaultRoles: [] },
+  { id: "st_launch", name: "Launch Phase", defaultTasks: [], defaultRoles: [] }
 ];
 
 export const FRAMEWORK_TEMPLATES: FrameworkTemplate[] = [
