@@ -11,10 +11,16 @@ export interface Project {
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   project: string;
+  stageId?: string;
   status: "Todo" | "In Progress" | "Review" | "Done";
+  assigneeId?: string;
   deadline: string;
   priority: "Low" | "Medium" | "High";
+  milestoneId?: string;
+  estimateHours?: number;
+  tags?: string[];
 }
 
 export interface Activity {
@@ -56,15 +62,6 @@ export const PROJECTS: Project[] = [
   { id: "5", name: "Quality Matters", status: "Overdue", deadline: "Yesterday", progress: 85 },
 ];
 
-export const TASKS: Task[] = [
-  { id: "1", title: "Code Review", project: "Quality Matters", status: "Review", deadline: "Tomorrow", priority: "High" },
-  { id: "2", title: "Feature Implementation", project: "Houlihan Lokey", status: "In Progress", deadline: "11/28", priority: "Medium" },
-  { id: "3", title: "Bug Fixing", project: "Kraft HR", status: "Todo", deadline: "11/29", priority: "High" },
-  { id: "4", title: "System Optimization", project: "Colgate-Palmolive", status: "Todo", deadline: "Tomorrow", priority: "Medium" },
-  { id: "5", title: "API Development", project: "Houlihan Lokey", status: "Todo", deadline: "11/30", priority: "High" },
-  { id: "6", title: "Testing and QA", project: "Kraft", status: "Todo", deadline: "11/30", priority: "Low" },
-];
-
 export const TEAM: TeamMember[] = [
   { id: "1", name: "Joy Mason", role: "Product Manager", status: "Online" },
   { id: "2", name: "Jessica Lin", role: "Project Manager", status: "In Meeting" },
@@ -73,6 +70,121 @@ export const TEAM: TeamMember[] = [
   { id: "5", name: "Jason Roberts", role: "Senior Developer", status: "Online" },
   { id: "6", name: "Nigel Wong", role: "UX Designer", status: "Offline" },
   { id: "7", name: "Steven Ahmed", role: "UX Designer", status: "In Meeting" },
+];
+
+export const TASKS: Task[] = [
+  { 
+    id: "1", 
+    title: "Code Review", 
+    description: "Review pull requests for the authentication module.",
+    project: "Quality Matters", 
+    stageId: "s3",
+    status: "Review", 
+    deadline: "Tomorrow", 
+    priority: "High",
+    assigneeId: "5", // Jason Roberts
+    milestoneId: "m3",
+    estimateHours: 4,
+    tags: ["Backend", "Security"]
+  },
+  { 
+    id: "2", 
+    title: "Feature Implementation", 
+    description: "Implement the new dashboard widgets as per design.",
+    project: "Houlihan Lokey", 
+    stageId: "s3",
+    status: "In Progress", 
+    deadline: "11/28", 
+    priority: "Medium",
+    assigneeId: "6", // Nigel Wong
+    milestoneId: "m3",
+    estimateHours: 12,
+    tags: ["Frontend", "React"]
+  },
+  { 
+    id: "3", 
+    title: "Bug Fixing", 
+    description: "Fix the reported crash on the user profile page.",
+    project: "Kraft HR", 
+    stageId: "s4",
+    status: "Todo", 
+    deadline: "11/29", 
+    priority: "High",
+    assigneeId: "5", // Jason Roberts
+    milestoneId: "m4",
+    estimateHours: 2,
+    tags: ["Bug", "Urgent"]
+  },
+  { 
+    id: "4", 
+    title: "System Optimization", 
+    description: "Optimize database queries for faster load times.",
+    project: "Colgate-Palmolive", 
+    stageId: "s3",
+    status: "Todo", 
+    deadline: "Tomorrow", 
+    priority: "Medium",
+    assigneeId: "2", // Jessica Lin
+    milestoneId: "m3",
+    estimateHours: 8,
+    tags: ["Database", "Performance"]
+  },
+  { 
+    id: "5", 
+    title: "API Development", 
+    description: "Create REST endpoints for the mobile app.",
+    project: "Houlihan Lokey", 
+    stageId: "s3",
+    status: "Todo", 
+    deadline: "11/30", 
+    priority: "High",
+    assigneeId: "5", // Jason Roberts
+    milestoneId: "m3",
+    estimateHours: 16,
+    tags: ["API", "Backend"]
+  },
+  { 
+    id: "6", 
+    title: "Testing and QA", 
+    description: "Run regression tests before the release.",
+    project: "Kraft", 
+    stageId: "s4",
+    status: "Todo", 
+    deadline: "11/30", 
+    priority: "Low",
+    assigneeId: "7", // Steven Ahmed
+    milestoneId: "m4",
+    estimateHours: 6,
+    tags: ["QA", "Testing"]
+  },
+  { 
+    id: "7", 
+    title: "Design System Update", 
+    description: "Update the color palette in the design system.",
+    project: "Houlihan Lokey", 
+    stageId: "s2",
+    status: "Done", 
+    deadline: "Yesterday", 
+    priority: "Medium",
+    assigneeId: "3", // Susan Smith
+    milestoneId: "m2",
+    estimateHours: 4,
+    tags: ["Design", "UI/UX"]
+  },
+  { 
+    id: "8", 
+    title: "Client Meeting Prep", 
+    description: "Prepare slides for the weekly status update.",
+    project: "Houlihan Lokey", 
+    stageId: "s1",
+    status: "Done", 
+    deadline: "Last Week", 
+    priority: "High",
+    assigneeId: "1", // Joy Mason
+    milestoneId: "m1",
+    estimateHours: 2,
+    tags: ["Management", "Client"]
+  },
 ];
 
 export const MILESTONES: Milestone[] = [
