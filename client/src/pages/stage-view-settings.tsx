@@ -112,16 +112,6 @@ export default function StageViewSettings() {
       <div className="mx-auto max-w-5xl space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link href="/projects" className="hover:text-primary transition-colors">Projects</Link>
-            <ChevronRight className="h-4 w-4" />
-            <Link href={`/projects/${projectId}`} className="hover:text-primary transition-colors">{project.name}</Link>
-            <ChevronRight className="h-4 w-4" />
-            <Link href={`/projects/${projectId}/stages`} className="hover:text-primary transition-colors">Stages</Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="font-medium text-foreground">View Settings</span>
-          </div>
-
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-primary">Stage View Settings</h1>

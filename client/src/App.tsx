@@ -16,6 +16,7 @@ import ProjectImportPreview from "@/pages/project-import-preview";
 import ProjectOverview from "@/pages/project-overview";
 import StageDesigner from "@/pages/stage-designer";
 import StageViewSettings from "@/pages/stage-view-settings";
+import MilestonesManagement from "@/pages/milestones-management";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/projects/:projectId" component={ProjectOverview} />
       <Route path="/projects/:projectId/stages" component={StageDesigner} />
       <Route path="/projects/:projectId/stages/:stageId/view-settings" component={StageViewSettings} />
+      <Route path="/projects/:projectId/milestones" component={MilestonesManagement} />
       <Route component={NotFound} />
     </Switch>
   );

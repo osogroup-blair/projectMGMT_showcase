@@ -35,6 +35,19 @@ export interface TeamMember {
   status: "Online" | "Offline" | "In Meeting";
 }
 
+export interface Milestone {
+  id: string;
+  name: string;
+  description: string;
+  stageId: string;
+  targetDate: string;
+  status: "Pending" | "In Progress" | "Completed" | "Blocked" | "Skipped";
+  ownerId: string;
+  progressPercent: number;
+  isBillingGate: boolean;
+  requiredCompletionRatio: number;
+}
+
 export const PROJECTS: Project[] = [
   { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65 },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
@@ -60,6 +73,69 @@ export const TEAM: TeamMember[] = [
   { id: "5", name: "Jason Roberts", role: "Senior Developer", status: "Online" },
   { id: "6", name: "Nigel Wong", role: "UX Designer", status: "Offline" },
   { id: "7", name: "Steven Ahmed", role: "UX Designer", status: "In Meeting" },
+];
+
+export const MILESTONES: Milestone[] = [
+  {
+    id: "m1",
+    name: "Strategy Sign-off",
+    description: "Final approval of brand strategy and core messaging",
+    stageId: "s1", // Discovery
+    targetDate: "2024-12-15",
+    status: "Completed",
+    ownerId: "1", // Joy Mason
+    progressPercent: 100,
+    isBillingGate: true,
+    requiredCompletionRatio: 100
+  },
+  {
+    id: "m2",
+    name: "Visual Identity Presentation",
+    description: "Presenting the 3 directions for visual identity",
+    stageId: "s2", // Design
+    targetDate: "2025-01-10",
+    status: "In Progress",
+    ownerId: "3", // Susan Smith
+    progressPercent: 60,
+    isBillingGate: false,
+    requiredCompletionRatio: 80
+  },
+  {
+    id: "m3",
+    name: "Alpha Release",
+    description: "Internal release for team testing",
+    stageId: "s3", // Development
+    targetDate: "2025-02-01",
+    status: "Pending",
+    ownerId: "5", // Jason Roberts
+    progressPercent: 0,
+    isBillingGate: true,
+    requiredCompletionRatio: 90
+  },
+  {
+    id: "m4",
+    name: "UAT Completion",
+    description: "User acceptance testing sign-off from client",
+    stageId: "s4", // QA & Testing
+    targetDate: "2025-02-20",
+    status: "Pending",
+    ownerId: "2", // Jessica Lin
+    progressPercent: 0,
+    isBillingGate: false,
+    requiredCompletionRatio: 100
+  },
+  {
+    id: "m5",
+    name: "Go Live",
+    description: "Public launch of the new brand",
+    stageId: "s5", // Launch
+    targetDate: "2025-03-01",
+    status: "Pending",
+    ownerId: "1", // Joy Mason
+    progressPercent: 0,
+    isBillingGate: true,
+    requiredCompletionRatio: 100
+  }
 ];
 
 export const ACTIVITY: Activity[] = [
