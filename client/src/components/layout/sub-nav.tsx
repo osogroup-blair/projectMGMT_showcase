@@ -1,4 +1,4 @@
-import { Home, Layers } from "lucide-react";
+import { Home, Layers, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -12,7 +12,7 @@ export function SubNav() {
   const [location] = useLocation();
 
   return (
-    <div className="w-48 border-r border-border bg-card">
+    <div className="w-48 border-r border-border bg-card flex flex-col justify-between">
       <div className="space-y-1 p-4">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -36,6 +36,27 @@ export function SubNav() {
             </Link>
           );
         })}
+      </div>
+
+      <div className="p-4 border-t border-border">
+        <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Admin
+        </div>
+        <Link href="/admin/users">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start gap-3 h-9 font-normal text-sm",
+              location === "/admin/users"
+                ? "bg-secondary text-primary font-medium shadow-xs" 
+                : "text-foreground/70 hover:text-foreground hover:bg-secondary/50"
+            )}
+            data-testid="subnav-admin-users"
+          >
+            <Settings className={cn("h-4 w-4", location === "/admin/users" && "text-primary")} />
+            User Management
+          </Button>
+        </Link>
       </div>
     </div>
   );
