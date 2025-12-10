@@ -1,16 +1,6 @@
 import { 
-  Home, 
-  Settings, 
-  CheckSquare, 
-  Workflow, 
-  Users, 
-  Clock, 
-  Box, 
-  Brain, 
   Search,
-  ChevronDown,
-  Bell,
-  LayoutGrid
+  ChevronDown
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -59,51 +49,10 @@ export function Sidebar() {
 
       <ScrollArea className="flex-1 px-4">
         <div className="space-y-6">
-          <div className="space-y-1">
-            <NavItem icon={Home} label="Home" active={location === "/"} href="/" />
-            <NavItem icon={LayoutGrid} label="Customize" href="/customize" />
-            <NavItem icon={CheckSquare} label="My Tasks" href="/tasks" badge="6" />
-            <NavItem icon={Workflow} label="Workflows" href="/workflows" />
-            <NavItem icon={Users} label="Accounts" href="/accounts" />
-          </div>
-
-          <div className="space-y-1">
-            <h4 className="px-2 text-xs font-semibold text-sidebar-foreground/70 tracking-wider uppercase mb-2">Operations</h4>
-            <NavItem icon={Clock} label="Time & Billing" href="/billing" />
-            <NavItem icon={Box} label="Resources" href="/resources" />
-          </div>
-
-          <div className="space-y-1">
-            <h4 className="px-2 text-xs font-semibold text-sidebar-foreground/70 tracking-wider uppercase mb-2">Knowledge</h4>
-            <NavItem icon={Brain} label="AI Hub" href="/ai" className="text-sidebar-primary hover:text-sidebar-primary hover:bg-sidebar-accent/50" />
-            <NavItem icon={Bell} label="Quick Insights" href="/insights" />
-          </div>
+          {/* Navigation items will be added here */}
         </div>
       </ScrollArea>
     </div>
   );
 }
 
-function NavItem({ icon: Icon, label, active, href, badge, className }: any) {
-  return (
-    <Link href={href}>
-      <Button 
-        variant="ghost" 
-        className={cn(
-          "w-full justify-start gap-3 h-10 font-normal", 
-          active ? "bg-sidebar-accent text-sidebar-primary font-medium shadow-xs" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-          className
-        )}
-        data-testid={`nav-${label.toLowerCase().replace(" ", "-")}`}
-      >
-        <Icon className={cn("h-4 w-4", active ? "text-sidebar-primary" : "text-sidebar-foreground/70")} />
-        {label}
-        {badge && (
-          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-sidebar-primary/20 text-[10px] font-medium text-sidebar-primary">
-            {badge}
-          </span>
-        )}
-      </Button>
-    </Link>
-  );
-}
