@@ -29,6 +29,7 @@ import ProjectSettings from "@/pages/project-settings";
 import DeliverablesList from "@/pages/deliverables";
 import EpicDetail from "@/pages/epic-detail";
 import ProjectExport from "@/pages/project-export";
+import ProjectWizard from "@/pages/project-wizard";
 import AdminTemplates from "@/pages/admin/templates";
 import AdminAppDefaults from "@/pages/admin/app-defaults";
 
@@ -37,6 +38,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/projects" component={ProjectsList} />
+      <Route path="/projects/new" component={ProjectWizard} />
       <Route path="/projects/import" component={ProjectImport} />
       <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
       <Route path="/projects/import/:sessionId/preview" component={ProjectImportPreview} />
