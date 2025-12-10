@@ -1,4 +1,4 @@
-import { Home, Layers, Settings, LayoutTemplate, Sliders } from "lucide-react";
+import { Home, Layers, Settings, LayoutTemplate, Sliders, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
