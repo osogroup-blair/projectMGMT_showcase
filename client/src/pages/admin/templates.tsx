@@ -110,6 +110,10 @@ export default function AdminTemplates() {
   const [currentTemplate, setCurrentTemplate] = useState<any>(null);
   const [currentType, setCurrentType] = useState<"project" | "framework" | "stage" | "deliverable" | "epic" | "task" | "role">("project");
 
+  // Task Management State inside Stage Dialog
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [currentTask, setCurrentTask] = useState<any>(null);
+
   const [selectedFrameworkFilter, setSelectedFrameworkFilter] = useState<string>("all");
 
   // Form State (Generic)
@@ -387,13 +391,6 @@ export default function AdminTemplates() {
               <Layers className="h-4 w-4" />
               Stages
             </TabsTrigger>
-            <TabsTrigger 
-              value="tasks" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
-            >
-              <ListTodo className="h-4 w-4" />
-              Tasks & Roles
-            </TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
@@ -508,93 +505,6 @@ export default function AdminTemplates() {
                     itemLabel="Default Stages"
                   />
                 ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="tasks" className="space-y-8">
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <ListTodo className="h-5 w-5 text-primary" />
-                    Task Templates
-                    </h3>
-                    <Button variant="outline" size="sm" onClick={() => handleCreate('task')}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Task
-                    </Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {filterTemplates(taskTemplates).map(t => (
-                    <Card key={t.id} className="hover:shadow-md transition-shadow group">
-                      <CardHeader className="p-4 pb-2">
-                        <div className="flex justify-between items-start">
-                          <Badge variant={t.defaultPriority === 'High' ? 'destructive' : 'secondary'} className="text-[10px]">
-                            {t.defaultPriority}
-                          </Badge>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <MoreHorizontal className="h-3 w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuItem onClick={() => handleEdit(t, 'task')}>Edit</DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(t, 'task')}>Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                        <CardTitle className="text-sm font-semibold mt-2">{t.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 pt-2 text-xs text-muted-foreground">
-                        <p className="line-clamp-2 mb-2">{t.description}</p>
-                        <div className="flex items-center gap-2 pt-2 border-t mt-2">
-                          <span className="font-medium text-foreground">{t.defaultEstimateHours}h</span> est.
-                          <span className="ml-auto bg-muted px-1.5 py-0.5 rounded">{t.requiredRole}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Role Templates
-                    </h3>
-                    <Button variant="outline" size="sm" onClick={() => handleCreate('role')}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Role
-                    </Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filterTemplates(roleTemplates).map(t => (
-                    <Card key={t.id} className="hover:shadow-md transition-shadow group">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between">
-                          <CardTitle className="text-base">{t.name}</CardTitle>
-                          <Badge variant="outline">{t.defaultRoleType}</Badge>
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity -mr-2 -mt-2">
-                                <MoreHorizontal className="h-3 w-3" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuItem onClick={() => handleEdit(t, 'role')}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(t, 'role')}>Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                        <CardDescription className="text-xs">{t.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-xs text-muted-foreground">
-                          <strong>Permissions:</strong> {t.defaultPermissions?.length || 0} assigned
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
               </div>
             </TabsContent>
           </div>
@@ -757,27 +667,164 @@ export default function AdminTemplates() {
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Default Tasks</Label>
-                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
-                    {taskTemplates.map(item => (
-                      <div key={item.id} className="flex items-center space-x-2">
-                        <div 
-                          className={cn(
-                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
-                            formData.defaultTasks?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
-                          )}
-                          onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}
+                  <div className="flex items-center justify-between">
+                    <Label>Stage Tasks</Label>
+                    {!isTaskFormOpen && (
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            type="button"
+                            onClick={() => {
+                                setCurrentTask({ 
+                                    title: "", 
+                                    description: "", 
+                                    defaultPriority: "Medium", 
+                                    defaultEstimateHours: 1, 
+                                    requiredRole: "Development" 
+                                });
+                                setIsTaskFormOpen(true);
+                            }}
                         >
-                          {formData.defaultTasks?.includes(item.id) && <Check className="w-3 h-3" />}
-                        </div>
-                        <div className="flex-1 cursor-pointer" onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}>
-                          <Label className="font-normal cursor-pointer block">{item.title}</Label>
-                          <span className="text-[10px] text-muted-foreground">{item.requiredRole} • {item.defaultEstimateHours}h</span>
-                        </div>
-                      </div>
-                    ))}
-                    {taskTemplates.length === 0 && <span className="text-xs text-muted-foreground p-2">No tasks available</span>}
+                            <Plus className="h-3 w-3 mr-2" /> Add Task
+                        </Button>
+                    )}
                   </div>
+
+                  {isTaskFormOpen ? (
+                    <div className="border rounded-lg p-4 bg-muted/20 space-y-4">
+                        <h4 className="font-semibold text-sm">{currentTask.id ? 'Edit' : 'New'} Task</h4>
+                        <div className="space-y-2">
+                            <Label htmlFor="task-title">Task Title</Label>
+                            <Input 
+                                id="task-title" 
+                                value={currentTask.title} 
+                                onChange={(e) => setCurrentTask({...currentTask, title: e.target.value})}
+                                placeholder="e.g. Code Review"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="task-desc">Description</Label>
+                            <Textarea 
+                                id="task-desc" 
+                                value={currentTask.description} 
+                                onChange={(e) => setCurrentTask({...currentTask, description: e.target.value})}
+                                placeholder="Task description..."
+                                className="h-20"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Priority</Label>
+                                <Select 
+                                    value={currentTask.defaultPriority} 
+                                    onValueChange={(val) => setCurrentTask({...currentTask, defaultPriority: val})}
+                                >
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Low">Low</SelectItem>
+                                        <SelectItem value="Medium">Medium</SelectItem>
+                                        <SelectItem value="High">High</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Est. Hours</Label>
+                                <Input 
+                                    type="number" 
+                                    min="1"
+                                    value={currentTask.defaultEstimateHours}
+                                    onChange={(e) => setCurrentTask({...currentTask, defaultEstimateHours: parseInt(e.target.value)})}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Required Role</Label>
+                            <Select 
+                                value={currentTask.requiredRole} 
+                                onValueChange={(val) => setCurrentTask({...currentTask, requiredRole: val})}
+                            >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Management">Management</SelectItem>
+                                    <SelectItem value="Discovery">Discovery</SelectItem>
+                                    <SelectItem value="Design">Design</SelectItem>
+                                    <SelectItem value="Development">Development</SelectItem>
+                                    <SelectItem value="QA & Testing">QA & Testing</SelectItem>
+                                    <SelectItem value="Launch">Launch</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button variant="ghost" size="sm" onClick={() => setIsTaskFormOpen(false)}>Cancel</Button>
+                            <Button size="sm" onClick={() => {
+                                if (!currentTask.title) return;
+                                
+                                let newTask = { ...currentTask };
+                                if (!newTask.id) {
+                                    newTask.id = `tt${Date.now()}`;
+                                    // Add to taskTemplates state
+                                    setTaskTemplates([...taskTemplates, newTask]);
+                                    // Add to formData
+                                    setFormData({
+                                        ...formData, 
+                                        defaultTasks: [...(formData.defaultTasks || []), newTask.id]
+                                    });
+                                } else {
+                                    // Update taskTemplates state
+                                    setTaskTemplates(taskTemplates.map(t => t.id === newTask.id ? newTask : t));
+                                    // formData.defaultTasks likely already has the ID, no change needed there
+                                }
+                                setIsTaskFormOpen(false);
+                            }}>
+                                {currentTask.id ? 'Update Task' : 'Add Task'}
+                            </Button>
+                        </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                        {formData.defaultTasks && formData.defaultTasks.length > 0 ? (
+                             <div className="grid grid-cols-1 gap-2">
+                                {formData.defaultTasks.map((taskId: string) => {
+                                    const task = taskTemplates.find(t => t.id === taskId);
+                                    if (!task) return null;
+                                    return (
+                                        <div key={taskId} className="flex items-center justify-between p-3 border rounded-md bg-muted/10 group hover:bg-muted/20 transition-colors">
+                                            <div>
+                                                <div className="font-medium text-sm">{task.title}</div>
+                                                <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                                                    <Badge variant="outline" className="h-5 px-1.5 text-[10px]">{task.defaultPriority}</Badge>
+                                                    <span>{task.defaultEstimateHours}h</span>
+                                                    <span>•</span>
+                                                    <span>{task.requiredRole}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                                                    setCurrentTask(task);
+                                                    setIsTaskFormOpen(true);
+                                                }}>
+                                                    <Pencil className="h-3 w-3" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => {
+                                                    setFormData({
+                                                        ...formData,
+                                                        defaultTasks: formData.defaultTasks.filter((id: string) => id !== taskId)
+                                                    });
+                                                }}>
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                             </div>
+                        ) : (
+                            <div className="text-sm text-muted-foreground text-center py-8 border-2 border-dashed rounded-lg">
+                                No tasks defined for this stage template.
+                            </div>
+                        )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -831,72 +878,6 @@ export default function AdminTemplates() {
                   ))}
                 </div>
               </div>
-            )}
-
-            {/* Task Specific Fields */}
-            {currentType === 'task' && (
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Default Priority</Label>
-                        <Select 
-                            value={formData.defaultPriority} 
-                            onValueChange={(val) => setFormData({...formData, defaultPriority: val})}
-                        >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Low">Low</SelectItem>
-                                <SelectItem value="Medium">Medium</SelectItem>
-                                <SelectItem value="High">High</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Est. Hours</Label>
-                        <Input 
-                            type="number" 
-                            min="1"
-                            value={formData.defaultEstimateHours}
-                            onChange={(e) => setFormData({...formData, defaultEstimateHours: parseInt(e.target.value)})}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Required Role</Label>
-                        <Select 
-                            value={formData.requiredRole} 
-                            onValueChange={(val) => setFormData({...formData, requiredRole: val})}
-                        >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Management">Management</SelectItem>
-                                <SelectItem value="Discovery">Discovery</SelectItem>
-                                <SelectItem value="Design">Design</SelectItem>
-                                <SelectItem value="Development">Development</SelectItem>
-                                <SelectItem value="QA & Testing">QA & Testing</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-            )}
-
-            {/* Role Specific Fields */}
-            {currentType === 'role' && (
-                <div className="space-y-2">
-                    <Label>Role Type</Label>
-                    <Select 
-                        value={formData.defaultRoleType} 
-                        onValueChange={(val) => setFormData({...formData, defaultRoleType: val})}
-                    >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Management">Management</SelectItem>
-                            <SelectItem value="Discovery">Discovery</SelectItem>
-                            <SelectItem value="Design">Design</SelectItem>
-                            <SelectItem value="Development">Development</SelectItem>
-                            <SelectItem value="QA & Testing">QA & Testing</SelectItem>
-                            <SelectItem value="Launch">Launch</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
             )}
           </div>
           </ScrollArea>
