@@ -34,7 +34,8 @@ import { Switch } from "@/components/ui/switch";
 import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { PROJECTS } from "@/lib/mock-data";
+import { PROJECTS, MILESTONES, TASK_STATUS_OPTIONS } from "@/lib/mock-data";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Mock Types
 interface Stage {
@@ -44,6 +45,9 @@ interface Stage {
   type: "planning" | "execution" | "review" | "delivery";
   entryCriteria: string;
   exitCriteria: string;
+  entryMilestoneId?: string;
+  exitMilestoneId?: string;
+  allowedTaskStatuses: string[];
   defaultView: "kanban" | "list" | "calendar";
   color: string;
   isActive: boolean;
@@ -57,7 +61,10 @@ const MOCK_STAGES: Stage[] = [
     order: 1, 
     type: "planning", 
     entryCriteria: "Project Approved", 
-    exitCriteria: "Requirements Documented", 
+    exitCriteria: "Requirements Documented",
+    entryMilestoneId: "m1",
+    exitMilestoneId: "m1",
+    allowedTaskStatuses: ["ts1", "ts2", "ts4"],
     defaultView: "list",
     color: "bg-purple-500",
     isActive: true 
@@ -69,6 +76,9 @@ const MOCK_STAGES: Stage[] = [
     type: "execution", 
     entryCriteria: "Wireframes Approved", 
     exitCriteria: "Hi-fi Designs Signed off", 
+    entryMilestoneId: "m2",
+    exitMilestoneId: "m2",
+    allowedTaskStatuses: ["ts1", "ts2", "ts3", "ts4"],
     defaultView: "kanban",
     color: "bg-blue-500",
     isActive: true 
@@ -80,6 +90,9 @@ const MOCK_STAGES: Stage[] = [
     type: "execution", 
     entryCriteria: "Sprint Planning Complete", 
     exitCriteria: "Code Reviewed & Merged", 
+    entryMilestoneId: "m3",
+    exitMilestoneId: "m3",
+    allowedTaskStatuses: ["ts1", "ts2", "ts3", "ts4"],
     defaultView: "kanban",
     color: "bg-indigo-500",
     isActive: true 
@@ -91,6 +104,9 @@ const MOCK_STAGES: Stage[] = [
     type: "review", 
     entryCriteria: "Dev Complete", 
     exitCriteria: "Zero Critical Bugs", 
+    entryMilestoneId: "m4",
+    exitMilestoneId: "m4",
+    allowedTaskStatuses: ["ts1", "ts2", "ts4"],
     defaultView: "list",
     color: "bg-amber-500",
     isActive: true 
@@ -102,6 +118,9 @@ const MOCK_STAGES: Stage[] = [
     type: "delivery", 
     entryCriteria: "QA Sign-off", 
     exitCriteria: "Live in Production", 
+    entryMilestoneId: "m5",
+    exitMilestoneId: "m5",
+    allowedTaskStatuses: ["ts1", "ts4"],
     defaultView: "calendar",
     color: "bg-green-500",
     isActive: true 
@@ -170,6 +189,7 @@ export default function StageDesigner() {
       type: "execution",
       entryCriteria: "",
       exitCriteria: "",
+      allowedTaskStatuses: ["ts1", "ts2", "ts4"],
       defaultView: "kanban",
       color: "bg-slate-500",
       isActive: true
@@ -266,9 +286,16 @@ export default function StageDesigner() {
                         )}
                       </div>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span className="truncate">In: {stage.entryCriteria || "None"}</span>
-                        <span>•</span>
-                        <span className="truncate">Out: {stage.exitCriteria || "None"}</span>
+                        <div className="flex items-center gap-1" title="Entry Milestone">
+                           <ChevronRight className="h-3 w-3 text-green-600" />
+                           <span className="truncate max-w-[100px]">{MILESTONES.find(m => m.id === stage.entryMilestoneId)?.name || "No Entry Milestone"}</span>
+                        </div>
+                        <div className="flex items-center gap-1" title="Exit Milestone">
+                           <Check className="h-3 w-3 text-blue-600" />
+                           <span className="truncate max-w-[100px]">{MILESTONES.find(m => m.id === stage.exitMilestoneId)?.name || "No Exit Milestone"}</span>
+                        </div>
+                        <span className="truncate hidden sm:inline text-muted-foreground/50">|</span>
+                        <span className="truncate hidden sm:inline">{stage.allowedTaskStatuses?.length || 0} Statuses</span>
                       </div>
                     </div>
 
@@ -331,23 +358,81 @@ export default function StageDesigner() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="entry-criteria">Entry Criteria</Label>
+                          <Label htmlFor="entry-criteria">Entry Milestone</Label>
+                          <Select 
+                            value={editForm.entryMilestoneId} 
+                            onValueChange={(v) => setEditForm({ ...editForm, entryMilestoneId: v })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Entry Milestone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">None</SelectItem>
+                              {MILESTONES.map(m => (
+                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <Input 
                             id="entry-criteria" 
                             value={editForm.entryCriteria} 
                             onChange={(e) => setEditForm({ ...editForm, entryCriteria: e.target.value })}
-                            placeholder="e.g. Design Approved"
+                            placeholder="Additional Entry Criteria"
+                            className="mt-2"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="exit-criteria">Exit Criteria</Label>
+                          <Label htmlFor="exit-criteria">Exit Milestone</Label>
+                          <Select 
+                            value={editForm.exitMilestoneId} 
+                            onValueChange={(v) => setEditForm({ ...editForm, exitMilestoneId: v })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Exit Milestone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">None</SelectItem>
+                              {MILESTONES.map(m => (
+                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <Input 
                             id="exit-criteria" 
                             value={editForm.exitCriteria} 
                             onChange={(e) => setEditForm({ ...editForm, exitCriteria: e.target.value })}
-                            placeholder="e.g. Code Merged"
+                            placeholder="Additional Exit Criteria"
+                            className="mt-2"
                           />
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                         <Label>Allowed Task Statuses</Label>
+                         <div className="grid grid-cols-2 gap-2 p-3 border rounded-md bg-background">
+                            {TASK_STATUS_OPTIONS.map(status => (
+                                <div key={status.id} className="flex items-center space-x-2">
+                                    <Checkbox 
+                                        id={`status-${status.id}`} 
+                                        checked={editForm.allowedTaskStatuses?.includes(status.id)}
+                                        onCheckedChange={(checked) => {
+                                            const current = editForm.allowedTaskStatuses || [];
+                                            const updated = checked 
+                                                ? [...current, status.id]
+                                                : current.filter(id => id !== status.id);
+                                            setEditForm({ ...editForm, allowedTaskStatuses: updated });
+                                        }}
+                                    />
+                                    <Label 
+                                        htmlFor={`status-${status.id}`} 
+                                        className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                                    >
+                                        <div className={cn("w-2 h-2 rounded-full", status.color.replace("text", "bg").split(" ")[0].replace("50", "500"))} />
+                                        {status.label}
+                                    </Label>
+                                </div>
+                            ))}
+                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
