@@ -2,8 +2,13 @@ import { Search, ChevronDown, Bell } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import logo from "@assets/image_1765392085901.png";
+import { TEAM } from "@/lib/mock-data";
 
 export function TopNav() {
+  const currentUser = TEAM.find(u => u.id === "1") || TEAM[0];
+  const firstName = currentUser.name.split(" ")[0];
+  const initials = currentUser.name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2);
+
   return (
     <div className="h-16 bg-sidebar text-sidebar-foreground border-b border-sidebar-border flex items-center justify-center px-6 gap-4 relative">
       {/* Logo - Left */}
@@ -29,19 +34,19 @@ export function TopNav() {
       {/* Right Side - Greeting + Profile */}
       <div className="absolute right-6 flex items-center gap-4">
         <div className="text-right hidden sm:block">
-          <p className="text-sm text-sidebar-foreground/70 mr-2">Good morning, <span className="font-medium text-sidebar-foreground">Joy!</span></p>
+          <p className="text-sm text-sidebar-foreground/70 mr-2">Good morning, <span className="font-medium text-sidebar-foreground">{firstName}!</span></p>
         </div>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent">
           <Bell className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-2 pl-4 border-l border-sidebar-border">
           <div className="text-right hidden sm:block">
-            <div className="text-sm font-medium">Joy Mason</div>
-            <div className="text-xs text-sidebar-foreground/70">PM</div>
+            <div className="text-sm font-medium">{currentUser.name}</div>
+            <div className="text-xs text-sidebar-foreground/70">{currentUser.role}</div>
           </div>
           <Avatar className="h-8 w-8 border border-sidebar-border">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>JM</AvatarFallback>
+            <AvatarImage src={currentUser.avatar || "https://github.com/shadcn.png"} />
+            <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
         </div>
       </div>
