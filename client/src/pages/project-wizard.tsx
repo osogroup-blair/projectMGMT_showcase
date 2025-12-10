@@ -23,6 +23,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Check, 
   ChevronRight, 
@@ -273,7 +274,10 @@ export default function ProjectWizard() {
       // Populate Stages from Framework
       const framework = FRAMEWORK_TEMPLATES.find(f => f.id === template.defaultFrameworkId);
       if (framework) {
-        const frameworkStages = framework.defaultStages.map(sid => STAGE_TEMPLATES.find(st => st.id === sid)).filter(Boolean);
+        const frameworkStages = framework.defaultStages
+            .map(sid => STAGE_TEMPLATES.find(st => st.id === sid))
+            .filter(Boolean)
+            .map(st => ({...st, includeTasks: true}));
         setStages(frameworkStages);
       }
 
@@ -349,7 +353,10 @@ export default function ProjectWizard() {
     setProjectData(prev => ({ ...prev, frameworkId }));
     const framework = FRAMEWORK_TEMPLATES.find(f => f.id === frameworkId);
     if (framework) {
-      const frameworkStages = framework.defaultStages.map(sid => STAGE_TEMPLATES.find(st => st.id === sid)).filter(Boolean);
+      const frameworkStages = framework.defaultStages
+        .map(sid => STAGE_TEMPLATES.find(st => st.id === sid))
+        .filter(Boolean)
+        .map(st => ({...st, includeTasks: true}));
       setStages(frameworkStages);
 
       // Re-calculate roles based on new framework (preserving project template roles if possible, but simpler to rebuild)
@@ -669,8 +676,32 @@ export default function ProjectWizard() {
                                         <div className="font-medium">{stage?.name}</div>
                                         <div className="text-sm text-muted-foreground">{stage?.description || "Standard stage workflow"}</div>
                                     </div>
-                                    <div className="flex gap-2 text-xs text-muted-foreground">
-                                        <span className="bg-muted px-2 py-1 rounded">{(stage?.defaultTasks?.length || 0)} Default Tasks</span>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <Checkbox 
+                                                id={`stage-tasks-${stage.id}`} 
+                                                checked={stage.includeTasks}
+                                                onCheckedChange={(checked) => {
+                                                    const newStages = [...stages];
+                                                    newStages[index].includeTasks = !!checked;
+                                                    setStages(newStages);
+                                                }}
+                                            />
+                                            <Label 
+                                                htmlFor={`stage-tasks-${stage.id}`}
+                                                className="text-sm cursor-pointer"
+                                            >
+                                                Create default tasks
+                                            </Label>
+                                        </div>
+                                        <div className="flex gap-2 text-xs text-muted-foreground min-w-[100px] justify-end">
+                                            <span className={cn(
+                                                "bg-muted px-2 py-1 rounded transition-opacity",
+                                                !stage.includeTasks && "opacity-50"
+                                            )}>
+                                                {stage.includeTasks ? (stage?.defaultTasks?.length || 0) : 0} Default Tasks
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
