@@ -11,12 +11,36 @@ export interface Project {
   permissions?: Record<string, any>;
 }
 
+export interface Deliverable {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  status: "Not Started" | "In Progress" | "Completed";
+  ownerId: string;
+  dueDate: string;
+  progress: number;
+}
+
+export interface Epic {
+  id: string;
+  deliverableId: string;
+  title: string;
+  description: string;
+  status: "Not Started" | "In Progress" | "Completed";
+  ownerId: string;
+  startDate: string;
+  endDate: string;
+  progress: number;
+}
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
   project: string;
   stageId?: string;
+  epicId?: string;
   status: "Todo" | "In Progress" | "Review" | "Done";
   assigneeId?: string;
   deadline: string;
@@ -160,14 +184,73 @@ export const PROJECTS: Project[] = [
   { id: "5", name: "Quality Matters", status: "Overdue", deadline: "Yesterday", progress: 85 },
 ];
 
-export const TEAM: TeamMember[] = [
-  { id: "1", name: "Joy Mason", role: "Product Manager", status: "Online", email: "joy.mason@nexus.com" },
-  { id: "2", name: "Jessica Lin", role: "Project Manager", status: "In Meeting", email: "jessica.lin@nexus.com" },
-  { id: "3", name: "Susan Smith", role: "UX Designer", status: "Online", email: "susan.smith@nexus.com" },
-  { id: "4", name: "Jason Ho", role: "CEO", status: "Offline", email: "jason.ho@nexus.com" },
-  { id: "5", name: "Jason Roberts", role: "Senior Developer", status: "Online", email: "jason.roberts@nexus.com" },
-  { id: "6", name: "Nigel Wong", role: "UX Designer", status: "Offline", email: "nigel.wong@nexus.com" },
-  { id: "7", name: "Steven Ahmed", role: "UX Designer", status: "In Meeting", email: "steven.ahmed@nexus.com" },
+export const DELIVERABLES: Deliverable[] = [
+  { 
+    id: "d1", 
+    projectId: "1", 
+    title: "Brand Strategy", 
+    description: "Complete overhaul of brand positioning and messaging framework.", 
+    status: "Completed", 
+    ownerId: "1", 
+    dueDate: "2023-12-15",
+    progress: 100 
+  },
+  { 
+    id: "d2", 
+    projectId: "1", 
+    title: "Digital Presence", 
+    description: "New website design and development including CMS implementation.", 
+    status: "In Progress", 
+    ownerId: "2", 
+    dueDate: "2024-02-28",
+    progress: 45 
+  },
+  { 
+    id: "d3", 
+    projectId: "1", 
+    title: "Marketing Collateral", 
+    description: "Templates for presentations, business cards, and social media assets.", 
+    status: "Not Started", 
+    ownerId: "3", 
+    dueDate: "2024-03-15",
+    progress: 0 
+  }
+];
+
+export const EPICS: Epic[] = [
+  { 
+    id: "e1", 
+    deliverableId: "d2", 
+    title: "Website Redesign", 
+    description: "UX/UI design phases including wireframing and prototyping.", 
+    status: "In Progress", 
+    ownerId: "3", 
+    startDate: "2023-11-01", 
+    endDate: "2024-01-15",
+    progress: 60 
+  },
+  { 
+    id: "e2", 
+    deliverableId: "d2", 
+    title: "CMS Implementation", 
+    description: "Backend development and content migration to the new CMS.", 
+    status: "Not Started", 
+    ownerId: "5", 
+    startDate: "2024-01-01", 
+    endDate: "2024-02-28",
+    progress: 0 
+  },
+  { 
+    id: "e3", 
+    deliverableId: "d1", 
+    title: "Market Research", 
+    description: "Competitor analysis and stakeholder interviews.", 
+    status: "Completed", 
+    ownerId: "1", 
+    startDate: "2023-10-01", 
+    endDate: "2023-11-15",
+    progress: 100 
+  }
 ];
 
 export const TASKS: Task[] = [
@@ -177,6 +260,7 @@ export const TASKS: Task[] = [
     description: "Review pull requests for the authentication module. Focus on security vulnerabilities and code style consistency.",
     project: "Quality Matters", 
     stageId: "s3",
+    epicId: "e2",
     status: "Review", 
     deadline: "Tomorrow", 
     priority: "High",
@@ -191,6 +275,7 @@ export const TASKS: Task[] = [
     description: "Implement the new dashboard widgets as per design. Ensure responsiveness on mobile devices.",
     project: "Houlihan Lokey", 
     stageId: "s3",
+    epicId: "e1",
     status: "In Progress", 
     deadline: "11/28", 
     priority: "Medium",
@@ -205,6 +290,7 @@ export const TASKS: Task[] = [
     description: "Fix the reported crash on the user profile page when uploading large avatars.",
     project: "Kraft HR", 
     stageId: "s4",
+    epicId: "e2",
     status: "Todo", 
     deadline: "11/29", 
     priority: "High",
@@ -219,6 +305,7 @@ export const TASKS: Task[] = [
     description: "Optimize database queries for faster load times on the reports page.",
     project: "Colgate-Palmolive", 
     stageId: "s3",
+    epicId: "e2",
     status: "Todo", 
     deadline: "Tomorrow", 
     priority: "Medium",
@@ -233,6 +320,7 @@ export const TASKS: Task[] = [
     description: "Create REST endpoints for the mobile app to fetch user settings.",
     project: "Houlihan Lokey", 
     stageId: "s3",
+    epicId: "e2",
     status: "Todo", 
     deadline: "11/30", 
     priority: "High",
@@ -247,6 +335,7 @@ export const TASKS: Task[] = [
     description: "Run regression tests before the release. Document any failures in JIRA.",
     project: "Kraft", 
     stageId: "s4",
+    epicId: "e2",
     status: "Todo", 
     deadline: "11/30", 
     priority: "Low",
@@ -261,6 +350,7 @@ export const TASKS: Task[] = [
     description: "Update the color palette in the design system to match the new brand guidelines.",
     project: "Houlihan Lokey", 
     stageId: "s2",
+    epicId: "e1",
     status: "Done", 
     deadline: "Yesterday", 
     priority: "Medium",
@@ -275,6 +365,7 @@ export const TASKS: Task[] = [
     description: "Prepare slides for the weekly status update. Include metrics on velocity and burn-down.",
     project: "Houlihan Lokey", 
     stageId: "s1",
+    epicId: "e3",
     status: "Done", 
     deadline: "Last Week", 
     priority: "High",
@@ -283,6 +374,16 @@ export const TASKS: Task[] = [
     estimateHours: 2,
     tags: ["Management", "Client"]
   },
+];
+
+export const TEAM: TeamMember[] = [
+  { id: "1", name: "Joy Mason", role: "Product Manager", status: "Online", email: "joy.mason@nexus.com" },
+  { id: "2", name: "Jessica Lin", role: "Project Manager", status: "In Meeting", email: "jessica.lin@nexus.com" },
+  { id: "3", name: "Susan Smith", role: "UX Designer", status: "Online", email: "susan.smith@nexus.com" },
+  { id: "4", name: "Jason Ho", role: "CEO", status: "Offline", email: "jason.ho@nexus.com" },
+  { id: "5", name: "Jason Roberts", role: "Senior Developer", status: "Online", email: "jason.roberts@nexus.com" },
+  { id: "6", name: "Nigel Wong", role: "UX Designer", status: "Offline", email: "nigel.wong@nexus.com" },
+  { id: "7", name: "Steven Ahmed", role: "UX Designer", status: "In Meeting", email: "steven.ahmed@nexus.com" },
 ];
 
 export const MILESTONES: Milestone[] = [

@@ -164,6 +164,12 @@ export default function ProjectOverview() {
                   Milestones
                 </Button>
               </Link>
+              <Link href={`/projects/${projectId}/deliverables`}>
+                <Button variant="outline" className="gap-2 flex-1 lg:flex-none">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Deliverables
+                </Button>
+              </Link>
               <Link href={`/projects/${projectId}/views`}>
                 <Button variant="outline" className="gap-2 flex-1 lg:flex-none">
                   <Eye className="h-4 w-4" />
