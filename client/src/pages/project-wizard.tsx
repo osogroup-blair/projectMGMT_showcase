@@ -34,10 +34,12 @@ import {
   Plus, 
   Trash2,
   Settings,
-  Save
+  Save,
+  Upload
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
 
 // Import mock data
 import { 
@@ -91,6 +93,146 @@ export default function ProjectWizard() {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        
+        // Strategy: Look for specific sheets, or fallback to first sheet
+        // We expect "Deliverables" and "Epics" sheets, or a flat structure
+        
+        let newDeliverables = [...deliverables];
+        let processedDeliverables = new Map<string, any>(); // Map Name -> Deliverable Object
+
+        // Initialize with existing deliverables to avoid duplicates if possible, or just append?
+        // Let's append/merge.
+        
+        // 1. Try to find "Deliverables" sheet
+        const deliverablesSheetName = wb.SheetNames.find(n => n.toLowerCase().includes('deliverable'));
+        const epicsSheetName = wb.SheetNames.find(n => n.toLowerCase().includes('epic'));
+
+        if (deliverablesSheetName && epicsSheetName) {
+            // Two separate sheets
+            const dData = XLSX.utils.sheet_to_json(wb.Sheets[deliverablesSheetName]);
+            const eData = XLSX.utils.sheet_to_json(wb.Sheets[epicsSheetName]);
+
+            // Process Deliverables
+            dData.forEach((row: any) => {
+                const title = row['Title'] || row['Name'] || row['Deliverable'];
+                if (title) {
+                    const id = `d-${Date.now()}-${Math.random()}`;
+                    const d = {
+                        id,
+                        title,
+                        description: row['Description'] || "",
+                        epics: []
+                    };
+                    processedDeliverables.set(title, d);
+                }
+            });
+
+            // Process Epics
+            eData.forEach((row: any) => {
+                const epicTitle = row['Title'] || row['Name'] || row['Epic'];
+                const parentDeliverable = row['Deliverable'] || row['Parent'] || row['Deliverable Name'];
+                
+                if (epicTitle && parentDeliverable && processedDeliverables.has(parentDeliverable)) {
+                     processedDeliverables.get(parentDeliverable).epics.push({
+                        id: `e-${Date.now()}-${Math.random()}`,
+                        title: epicTitle,
+                        description: row['Description'] || "",
+                        tasks: []
+                     });
+                }
+            });
+
+        } else {
+            // Fallback: First sheet, flat structure or just list
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = XLSX.utils.sheet_to_json(ws);
+
+            // Check structure
+            const hasDeliverableCol = data.length > 0 && ('Deliverable' in (data[0] as object) || 'Deliverable Name' in (data[0] as object));
+            
+            if (hasDeliverableCol) {
+                // Flat structure: Deliverable | Epic | Description
+                data.forEach((row: any) => {
+                    const dName = row['Deliverable'] || row['Deliverable Name'];
+                    const eName = row['Epic'] || row['Epic Name'] || row['Title']; // If 'Title' assumes Epic Title if Deliverable col exists
+                    
+                    if (dName) {
+                        if (!processedDeliverables.has(dName)) {
+                            processedDeliverables.set(dName, {
+                                id: `d-${Date.now()}-${Math.random()}`,
+                                title: dName,
+                                description: row['Deliverable Description'] || "",
+                                epics: []
+                            });
+                        }
+
+                        if (eName) {
+                            processedDeliverables.get(dName).epics.push({
+                                id: `e-${Date.now()}-${Math.random()}`,
+                                title: eName,
+                                description: row['Description'] || row['Epic Description'] || "",
+                                tasks: []
+                            });
+                        }
+                    }
+                });
+            } else {
+                // Simple list of deliverables? Or maybe just try to guess
+                // Let's assume it's just a list of things to add as deliverables if no "Epic" column
+                 data.forEach((row: any) => {
+                    const title = row['Title'] || row['Name'] || Object.values(row)[0]; // Fallback to first column
+                    if (title && typeof title === 'string') {
+                         processedDeliverables.set(title, {
+                                id: `d-${Date.now()}-${Math.random()}`,
+                                title: title,
+                                description: row['Description'] || "",
+                                epics: []
+                            });
+                    }
+                 });
+            }
+        }
+
+        // Convert Map to Array and update state
+        if (processedDeliverables.size > 0) {
+            setDeliverables([...deliverables, ...Array.from(processedDeliverables.values())]);
+            toast({
+                title: "Import Successful",
+                description: `Imported ${processedDeliverables.size} deliverables from Excel.`,
+            });
+        } else {
+            toast({
+                title: "Import Failed",
+                description: "Could not find valid data structure. Please check column headers.",
+                variant: "destructive"
+            });
+        }
+
+      } catch (error) {
+        console.error("Error reading file:", error);
+        toast({
+            title: "Import Error",
+            description: "Failed to parse the Excel file.",
+            variant: "destructive"
+        });
+      }
+    };
+    reader.readAsBinaryString(file);
+    
+    // Reset input
+    e.target.value = '';
   };
 
   const handleTemplateSelect = (templateId: string) => {
@@ -375,17 +517,30 @@ export default function ProjectWizard() {
                             <h3 className="text-lg font-medium">Work Breakdown Structure</h3>
                             <p className="text-sm text-muted-foreground">Define deliverables, epics, and initial tasks.</p>
                         </div>
-                        <Button size="sm" onClick={() => {
-                            const newDeliverable = {
-                                id: `d-${Date.now()}`,
-                                title: "New Deliverable",
-                                description: "",
-                                epics: []
-                            };
-                            setDeliverables([...deliverables, newDeliverable]);
-                        }}>
-                            <Plus className="h-4 w-4 mr-2" /> Add Deliverable
-                        </Button>
+                        <div className="flex gap-2">
+                            <div className="relative">
+                                <input
+                                    type="file"
+                                    accept=".xlsx, .xls"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={handleFileUpload}
+                                />
+                                <Button size="sm" variant="outline">
+                                    <Upload className="h-4 w-4 mr-2" /> Import Excel
+                                </Button>
+                            </div>
+                            <Button size="sm" onClick={() => {
+                                const newDeliverable = {
+                                    id: `d-${Date.now()}`,
+                                    title: "New Deliverable",
+                                    description: "",
+                                    epics: []
+                                };
+                                setDeliverables([...deliverables, newDeliverable]);
+                            }}>
+                                <Plus className="h-4 w-4 mr-2" /> Add Deliverable
+                            </Button>
+                        </div>
                       </div>
 
                       <ScrollArea className="h-[500px] pr-4">
