@@ -221,7 +221,12 @@ export default function ProjectExport() {
     });
 
     // 6. Tasks
-    const tasksData = TASKS.filter(t => scope === "all" || t.project === project.name).map(t => ({
+    const tasksData = TASKS.filter(t => 
+      scope === "all" || 
+      t.project === project.name || 
+      project.name.includes(t.project) ||
+      t.project.includes(project.name)
+    ).map(t => ({
       id: t.id,
       project_id: projectId, // In real app, verify project name match
       deliverable_id: EPICS.find(e => e.id === t.epicId)?.deliverableId,
