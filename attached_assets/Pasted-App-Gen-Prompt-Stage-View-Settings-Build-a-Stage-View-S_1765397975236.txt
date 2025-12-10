@@ -1,0 +1,61 @@
+App Gen Prompt – Stage View Settings
+
+Build a “Stage View Settings” page at route /projects/:projectId/stages/:stageId/view-settings.
+Load the stage and its view configuration.
+Let the user choose view type (Kanban, Table, Timeline, etc.), visible fields, default sort, default filters, and metrics.
+Include actions to save the view config for the stage, and to save a personal view.
+Use the JSON view schema provided.
+
+JSON – Stage View Settings
+{
+  "id": "stage_view_settings",
+  "name": "Stage View Settings",
+  "route": "/projects/:projectId/stages/:stageId/view-settings",
+  "primary_entity": "StageViewConfig",
+  "data_sources": [
+    {
+      "id": "stage",
+      "entity": "ProjectStage",
+      "endpoint": "/api/projects/{{route.projectId}}/stages/{{route.stageId}}",
+      "method": "GET"
+    },
+    {
+      "id": "view_config",
+      "entity": "StageViewConfig",
+      "endpoint": "/api/projects/{{route.projectId}}/stages/{{route.stageId}}/view-config",
+      "method": "GET"
+    }
+  ],
+  "entities": {
+    "StageViewConfig": [
+      { "id": "id", "label": "Config Id", "type": "string", "source": "id" },
+      { "id": "stage_id", "label": "Stage Id", "type": "string", "source": "stage_id" },
+      { "id": "view_type", "label": "View Type", "type": "enum", "source": "view_type" },
+      { "id": "visible_fields", "label": "Visible Fields", "type": "array", "items_type": "string", "source": "visible_fields" },
+      { "id": "default_sort_field", "label": "Default Sort Field", "type": "string", "source": "default_sort_field" },
+      { "id": "default_sort_direction", "label": "Default Sort Direction", "type": "enum", "source": "default_sort_direction" },
+      { "id": "default_filters", "label": "Default Filters", "type": "json", "source": "default_filters" },
+      { "id": "metrics", "label": "Metrics", "type": "json", "source": "metrics" },
+      { "id": "is_default_for_stage", "label": "Is Default For Stage", "type": "boolean", "source": "is_default_for_stage" }
+    ]
+  },
+  "filters": [],
+  "actions": [
+    {
+      "id": "save_view_config",
+      "label": "Save View Config",
+      "type": "mutation",
+      "endpoint": "/api/projects/{{route.projectId}}/stages/{{route.stageId}}/view-config",
+      "method": "PUT"
+    },
+    {
+      "id": "save_personal_view",
+      "label": "Save as Personal View",
+      "type": "mutation",
+      "endpoint": "/api/projects/{{route.projectId}}/stages/{{route.stageId}}/view-config/personal",
+      "method": "POST"
+    }
+  ],
+  "parameters": [],
+  "state": {}
+}
