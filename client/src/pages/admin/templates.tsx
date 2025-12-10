@@ -15,7 +15,8 @@ import {
   Copy,
   ChevronRight,
   Package,
-  Check
+  Check,
+  Workflow
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,12 +77,14 @@ import {
   EPIC_TEMPLATES,
   TASK_TEMPLATES,
   STAGE_TEMPLATES,
+  FRAMEWORK_TEMPLATES,
   ROLE_TEMPLATES,
   ProjectTemplate,
   DeliverableTemplate,
   EpicTemplate,
   TaskTemplate,
   StageTemplate,
+  FrameworkTemplate,
   RoleTemplate
 } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
@@ -94,6 +97,7 @@ export default function AdminTemplates() {
 
   // State for all template types
   const [projectTemplates, setProjectTemplates] = useState<ProjectTemplate[]>(PROJECT_TEMPLATES);
+  const [frameworkTemplates, setFrameworkTemplates] = useState<FrameworkTemplate[]>(FRAMEWORK_TEMPLATES);
   const [stageTemplates, setStageTemplates] = useState<StageTemplate[]>(STAGE_TEMPLATES);
   const [deliverableTemplates, setDeliverableTemplates] = useState<DeliverableTemplate[]>(DELIVERABLE_TEMPLATES);
   const [epicTemplates, setEpicTemplates] = useState<EpicTemplate[]>(EPIC_TEMPLATES);
@@ -104,7 +108,7 @@ export default function AdminTemplates() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<any>(null);
-  const [currentType, setCurrentType] = useState<"project" | "stage" | "deliverable" | "epic" | "task" | "role">("project");
+  const [currentType, setCurrentType] = useState<"project" | "framework" | "stage" | "deliverable" | "epic" | "task" | "role">("project");
 
   // Form State (Generic)
   const [formData, setFormData] = useState<any>({});
@@ -124,10 +128,11 @@ export default function AdminTemplates() {
     
     // Initialize empty form data based on type
     const initialData: any = { description: "" };
-    if (type === "project") { initialData.name = ""; initialData.defaultStages = []; initialData.defaultRoles = []; initialData.defaultDeliverables = []; }
-    if (type === "stage") { initialData.name = ""; initialData.defaultStages = []; }
+    if (type === "project") { initialData.name = ""; initialData.defaultRoles = []; initialData.defaultDeliverables = []; }
+    if (type === "framework") { initialData.name = ""; initialData.defaultStages = []; }
+    if (type === "stage") { initialData.name = ""; initialData.defaultTasks = []; }
     if (type === "deliverable") { initialData.title = ""; initialData.defaultEpics = []; }
-    if (type === "epic") { initialData.title = ""; initialData.defaultTasks = []; }
+    if (type === "epic") { initialData.title = ""; initialData.defaultFramework = ""; }
     if (type === "task") {
         initialData.title = "";
         initialData.defaultPriority = "Medium";
@@ -164,6 +169,9 @@ export default function AdminTemplates() {
     if (currentType === "project") {
         const list = isNew ? [...projectTemplates, newItem] : projectTemplates.map(t => t.id === newItem.id ? newItem : t);
         setProjectTemplates(list);
+    } else if (currentType === "framework") {
+        const list = isNew ? [...frameworkTemplates, newItem] : frameworkTemplates.map(t => t.id === newItem.id ? newItem : t);
+        setFrameworkTemplates(list);
     } else if (currentType === "stage") {
         const list = isNew ? [...stageTemplates, newItem] : stageTemplates.map(t => t.id === newItem.id ? newItem : t);
         setStageTemplates(list);
@@ -193,6 +201,8 @@ export default function AdminTemplates() {
 
     if (currentType === "project") {
         setProjectTemplates(projectTemplates.filter(t => t.id !== currentTemplate.id));
+    } else if (currentType === "framework") {
+        setFrameworkTemplates(frameworkTemplates.filter(t => t.id !== currentTemplate.id));
     } else if (currentType === "stage") {
         setStageTemplates(stageTemplates.filter(t => t.id !== currentTemplate.id));
     } else if (currentType === "deliverable") {
@@ -308,13 +318,6 @@ export default function AdminTemplates() {
               Projects
             </TabsTrigger>
             <TabsTrigger 
-              value="stages" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
-            >
-              <Layers className="h-4 w-4" />
-              Stages
-            </TabsTrigger>
-            <TabsTrigger 
               value="deliverables" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
             >
@@ -327,6 +330,20 @@ export default function AdminTemplates() {
             >
               <FileBox className="h-4 w-4" />
               Epics
+            </TabsTrigger>
+            <TabsTrigger 
+              value="frameworks" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
+            >
+              <Workflow className="h-4 w-4" />
+              Frameworks
+            </TabsTrigger>
+            <TabsTrigger 
+              value="stages" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
+            >
+              <Layers className="h-4 w-4" />
+              Stages
             </TabsTrigger>
             <TabsTrigger 
               value="tasks" 
@@ -346,8 +363,8 @@ export default function AdminTemplates() {
                     item={t}
                     type="project"
                     icon={LayoutTemplate}
-                    itemsCount={t.defaultStages?.length || 0}
-                    itemLabel="Stages"
+                    itemsCount={t.defaultDeliverables?.length || 0}
+                    itemLabel="Deliverables"
                     badge="Full Stack"
                   />
                 ))}
@@ -364,6 +381,21 @@ export default function AdminTemplates() {
               </div>
             </TabsContent>
 
+            <TabsContent value="frameworks" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filterTemplates(frameworkTemplates).map(t => (
+                  <TemplateCard 
+                    key={t.id}
+                    item={t}
+                    type="framework"
+                    icon={Workflow}
+                    itemsCount={t.defaultStages?.length || 5}
+                    itemLabel="Stages"
+                  />
+                ))}
+              </div>
+            </TabsContent>
+
             <TabsContent value="stages" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filterTemplates(stageTemplates).map(t => (
@@ -372,8 +404,8 @@ export default function AdminTemplates() {
                     item={t}
                     type="stage"
                     icon={Layers}
-                    itemsCount={t.defaultStages?.length || 5}
-                    itemLabel="Phases"
+                    itemsCount={t.defaultTasks?.length || 0}
+                    itemLabel="Tasks"
                   />
                 ))}
               </div>
@@ -402,8 +434,8 @@ export default function AdminTemplates() {
                     item={t}
                     type="epic"
                     icon={FileBox}
-                    itemsCount={t.defaultTasks?.length || 0}
-                    itemLabel="Standard Tasks"
+                    itemsCount={1}
+                    itemLabel="Framework"
                   />
                 ))}
               </div>
@@ -585,27 +617,57 @@ export default function AdminTemplates() {
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
 
-                <div className="space-y-3">
-                  <Label>Default Stages</Label>
-                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
-                    {stageTemplates.map(item => (
-                      <div key={item.id} className="flex items-center space-x-2">
-                        <div 
-                          className={cn(
-                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
-                            formData.defaultStages?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
-                          )}
-                          onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}
-                        >
-                          {formData.defaultStages?.includes(item.id) && <Check className="w-3 h-3" />}
-                        </div>
-                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}>
-                          {item.name}
-                        </Label>
+            {/* Framework Specific Fields */}
+            {currentType === 'framework' && (
+              <div className="space-y-3 pt-2">
+                <Label>Default Stages</Label>
+                <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                  {stageTemplates.map(item => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <div 
+                        className={cn(
+                          "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                          formData.defaultStages?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                        )}
+                        onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}
+                      >
+                        {formData.defaultStages?.includes(item.id) && <Check className="w-3 h-3" />}
                       </div>
-                    ))}
-                  </div>
+                      <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}>
+                        {item.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stage Specific Fields */}
+            {currentType === 'stage' && (
+              <div className="space-y-3 pt-2">
+                <Label>Default Tasks</Label>
+                <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                  {taskTemplates.map(item => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <div 
+                        className={cn(
+                          "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                          formData.defaultTasks?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                        )}
+                        onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}
+                      >
+                        {formData.defaultTasks?.includes(item.id) && <Check className="w-3 h-3" />}
+                      </div>
+                      <div className="flex-1 cursor-pointer" onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}>
+                        <Label className="font-normal cursor-pointer block">{item.title}</Label>
+                        <span className="text-[10px] text-muted-foreground">{item.requiredRole} • {item.defaultEstimateHours}h</span>
+                      </div>
+                    </div>
+                  ))}
+                  {taskTemplates.length === 0 && <span className="text-xs text-muted-foreground p-2">No tasks available</span>}
                 </div>
               </div>
             )}
@@ -639,27 +701,18 @@ export default function AdminTemplates() {
             {/* Epic Specific Fields */}
             {currentType === 'epic' && (
               <div className="space-y-3 pt-2">
-                <Label>Default Tasks</Label>
-                <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
-                  {taskTemplates.map(item => (
-                    <div key={item.id} className="flex items-center space-x-2">
-                      <div 
-                        className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
-                          formData.defaultTasks?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
-                        )}
-                        onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}
-                      >
-                        {formData.defaultTasks?.includes(item.id) && <Check className="w-3 h-3" />}
-                      </div>
-                      <div className="flex-1 cursor-pointer" onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}>
-                        <Label className="font-normal cursor-pointer block">{item.title}</Label>
-                        <span className="text-[10px] text-muted-foreground">{item.requiredRole} • {item.defaultEstimateHours}h</span>
-                      </div>
-                    </div>
-                  ))}
-                  {taskTemplates.length === 0 && <span className="text-xs text-muted-foreground p-2">No tasks available</span>}
-                </div>
+                <Label>Assigned Framework</Label>
+                <Select 
+                    value={formData.defaultFramework} 
+                    onValueChange={(val) => setFormData({...formData, defaultFramework: val})}
+                >
+                    <SelectTrigger><SelectValue placeholder="Select a framework" /></SelectTrigger>
+                    <SelectContent>
+                        {frameworkTemplates.map(fw => (
+                            <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
               </div>
             )}
 

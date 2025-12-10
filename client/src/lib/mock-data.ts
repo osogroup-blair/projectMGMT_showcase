@@ -6,7 +6,7 @@ export interface Project {
   status: "Upcoming" | "In Progress" | "Completed" | "On Hold" | "Archived" | "Overdue";
   deadline: string;
   progress?: number;
-  defaultStageTemplateId?: string;
+  defaultStageTemplateId?: string; // This should now point to a FrameworkTemplate
   defaultMappingTemplateId?: string;
   permissions?: Record<string, any>;
 }
@@ -165,11 +165,20 @@ export interface ProjectStage {
   status: "completed" | "active" | "pending";
 }
 
+// Renamed from StageTemplate to FrameworkTemplate to better reflect its purpose
+export interface FrameworkTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  defaultStages: string[]; // List of StageTemplate IDs
+}
+
+// New Interface for Individual Stage Templates
 export interface StageTemplate {
   id: string;
   name: string;
   description?: string;
-  defaultStages: Partial<ProjectStage>[];
+  defaultTasks: string[]; // List of TaskTemplate IDs
 }
 
 export interface MappingTemplate {
@@ -178,12 +187,12 @@ export interface MappingTemplate {
   dataType: string;
 }
 
-// New Template Interfaces
+// Template Interfaces
 export interface ProjectTemplate {
   id: string;
   name: string;
   description: string;
-  defaultStages: string[]; // stage template IDs
+  defaultStages?: string[]; // Kept for legacy support, but should reference Frameworks ideally
   defaultRoles: string[]; // role template IDs
   defaultDeliverables?: string[]; // deliverable template IDs
   thumbnail?: string;
@@ -200,7 +209,7 @@ export interface EpicTemplate {
   id: string;
   title: string;
   description: string;
-  defaultTasks: string[]; // task template IDs
+  defaultFramework: string; // Framework Template ID
 }
 
 export interface TaskTemplate {
@@ -213,7 +222,7 @@ export interface TaskTemplate {
 }
 
 export const PROJECTS: Project[] = [
-  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, defaultStageTemplateId: "st1", defaultMappingTemplateId: "mt1" },
+  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, defaultStageTemplateId: "ft1", defaultMappingTemplateId: "mt1" },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
   { id: "3", name: "Kraft HR", status: "On Hold", deadline: "11/30", progress: 30 },
   { id: "4", name: "SDMP Internal Project", status: "Completed", deadline: "Yesterday", progress: 100 },
@@ -730,40 +739,31 @@ export const GUIDANCE_ITEMS: GuidanceItem[] = [
 ];
 
 export const STAGE_TEMPLATES: StageTemplate[] = [
+  { id: "st_discovery", name: "Discovery Phase", defaultTasks: ["tt1", "tt2"] },
+  { id: "st_design", name: "Design Phase", defaultTasks: ["tt4"] },
+  { id: "st_dev", name: "Development Phase", defaultTasks: ["tt3"] },
+  { id: "st_qa", name: "QA Phase", defaultTasks: [] },
+  { id: "st_launch", name: "Launch Phase", defaultTasks: [] }
+];
+
+export const FRAMEWORK_TEMPLATES: FrameworkTemplate[] = [
   { 
-    id: "st1", 
+    id: "ft1", 
     name: "Standard Software Development",
     description: "Standard agile workflow for software projects",
-    defaultStages: [
-      { name: "Discovery", order: 1, type: "planning" },
-      { name: "Design", order: 2, type: "execution" },
-      { name: "Development", order: 3, type: "execution" },
-      { name: "QA & Testing", order: 4, type: "review" },
-      { name: "Launch", order: 5, type: "delivery" }
-    ]
+    defaultStages: ["st_discovery", "st_design", "st_dev", "st_qa", "st_launch"]
   },
   { 
-    id: "st2", 
+    id: "ft2", 
     name: "Marketing Campaign",
     description: "Workflow for digital and print marketing campaigns",
-    defaultStages: [
-      { name: "Concept", order: 1, type: "planning" },
-      { name: "Content Creation", order: 2, type: "execution" },
-      { name: "Review", order: 3, type: "review" },
-      { name: "Publish", order: 4, type: "delivery" }
-    ]
+    defaultStages: ["st_discovery", "st_design", "st_launch"]
   },
   { 
-    id: "st3", 
+    id: "ft3", 
     name: "Construction Project",
     description: "Phased workflow for physical construction",
-    defaultStages: [
-      { name: "Planning", order: 1, type: "planning" },
-      { name: "Foundation", order: 2, type: "execution" },
-      { name: "Framing", order: 3, type: "execution" },
-      { name: "Finishing", order: 4, type: "execution" },
-      { name: "Inspection", order: 5, type: "review" }
-    ]
+    defaultStages: ["st_discovery", "st_dev", "st_qa"] // Simplified for mock
   },
 ];
 
@@ -772,7 +772,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
     id: "pt1",
     name: "Web Application",
     description: "Full-stack web application with standard SDLC stages",
-    defaultStages: ["st1"],
+    defaultStages: [],
     defaultRoles: ["rt1", "rt2"],
     defaultDeliverables: ["dt1"],
     thumbnail: "web-app"
@@ -781,7 +781,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
     id: "pt2",
     name: "Marketing Launch",
     description: "Product launch campaign template",
-    defaultStages: ["st2"],
+    defaultStages: [],
     defaultRoles: ["rt3"],
     defaultDeliverables: ["dt2"],
     thumbnail: "marketing"
@@ -808,19 +808,19 @@ export const EPIC_TEMPLATES: EpicTemplate[] = [
     id: "et1",
     title: "User Authentication",
     description: "Setup login, registration, and password recovery",
-    defaultTasks: ["tt1", "tt2"]
+    defaultFramework: "ft1"
   },
   {
     id: "et2",
     title: "Dashboard Setup",
     description: "Main user dashboard with key metrics",
-    defaultTasks: ["tt3"]
+    defaultFramework: "ft1"
   },
   {
     id: "et3",
     title: "Component Library",
     description: "Core UI components implementation",
-    defaultTasks: ["tt4"]
+    defaultFramework: "ft2"
   }
 ];
 
