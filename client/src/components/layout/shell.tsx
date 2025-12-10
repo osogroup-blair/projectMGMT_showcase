@@ -1,5 +1,6 @@
 import { TopNav } from "./top-nav";
 import { SubNav } from "./sub-nav";
+import { BreadcrumbNav } from "./breadcrumb-nav";
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -7,11 +8,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <TopNav />
       <div className="flex flex-1 min-w-0">
         <SubNav />
-        <main className="flex-1 overflow-auto">
-          <div className="p-6 mx-auto max-w-7xl space-y-8">
-            {children}
-          </div>
-        </main>
+        <div className="flex-1 flex flex-col min-w-0">
+          <BreadcrumbNav />
+          <main className="flex-1 overflow-auto">
+            <div className="p-6 mx-auto max-w-7xl space-y-8">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
