@@ -110,15 +110,26 @@ export default function AdminTemplates() {
   const [currentTemplate, setCurrentTemplate] = useState<any>(null);
   const [currentType, setCurrentType] = useState<"project" | "framework" | "stage" | "deliverable" | "epic" | "task" | "role">("project");
 
+  const [selectedFrameworkFilter, setSelectedFrameworkFilter] = useState<string>("all");
+
   // Form State (Generic)
   const [formData, setFormData] = useState<any>({});
 
   const filterTemplates = (templates: any[]) => {
-    return templates.filter(t => 
+    let filtered = templates.filter(t => 
       t.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
       t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    if (activeTab === 'stages' && selectedFrameworkFilter !== 'all') {
+      const framework = frameworkTemplates.find(f => f.id === selectedFrameworkFilter);
+      if (framework) {
+        filtered = filtered.filter(t => framework.defaultStages.includes(t.id));
+      }
+    }
+
+    return filtered;
   };
 
   // CRUD Handlers
@@ -130,7 +141,12 @@ export default function AdminTemplates() {
     const initialData: any = { description: "" };
     if (type === "project") { initialData.name = ""; initialData.defaultRoles = []; initialData.defaultDeliverables = []; initialData.defaultFrameworkId = ""; }
     if (type === "framework") { initialData.name = ""; initialData.defaultStages = []; }
-    if (type === "stage") { initialData.name = ""; initialData.defaultTasks = []; }
+    if (type === "stage") { 
+      initialData.name = ""; 
+      initialData.defaultTasks = []; 
+      // Initialize assigned frameworks for new stage
+      initialData.assignedFrameworks = selectedFrameworkFilter !== 'all' ? [selectedFrameworkFilter] : [];
+    }
     if (type === "deliverable") { initialData.title = ""; initialData.defaultEpics = []; }
     if (type === "epic") { initialData.title = ""; initialData.defaultStages = []; }
     if (type === "task") {
@@ -151,7 +167,17 @@ export default function AdminTemplates() {
   const handleEdit = (template: any, type: string) => {
     setCurrentTemplate(template);
     setCurrentType(type as any);
-    setFormData({ ...template });
+    
+    let data = { ...template };
+    
+    // If editing a stage, populate assigned frameworks
+    if (type === 'stage') {
+      data.assignedFrameworks = frameworkTemplates
+        .filter(f => f.defaultStages.includes(template.id))
+        .map(f => f.id);
+    }
+    
+    setFormData(data);
     setIsEditOpen(true);
   };
 
@@ -175,6 +201,22 @@ export default function AdminTemplates() {
     } else if (currentType === "stage") {
         const list = isNew ? [...stageTemplates, newItem] : stageTemplates.map(t => t.id === newItem.id ? newItem : t);
         setStageTemplates(list);
+        
+        // Update Framework Assignments
+        if (formData.assignedFrameworks) {
+          const updatedFrameworks = frameworkTemplates.map(fw => {
+            const shouldHaveStage = formData.assignedFrameworks.includes(fw.id);
+            const hasStage = fw.defaultStages.includes(newItem.id);
+            
+            if (shouldHaveStage && !hasStage) {
+              return { ...fw, defaultStages: [...fw.defaultStages, newItem.id] };
+            } else if (!shouldHaveStage && hasStage) {
+              return { ...fw, defaultStages: fw.defaultStages.filter(id => id !== newItem.id) };
+            }
+            return fw;
+          });
+          setFrameworkTemplates(updatedFrameworks);
+        }
     } else if (currentType === "deliverable") {
         const list = isNew ? [...deliverableTemplates, newItem] : deliverableTemplates.map(t => t.id === newItem.id ? newItem : t);
         setDeliverableTemplates(list);
@@ -397,6 +439,34 @@ export default function AdminTemplates() {
             </TabsContent>
 
             <TabsContent value="stages" className="space-y-6">
+              <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
+                 <Workflow className="h-4 w-4 text-muted-foreground" />
+                 <span className="text-sm font-medium">Filter by Framework:</span>
+                 <Select 
+                    value={selectedFrameworkFilter} 
+                    onValueChange={setSelectedFrameworkFilter}
+                 >
+                    <SelectTrigger className="w-[250px] h-8 text-xs">
+                      <SelectValue placeholder="All Frameworks" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Frameworks</SelectItem>
+                      {frameworkTemplates.map(fw => (
+                        <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                 </Select>
+                 {selectedFrameworkFilter !== 'all' && (
+                   <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 text-xs ml-auto text-muted-foreground hover:text-foreground"
+                    onClick={() => setSelectedFrameworkFilter('all')}
+                   >
+                     Clear Filter
+                   </Button>
+                 )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filterTemplates(stageTemplates).map(t => (
                   <TemplateCard 
@@ -662,27 +732,52 @@ export default function AdminTemplates() {
 
             {/* Stage Specific Fields */}
             {currentType === 'stage' && (
-              <div className="space-y-3 pt-2">
-                <Label>Default Tasks</Label>
-                <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
-                  {taskTemplates.map(item => (
-                    <div key={item.id} className="flex items-center space-x-2">
-                      <div 
-                        className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
-                          formData.defaultTasks?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
-                        )}
-                        onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}
-                      >
-                        {formData.defaultTasks?.includes(item.id) && <Check className="w-3 h-3" />}
+              <div className="space-y-6 pt-2">
+                <div className="space-y-3">
+                  <Label>Assigned Frameworks</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                    {frameworkTemplates.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <div 
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                            formData.assignedFrameworks?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                          )}
+                          onClick={() => toggleSelection(formData.assignedFrameworks || [], item.id, 'assignedFrameworks')}
+                        >
+                          {formData.assignedFrameworks?.includes(item.id) && <Check className="w-3 h-3" />}
+                        </div>
+                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.assignedFrameworks || [], item.id, 'assignedFrameworks')}>
+                          {item.name}
+                        </Label>
                       </div>
-                      <div className="flex-1 cursor-pointer" onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}>
-                        <Label className="font-normal cursor-pointer block">{item.title}</Label>
-                        <span className="text-[10px] text-muted-foreground">{item.requiredRole} • {item.defaultEstimateHours}h</span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Select which frameworks include this stage by default.</p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Default Tasks</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                    {taskTemplates.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <div 
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                            formData.defaultTasks?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                          )}
+                          onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}
+                        >
+                          {formData.defaultTasks?.includes(item.id) && <Check className="w-3 h-3" />}
+                        </div>
+                        <div className="flex-1 cursor-pointer" onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}>
+                          <Label className="font-normal cursor-pointer block">{item.title}</Label>
+                          <span className="text-[10px] text-muted-foreground">{item.requiredRole} • {item.defaultEstimateHours}h</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  {taskTemplates.length === 0 && <span className="text-xs text-muted-foreground p-2">No tasks available</span>}
+                    ))}
+                    {taskTemplates.length === 0 && <span className="text-xs text-muted-foreground p-2">No tasks available</span>}
+                  </div>
                 </div>
               </div>
             )}
