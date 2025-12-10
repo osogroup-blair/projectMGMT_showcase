@@ -739,7 +739,22 @@ export default function AdminTemplates() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label>Required Role</Label>
+                            <Label>Assigned Role</Label>
+                            <Select 
+                                value={currentTask.assignedRoleId} 
+                                onValueChange={(val) => setCurrentTask({...currentTask, assignedRoleId: val})}
+                            >
+                                <SelectTrigger><SelectValue placeholder="Select a role..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                                    {roleTemplates.map(role => (
+                                        <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Required Role Type (Fallback)</Label>
                             <Select 
                                 value={currentTask.requiredRole} 
                                 onValueChange={(val) => setCurrentTask({...currentTask, requiredRole: val})}
@@ -788,6 +803,8 @@ export default function AdminTemplates() {
                                 {formData.defaultTasks.map((taskId: string) => {
                                     const task = taskTemplates.find(t => t.id === taskId);
                                     if (!task) return null;
+                                    const assignedRoleName = task.assignedRoleId ? roleTemplates.find(r => r.id === task.assignedRoleId)?.name : null;
+                                    
                                     return (
                                         <div key={taskId} className="flex items-center justify-between p-3 border rounded-md bg-muted/10 group hover:bg-muted/20 transition-colors">
                                             <div>
@@ -796,7 +813,7 @@ export default function AdminTemplates() {
                                                     <Badge variant="outline" className="h-5 px-1.5 text-[10px]">{task.defaultPriority}</Badge>
                                                     <span>{task.defaultEstimateHours}h</span>
                                                     <span>•</span>
-                                                    <span>{task.requiredRole}</span>
+                                                    <span>{assignedRoleName || task.requiredRole}</span>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -826,29 +843,6 @@ export default function AdminTemplates() {
                         )}
                     </div>
                   )}
-                </div>
-
-                <div className="space-y-3">
-                  <Label>Required Roles</Label>
-                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
-                    {roleTemplates.map(item => (
-                      <div key={item.id} className="flex items-center space-x-2">
-                        <div 
-                          className={cn(
-                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
-                            formData.defaultRoles?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
-                          )}
-                          onClick={() => toggleSelection(formData.defaultRoles || [], item.id, 'defaultRoles')}
-                        >
-                          {formData.defaultRoles?.includes(item.id) && <Check className="w-3 h-3" />}
-                        </div>
-                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultRoles || [], item.id, 'defaultRoles')}>
-                          {item.name}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">Select roles that are required for this stage.</p>
                 </div>
               </div>
             )}
