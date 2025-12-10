@@ -94,7 +94,7 @@ const SCHEMA_DEFINITIONS = [
   },
   {
     sheet: "Tasks",
-    columns: ["id", "project_id", "deliverable_id", "epic_id", "stage_id", "title", "description", "status", "assignee_id", "deadline", "priority", "estimate_hours", "milestone_id", "tags"]
+    columns: ["id", "project_id", "deliverable_id", "epic_id", "stage_id", "epic_stage_id", "title", "description", "status", "assignee_id", "deadline", "priority", "estimate_hours", "milestone_id", "tags"]
   },
   {
     sheet: "Milestones",
@@ -227,6 +227,7 @@ export default function ProjectExport() {
       deliverable_id: EPICS.find(e => e.id === t.epicId)?.deliverableId,
       epic_id: t.epicId,
       stage_id: t.stageId,
+      epic_stage_id: t.epicId && t.stageId ? `${t.epicId}_${t.stageId}` : null,
       title: t.title,
       description: t.description,
       status: t.status,
