@@ -54,6 +54,36 @@ export interface Milestone {
   requiredCompletionRatio: number;
 }
 
+export interface Comment {
+  id: string;
+  taskId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface Attachment {
+  id: string;
+  taskId: string;
+  fileName: string;
+  url: string;
+  fileType: string;
+  size: string;
+  uploadedAt: string;
+  uploadedBy: string;
+}
+
+export interface History {
+  id: string;
+  taskId: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+  changedAt: string;
+  changedBy: string;
+}
+
 export const PROJECTS: Project[] = [
   { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65 },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
@@ -76,7 +106,7 @@ export const TASKS: Task[] = [
   { 
     id: "1", 
     title: "Code Review", 
-    description: "Review pull requests for the authentication module.",
+    description: "Review pull requests for the authentication module. Focus on security vulnerabilities and code style consistency.",
     project: "Quality Matters", 
     stageId: "s3",
     status: "Review", 
@@ -90,7 +120,7 @@ export const TASKS: Task[] = [
   { 
     id: "2", 
     title: "Feature Implementation", 
-    description: "Implement the new dashboard widgets as per design.",
+    description: "Implement the new dashboard widgets as per design. Ensure responsiveness on mobile devices.",
     project: "Houlihan Lokey", 
     stageId: "s3",
     status: "In Progress", 
@@ -104,7 +134,7 @@ export const TASKS: Task[] = [
   { 
     id: "3", 
     title: "Bug Fixing", 
-    description: "Fix the reported crash on the user profile page.",
+    description: "Fix the reported crash on the user profile page when uploading large avatars.",
     project: "Kraft HR", 
     stageId: "s4",
     status: "Todo", 
@@ -118,7 +148,7 @@ export const TASKS: Task[] = [
   { 
     id: "4", 
     title: "System Optimization", 
-    description: "Optimize database queries for faster load times.",
+    description: "Optimize database queries for faster load times on the reports page.",
     project: "Colgate-Palmolive", 
     stageId: "s3",
     status: "Todo", 
@@ -132,7 +162,7 @@ export const TASKS: Task[] = [
   { 
     id: "5", 
     title: "API Development", 
-    description: "Create REST endpoints for the mobile app.",
+    description: "Create REST endpoints for the mobile app to fetch user settings.",
     project: "Houlihan Lokey", 
     stageId: "s3",
     status: "Todo", 
@@ -146,7 +176,7 @@ export const TASKS: Task[] = [
   { 
     id: "6", 
     title: "Testing and QA", 
-    description: "Run regression tests before the release.",
+    description: "Run regression tests before the release. Document any failures in JIRA.",
     project: "Kraft", 
     stageId: "s4",
     status: "Todo", 
@@ -160,7 +190,7 @@ export const TASKS: Task[] = [
   { 
     id: "7", 
     title: "Design System Update", 
-    description: "Update the color palette in the design system.",
+    description: "Update the color palette in the design system to match the new brand guidelines.",
     project: "Houlihan Lokey", 
     stageId: "s2",
     status: "Done", 
@@ -174,7 +204,7 @@ export const TASKS: Task[] = [
   { 
     id: "8", 
     title: "Client Meeting Prep", 
-    description: "Prepare slides for the weekly status update.",
+    description: "Prepare slides for the weekly status update. Include metrics on velocity and burn-down.",
     project: "Houlihan Lokey", 
     stageId: "s1",
     status: "Done", 
@@ -285,3 +315,66 @@ export const STATS = {
   milestones: 8,
   projectRisks: 2,
 };
+
+export const COMMENTS: Comment[] = [
+  {
+    id: "c1",
+    taskId: "1",
+    authorId: "5",
+    authorName: "Jason Roberts",
+    body: "I've reviewed the initial PR. There are a few security concerns around the token handling. Please check my comments in the review.",
+    createdAt: "2023-11-20T10:30:00Z"
+  },
+  {
+    id: "c2",
+    taskId: "1",
+    authorId: "6",
+    authorName: "Nigel Wong",
+    body: "Thanks Jason. I'll address those and push a new commit by EOD.",
+    createdAt: "2023-11-20T11:15:00Z"
+  }
+];
+
+export const ATTACHMENTS: Attachment[] = [
+  {
+    id: "a1",
+    taskId: "2",
+    fileName: "dashboard-mockup-v2.fig",
+    url: "#",
+    fileType: "Figma",
+    size: "12 MB",
+    uploadedAt: "2023-11-18T14:20:00Z",
+    uploadedBy: "Susan Smith"
+  },
+  {
+    id: "a2",
+    taskId: "2",
+    fileName: "requirements-spec.pdf",
+    url: "#",
+    fileType: "PDF",
+    size: "2.4 MB",
+    uploadedAt: "2023-11-15T09:00:00Z",
+    uploadedBy: "Joy Mason"
+  }
+];
+
+export const HISTORY: History[] = [
+  {
+    id: "h1",
+    taskId: "1",
+    field: "Status",
+    oldValue: "In Progress",
+    newValue: "Review",
+    changedAt: "2023-11-20T10:00:00Z",
+    changedBy: "Nigel Wong"
+  },
+  {
+    id: "h2",
+    taskId: "1",
+    field: "Priority",
+    oldValue: "Medium",
+    newValue: "High",
+    changedAt: "2023-11-19T16:45:00Z",
+    changedBy: "Joy Mason"
+  }
+];

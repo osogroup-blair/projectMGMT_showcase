@@ -54,7 +54,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { PROJECTS, TASKS, TEAM, MILESTONES, Task } from "@/lib/mock-data";
@@ -76,6 +76,7 @@ const PRIORITY_CONFIG = {
 
 export default function TaskBoard() {
   const [match, params] = useRoute("/projects/:projectId/tasks");
+  const [, setLocation] = useLocation();
   const projectId = params?.projectId || "1";
   const project = PROJECTS.find(p => p.id === projectId) || PROJECTS[0];
   const { toast } = useToast();
@@ -120,9 +121,7 @@ export default function TaskBoard() {
   };
 
   const handleOpenEdit = (task: Task) => {
-    setEditingTask(task);
-    setFormData({ ...task });
-    setIsDialogOpen(true);
+    setLocation(`/projects/${projectId}/tasks/${task.id}`);
   };
 
   const handleSave = () => {
