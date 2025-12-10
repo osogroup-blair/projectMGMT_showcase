@@ -42,7 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useRoute } from "wouter";
+import { useRoute, Link } from "wouter";
 import { 
   PROJECT_ROLES, 
   ROLE_ASSIGNMENTS, 
@@ -112,10 +112,12 @@ export default function ProjectTeam() {
             <p className="text-muted-foreground">Manage project team structure and role assignments.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2">
-              <Shield className="h-4 w-4" />
-              Manage Roles
-            </Button>
+            <Link href={`/projects/${projectId}/roles`}>
+              <Button variant="outline" className="gap-2">
+                <Shield className="h-4 w-4" />
+                Manage Roles
+              </Button>
+            </Link>
             <Button className="gap-2">
               <UserPlus className="h-4 w-4" />
               Add Member

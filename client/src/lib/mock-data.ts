@@ -103,6 +103,14 @@ export interface RoleAssignment {
   allocationPercent: number;
 }
 
+export interface RoleTemplate {
+  id: string;
+  name: string;
+  description: string;
+  defaultRoleType: "Technical" | "Management" | "Design" | "Strategy";
+  defaultPermissions: string[];
+}
+
 export const PROJECTS: Project[] = [
   { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65 },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
@@ -452,4 +460,28 @@ export const ROLE_ASSIGNMENTS: RoleAssignment[] = [
   { id: "ra4", roleId: "r4", userId: "1", isPrimary: true, allocationPercent: 20 },  // Joy Mason -> Product Owner
   { id: "ra5", roleId: "r2", userId: "6", isPrimary: false, allocationPercent: 50 }, // Nigel Wong -> Designer (Secondary)
   { id: "ra6", roleId: "r5", userId: "7", isPrimary: true, allocationPercent: 100 }, // Steven Ahmed -> QA
+];
+
+export const ROLE_TEMPLATES: RoleTemplate[] = [
+  {
+    id: "rt1",
+    name: "Scrum Master",
+    description: "Facilitator for an agile development team.",
+    defaultRoleType: "Management",
+    defaultPermissions: ["manage_sprints", "resolve_blockers"]
+  },
+  {
+    id: "rt2",
+    name: "DevOps Engineer",
+    description: "Responsible for CI/CD pipelines and infrastructure.",
+    defaultRoleType: "Technical",
+    defaultPermissions: ["manage_infra", "deploy_production"]
+  },
+  {
+    id: "rt3",
+    name: "Business Analyst",
+    description: "Analyzes business needs and documents requirements.",
+    defaultRoleType: "Strategy",
+    defaultPermissions: ["write_requirements", "create_user_stories"]
+  }
 ];
