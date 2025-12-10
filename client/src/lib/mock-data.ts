@@ -6,7 +6,7 @@ export interface Project {
   status: "Upcoming" | "In Progress" | "Completed" | "On Hold" | "Archived" | "Overdue";
   deadline: string;
   progress?: number;
-  defaultStageTemplateId?: string; // This should now point to a FrameworkTemplate
+  frameworkId?: string; 
   defaultMappingTemplateId?: string;
   permissions?: Record<string, any>;
 }
@@ -32,7 +32,7 @@ export interface Epic {
   startDate: string;
   endDate: string;
   progress: number;
-  frameworkId?: string; // Links to a FrameworkTemplate
+  stageIds: string[]; // Specific stages assigned to this epic (that generate tasks)
 }
 
 export interface Task {
@@ -166,7 +166,6 @@ export interface ProjectStage {
   status: "completed" | "active" | "pending";
 }
 
-// Renamed from StageTemplate to FrameworkTemplate to better reflect its purpose
 export interface FrameworkTemplate {
   id: string;
   name: string;
@@ -174,7 +173,6 @@ export interface FrameworkTemplate {
   defaultStages: string[]; // List of StageTemplate IDs
 }
 
-// New Interface for Individual Stage Templates
 export interface StageTemplate {
   id: string;
   name: string;
@@ -193,7 +191,7 @@ export interface ProjectTemplate {
   id: string;
   name: string;
   description: string;
-  defaultStages?: string[]; // Kept for legacy support, but should reference Frameworks ideally
+  defaultFrameworkId: string; // The framework defines the project structure
   defaultRoles: string[]; // role template IDs
   defaultDeliverables?: string[]; // deliverable template IDs
   thumbnail?: string;
@@ -210,7 +208,7 @@ export interface EpicTemplate {
   id: string;
   title: string;
   description: string;
-  defaultFramework: string; // Framework Template ID
+  defaultStages: string[]; // List of StageTemplate IDs that this epic will populate
 }
 
 export interface TaskTemplate {
@@ -223,11 +221,11 @@ export interface TaskTemplate {
 }
 
 export const PROJECTS: Project[] = [
-  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, defaultStageTemplateId: "ft1", defaultMappingTemplateId: "mt1" },
-  { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
-  { id: "3", name: "Kraft HR", status: "On Hold", deadline: "11/30", progress: 30 },
-  { id: "4", name: "SDMP Internal Project", status: "Completed", deadline: "Yesterday", progress: 100 },
-  { id: "5", name: "Quality Matters", status: "Overdue", deadline: "Yesterday", progress: 85 },
+  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, frameworkId: "ft1", defaultMappingTemplateId: "mt1" },
+  { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0, frameworkId: "ft1" },
+  { id: "3", name: "Kraft HR", status: "On Hold", deadline: "11/30", progress: 30, frameworkId: "ft1" },
+  { id: "4", name: "SDMP Internal Project", status: "Completed", deadline: "Yesterday", progress: 100, frameworkId: "ft2" },
+  { id: "5", name: "Quality Matters", status: "Overdue", deadline: "Yesterday", progress: 85, frameworkId: "ft3" },
 ];
 
 export const DELIVERABLES: Deliverable[] = [
@@ -274,7 +272,7 @@ export const EPICS: Epic[] = [
     startDate: "2023-11-01", 
     endDate: "2024-01-15",
     progress: 60,
-    frameworkId: "ft1"
+    stageIds: ["st_design", "st_dev", "st_qa"]
   },
   { 
     id: "e2", 
@@ -286,7 +284,7 @@ export const EPICS: Epic[] = [
     startDate: "2024-01-01", 
     endDate: "2024-02-28",
     progress: 0,
-    frameworkId: "ft1"
+    stageIds: ["st_dev", "st_qa"]
   },
   { 
     id: "e3", 
@@ -298,7 +296,7 @@ export const EPICS: Epic[] = [
     startDate: "2023-10-01", 
     endDate: "2023-11-15",
     progress: 100,
-    frameworkId: "ft2"
+    stageIds: ["st_discovery"]
   }
 ];
 
@@ -776,7 +774,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
     id: "pt1",
     name: "Web Application",
     description: "Full-stack web application with standard SDLC stages",
-    defaultStages: [],
+    defaultFrameworkId: "ft1",
     defaultRoles: ["rt1", "rt2"],
     defaultDeliverables: ["dt1"],
     thumbnail: "web-app"
@@ -785,7 +783,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
     id: "pt2",
     name: "Marketing Launch",
     description: "Product launch campaign template",
-    defaultStages: [],
+    defaultFrameworkId: "ft2",
     defaultRoles: ["rt3"],
     defaultDeliverables: ["dt2"],
     thumbnail: "marketing"
@@ -812,19 +810,19 @@ export const EPIC_TEMPLATES: EpicTemplate[] = [
     id: "et1",
     title: "User Authentication",
     description: "Setup login, registration, and password recovery",
-    defaultFramework: "ft1"
+    defaultStages: ["st_dev", "st_qa"]
   },
   {
     id: "et2",
     title: "Dashboard Setup",
     description: "Main user dashboard with key metrics",
-    defaultFramework: "ft1"
+    defaultStages: ["st_design", "st_dev"]
   },
   {
     id: "et3",
     title: "Component Library",
     description: "Core UI components implementation",
-    defaultFramework: "ft2"
+    defaultStages: ["st_design", "st_dev", "st_qa"]
   }
 ];
 

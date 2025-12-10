@@ -50,10 +50,9 @@ export default function EpicDetail() {
   const tasks = TASKS.filter(t => t.epicId === epicId);
   const owner = TEAM.find(t => t.id === epic.ownerId);
 
-  // Get Framework and Stages
-  const framework = FRAMEWORK_TEMPLATES.find(f => f.id === epic.frameworkId);
-  const frameworkStages = framework 
-    ? STAGE_TEMPLATES.filter(s => framework.defaultStages.includes(s.id))
+  // Get Assigned Stages directly from the Epic
+  const epicStages = epic.stageIds
+    ? STAGE_TEMPLATES.filter(s => epic.stageIds.includes(s.id))
     : [];
 
   const getAssignee = (id?: string) => TEAM.find(u => u.id === id);
@@ -145,13 +144,13 @@ export default function EpicDetail() {
             <Card className="bg-muted/20 border-none shadow-none">
               <CardContent className="p-3 flex items-center justify-between">
                 <div>
-                  <div className="text-xs text-muted-foreground">Framework</div>
-                  <div className="text-sm font-medium truncate max-w-[120px]" title={framework?.name || "None"}>
-                    {framework?.name || "No Framework"}
+                  <div className="text-xs text-muted-foreground">Active Stages</div>
+                  <div className="text-sm font-medium truncate max-w-[120px]">
+                    {epicStages.length} Stages
                   </div>
                 </div>
                 <div className="h-8 w-8 bg-background rounded-full flex items-center justify-center text-muted-foreground">
-                  <Workflow className="h-4 w-4" />
+                  <Layers className="h-4 w-4" />
                 </div>
               </CardContent>
             </Card>
@@ -171,16 +170,16 @@ export default function EpicDetail() {
           </div>
         </div>
 
-        {/* Tasks grouped by Stage (from Framework) */}
+        {/* Tasks grouped by Stage (from Epic's assigned stages) */}
         <div className="flex-1 min-h-0 border rounded-lg bg-muted/5 overflow-hidden flex flex-col">
           <div className="p-3 border-b bg-background font-medium text-sm flex items-center gap-2">
-            <Workflow className="h-4 w-4 text-muted-foreground" />
-            {framework ? `${framework.name} Workflow` : "Project Workflow"}
+            <Layers className="h-4 w-4 text-muted-foreground" />
+            Epic Workflow
           </div>
           <ScrollArea className="flex-1 p-6">
             <div className="flex gap-6 min-w-max pb-4">
-              {frameworkStages.length > 0 ? (
-                frameworkStages.map((stage, index) => {
+              {epicStages.length > 0 ? (
+                epicStages.map((stage, index) => {
                   const stageTasks = tasks.filter(t => t.stageId === stage.id);
                   
                   return (
@@ -272,9 +271,9 @@ export default function EpicDetail() {
                 })
               ) : (
                 <div className="w-full flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <Workflow className="h-12 w-12 mb-4 opacity-20" />
-                    <h3 className="text-lg font-medium">No Framework Assigned</h3>
-                    <p className="text-sm">This epic doesn't have a framework assigned yet.</p>
+                    <Layers className="h-12 w-12 mb-4 opacity-20" />
+                    <h3 className="text-lg font-medium">No Stages Assigned</h3>
+                    <p className="text-sm">This epic doesn't have any stages assigned yet.</p>
                 </div>
               )}
             </div>

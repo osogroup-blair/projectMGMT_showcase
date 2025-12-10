@@ -128,11 +128,11 @@ export default function AdminTemplates() {
     
     // Initialize empty form data based on type
     const initialData: any = { description: "" };
-    if (type === "project") { initialData.name = ""; initialData.defaultRoles = []; initialData.defaultDeliverables = []; }
+    if (type === "project") { initialData.name = ""; initialData.defaultRoles = []; initialData.defaultDeliverables = []; initialData.defaultFrameworkId = ""; }
     if (type === "framework") { initialData.name = ""; initialData.defaultStages = []; }
     if (type === "stage") { initialData.name = ""; initialData.defaultTasks = []; }
     if (type === "deliverable") { initialData.title = ""; initialData.defaultEpics = []; }
-    if (type === "epic") { initialData.title = ""; initialData.defaultFramework = ""; }
+    if (type === "epic") { initialData.title = ""; initialData.defaultStages = []; }
     if (type === "task") {
         initialData.title = "";
         initialData.defaultPriority = "Medium";
@@ -434,8 +434,8 @@ export default function AdminTemplates() {
                     item={t}
                     type="epic"
                     icon={FileBox}
-                    itemsCount={1}
-                    itemLabel="Framework"
+                    itemsCount={t.defaultStages?.length || 0}
+                    itemLabel="Default Stages"
                   />
                 ))}
               </div>
@@ -574,6 +574,21 @@ export default function AdminTemplates() {
             {currentType === 'project' && (
               <div className="space-y-6 pt-2">
                 <div className="space-y-3">
+                  <Label>Assigned Framework</Label>
+                  <Select 
+                      value={formData.defaultFrameworkId} 
+                      onValueChange={(val) => setFormData({...formData, defaultFrameworkId: val})}
+                  >
+                      <SelectTrigger><SelectValue placeholder="Select a framework" /></SelectTrigger>
+                      <SelectContent>
+                          {frameworkTemplates.map(fw => (
+                              <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-3">
                   <Label>Default Deliverables</Label>
                   <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
                     {deliverableTemplates.map(item => (
@@ -701,18 +716,25 @@ export default function AdminTemplates() {
             {/* Epic Specific Fields */}
             {currentType === 'epic' && (
               <div className="space-y-3 pt-2">
-                <Label>Assigned Framework</Label>
-                <Select 
-                    value={formData.defaultFramework} 
-                    onValueChange={(val) => setFormData({...formData, defaultFramework: val})}
-                >
-                    <SelectTrigger><SelectValue placeholder="Select a framework" /></SelectTrigger>
-                    <SelectContent>
-                        {frameworkTemplates.map(fw => (
-                            <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <Label>Default Stages</Label>
+                <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                  {stageTemplates.map(item => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <div 
+                        className={cn(
+                          "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                          formData.defaultStages?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                        )}
+                        onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}
+                      >
+                        {formData.defaultStages?.includes(item.id) && <Check className="w-3 h-3" />}
+                      </div>
+                      <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}>
+                        {item.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
