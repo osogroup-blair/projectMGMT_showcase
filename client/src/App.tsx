@@ -8,11 +8,14 @@ import NotFound from "@/pages/not-found";
 
 import ProjectsList from "@/pages/projects-list";
 
+import ProjectImport from "@/pages/project-import";
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/projects" component={ProjectsList} />
+      <Route path="/projects/import" component={ProjectImport} />
       <Route component={NotFound} />
     </Switch>
   );
