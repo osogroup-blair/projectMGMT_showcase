@@ -52,6 +52,17 @@ export default function ProjectImport() {
     }
   };
 
+  const loadDemoFile = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const demoFile = new File(
+      ["name,client,start_date,budget,owner\nWebsite Redesign,Acme,2024-01-01,50000,Sarah"], 
+      "Q1_2024_Projects_Import.csv", 
+      { type: "text/csv" }
+    );
+    setFile(demoFile);
+  };
+
   const handleContinue = () => {
     // Mock session ID generation and navigation
     const sessionId = "session_" + Math.random().toString(36).substr(2, 9);
@@ -158,6 +169,9 @@ export default function ProjectImport() {
                     <>
                       <h3 className="font-semibold text-lg">Click or drag file to upload</h3>
                       <p className="text-sm text-muted-foreground mt-1">Maximum file size 50MB</p>
+                      <Button variant="link" size="sm" className="mt-2 text-primary" onClick={loadDemoFile}>
+                        Use Demo CSV
+                      </Button>
                     </>
                   )}
                 </div>

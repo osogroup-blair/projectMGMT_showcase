@@ -89,6 +89,18 @@ export default function ProjectImportMapping() {
     setMappings(initialMappings);
   }, []);
 
+  const handleDemoMapping = () => {
+    // Fill in the remaining unmapped fields for demo purposes
+    const demoMappings = { ...mappings };
+    demoMappings["Start Date"] = "start_date";
+    demoMappings["End Date"] = "end_date";
+    demoMappings["Budget"] = "budget";
+    demoMappings["PM Owner"] = "owner_id";
+    demoMappings["Status"] = "status";
+    demoMappings["Priority"] = "risk_level";
+    setMappings(demoMappings);
+  };
+
   const handleMappingChange = (columnName: string, fieldId: string) => {
     setMappings(prev => ({ ...prev, [columnName]: fieldId }));
   };
@@ -118,6 +130,9 @@ export default function ProjectImportMapping() {
             <p className="text-muted-foreground">Match your file columns to the system fields.</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="ghost" className="text-muted-foreground" onClick={handleDemoMapping}>
+              Auto-Map All
+            </Button>
             <Button variant="outline" onClick={() => setShowSaveTemplate(!showSaveTemplate)}>
               <LayoutTemplate className="mr-2 h-4 w-4" />
               Save as Template
