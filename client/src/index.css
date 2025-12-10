@@ -95,14 +95,15 @@
   --chart-4: 355 86% 71%; /* Salmon */
   --chart-5: 208 22% 49%; /* Slate */
 
-  --sidebar: 0 0% 100%; /* White sidebar to let logo pop */
-  --sidebar-foreground: 228 61% 17%;
-  --sidebar-primary: 228 61% 17%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 191 47% 93%;
-  --sidebar-accent-foreground: 228 61% 17%;
-  --sidebar-border: 211 30% 90%;
-  --sidebar-ring: 228 61% 17%;
+  /* Sidebar - Dark Navy with White Text */
+  --sidebar: 228 61% 17%; /* Deep Navy */
+  --sidebar-foreground: 0 0% 98%; /* White text */
+  --sidebar-primary: 211 55% 70%; /* Sky Blue for active states */
+  --sidebar-primary-foreground: 228 61% 17%; /* Navy text on active */
+  --sidebar-accent: 228 50% 25%; /* Lighter Navy for hover */
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 228 50% 25%; /* Lighter Navy for border */
+  --sidebar-ring: 211 55% 70%;
 }
 
 .dark {

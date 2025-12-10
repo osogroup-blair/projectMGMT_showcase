@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
-import logo from "@assets/nymbl_logo_1765391959711.png";
+import logo from "@assets/image_1765392085901.png";
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -34,11 +34,11 @@ export function Sidebar() {
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input 
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pl-9"
+              className="flex h-9 w-full rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-sidebar-ring disabled:cursor-not-allowed disabled:opacity-50 pl-9 text-sidebar-foreground"
               placeholder="Search..." 
               data-testid="input-search"
             />
-            <kbd className="pointer-events-none absolute right-2.5 top-2.5 inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <kbd className="pointer-events-none absolute right-2.5 top-2.5 inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar-accent px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
               <span className="text-xs">⌘</span>K
             </kbd>
           </div>
@@ -91,15 +91,15 @@ function NavItem({ icon: Icon, label, active, href, badge, className }: any) {
         variant="ghost" 
         className={cn(
           "w-full justify-start gap-3 h-10 font-normal", 
-          active ? "bg-sidebar-accent text-sidebar-primary font-medium shadow-xs" : "text-muted-foreground hover:text-sidebar-foreground",
+          active ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium shadow-xs" : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent",
           className
         )}
         data-testid={`nav-${label.toLowerCase().replace(" ", "-")}`}
       >
-        <Icon className={cn("h-4 w-4", active && "text-sidebar-primary")} />
+        <Icon className={cn("h-4 w-4", active ? "text-sidebar-primary" : "text-muted-foreground")} />
         {label}
         {badge && (
-          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-sidebar-primary/10 text-[10px] font-medium text-sidebar-primary">
+          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-sidebar-primary/20 text-[10px] font-medium text-sidebar-primary">
             {badge}
           </span>
         )}
