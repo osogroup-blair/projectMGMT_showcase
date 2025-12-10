@@ -10,12 +10,15 @@ import ProjectsList from "@/pages/projects-list";
 
 import ProjectImport from "@/pages/project-import";
 
+import ProjectImportMapping from "@/pages/project-import-mapping";
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/projects" component={ProjectsList} />
       <Route path="/projects/import" component={ProjectImport} />
+      <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
       <Route component={NotFound} />
     </Switch>
   );

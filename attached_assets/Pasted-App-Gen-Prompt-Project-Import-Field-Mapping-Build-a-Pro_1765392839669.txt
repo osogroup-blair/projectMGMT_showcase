@@ -1,0 +1,64 @@
+App Gen Prompt – Project Import: Field Mapping
+
+Build a “Project Import – Field Mapping” page at route /projects/import/:sessionId/mapping.
+Load the import session, the file columns, and the list of system fields.
+Let the user map each file column to a system field and optionally save that mapping as a reusable template.
+Include buttons to “Save Mapping”, “Save as Template”, and “Continue to Preview” which navigates to /projects/import/{sessionId}/preview.
+Use the JSON view schema provided.
+
+JSON – Project Import: Field Mapping
+{
+  "id": "project_import_mapping",
+  "name": "Project Import - Field Mapping",
+  "route": "/projects/import/:sessionId/mapping",
+  "primary_entity": "ProjectImportSession",
+  "data_sources": [
+    {
+      "id": "session",
+      "entity": "ProjectImportSession",
+      "endpoint": "/api/project-import/sessions/{{route.sessionId}}",
+      "method": "GET"
+    },
+    {
+      "id": "file_columns",
+      "entity": "ImportFileColumn",
+      "endpoint": "/api/project-import/sessions/{{route.sessionId}}/columns",
+      "method": "GET"
+    },
+    {
+      "id": "system_fields",
+      "entity": "SystemField",
+      "endpoint": "/api/project-import/system-fields",
+      "method": "GET",
+      "params": {
+        "data_type": "{{ProjectImportSession.data_type}}"
+      }
+    }
+  ],
+  "entities": {
+    "ImportFileColumn": [
+      { "id": "name", "label": "Column Name", "type": "string", "source": "name" },
+      { "id": "sample_value", "label": "Sample Value", "type": "string", "source": "sample_value" },
+      { "id": "mapped_field_id", "label": "Mapped Field Id", "type": "string", "source": "mapped_field_id" }
+    ],
+    "SystemField": [
+      { "id": "id", "label": "Field Id", "type": "string", "source": "id" },
+      { "id": "label", "label": "Label", "type": "string", "source": "label" },
+      { "id": "entity", "label": "Entity", "type": "string", "source": "entity" },
+      { "id": "required", "label": "Required", "type": "boolean", "source": "required" }
+    ],
+    "ProjectImportSession": [
+      { "id": "id", "label": "Session Id", "type": "string", "source": "id" },
+      { "id": "data_type", "label": "Data Type", "type": "enum", "source": "data_type" },
+      { "id": "mapping_template_id", "label": "Mapping Template Id", "type": "string", "source": "mapping_template_id" }
+    ]
+  },
+  "filters": [],
+  "actions": [
+    { "id": "save_mapping", "label": "Save Mapping", "type": "mutation", "endpoint": "/api/project-import/sessions/{{route.sessionId}}/mapping", "method": "PUT" },
+    { "id": "save_mapping_template", "label": "Save as Template", "type": "mutation", "endpoint": "/api/project-import/mapping-templates", "method": "POST" },
+    { "id": "continue_to_preview", "label": "Continue to Preview", "type": "navigation", "target_route": "/projects/import/{{route.sessionId}}/preview" }
+  ],
+  "parameters": [],
+  "state": {}
+}
