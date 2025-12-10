@@ -14,7 +14,8 @@ import {
   Trash2,
   Copy,
   ChevronRight,
-  Package
+  Package,
+  Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   PROJECT_TEMPLATES,
   DELIVERABLE_TEMPLATES,
@@ -83,6 +85,7 @@ import {
   RoleTemplate
 } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 export default function AdminTemplates() {
   const { toast } = useToast();
@@ -121,10 +124,10 @@ export default function AdminTemplates() {
     
     // Initialize empty form data based on type
     const initialData: any = { description: "" };
-    if (type === "project") initialData.name = "";
-    if (type === "stage") initialData.name = "";
-    if (type === "deliverable") initialData.title = "";
-    if (type === "epic") initialData.title = "";
+    if (type === "project") { initialData.name = ""; initialData.defaultStages = []; initialData.defaultRoles = []; initialData.defaultDeliverables = []; }
+    if (type === "stage") { initialData.name = ""; initialData.defaultStages = []; }
+    if (type === "deliverable") { initialData.title = ""; initialData.defaultEpics = []; }
+    if (type === "epic") { initialData.title = ""; initialData.defaultTasks = []; }
     if (type === "task") {
         initialData.title = "";
         initialData.defaultPriority = "Medium";
@@ -159,22 +162,22 @@ export default function AdminTemplates() {
     const newItem = { ...formData, id: newId };
 
     if (currentType === "project") {
-        const list = isNew ? [...projectTemplates, { ...newItem, defaultStages: [], defaultRoles: [] }] : projectTemplates.map(t => t.id === newItem.id ? newItem : t);
+        const list = isNew ? [...projectTemplates, newItem] : projectTemplates.map(t => t.id === newItem.id ? newItem : t);
         setProjectTemplates(list);
     } else if (currentType === "stage") {
-        const list = isNew ? [...stageTemplates, { ...newItem, defaultStages: [] }] : stageTemplates.map(t => t.id === newItem.id ? newItem : t);
+        const list = isNew ? [...stageTemplates, newItem] : stageTemplates.map(t => t.id === newItem.id ? newItem : t);
         setStageTemplates(list);
     } else if (currentType === "deliverable") {
-        const list = isNew ? [...deliverableTemplates, { ...newItem, defaultEpics: [] }] : deliverableTemplates.map(t => t.id === newItem.id ? newItem : t);
+        const list = isNew ? [...deliverableTemplates, newItem] : deliverableTemplates.map(t => t.id === newItem.id ? newItem : t);
         setDeliverableTemplates(list);
     } else if (currentType === "epic") {
-        const list = isNew ? [...epicTemplates, { ...newItem, defaultTasks: [] }] : epicTemplates.map(t => t.id === newItem.id ? newItem : t);
+        const list = isNew ? [...epicTemplates, newItem] : epicTemplates.map(t => t.id === newItem.id ? newItem : t);
         setEpicTemplates(list);
     } else if (currentType === "task") {
         const list = isNew ? [...taskTemplates, newItem] : taskTemplates.map(t => t.id === newItem.id ? newItem : t);
         setTaskTemplates(list);
     } else if (currentType === "role") {
-        const list = isNew ? [...roleTemplates, { ...newItem, defaultPermissions: [] }] : roleTemplates.map(t => t.id === newItem.id ? newItem : t);
+        const list = isNew ? [...roleTemplates, newItem] : roleTemplates.map(t => t.id === newItem.id ? newItem : t);
         setRoleTemplates(list);
     }
 
@@ -208,6 +211,13 @@ export default function AdminTemplates() {
       description: "The template has been permanently removed.",
       variant: "destructive"
     });
+  };
+
+  const toggleSelection = (list: string[], item: string, field: string) => {
+    const newList = list.includes(item) 
+      ? list.filter(i => i !== item)
+      : [...list, item];
+    setFormData({ ...formData, [field]: newList });
   };
 
   const TemplateCard = ({ item, type, icon: Icon, itemsCount, itemLabel, badge }: any) => (
@@ -491,7 +501,7 @@ export default function AdminTemplates() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
                 {currentTemplate ? 'Edit' : 'Create'} {currentType.charAt(0).toUpperCase() + currentType.slice(1)} Template
@@ -500,6 +510,7 @@ export default function AdminTemplates() {
               Configure the details for this template below.
             </DialogDescription>
           </DialogHeader>
+          <ScrollArea className="flex-1 pr-4">
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
                 <Label htmlFor="name">
@@ -526,6 +537,131 @@ export default function AdminTemplates() {
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                 />
             </div>
+
+            {/* Project Specific Fields */}
+            {currentType === 'project' && (
+              <div className="space-y-6 pt-2">
+                <div className="space-y-3">
+                  <Label>Default Deliverables</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                    {deliverableTemplates.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <div 
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                            formData.defaultDeliverables?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                          )}
+                          onClick={() => toggleSelection(formData.defaultDeliverables || [], item.id, 'defaultDeliverables')}
+                        >
+                          {formData.defaultDeliverables?.includes(item.id) && <Check className="w-3 h-3" />}
+                        </div>
+                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultDeliverables || [], item.id, 'defaultDeliverables')}>
+                          {item.title}
+                        </Label>
+                      </div>
+                    ))}
+                    {deliverableTemplates.length === 0 && <span className="text-xs text-muted-foreground p-2">No deliverables available</span>}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Default Roles</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                    {roleTemplates.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <div 
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                            formData.defaultRoles?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                          )}
+                          onClick={() => toggleSelection(formData.defaultRoles || [], item.id, 'defaultRoles')}
+                        >
+                          {formData.defaultRoles?.includes(item.id) && <Check className="w-3 h-3" />}
+                        </div>
+                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultRoles || [], item.id, 'defaultRoles')}>
+                          {item.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Default Stages</Label>
+                  <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                    {stageTemplates.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <div 
+                          className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                            formData.defaultStages?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                          )}
+                          onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}
+                        >
+                          {formData.defaultStages?.includes(item.id) && <Check className="w-3 h-3" />}
+                        </div>
+                        <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultStages || [], item.id, 'defaultStages')}>
+                          {item.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Deliverable Specific Fields */}
+            {currentType === 'deliverable' && (
+              <div className="space-y-3 pt-2">
+                <Label>Default Epics</Label>
+                <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                  {epicTemplates.map(item => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <div 
+                        className={cn(
+                          "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                          formData.defaultEpics?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                        )}
+                        onClick={() => toggleSelection(formData.defaultEpics || [], item.id, 'defaultEpics')}
+                      >
+                        {formData.defaultEpics?.includes(item.id) && <Check className="w-3 h-3" />}
+                      </div>
+                      <Label className="font-normal cursor-pointer flex-1" onClick={() => toggleSelection(formData.defaultEpics || [], item.id, 'defaultEpics')}>
+                        {item.title}
+                      </Label>
+                    </div>
+                  ))}
+                  {epicTemplates.length === 0 && <span className="text-xs text-muted-foreground p-2">No epics available</span>}
+                </div>
+              </div>
+            )}
+
+            {/* Epic Specific Fields */}
+            {currentType === 'epic' && (
+              <div className="space-y-3 pt-2">
+                <Label>Default Tasks</Label>
+                <div className="grid grid-cols-1 gap-2 border rounded-md p-2 bg-muted/30">
+                  {taskTemplates.map(item => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                      <div 
+                        className={cn(
+                          "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                          formData.defaultTasks?.includes(item.id) ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                        )}
+                        onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}
+                      >
+                        {formData.defaultTasks?.includes(item.id) && <Check className="w-3 h-3" />}
+                      </div>
+                      <div className="flex-1 cursor-pointer" onClick={() => toggleSelection(formData.defaultTasks || [], item.id, 'defaultTasks')}>
+                        <Label className="font-normal cursor-pointer block">{item.title}</Label>
+                        <span className="text-[10px] text-muted-foreground">{item.requiredRole} • {item.defaultEstimateHours}h</span>
+                      </div>
+                    </div>
+                  ))}
+                  {taskTemplates.length === 0 && <span className="text-xs text-muted-foreground p-2">No tasks available</span>}
+                </div>
+              </div>
+            )}
 
             {/* Task Specific Fields */}
             {currentType === 'task' && (
@@ -562,6 +698,7 @@ export default function AdminTemplates() {
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="Management">Management</SelectItem>
+                                <SelectItem value="Discovery">Discovery</SelectItem>
                                 <SelectItem value="Design">Design</SelectItem>
                                 <SelectItem value="Development">Development</SelectItem>
                                 <SelectItem value="QA & Testing">QA & Testing</SelectItem>
@@ -592,7 +729,8 @@ export default function AdminTemplates() {
                 </div>
             )}
           </div>
-          <DialogFooter>
+          </ScrollArea>
+          <DialogFooter className="pt-4 border-t mt-auto">
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
             <Button onClick={handleSave}>Save Template</Button>
           </DialogFooter>

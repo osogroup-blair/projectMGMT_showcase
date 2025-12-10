@@ -185,6 +185,7 @@ export interface ProjectTemplate {
   description: string;
   defaultStages: string[]; // stage template IDs
   defaultRoles: string[]; // role template IDs
+  defaultDeliverables?: string[]; // deliverable template IDs
   thumbnail?: string;
 }
 
@@ -773,6 +774,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
     description: "Full-stack web application with standard SDLC stages",
     defaultStages: ["st1"],
     defaultRoles: ["rt1", "rt2"],
+    defaultDeliverables: ["dt1"],
     thumbnail: "web-app"
   },
   {
@@ -781,6 +783,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
     description: "Product launch campaign template",
     defaultStages: ["st2"],
     defaultRoles: ["rt3"],
+    defaultDeliverables: ["dt2"],
     thumbnail: "marketing"
   }
 ];
