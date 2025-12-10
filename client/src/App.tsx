@@ -21,6 +21,7 @@ import TaskBoard from "@/pages/task-board";
 import TaskDetail from "@/pages/task-detail";
 import ProjectTeam from "@/pages/project-team";
 import ProjectRoles from "@/pages/project-roles";
+import RoleAssignments from "@/pages/role-assignments";
 
 function Router() {
   return (
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/projects/:projectId/tasks/:taskId" component={TaskDetail} />
       <Route path="/projects/:projectId/team" component={ProjectTeam} />
       <Route path="/projects/:projectId/roles" component={ProjectRoles} />
+      <Route path="/projects/:projectId/roles/:roleId/assignments" component={RoleAssignments} />
       <Route component={NotFound} />
     </Switch>
   );

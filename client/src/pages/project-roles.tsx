@@ -51,7 +51,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { 
@@ -83,6 +83,11 @@ export default function ProjectRoles() {
   const [match, params] = useRoute("/projects/:projectId/roles");
   const projectId = params?.projectId || "1";
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleManageAssignments = (roleId: string) => {
+    setLocation(`/projects/${projectId}/roles/${roleId}/assignments`);
+  };
 
   const [roles, setRoles] = useState<ProjectRole[]>(PROJECT_ROLES);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -237,6 +242,10 @@ export default function ProjectRoles() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleManageAssignments(role.id)}>
+                          <Users className="mr-2 h-4 w-4" />
+                          Manage Assignments
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleOpenEdit(role)}>
                           Edit Definition
                         </DropdownMenuItem>
