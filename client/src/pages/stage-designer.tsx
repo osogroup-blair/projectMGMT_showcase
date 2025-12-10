@@ -34,8 +34,9 @@ import { Switch } from "@/components/ui/switch";
 import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { PROJECTS, MILESTONES, TASK_STATUS_OPTIONS } from "@/lib/mock-data";
+import { StatusOption, PROJECTS, MILESTONES, TASK_STATUS_OPTIONS } from "@/lib/mock-data";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Mock Types
 interface Stage {
@@ -48,6 +49,7 @@ interface Stage {
   entryMilestoneId?: string;
   exitMilestoneId?: string;
   allowedTaskStatuses: string[];
+  customStatuses?: StatusOption[]; // Custom statuses defined for this stage
   defaultView: "kanban" | "list" | "calendar";
   color: string;
   isActive: boolean;
@@ -65,6 +67,7 @@ const MOCK_STAGES: Stage[] = [
     entryMilestoneId: "m1",
     exitMilestoneId: "m1",
     allowedTaskStatuses: ["ts1", "ts2", "ts4"],
+    customStatuses: [],
     defaultView: "list",
     color: "bg-purple-500",
     isActive: true 
@@ -79,6 +82,7 @@ const MOCK_STAGES: Stage[] = [
     entryMilestoneId: "m2",
     exitMilestoneId: "m2",
     allowedTaskStatuses: ["ts1", "ts2", "ts3", "ts4"],
+    customStatuses: [],
     defaultView: "kanban",
     color: "bg-blue-500",
     isActive: true 
@@ -93,6 +97,7 @@ const MOCK_STAGES: Stage[] = [
     entryMilestoneId: "m3",
     exitMilestoneId: "m3",
     allowedTaskStatuses: ["ts1", "ts2", "ts3", "ts4"],
+    customStatuses: [],
     defaultView: "kanban",
     color: "bg-indigo-500",
     isActive: true 
@@ -107,6 +112,7 @@ const MOCK_STAGES: Stage[] = [
     entryMilestoneId: "m4",
     exitMilestoneId: "m4",
     allowedTaskStatuses: ["ts1", "ts2", "ts4"],
+    customStatuses: [],
     defaultView: "list",
     color: "bg-amber-500",
     isActive: true 
@@ -121,6 +127,7 @@ const MOCK_STAGES: Stage[] = [
     entryMilestoneId: "m5",
     exitMilestoneId: "m5",
     allowedTaskStatuses: ["ts1", "ts4"],
+    customStatuses: [],
     defaultView: "calendar",
     color: "bg-green-500",
     isActive: true 
@@ -138,6 +145,16 @@ const COLORS = [
   { name: "Slate", value: "bg-slate-500" },
 ];
 
+const STATUS_COLORS = [
+  { name: "Slate", value: "bg-slate-100 text-slate-700" },
+  { name: "Blue", value: "bg-blue-50 text-blue-700" },
+  { name: "Green", value: "bg-green-50 text-green-700" },
+  { name: "Amber", value: "bg-amber-50 text-amber-700" },
+  { name: "Red", value: "bg-red-50 text-red-700" },
+  { name: "Purple", value: "bg-purple-50 text-purple-700" },
+  { name: "Pink", value: "bg-pink-50 text-pink-700" },
+];
+
 export default function StageDesigner() {
   const [match, params] = useRoute("/projects/:projectId/stages");
   const projectId = params?.projectId || "1";
@@ -149,10 +166,15 @@ export default function StageDesigner() {
 
   // Temporary state for editing
   const [editForm, setEditForm] = useState<Partial<Stage>>({});
+  
+  // State for new custom status
+  const [newStatusName, setNewStatusName] = useState("");
+  const [newStatusColor, setNewStatusColor] = useState(STATUS_COLORS[0].value);
 
   const handleEdit = (stage: Stage) => {
     setEditingStage(stage.id);
-    setEditForm(stage);
+    setEditForm(JSON.parse(JSON.stringify(stage))); // Deep copy to avoid ref issues with arrays
+    setNewStatusName("");
   };
 
   const handleSave = () => {
@@ -165,6 +187,39 @@ export default function StageDesigner() {
         description: "Your changes have been saved successfully.",
       });
     }
+  };
+
+  const handleAddCustomStatus = () => {
+    if (!newStatusName.trim()) return;
+    
+    const newId = `cs_${Date.now()}`;
+    const newStatus: StatusOption = {
+        id: newId,
+        label: newStatusName,
+        color: newStatusColor,
+        type: 'task',
+        isDefault: false
+    };
+
+    setEditForm(prev => ({
+        ...prev,
+        customStatuses: [...(prev.customStatuses || []), newStatus],
+        allowedTaskStatuses: [...(prev.allowedTaskStatuses || []), newId]
+    }));
+    
+    setNewStatusName("");
+    toast({
+        title: "Status Added",
+        description: "New custom status has been added to this stage."
+    });
+  };
+
+  const handleDeleteCustomStatus = (statusId: string) => {
+      setEditForm(prev => ({
+          ...prev,
+          customStatuses: (prev.customStatuses || []).filter(s => s.id !== statusId),
+          allowedTaskStatuses: (prev.allowedTaskStatuses || []).filter(id => id !== statusId)
+      }));
   };
 
   const handleCancel = () => {
@@ -407,29 +462,108 @@ export default function StageDesigner() {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                         <Label>Allowed Task Statuses</Label>
+                      <div className="space-y-3">
+                         <div className="flex items-center justify-between">
+                            <Label>Task Status Configuration</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                                        <Plus className="h-3 w-3" />
+                                        New Status
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-3" align="end">
+                                    <div className="space-y-3">
+                                        <h4 className="font-medium text-xs leading-none">Add Custom Status</h4>
+                                        <div className="space-y-2">
+                                            <Input 
+                                                placeholder="Status Label (e.g. Needs Review)" 
+                                                value={newStatusName}
+                                                onChange={(e) => setNewStatusName(e.target.value)}
+                                                className="h-8 text-xs"
+                                            />
+                                            <div className="grid grid-cols-5 gap-1">
+                                                {STATUS_COLORS.map((c) => (
+                                                    <button
+                                                        key={c.name}
+                                                        onClick={() => setNewStatusColor(c.value)}
+                                                        className={cn(
+                                                            "w-full aspect-square rounded-md border transition-all",
+                                                            c.value,
+                                                            newStatusColor === c.value ? "ring-2 ring-primary ring-offset-1" : "hover:opacity-80"
+                                                        )}
+                                                        title={c.name}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <Button size="sm" className="w-full h-8 text-xs" onClick={handleAddCustomStatus}>
+                                            Add Status
+                                        </Button>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                         </div>
+                         
                          <div className="grid grid-cols-2 gap-2 p-3 border rounded-md bg-background">
+                            {/* Global Statuses */}
                             {TASK_STATUS_OPTIONS.map(status => (
-                                <div key={status.id} className="flex items-center space-x-2">
-                                    <Checkbox 
-                                        id={`status-${status.id}`} 
-                                        checked={editForm.allowedTaskStatuses?.includes(status.id)}
-                                        onCheckedChange={(checked) => {
-                                            const current = editForm.allowedTaskStatuses || [];
-                                            const updated = checked 
-                                                ? [...current, status.id]
-                                                : current.filter(id => id !== status.id);
-                                            setEditForm({ ...editForm, allowedTaskStatuses: updated });
-                                        }}
-                                    />
-                                    <Label 
-                                        htmlFor={`status-${status.id}`} 
-                                        className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                                <div key={status.id} className="flex items-center justify-between group/item">
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`status-${status.id}`} 
+                                            checked={editForm.allowedTaskStatuses?.includes(status.id)}
+                                            onCheckedChange={(checked) => {
+                                                const current = editForm.allowedTaskStatuses || [];
+                                                const updated = checked 
+                                                    ? [...current, status.id]
+                                                    : current.filter(id => id !== status.id);
+                                                setEditForm({ ...editForm, allowedTaskStatuses: updated });
+                                            }}
+                                        />
+                                        <Label 
+                                            htmlFor={`status-${status.id}`} 
+                                            className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                                        >
+                                            <div className={cn("w-2 h-2 rounded-full", status.color.replace("text", "bg").split(" ")[0].replace("50", "500"))} />
+                                            {status.label}
+                                        </Label>
+                                    </div>
+                                    <Badge variant="outline" className="text-[10px] h-5 opacity-50">Global</Badge>
+                                </div>
+                            ))}
+
+                            {/* Custom Statuses */}
+                            {(editForm.customStatuses || []).map(status => (
+                                <div key={status.id} className="flex items-center justify-between group/item bg-muted/30 -mx-1 px-1 rounded-sm">
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`status-${status.id}`} 
+                                            checked={editForm.allowedTaskStatuses?.includes(status.id)}
+                                            onCheckedChange={(checked) => {
+                                                const current = editForm.allowedTaskStatuses || [];
+                                                const updated = checked 
+                                                    ? [...current, status.id]
+                                                    : current.filter(id => id !== status.id);
+                                                setEditForm({ ...editForm, allowedTaskStatuses: updated });
+                                            }}
+                                        />
+                                        <Label 
+                                            htmlFor={`status-${status.id}`} 
+                                            className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                                        >
+                                            <div className={cn("w-2 h-2 rounded-full", status.color.replace("text", "bg").split(" ")[0].replace("50", "500"))} />
+                                            {status.label}
+                                        </Label>
+                                    </div>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-5 w-5 opacity-0 group-hover/item:opacity-100 text-muted-foreground hover:text-destructive"
+                                        onClick={() => handleDeleteCustomStatus(status.id)}
                                     >
-                                        <div className={cn("w-2 h-2 rounded-full", status.color.replace("text", "bg").split(" ")[0].replace("50", "500"))} />
-                                        {status.label}
-                                    </Label>
+                                        <X className="h-3 w-3" />
+                                    </Button>
                                 </div>
                             ))}
                          </div>
