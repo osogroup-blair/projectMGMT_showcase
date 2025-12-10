@@ -247,11 +247,11 @@ export const TASK_STATUS_OPTIONS: StatusOption[] = [
 ];
 
 export const PROJECTS: Project[] = [
-  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, frameworkId: "ft1", defaultMappingTemplateId: "mt1" },
-  { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0, frameworkId: "ft1" },
-  { id: "3", name: "Kraft HR", status: "On Hold", deadline: "11/30", progress: 30, frameworkId: "ft1" },
-  { id: "4", name: "SDMP Internal Project", status: "Completed", deadline: "Yesterday", progress: 100, frameworkId: "ft2" },
-  { id: "5", name: "Quality Matters", status: "Overdue", deadline: "Yesterday", progress: 85, frameworkId: "ft3" },
+  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, frameworkId: "ft_impl", defaultMappingTemplateId: "mt1" },
+  { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0, frameworkId: "ft_impl" },
+  { id: "3", name: "Kraft HR", status: "On Hold", deadline: "11/30", progress: 30, frameworkId: "ft_impl" },
+  { id: "4", name: "SDMP Internal Project", status: "Completed", deadline: "Yesterday", progress: 100, frameworkId: "ft_impl" },
+  { id: "5", name: "Quality Matters", status: "Overdue", deadline: "Yesterday", progress: 85, frameworkId: "ft_impl" },
 ];
 
 export const DELIVERABLES: Deliverable[] = [
@@ -298,7 +298,7 @@ export const EPICS: Epic[] = [
     startDate: "2023-11-01", 
     endDate: "2024-01-15",
     progress: 60,
-    stageIds: ["st_design", "st_dev", "st_qa"]
+    stageIds: ["st_validate", "st_develop", "st_enable"]
   },
   { 
     id: "e2", 
@@ -310,7 +310,7 @@ export const EPICS: Epic[] = [
     startDate: "2024-01-01", 
     endDate: "2024-02-28",
     progress: 0,
-    stageIds: ["st_dev", "st_qa"]
+    stageIds: ["st_develop", "st_enable"]
   },
   { 
     id: "e3", 
@@ -322,7 +322,7 @@ export const EPICS: Epic[] = [
     startDate: "2023-10-01", 
     endDate: "2023-11-15",
     progress: 100,
-    stageIds: ["st_discovery"]
+    stageIds: ["st_plan"]
   }
 ];
 
@@ -332,7 +332,7 @@ export const TASKS: Task[] = [
     title: "Code Review", 
     description: "Review pull requests for the authentication module. Focus on security vulnerabilities and code style consistency.",
     project: "Quality Matters", 
-    stageId: "st_dev",
+    stageId: "st_develop",
     epicId: "e2",
     status: "Review", 
     deadline: "Tomorrow", 
@@ -347,7 +347,7 @@ export const TASKS: Task[] = [
     title: "Feature Implementation", 
     description: "Implement the new dashboard widgets as per design. Ensure responsiveness on mobile devices.",
     project: "Houlihan Lokey", 
-    stageId: "st_dev",
+    stageId: "st_develop",
     epicId: "e1",
     status: "In Progress", 
     deadline: "11/28", 
@@ -362,7 +362,7 @@ export const TASKS: Task[] = [
     title: "Bug Fixing", 
     description: "Fix the reported crash on the user profile page when uploading large avatars.",
     project: "Kraft HR", 
-    stageId: "st_qa",
+    stageId: "st_enable",
     epicId: "e2",
     status: "Todo", 
     deadline: "11/29", 
@@ -377,7 +377,7 @@ export const TASKS: Task[] = [
     title: "System Optimization", 
     description: "Optimize database queries for faster load times on the reports page.",
     project: "Colgate-Palmolive", 
-    stageId: "st_dev",
+    stageId: "st_develop",
     epicId: "e2",
     status: "Todo", 
     deadline: "Tomorrow", 
@@ -392,7 +392,7 @@ export const TASKS: Task[] = [
     title: "API Development", 
     description: "Create REST endpoints for the mobile app to fetch user settings.",
     project: "Houlihan Lokey", 
-    stageId: "st_dev",
+    stageId: "st_develop",
     epicId: "e2",
     status: "Todo", 
     deadline: "11/30", 
@@ -407,7 +407,7 @@ export const TASKS: Task[] = [
     title: "Testing and QA", 
     description: "Run regression tests before the release. Document any failures in JIRA.",
     project: "Kraft", 
-    stageId: "st_qa",
+    stageId: "st_enable",
     epicId: "e2",
     status: "Todo", 
     deadline: "11/30", 
@@ -422,7 +422,7 @@ export const TASKS: Task[] = [
     title: "Design System Update", 
     description: "Update the color palette in the design system to match the new brand guidelines.",
     project: "Houlihan Lokey", 
-    stageId: "st_design",
+    stageId: "st_validate",
     epicId: "e1",
     status: "Done", 
     deadline: "Yesterday", 
@@ -437,7 +437,7 @@ export const TASKS: Task[] = [
     title: "Client Meeting Prep", 
     description: "Prepare slides for the weekly status update. Include metrics on velocity and burn-down.",
     project: "Houlihan Lokey", 
-    stageId: "st_discovery",
+    stageId: "st_plan",
     epicId: "e3",
     status: "Done", 
     deadline: "Last Week", 
@@ -735,11 +735,10 @@ export const SAVED_VIEWS: SavedView[] = [
 ];
 
 export const PROJECT_STAGES: ProjectStage[] = [
-  { id: "s1", name: "Discovery", order: 1, type: "planning", status: "completed" },
-  { id: "s2", name: "Design", order: 2, type: "execution", status: "active" },
-  { id: "s3", name: "Development", order: 3, type: "execution", status: "pending" },
-  { id: "s4", name: "QA & Testing", order: 4, type: "review", status: "pending" },
-  { id: "s5", name: "Launch", order: 5, type: "delivery", status: "pending" },
+  { id: "st_plan", name: "Plan Strategy", order: 1, type: "planning", status: "completed" },
+  { id: "st_validate", name: "Validate Blueprints", order: 2, type: "execution", status: "active" },
+  { id: "st_develop", name: "Develop Solution", order: 3, type: "execution", status: "pending" },
+  { id: "st_enable", name: "Enable Users", order: 4, type: "delivery", status: "pending" },
 ];
 
 export const GUIDANCE_ITEMS: GuidanceItem[] = [
@@ -767,53 +766,30 @@ export const GUIDANCE_ITEMS: GuidanceItem[] = [
 ];
 
 export const STAGE_TEMPLATES: StageTemplate[] = [
-  { id: "st_discovery", name: "Discovery Phase", defaultTasks: ["tt1", "tt2"], defaultRoles: ["rt3"] }, // Business Analyst
-  { id: "st_design", name: "Design Phase", defaultTasks: ["tt4"], defaultRoles: [] },
-  { id: "st_dev", name: "Development Phase", defaultTasks: ["tt3"], defaultRoles: ["rt2"] }, // DevOps
-
-  { id: "st_qa", name: "QA Phase", defaultTasks: [], defaultRoles: [] },
-  { id: "st_launch", name: "Launch Phase", defaultTasks: [], defaultRoles: [] }
+  { id: "st_plan", name: "Plan Strategy", defaultTasks: ["tt1"], defaultRoles: ["rt3"] },
+  { id: "st_validate", name: "Validate Blueprints", defaultTasks: ["tt2"], defaultRoles: ["rt2"] },
+  { id: "st_develop", name: "Develop Solution", defaultTasks: ["tt3", "tt4"], defaultRoles: ["rt1"] },
+  { id: "st_enable", name: "Enable Users", defaultTasks: [], defaultRoles: [] }
 ];
 
 export const FRAMEWORK_TEMPLATES: FrameworkTemplate[] = [
   { 
-    id: "ft1", 
-    name: "Standard Software Development",
-    description: "Standard agile workflow for software projects",
-    defaultStages: ["st_discovery", "st_design", "st_dev", "st_qa", "st_launch"]
-  },
-  { 
-    id: "ft2", 
-    name: "Marketing Campaign",
-    description: "Workflow for digital and print marketing campaigns",
-    defaultStages: ["st_discovery", "st_design", "st_launch"]
-  },
-  { 
-    id: "ft3", 
-    name: "Construction Project",
-    description: "Phased workflow for physical construction",
-    defaultStages: ["st_discovery", "st_dev", "st_qa"] // Simplified for mock
-  },
+    id: "ft_impl", 
+    name: "Implementation Framework",
+    description: "Standard implementation delivery framework",
+    defaultStages: ["st_plan", "st_validate", "st_develop", "st_enable"]
+  }
 ];
 
 export const PROJECT_TEMPLATES: ProjectTemplate[] = [
   {
     id: "pt1",
-    name: "Web Application",
-    description: "Full-stack web application with standard SDLC stages",
-    defaultFrameworkId: "ft1",
-    defaultRoles: ["rt1", "rt2"],
+    name: "Implementation Project",
+    description: "Standard implementation project using the Nymbl framework",
+    defaultFrameworkId: "ft_impl",
+    defaultRoles: ["rt1", "rt2", "rt3"],
     defaultDeliverables: ["dt1"],
     thumbnail: "web-app"
-  },
-  {
-    id: "pt2",
-    name: "Marketing Launch",
-    description: "Product launch campaign template",
-    defaultFrameworkId: "ft2",
-    defaultRoles: ["rt3"],
-    defaultDeliverables: ["dt2"],
-    thumbnail: "marketing"
   }
 ];
 

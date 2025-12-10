@@ -392,6 +392,13 @@ export default function AdminTemplates() {
               <Layers className="h-4 w-4" />
               Stages
             </TabsTrigger>
+            <TabsTrigger 
+              value="roles" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
+            >
+              <Users className="h-4 w-4" />
+              Roles
+            </TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
@@ -508,6 +515,22 @@ export default function AdminTemplates() {
                 ))}
               </div>
             </TabsContent>
+
+            <TabsContent value="roles" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filterTemplates(roleTemplates).map(t => (
+                  <TemplateCard 
+                    key={t.id}
+                    item={t}
+                    type="role"
+                    icon={Users}
+                    itemsCount={t.defaultPermissions?.length || 0}
+                    itemLabel="Permissions"
+                    badge={t.defaultRoleType}
+                  />
+                ))}
+              </div>
+            </TabsContent>
           </div>
         </Tabs>
       </div>
@@ -550,6 +573,31 @@ export default function AdminTemplates() {
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                 />
             </div>
+
+            {/* Role Specific Fields */}
+            {currentType === 'role' && (
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Role Type</Label>
+                  <Select 
+                    value={formData.defaultRoleType} 
+                    onValueChange={(val) => setFormData({...formData, defaultRoleType: val})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Management">Management</SelectItem>
+                      <SelectItem value="Discovery">Discovery</SelectItem>
+                      <SelectItem value="Design">Design</SelectItem>
+                      <SelectItem value="Development">Development</SelectItem>
+                      <SelectItem value="QA & Testing">QA & Testing</SelectItem>
+                      <SelectItem value="Launch">Launch</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
 
             {/* Project Specific Fields */}
             {currentType === 'project' && (
