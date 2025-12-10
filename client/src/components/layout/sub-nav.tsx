@@ -1,10 +1,11 @@
-import { Home } from "lucide-react";
+import { Home, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
+  { icon: Layers, label: "Projects", href: "/projects" },
 ];
 
 export function SubNav() {
