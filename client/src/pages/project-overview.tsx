@@ -170,6 +170,11 @@ export default function ProjectOverview() {
                   Saved Views
                 </Button>
               </Link>
+              <Link href={`/projects/${projectId}/settings`}>
+                <Button variant="ghost" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </Link>
               <Button size="icon" variant="ghost">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>

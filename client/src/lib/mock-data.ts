@@ -6,6 +6,9 @@ export interface Project {
   status: "Upcoming" | "In Progress" | "Completed" | "On Hold" | "Archived" | "Overdue";
   deadline: string;
   progress?: number;
+  defaultStageTemplateId?: string;
+  defaultMappingTemplateId?: string;
+  permissions?: Record<string, any>;
 }
 
 export interface Task {
@@ -138,8 +141,19 @@ export interface ProjectStage {
   status: "completed" | "active" | "pending";
 }
 
+export interface StageTemplate {
+  id: string;
+  name: string;
+}
+
+export interface MappingTemplate {
+  id: string;
+  name: string;
+  dataType: string;
+}
+
 export const PROJECTS: Project[] = [
-  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65 },
+  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, defaultStageTemplateId: "st1", defaultMappingTemplateId: "mt1" },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
   { id: "3", name: "Kraft HR", status: "On Hold", deadline: "11/30", progress: 30 },
   { id: "4", name: "SDMP Internal Project", status: "Completed", deadline: "Yesterday", progress: 100 },
@@ -576,4 +590,16 @@ export const GUIDANCE_ITEMS: GuidanceItem[] = [
     priority: "High",
     stageId: "s3"
   }
+];
+
+export const STAGE_TEMPLATES: StageTemplate[] = [
+  { id: "st1", name: "Standard Software Development" },
+  { id: "st2", name: "Marketing Campaign" },
+  { id: "st3", name: "Construction Project" },
+];
+
+export const MAPPING_TEMPLATES: MappingTemplate[] = [
+  { id: "mt1", name: "Jira Import", dataType: "Tasks" },
+  { id: "mt2", name: "Trello Import", dataType: "Tasks" },
+  { id: "mt3", name: "CSV Standard", dataType: "Mixed" },
 ];

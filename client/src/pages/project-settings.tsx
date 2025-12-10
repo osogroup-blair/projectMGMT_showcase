@@ -1,0 +1,230 @@
+import { useState } from "react";
+import { Shell } from "@/components/layout/shell";
+import { 
+  ArrowLeft, 
+  Settings,
+  Save,
+  AlertTriangle,
+  Info
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  CardFooter
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { useRoute, Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  PROJECTS, 
+  STAGE_TEMPLATES, 
+  MAPPING_TEMPLATES 
+} from "@/lib/mock-data";
+
+export default function ProjectSettings() {
+  const [match, params] = useRoute("/projects/:projectId/settings");
+  const projectId = params?.projectId || "1";
+  const { toast } = useToast();
+
+  const project = PROJECTS.find(p => p.id === projectId) || PROJECTS[0];
+
+  const [formData, setFormData] = useState({
+    name: project.name,
+    status: project.status,
+    defaultStageTemplateId: project.defaultStageTemplateId || "st1",
+    defaultMappingTemplateId: project.defaultMappingTemplateId || "mt1",
+    permissions: JSON.stringify(project.permissions || {
+      "view_project": ["admin", "member", "viewer"],
+      "edit_project": ["admin"],
+      "delete_project": ["admin"]
+    }, null, 2),
+    isArchived: project.status === "Archived"
+  });
+
+  const handleSave = () => {
+    // In a real app, this would mutate the project
+    toast({
+      title: "Settings Saved",
+      description: "Project settings have been successfully updated.",
+    });
+  };
+
+  return (
+    <Shell>
+      <div className="mx-auto max-w-4xl space-y-8">
+        {/* Header */}
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Link href={`/projects/${projectId}`} className="hover:text-primary transition-colors flex items-center gap-1">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Project
+            </Link>
+            <span className="text-border">|</span>
+            <span>Settings</span>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-primary">Project Settings</h1>
+              <p className="text-muted-foreground mt-1">Manage configuration and defaults for {project.name}.</p>
+            </div>
+            <Button onClick={handleSave} className="gap-2">
+              <Save className="h-4 w-4" />
+              Save Changes
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-6">
+          {/* General Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>General Information</CardTitle>
+              <CardDescription>Basic details and status of the project.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="projectName">Project Name</Label>
+                <Input 
+                  id="projectName" 
+                  value={formData.name} 
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
+              </div>
+              <div className="flex items-center justify-between border rounded-lg p-4 bg-muted/20">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Archive Project</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Archived projects are read-only and hidden from default lists.
+                  </p>
+                </div>
+                <Switch 
+                  checked={formData.isArchived}
+                  onCheckedChange={(checked) => setFormData({...formData, isArchived: checked})}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Templates Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Templates & Defaults</CardTitle>
+              <CardDescription>Configure default templates for stages and data mapping.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="stageTemplate">Default Stage Template</Label>
+                  <Select 
+                    value={formData.defaultStageTemplateId} 
+                    onValueChange={(val) => setFormData({...formData, defaultStageTemplateId: val})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STAGE_TEMPLATES.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Used when resetting stages or creating new workflows.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="mappingTemplate">Default Import Mapping</Label>
+                  <Select 
+                    value={formData.defaultMappingTemplateId} 
+                    onValueChange={(val) => setFormData({...formData, defaultMappingTemplateId: val})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a mapping" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MAPPING_TEMPLATES.map(t => (
+                        <SelectItem key={t.id} value={t.id}>{t.name} ({t.dataType})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Default field mapping configuration for imports.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Advanced Permissions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Access Control</CardTitle>
+              <CardDescription>Advanced JSON configuration for project-level permissions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-md bg-amber-50 p-4 border border-amber-200 flex gap-3 mb-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-800">Advanced Configuration</p>
+                  <p className="text-xs text-amber-700">
+                    Modifying permissions directly can lock users out of the project. Ensure you validate the JSON structure before saving.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="permissionsJson">Permissions JSON</Label>
+                <Textarea 
+                  id="permissionsJson" 
+                  className="font-mono text-xs min-h-[150px]"
+                  value={formData.permissions}
+                  onChange={(e) => setFormData({...formData, permissions: e.target.value})}
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="bg-muted/10 border-t px-6 py-4">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Info className="h-4 w-4" />
+                <span>Changes to permissions take effect immediately upon saving.</span>
+              </div>
+            </CardFooter>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="border-red-200">
+            <CardHeader>
+              <CardTitle className="text-red-600">Danger Zone</CardTitle>
+              <CardDescription>Destructive actions for this project.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 border border-red-100 rounded-lg bg-red-50/50">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium text-red-900">Delete Project</p>
+                  <p className="text-xs text-red-700/80">
+                    Permanently delete this project and all its data. This action cannot be undone.
+                  </p>
+                </div>
+                <Button variant="destructive" size="sm">Delete Project</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </Shell>
+  );
+}
