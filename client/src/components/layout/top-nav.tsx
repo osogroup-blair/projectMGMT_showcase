@@ -5,14 +5,14 @@ import logo from "@assets/image_1765392085901.png";
 
 export function TopNav() {
   return (
-    <div className="h-16 bg-sidebar text-sidebar-foreground border-b border-sidebar-border flex items-center px-6 gap-4">
-      {/* Logo */}
-      <div className="w-32 shrink-0">
+    <div className="h-16 bg-sidebar text-sidebar-foreground border-b border-sidebar-border flex items-center justify-center px-6 gap-4 relative">
+      {/* Logo - Left */}
+      <div className="absolute left-6 w-32 shrink-0">
         <img src={logo} alt="Nymbl" className="h-6 w-auto object-contain" />
       </div>
 
-      {/* Search */}
-      <div className="flex-1 max-w-md">
+      {/* Search - Center */}
+      <div className="max-w-md w-full">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-sidebar-foreground/70" />
           <input 
@@ -27,7 +27,7 @@ export function TopNav() {
       </div>
 
       {/* Right Side - Greeting + Profile */}
-      <div className="flex items-center gap-4 ml-auto">
+      <div className="absolute right-6 flex items-center gap-4">
         <div className="text-right hidden sm:block">
           <p className="text-sm text-sidebar-foreground/70 mr-2">Good morning, <span className="font-medium text-sidebar-foreground">Joy!</span></p>
         </div>
