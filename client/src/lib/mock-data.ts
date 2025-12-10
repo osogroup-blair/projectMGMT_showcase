@@ -122,6 +122,22 @@ export interface SavedView {
   config: Record<string, any>;
 }
 
+export interface GuidanceItem {
+  id: string;
+  title: string;
+  body: string;
+  priority: "High" | "Medium" | "Low";
+  stageId?: string;
+}
+
+export interface ProjectStage {
+  id: string;
+  name: string;
+  order: number;
+  type: "planning" | "execution" | "review" | "delivery";
+  status: "completed" | "active" | "pending";
+}
+
 export const PROJECTS: Project[] = [
   { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65 },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
@@ -527,5 +543,37 @@ export const SAVED_VIEWS: SavedView[] = [
     visibility: "Global",
     isDefault: false,
     config: { showMilestones: true }
+  }
+];
+
+export const PROJECT_STAGES: ProjectStage[] = [
+  { id: "s1", name: "Discovery", order: 1, type: "planning", status: "completed" },
+  { id: "s2", name: "Design", order: 2, type: "execution", status: "active" },
+  { id: "s3", name: "Development", order: 3, type: "execution", status: "pending" },
+  { id: "s4", name: "QA & Testing", order: 4, type: "review", status: "pending" },
+  { id: "s5", name: "Launch", order: 5, type: "delivery", status: "pending" },
+];
+
+export const GUIDANCE_ITEMS: GuidanceItem[] = [
+  {
+    id: "g1",
+    title: "Discovery Checklist",
+    body: "Ensure all stakeholder interviews are completed and requirements are documented.",
+    priority: "High",
+    stageId: "s1"
+  },
+  {
+    id: "g2",
+    title: "Design Principles",
+    body: "Follow the Nymbl Design System 2.0 guidelines for all UI components.",
+    priority: "Medium",
+    stageId: "s2"
+  },
+  {
+    id: "g3",
+    title: "Code Review Standards",
+    body: "All PRs must have 2 approvals and pass CI checks before merge.",
+    priority: "High",
+    stageId: "s3"
   }
 ];

@@ -249,23 +249,25 @@ export default function ProjectOverview() {
                       const isCompleted = stage.status === 'completed';
                       
                       return (
-                        <div key={stage.id} className="flex flex-col items-center gap-3 group cursor-pointer">
-                          <div className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center border-2 z-10 bg-background transition-colors",
-                            isCompleted ? "border-primary bg-primary text-primary-foreground" :
-                            isActive ? "border-primary ring-4 ring-primary/20 text-primary" :
-                            "border-muted-foreground/30 text-muted-foreground"
-                          )}>
-                            {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs font-bold">{i + 1}</span>}
+                        <Link key={stage.id} href={`/projects/${projectId}/stages/${stage.id}`}>
+                          <div className="flex flex-col items-center gap-3 group cursor-pointer">
+                            <div className={cn(
+                              "w-8 h-8 rounded-full flex items-center justify-center border-2 z-10 bg-background transition-colors",
+                              isCompleted ? "border-primary bg-primary text-primary-foreground" :
+                              isActive ? "border-primary ring-4 ring-primary/20 text-primary" :
+                              "border-muted-foreground/30 text-muted-foreground"
+                            )}>
+                              {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs font-bold">{i + 1}</span>}
+                            </div>
+                            <div className="flex flex-col items-center text-center">
+                              <span className={cn(
+                                "text-sm font-semibold",
+                                isActive ? "text-primary" : "text-muted-foreground"
+                              )}>{stage.name}</span>
+                              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{stage.status}</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col items-center text-center">
-                            <span className={cn(
-                              "text-sm font-semibold",
-                              isActive ? "text-primary" : "text-muted-foreground"
-                            )}>{stage.name}</span>
-                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{stage.status}</span>
-                          </div>
-                        </div>
+                        </Link>
                       );
                     })}
                   </div>

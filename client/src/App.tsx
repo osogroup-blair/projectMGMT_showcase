@@ -24,6 +24,7 @@ import ProjectRoles from "@/pages/project-roles";
 import RoleAssignments from "@/pages/role-assignments";
 import UserManagement from "@/pages/admin/user-management";
 import SavedViewsGallery from "@/pages/saved-views";
+import StageWorkspace from "@/pages/stage-workspace";
 
 function Router() {
   return (
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/projects/import/:sessionId/preview" component={ProjectImportPreview} />
       <Route path="/projects/:projectId" component={ProjectOverview} />
       <Route path="/projects/:projectId/stages" component={StageDesigner} />
+      <Route path="/projects/:projectId/stages/:stageId" component={StageWorkspace} />
       <Route path="/projects/:projectId/stages/:stageId/view-settings" component={StageViewSettings} />
       <Route path="/projects/:projectId/milestones" component={MilestonesManagement} />
       <Route path="/projects/:projectId/tasks" component={TaskBoard} />
