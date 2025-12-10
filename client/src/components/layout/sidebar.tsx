@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
+import logo from "@assets/nymbl_logo_1765391959711.png";
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -25,6 +26,10 @@ export function Sidebar() {
     <div className="flex h-screen w-[280px] flex-col border-r bg-sidebar text-sidebar-foreground">
       {/* Header / Profile */}
       <div className="p-6 pb-2">
+        <div className="mb-6 px-2">
+          <img src={logo} alt="Nymbl" className="h-8 w-auto object-contain" />
+        </div>
+        
         <div className="flex items-center gap-2 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
