@@ -13,7 +13,8 @@ import {
   Flag,
   ListTodo,
   Layers,
-  Users
+  Users,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -161,6 +162,12 @@ export default function ProjectOverview() {
                 <Button variant="outline" className="gap-2 flex-1 lg:flex-none">
                   <Flag className="h-4 w-4" />
                   Milestones
+                </Button>
+              </Link>
+              <Link href={`/projects/${projectId}/views`}>
+                <Button variant="outline" className="gap-2 flex-1 lg:flex-none">
+                  <Eye className="h-4 w-4" />
+                  Saved Views
                 </Button>
               </Link>
               <Button size="icon" variant="ghost">

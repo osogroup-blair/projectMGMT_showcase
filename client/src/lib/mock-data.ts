@@ -111,6 +111,17 @@ export interface RoleTemplate {
   defaultPermissions: string[];
 }
 
+export interface SavedView {
+  id: string;
+  name: string;
+  description: string;
+  stageIds: string[];
+  viewType: "Kanban" | "List" | "Calendar" | "Gantt";
+  visibility: "Global" | "Personal";
+  isDefault: boolean;
+  config: Record<string, any>;
+}
+
 export const PROJECTS: Project[] = [
   { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65 },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
@@ -483,5 +494,38 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     description: "Analyzes business needs and documents requirements.",
     defaultRoleType: "Discovery",
     defaultPermissions: ["write_requirements", "create_user_stories"]
+  }
+];
+
+export const SAVED_VIEWS: SavedView[] = [
+  {
+    id: "v1",
+    name: "Default Kanban",
+    description: "Standard board view for daily standups",
+    stageIds: ["s1", "s2", "s3", "s4"],
+    viewType: "Kanban",
+    visibility: "Global",
+    isDefault: true,
+    config: { groupBy: "stage" }
+  },
+  {
+    id: "v2",
+    name: "My Tasks List",
+    description: "List of tasks assigned to me",
+    stageIds: [],
+    viewType: "List",
+    visibility: "Personal",
+    isDefault: false,
+    config: { filterBy: "assignee:me" }
+  },
+  {
+    id: "v3",
+    name: "Release Schedule",
+    description: "Calendar view of upcoming releases",
+    stageIds: ["s3", "s4", "s5"],
+    viewType: "Calendar",
+    visibility: "Global",
+    isDefault: false,
+    config: { showMilestones: true }
   }
 ];

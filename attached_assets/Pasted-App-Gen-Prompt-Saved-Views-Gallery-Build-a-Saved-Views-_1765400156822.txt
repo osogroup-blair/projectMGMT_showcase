@@ -1,0 +1,81 @@
+App Gen Prompt – Saved Views Gallery
+
+Build a “Saved Views Gallery” page at route /projects/:projectId/views.
+Show a list of saved views for this project with name, description, stages covered, view type, visibility (global/personal), default flag, and underlying config.
+Allow filtering by view type and visibility.
+Actions: create view (navigate to /projects/{projectId}/views/new), edit view (/projects/{projectId}/views/{viewId}), set default view, and delete view.
+Use the JSON view schema provided.
+
+JSON – Saved Views Gallery
+{
+  "id": "saved_views_gallery",
+  "name": "Saved Views Gallery",
+  "route": "/projects/:projectId/views",
+  "primary_entity": "SavedView",
+  "data_sources": [
+    {
+      "id": "views",
+      "entity": "SavedView",
+      "endpoint": "/api/projects/{{route.projectId}}/views",
+      "method": "GET"
+    }
+  ],
+  "entities": {
+    "SavedView": [
+      { "id": "id", "label": "View Id", "type": "string", "source": "id" },
+      { "id": "name", "label": "Name", "type": "string", "source": "name" },
+      { "id": "description", "label": "Description", "type": "string", "source": "description" },
+      { "id": "stage_ids", "label": "Stage Ids", "type": "array", "items_type": "string", "source": "stage_ids" },
+      { "id": "view_type", "label": "View Type", "type": "enum", "source": "view_type" },
+      { "id": "visibility", "label": "Visibility", "type": "enum", "source": "visibility" },
+      { "id": "is_default", "label": "Is Default", "type": "boolean", "source": "is_default" },
+      { "id": "config", "label": "Config", "type": "json", "source": "config" }
+    ]
+  },
+  "filters": [
+    {
+      "id": "view_type",
+      "label": "View Type",
+      "type": "enum",
+      "field": "SavedView.view_type",
+      "operator": "in"
+    },
+    {
+      "id": "visibility",
+      "label": "Visibility",
+      "type": "enum",
+      "field": "SavedView.visibility",
+      "operator": "in"
+    }
+  ],
+  "actions": [
+    {
+      "id": "create_view",
+      "label": "Create View",
+      "type": "navigation",
+      "target_route": "/projects/{{route.projectId}}/views/new"
+    },
+    {
+      "id": "edit_view",
+      "label": "Edit View",
+      "type": "navigation",
+      "target_route": "/projects/{{route.projectId}}/views/{{SavedView.id}}"
+    },
+    {
+      "id": "set_default_view",
+      "label": "Set As Default",
+      "type": "mutation",
+      "endpoint": "/api/projects/{{route.projectId}}/views/{{SavedView.id}}/default",
+      "method": "POST"
+    },
+    {
+      "id": "delete_view",
+      "label": "Delete View",
+      "type": "mutation",
+      "endpoint": "/api/projects/{{route.projectId}}/views/{{SavedView.id}}",
+      "method": "DELETE"
+    }
+  ],
+  "parameters": [],
+  "state": {}
+}
