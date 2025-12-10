@@ -32,6 +32,7 @@ export interface Epic {
   startDate: string;
   endDate: string;
   progress: number;
+  frameworkId?: string; // Links to a FrameworkTemplate
 }
 
 export interface Task {
@@ -272,7 +273,8 @@ export const EPICS: Epic[] = [
     ownerId: "3", 
     startDate: "2023-11-01", 
     endDate: "2024-01-15",
-    progress: 60 
+    progress: 60,
+    frameworkId: "ft1"
   },
   { 
     id: "e2", 
@@ -283,7 +285,8 @@ export const EPICS: Epic[] = [
     ownerId: "5", 
     startDate: "2024-01-01", 
     endDate: "2024-02-28",
-    progress: 0 
+    progress: 0,
+    frameworkId: "ft1"
   },
   { 
     id: "e3", 
@@ -294,7 +297,8 @@ export const EPICS: Epic[] = [
     ownerId: "1", 
     startDate: "2023-10-01", 
     endDate: "2023-11-15",
-    progress: 100 
+    progress: 100,
+    frameworkId: "ft2"
   }
 ];
 
@@ -304,7 +308,7 @@ export const TASKS: Task[] = [
     title: "Code Review", 
     description: "Review pull requests for the authentication module. Focus on security vulnerabilities and code style consistency.",
     project: "Quality Matters", 
-    stageId: "s3",
+    stageId: "st_dev",
     epicId: "e2",
     status: "Review", 
     deadline: "Tomorrow", 
@@ -319,7 +323,7 @@ export const TASKS: Task[] = [
     title: "Feature Implementation", 
     description: "Implement the new dashboard widgets as per design. Ensure responsiveness on mobile devices.",
     project: "Houlihan Lokey", 
-    stageId: "s3",
+    stageId: "st_dev",
     epicId: "e1",
     status: "In Progress", 
     deadline: "11/28", 
@@ -334,7 +338,7 @@ export const TASKS: Task[] = [
     title: "Bug Fixing", 
     description: "Fix the reported crash on the user profile page when uploading large avatars.",
     project: "Kraft HR", 
-    stageId: "s4",
+    stageId: "st_qa",
     epicId: "e2",
     status: "Todo", 
     deadline: "11/29", 
@@ -349,7 +353,7 @@ export const TASKS: Task[] = [
     title: "System Optimization", 
     description: "Optimize database queries for faster load times on the reports page.",
     project: "Colgate-Palmolive", 
-    stageId: "s3",
+    stageId: "st_dev",
     epicId: "e2",
     status: "Todo", 
     deadline: "Tomorrow", 
@@ -364,7 +368,7 @@ export const TASKS: Task[] = [
     title: "API Development", 
     description: "Create REST endpoints for the mobile app to fetch user settings.",
     project: "Houlihan Lokey", 
-    stageId: "s3",
+    stageId: "st_dev",
     epicId: "e2",
     status: "Todo", 
     deadline: "11/30", 
@@ -379,7 +383,7 @@ export const TASKS: Task[] = [
     title: "Testing and QA", 
     description: "Run regression tests before the release. Document any failures in JIRA.",
     project: "Kraft", 
-    stageId: "s4",
+    stageId: "st_qa",
     epicId: "e2",
     status: "Todo", 
     deadline: "11/30", 
@@ -394,7 +398,7 @@ export const TASKS: Task[] = [
     title: "Design System Update", 
     description: "Update the color palette in the design system to match the new brand guidelines.",
     project: "Houlihan Lokey", 
-    stageId: "s2",
+    stageId: "st_design",
     epicId: "e1",
     status: "Done", 
     deadline: "Yesterday", 
@@ -409,7 +413,7 @@ export const TASKS: Task[] = [
     title: "Client Meeting Prep", 
     description: "Prepare slides for the weekly status update. Include metrics on velocity and burn-down.",
     project: "Houlihan Lokey", 
-    stageId: "s1",
+    stageId: "st_discovery",
     epicId: "e3",
     status: "Done", 
     deadline: "Last Week", 

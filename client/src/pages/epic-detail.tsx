@@ -10,7 +10,8 @@ import {
   Filter,
   Layers,
   Package,
-  User as UserIcon
+  User as UserIcon,
+  Workflow
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -30,8 +31,11 @@ import {
   DELIVERABLES, 
   EPICS, 
   TASKS, 
-  PROJECT_STAGES, 
-  TEAM 
+  FRAMEWORK_TEMPLATES,
+  STAGE_TEMPLATES,
+  TEAM,
+  StageTemplate,
+  Task
 } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +49,12 @@ export default function EpicDetail() {
   const deliverable = DELIVERABLES.find(d => d.id === epic.deliverableId);
   const tasks = TASKS.filter(t => t.epicId === epicId);
   const owner = TEAM.find(t => t.id === epic.ownerId);
+
+  // Get Framework and Stages
+  const framework = FRAMEWORK_TEMPLATES.find(f => f.id === epic.frameworkId);
+  const frameworkStages = framework 
+    ? STAGE_TEMPLATES.filter(s => framework.defaultStages.includes(s.id))
+    : [];
 
   const getAssignee = (id?: string) => TEAM.find(u => u.id === id);
 
@@ -135,11 +145,13 @@ export default function EpicDetail() {
             <Card className="bg-muted/20 border-none shadow-none">
               <CardContent className="p-3 flex items-center justify-between">
                 <div>
-                  <div className="text-xs text-muted-foreground">Total Tasks</div>
-                  <div className="text-lg font-bold">{tasks.length}</div>
+                  <div className="text-xs text-muted-foreground">Framework</div>
+                  <div className="text-sm font-medium truncate max-w-[120px]" title={framework?.name || "None"}>
+                    {framework?.name || "No Framework"}
+                  </div>
                 </div>
                 <div className="h-8 w-8 bg-background rounded-full flex items-center justify-center text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4" />
+                  <Workflow className="h-4 w-4" />
                 </div>
               </CardContent>
             </Card>
@@ -159,107 +171,112 @@ export default function EpicDetail() {
           </div>
         </div>
 
-        {/* Tasks grouped by Stage */}
+        {/* Tasks grouped by Stage (from Framework) */}
         <div className="flex-1 min-h-0 border rounded-lg bg-muted/5 overflow-hidden flex flex-col">
           <div className="p-3 border-b bg-background font-medium text-sm flex items-center gap-2">
-            <Layers className="h-4 w-4 text-muted-foreground" />
-            Tasks by Stage
+            <Workflow className="h-4 w-4 text-muted-foreground" />
+            {framework ? `${framework.name} Workflow` : "Project Workflow"}
           </div>
           <ScrollArea className="flex-1 p-6">
             <div className="flex gap-6 min-w-max pb-4">
-              {PROJECT_STAGES.map((stage) => {
-                const stageTasks = tasks.filter(t => t.stageId === stage.id);
-                
-                return (
-                  <div key={stage.id} className="w-[320px] shrink-0 flex flex-col gap-4">
-                    <div className="flex items-center gap-2 pb-2 border-b">
-                      <div className={cn(
-                        "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border",
-                        stage.status === 'completed' ? "bg-primary text-primary-foreground border-primary" :
-                        stage.status === 'active' ? "bg-background text-primary border-primary" :
-                        "bg-muted text-muted-foreground border-transparent"
-                      )}>
-                        {stage.order}
-                      </div>
-                      <h3 className="font-semibold text-sm">{stage.name}</h3>
-                      <Badge variant="secondary" className="ml-auto text-[10px] h-5">
-                        {stageTasks.length}
-                      </Badge>
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                      {stageTasks.length > 0 ? (
-                        stageTasks.map(task => {
-                          const assignee = getAssignee(task.assigneeId);
-                          return (
-                            <Card key={task.id} className="shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                              <CardContent className="p-3 space-y-3">
-                                <div className="space-y-1">
-                                  <div className="flex justify-between items-start gap-2">
-                                    <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                                      <h4 className="text-sm font-medium hover:text-primary leading-tight hover:underline decoration-primary/30 underline-offset-2 line-clamp-2">
-                                        {task.title}
-                                      </h4>
-                                    </Link>
-                                    <Badge variant={
-                                      task.priority === "High" ? "destructive" : 
-                                      task.priority === "Medium" ? "default" : "secondary"
-                                    } className="text-[10px] h-5 px-1.5 shrink-0">
-                                      {task.priority}
-                                    </Badge>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {task.tags?.map(tag => (
-                                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-center justify-between pt-1 border-t border-dashed mt-2">
-                                  <div className="flex items-center gap-2">
-                                    {assignee ? (
-                                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        <Avatar className="h-5 w-5 border border-background">
-                                          <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                                            {assignee.name.substring(0, 2).toUpperCase()}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <span className="truncate max-w-[80px]">{assignee.name.split(' ')[0]}</span>
-                                      </div>
-                                    ) : (
-                                      <div className="text-xs text-muted-foreground italic">Unassigned</div>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {task.estimateHours && (
-                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {task.estimateHours}h
-                                      </span>
-                                    )}
-                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-muted-foreground/20">
-                                      {task.status}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })
-                      ) : (
-                        <div className="h-24 rounded-lg border border-dashed flex flex-col items-center justify-center text-muted-foreground/50 text-xs bg-muted/10">
-                          <span>No tasks in this stage</span>
-                          <Button variant="link" size="sm" className="h-auto p-0 text-primary opacity-50 hover:opacity-100">
-                            + Add Task
-                          </Button>
+              {frameworkStages.length > 0 ? (
+                frameworkStages.map((stage, index) => {
+                  const stageTasks = tasks.filter(t => t.stageId === stage.id);
+                  
+                  return (
+                    <div key={stage.id} className="w-[320px] shrink-0 flex flex-col gap-4">
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <div className={cn(
+                          "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border bg-background text-primary border-primary"
+                        )}>
+                          {index + 1}
                         </div>
-                      )}
+                        <h3 className="font-semibold text-sm">{stage.name}</h3>
+                        <Badge variant="secondary" className="ml-auto text-[10px] h-5">
+                          {stageTasks.length}
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        {stageTasks.length > 0 ? (
+                          stageTasks.map(task => {
+                            const assignee = getAssignee(task.assigneeId);
+                            return (
+                              <Card key={task.id} className="shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                                <CardContent className="p-3 space-y-3">
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between items-start gap-2">
+                                      <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                                        <h4 className="text-sm font-medium hover:text-primary leading-tight hover:underline decoration-primary/30 underline-offset-2 line-clamp-2">
+                                          {task.title}
+                                        </h4>
+                                      </Link>
+                                      <Badge variant={
+                                        task.priority === "High" ? "destructive" : 
+                                        task.priority === "Medium" ? "default" : "secondary"
+                                      } className="text-[10px] h-5 px-1.5 shrink-0">
+                                        {task.priority}
+                                      </Badge>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {task.tags?.map(tag => (
+                                        <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between pt-1 border-t border-dashed mt-2">
+                                    <div className="flex items-center gap-2">
+                                      {assignee ? (
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                          <Avatar className="h-5 w-5 border border-background">
+                                            <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                                              {assignee.name.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span className="truncate max-w-[80px]">{assignee.name.split(' ')[0]}</span>
+                                        </div>
+                                      ) : (
+                                        <div className="text-xs text-muted-foreground italic">Unassigned</div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {task.estimateHours && (
+                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                          <Clock className="h-3 w-3" />
+                                          {task.estimateHours}h
+                                        </span>
+                                      )}
+                                      <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-muted-foreground/20">
+                                        {task.status}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          })
+                        ) : (
+                          <div className="h-24 rounded-lg border border-dashed flex flex-col items-center justify-center text-muted-foreground/50 text-xs bg-muted/10">
+                            <span>No tasks in this stage</span>
+                            <Button variant="link" size="sm" className="h-auto p-0 text-primary opacity-50 hover:opacity-100">
+                              + Add Task
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <div className="w-full flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <Workflow className="h-12 w-12 mb-4 opacity-20" />
+                    <h3 className="text-lg font-medium">No Framework Assigned</h3>
+                    <p className="text-sm">This epic doesn't have a framework assigned yet.</p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>
