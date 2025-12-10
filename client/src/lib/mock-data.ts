@@ -168,12 +168,47 @@ export interface ProjectStage {
 export interface StageTemplate {
   id: string;
   name: string;
+  description?: string;
+  defaultStages: Partial<ProjectStage>[];
 }
 
 export interface MappingTemplate {
   id: string;
   name: string;
   dataType: string;
+}
+
+// New Template Interfaces
+export interface ProjectTemplate {
+  id: string;
+  name: string;
+  description: string;
+  defaultStages: string[]; // stage template IDs
+  defaultRoles: string[]; // role template IDs
+  thumbnail?: string;
+}
+
+export interface DeliverableTemplate {
+  id: string;
+  title: string;
+  description: string;
+  defaultEpics: string[]; // epic template IDs
+}
+
+export interface EpicTemplate {
+  id: string;
+  title: string;
+  description: string;
+  defaultTasks: string[]; // task template IDs
+}
+
+export interface TaskTemplate {
+  id: string;
+  title: string;
+  description: string;
+  defaultPriority: "Low" | "Medium" | "High";
+  defaultEstimateHours: number;
+  requiredRole?: string; // Role Type
 }
 
 export const PROJECTS: Project[] = [
@@ -694,9 +729,131 @@ export const GUIDANCE_ITEMS: GuidanceItem[] = [
 ];
 
 export const STAGE_TEMPLATES: StageTemplate[] = [
-  { id: "st1", name: "Standard Software Development" },
-  { id: "st2", name: "Marketing Campaign" },
-  { id: "st3", name: "Construction Project" },
+  { 
+    id: "st1", 
+    name: "Standard Software Development",
+    description: "Standard agile workflow for software projects",
+    defaultStages: [
+      { name: "Discovery", order: 1, type: "planning" },
+      { name: "Design", order: 2, type: "execution" },
+      { name: "Development", order: 3, type: "execution" },
+      { name: "QA & Testing", order: 4, type: "review" },
+      { name: "Launch", order: 5, type: "delivery" }
+    ]
+  },
+  { 
+    id: "st2", 
+    name: "Marketing Campaign",
+    description: "Workflow for digital and print marketing campaigns",
+    defaultStages: [
+      { name: "Concept", order: 1, type: "planning" },
+      { name: "Content Creation", order: 2, type: "execution" },
+      { name: "Review", order: 3, type: "review" },
+      { name: "Publish", order: 4, type: "delivery" }
+    ]
+  },
+  { 
+    id: "st3", 
+    name: "Construction Project",
+    description: "Phased workflow for physical construction",
+    defaultStages: [
+      { name: "Planning", order: 1, type: "planning" },
+      { name: "Foundation", order: 2, type: "execution" },
+      { name: "Framing", order: 3, type: "execution" },
+      { name: "Finishing", order: 4, type: "execution" },
+      { name: "Inspection", order: 5, type: "review" }
+    ]
+  },
+];
+
+export const PROJECT_TEMPLATES: ProjectTemplate[] = [
+  {
+    id: "pt1",
+    name: "Web Application",
+    description: "Full-stack web application with standard SDLC stages",
+    defaultStages: ["st1"],
+    defaultRoles: ["rt1", "rt2"],
+    thumbnail: "web-app"
+  },
+  {
+    id: "pt2",
+    name: "Marketing Launch",
+    description: "Product launch campaign template",
+    defaultStages: ["st2"],
+    defaultRoles: ["rt3"],
+    thumbnail: "marketing"
+  }
+];
+
+export const DELIVERABLE_TEMPLATES: DeliverableTemplate[] = [
+  {
+    id: "dt1",
+    title: "MVP Release",
+    description: "Standard deliverables for a Minimum Viable Product",
+    defaultEpics: ["et1", "et2"]
+  },
+  {
+    id: "dt2",
+    title: "Design System",
+    description: "Complete design system documentation and assets",
+    defaultEpics: ["et3"]
+  }
+];
+
+export const EPIC_TEMPLATES: EpicTemplate[] = [
+  {
+    id: "et1",
+    title: "User Authentication",
+    description: "Setup login, registration, and password recovery",
+    defaultTasks: ["tt1", "tt2"]
+  },
+  {
+    id: "et2",
+    title: "Dashboard Setup",
+    description: "Main user dashboard with key metrics",
+    defaultTasks: ["tt3"]
+  },
+  {
+    id: "et3",
+    title: "Component Library",
+    description: "Core UI components implementation",
+    defaultTasks: ["tt4"]
+  }
+];
+
+export const TASK_TEMPLATES: TaskTemplate[] = [
+  {
+    id: "tt1",
+    title: "Setup Auth API",
+    description: "Configure backend authentication endpoints",
+    defaultPriority: "High",
+    defaultEstimateHours: 8,
+    requiredRole: "Development"
+  },
+  {
+    id: "tt2",
+    title: "Login Page UI",
+    description: "Implement login page frontend",
+    defaultPriority: "Medium",
+    defaultEstimateHours: 6,
+    requiredRole: "Development"
+  },
+  {
+    id: "tt3",
+    title: "Analytics Widget",
+    description: "Create reusable analytics widget",
+    defaultPriority: "Medium",
+    defaultEstimateHours: 4,
+    requiredRole: "Development"
+  },
+  {
+    id: "tt4",
+    title: "Button Component",
+    description: "Create button component with variants",
+    defaultPriority: "Low",
+    defaultEstimateHours: 2,
+    requiredRole: "Design"
+  }
 ];
 
 export const MAPPING_TEMPLATES: MappingTemplate[] = [

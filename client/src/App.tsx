@@ -28,6 +28,7 @@ import StageWorkspace from "@/pages/stage-workspace";
 import ProjectSettings from "@/pages/project-settings";
 import DeliverablesList from "@/pages/deliverables";
 import EpicDetail from "@/pages/epic-detail";
+import AdminTemplates from "@/pages/admin/templates";
 
 function Router() {
   return (
@@ -52,6 +53,7 @@ function Router() {
       <Route path="/projects/:projectId/roles/:roleId/assignments" component={RoleAssignments} />
       <Route path="/projects/:projectId/views" component={SavedViewsGallery} />
       <Route path="/admin/users" component={UserManagement} />
+      <Route path="/admin/templates" component={AdminTemplates} />
       <Route component={NotFound} />
     </Switch>
   );
