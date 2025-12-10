@@ -109,14 +109,13 @@ export default function ProjectWizard() {
         // We expect "Deliverables" and "Epics" sheets, or a flat structure
         
         let newDeliverables = [...deliverables];
-        let processedDeliverables = new Map<string, any>(); // Map Name -> Deliverable Object
+        let processedDeliverables = new Map<string, any>(); // Map ID or Name -> Deliverable Object
+        // We need a separate map for Name lookup if we use IDs for linking
+        let deliverableIdMap = new Map<string, string>(); // Map External ID -> Internal Name
 
-        // Initialize with existing deliverables to avoid duplicates if possible, or just append?
-        // Let's append/merge.
-        
-        // 1. Try to find "Deliverables" sheet
-        const deliverablesSheetName = wb.SheetNames.find(n => n.toLowerCase().includes('deliverable'));
-        const epicsSheetName = wb.SheetNames.find(n => n.toLowerCase().includes('epic'));
+        // 1. Try to find "Deliverables" sheet (checking for specific names from user file)
+        const deliverablesSheetName = wb.SheetNames.find(n => n.toLowerCase().includes('del-deliverables') || n.toLowerCase().includes('deliverable'));
+        const epicsSheetName = wb.SheetNames.find(n => n.toLowerCase().includes('epic - epics') || n.toLowerCase().includes('epic'));
 
         if (deliverablesSheetName && epicsSheetName) {
             // Two separate sheets
@@ -125,29 +124,54 @@ export default function ProjectWizard() {
 
             // Process Deliverables
             dData.forEach((row: any) => {
-                const title = row['Title'] || row['Name'] || row['Deliverable'];
+                // Try specific headers first, then fallbacks
+                const title = row['deliverable_name'] || row['Title'] || row['Name'] || row['Deliverable'];
+                const externalId = row['deliverable_id']; // Capture external ID for linking
+                const description = row['deliverable_description'] || row['Description'] || "";
+
                 if (title) {
                     const id = `d-${Date.now()}-${Math.random()}`;
                     const d = {
                         id,
                         title,
-                        description: row['Description'] || "",
+                        description,
                         epics: []
                     };
-                    processedDeliverables.set(title, d);
+                    
+                    // Store by Name (for display/uniqueness)
+                    if (!processedDeliverables.has(title)) {
+                        processedDeliverables.set(title, d);
+                    }
+                    
+                    // Store mapping if external ID exists
+                    if (externalId) {
+                        deliverableIdMap.set(externalId, title);
+                    }
                 }
             });
 
             // Process Epics
             eData.forEach((row: any) => {
-                const epicTitle = row['Title'] || row['Name'] || row['Epic'];
-                const parentDeliverable = row['Deliverable'] || row['Parent'] || row['Deliverable Name'];
+                const epicTitle = row['epic_name'] || row['Title'] || row['Name'] || row['Epic'];
+                const description = row['epic_user_story'] || row['Description'] || "";
                 
-                if (epicTitle && parentDeliverable && processedDeliverables.has(parentDeliverable)) {
-                     processedDeliverables.get(parentDeliverable).epics.push({
+                // Try to find parent by ID first, then Name
+                const parentId = row['deliverable_id'];
+                const parentName = row['deliverable_name'] || row['Deliverable'] || row['Parent'] || row['Deliverable Name'];
+                
+                let targetDeliverableName = null;
+
+                if (parentId && deliverableIdMap.has(parentId)) {
+                    targetDeliverableName = deliverableIdMap.get(parentId);
+                } else if (parentName && processedDeliverables.has(parentName)) {
+                    targetDeliverableName = parentName;
+                }
+                
+                if (epicTitle && targetDeliverableName && processedDeliverables.has(targetDeliverableName)) {
+                     processedDeliverables.get(targetDeliverableName).epics.push({
                         id: `e-${Date.now()}-${Math.random()}`,
                         title: epicTitle,
-                        description: row['Description'] || "",
+                        description: description,
                         tasks: []
                      });
                 }
