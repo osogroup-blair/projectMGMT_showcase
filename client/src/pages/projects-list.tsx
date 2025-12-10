@@ -91,10 +91,12 @@ export default function ProjectsList() {
             <p className="text-muted-foreground text-sm">Manage and track all ongoing projects across the organization.</p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" className="gap-2">
-              <Upload className="h-4 w-4" />
-              Import Project
-            </Button>
+            <Link href="/projects/import">
+              <Button variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" />
+                Import Project
+              </Button>
+            </Link>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
               Create Project
