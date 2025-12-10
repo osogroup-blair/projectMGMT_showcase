@@ -32,13 +32,13 @@ export function Sidebar() {
         
         <div className="flex items-center gap-2 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-sidebar-foreground/70" />
             <input 
-              className="flex h-9 w-full rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-sidebar-ring disabled:cursor-not-allowed disabled:opacity-50 pl-9 text-sidebar-foreground"
+              className="flex h-9 w-full rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-sidebar-foreground/50 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-sidebar-ring disabled:cursor-not-allowed disabled:opacity-50 pl-9 text-sidebar-foreground"
               placeholder="Search..." 
               data-testid="input-search"
             />
-            <kbd className="pointer-events-none absolute right-2.5 top-2.5 inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar-accent px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <kbd className="pointer-events-none absolute right-2.5 top-2.5 inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar-accent px-1.5 font-mono text-[10px] font-medium text-sidebar-foreground/70 opacity-100">
               <span className="text-xs">⌘</span>K
             </kbd>
           </div>
@@ -51,9 +51,9 @@ export function Sidebar() {
           </Avatar>
           <div className="flex flex-col text-left">
             <span className="text-sm font-semibold">Joy Mason</span>
-            <span className="text-xs text-muted-foreground">Product Manager</span>
+            <span className="text-xs text-sidebar-foreground/70">Product Manager</span>
           </div>
-          <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground" />
+          <ChevronDown className="ml-auto h-4 w-4 text-sidebar-foreground/70" />
         </div>
       </div>
 
@@ -68,14 +68,14 @@ export function Sidebar() {
           </div>
 
           <div className="space-y-1">
-            <h4 className="px-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">Operations</h4>
+            <h4 className="px-2 text-xs font-semibold text-sidebar-foreground/70 tracking-wider uppercase mb-2">Operations</h4>
             <NavItem icon={Clock} label="Time & Billing" href="/billing" />
             <NavItem icon={Box} label="Resources" href="/resources" />
           </div>
 
           <div className="space-y-1">
-            <h4 className="px-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">Knowledge</h4>
-            <NavItem icon={Brain} label="AI Hub" href="/ai" className="text-accent hover:text-accent hover:bg-accent/10" />
+            <h4 className="px-2 text-xs font-semibold text-sidebar-foreground/70 tracking-wider uppercase mb-2">Knowledge</h4>
+            <NavItem icon={Brain} label="AI Hub" href="/ai" className="text-sidebar-primary hover:text-sidebar-primary hover:bg-sidebar-accent/50" />
             <NavItem icon={Bell} label="Quick Insights" href="/insights" />
           </div>
         </div>
@@ -91,12 +91,12 @@ function NavItem({ icon: Icon, label, active, href, badge, className }: any) {
         variant="ghost" 
         className={cn(
           "w-full justify-start gap-3 h-10 font-normal", 
-          active ? "bg-sidebar-accent text-sidebar-primary-foreground font-medium shadow-xs" : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent",
+          active ? "bg-sidebar-accent text-sidebar-primary font-medium shadow-xs" : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
           className
         )}
         data-testid={`nav-${label.toLowerCase().replace(" ", "-")}`}
       >
-        <Icon className={cn("h-4 w-4", active ? "text-sidebar-primary" : "text-muted-foreground")} />
+        <Icon className={cn("h-4 w-4", active ? "text-sidebar-primary" : "text-sidebar-foreground/70")} />
         {label}
         {badge && (
           <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-sidebar-primary/20 text-[10px] font-medium text-sidebar-primary">
