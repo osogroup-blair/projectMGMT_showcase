@@ -1,7 +1,8 @@
 import { 
   Project, 
   PROJECTS, 
-  TEAM 
+  TEAM,
+  FRAMEWORK_TEMPLATES
 } from "@/lib/mock-data";
 import { 
   Search, 
@@ -17,7 +18,8 @@ import {
   ChevronRight,
   Pencil,
   Trash2,
-  X
+  X,
+  Workflow
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,7 +131,8 @@ export default function ProjectsList() {
     endDate: "",
     riskLevel: "Low",
     description: "",
-    progress: 0
+    progress: 0,
+    frameworkId: ""
   });
 
   // Filter Logic
@@ -156,7 +159,8 @@ export default function ProjectsList() {
       startDate: formData.startDate || new Date().toISOString().split('T')[0],
       endDate: formData.endDate || "",
       riskLevel: formData.riskLevel as any || "Low",
-      description: formData.description || ""
+      description: formData.description || "",
+      frameworkId: formData.frameworkId
     };
 
     setProjects([newProject, ...projects]);
@@ -212,7 +216,8 @@ export default function ProjectsList() {
       endDate: project.endDate,
       riskLevel: project.riskLevel,
       description: project.description,
-      progress: project.progress
+      progress: project.progress,
+      frameworkId: project.frameworkId
     });
     setIsEditOpen(true);
   };
@@ -233,7 +238,8 @@ export default function ProjectsList() {
       endDate: "",
       riskLevel: "Low",
       description: "",
-      progress: 0
+      progress: 0,
+      frameworkId: ""
     });
   };
 
@@ -324,6 +330,24 @@ export default function ProjectsList() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="framework">Project Framework</Label>
+                    <Select 
+                      value={formData.frameworkId} 
+                      onValueChange={(val) => setFormData({...formData, frameworkId: val})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a framework" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FRAMEWORK_TEMPLATES.map(fw => (
+                          <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">This defines the default workflow structure for the project.</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -591,7 +615,6 @@ export default function ProjectsList() {
                     <SelectItem value="In Progress">In Progress</SelectItem>
                     <SelectItem value="On Hold">On Hold</SelectItem>
                     <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="Overdue">Overdue</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -613,34 +636,21 @@ export default function ProjectsList() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-progress">Progress (%)</Label>
-                <Input 
-                  id="edit-progress" 
-                  type="number" 
-                  min="0"
-                  max="100"
-                  value={formData.progress}
-                  onChange={(e) => setFormData({...formData, progress: parseInt(e.target.value) || 0})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-risk">Risk Level</Label>
-                <Select 
-                  value={formData.riskLevel} 
-                  onValueChange={(val) => setFormData({...formData, riskLevel: val as any})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select risk" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-framework">Project Framework</Label>
+              <Select 
+                value={formData.frameworkId} 
+                onValueChange={(val) => setFormData({...formData, frameworkId: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a framework" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FRAMEWORK_TEMPLATES.map(fw => (
+                    <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -665,6 +675,23 @@ export default function ProjectsList() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="edit-risk">Risk Level</Label>
+              <Select 
+                value={formData.riskLevel} 
+                onValueChange={(val) => setFormData({...formData, riskLevel: val as any})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select risk level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="edit-description">Description</Label>
               <Textarea 
                 id="edit-description" 
@@ -686,9 +713,9 @@ export default function ProjectsList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the project
-              <span className="font-semibold text-foreground"> {currentProject?.name} </span>
-              and all associated data.
+              This action cannot be undone. This will permanently delete the 
+              <span className="font-semibold"> {currentProject?.name} </span>
+              project and all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

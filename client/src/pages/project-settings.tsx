@@ -31,7 +31,7 @@ import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { 
   PROJECTS, 
-  STAGE_TEMPLATES, 
+  FRAMEWORK_TEMPLATES, 
   MAPPING_TEMPLATES 
 } from "@/lib/mock-data";
 
@@ -45,7 +45,7 @@ export default function ProjectSettings() {
   const [formData, setFormData] = useState({
     name: project.name,
     status: project.status,
-    defaultStageTemplateId: project.defaultStageTemplateId || "st1",
+    frameworkId: project.frameworkId || "ft1",
     defaultMappingTemplateId: project.defaultMappingTemplateId || "mt1",
     permissions: JSON.stringify(project.permissions || {
       "view_project": ["admin", "member", "viewer"],
@@ -123,28 +123,28 @@ export default function ProjectSettings() {
           {/* Templates Configuration */}
           <Card>
             <CardHeader>
-              <CardTitle>Templates & Defaults</CardTitle>
-              <CardDescription>Configure default templates for stages and data mapping.</CardDescription>
+              <CardTitle>Framework & Defaults</CardTitle>
+              <CardDescription>Configure the project's methodology and default settings.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="stageTemplate">Default Stage Template</Label>
+                  <Label htmlFor="framework">Project Framework</Label>
                   <Select 
-                    value={formData.defaultStageTemplateId} 
-                    onValueChange={(val) => setFormData({...formData, defaultStageTemplateId: val})}
+                    value={formData.frameworkId} 
+                    onValueChange={(val) => setFormData({...formData, frameworkId: val})}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a template" />
+                      <SelectValue placeholder="Select a framework" />
                     </SelectTrigger>
                     <SelectContent>
-                      {STAGE_TEMPLATES.map(t => (
+                      {FRAMEWORK_TEMPLATES.map(t => (
                         <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Used when resetting stages or creating new workflows.
+                    Defines the overall stages and workflow methodology.
                   </p>
                 </div>
 

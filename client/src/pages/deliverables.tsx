@@ -4,24 +4,18 @@ import {
   ArrowLeft, 
   Plus, 
   MoreHorizontal, 
-  Search, 
-  Filter,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  ChevronRight,
+  Check,
   Package,
   Layers,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   Card, 
   CardContent, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription
 } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -31,30 +25,86 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
 import { 
   PROJECTS, 
   DELIVERABLES, 
   EPICS, 
-  TEAM 
+  TEAM,
+  STAGE_TEMPLATES
 } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DeliverablesList() {
   const [match, params] = useRoute("/projects/:projectId/deliverables");
   const projectId = params?.projectId || "1";
-  const project = PROJECTS.find(p => p.id === projectId) || PROJECTS[0];
+  const { toast } = useToast();
 
   const deliverables = DELIVERABLES.filter(d => d.projectId === projectId);
   const getEpicsForDeliverable = (deliverableId: string) => EPICS.filter(e => e.deliverableId === deliverableId);
   const getOwner = (ownerId: string) => TEAM.find(t => t.id === ownerId);
+
+  // Epic Creation State
+  const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
+  const [selectedDeliverableId, setSelectedDeliverableId] = useState<string>("");
+  const [newEpicData, setNewEpicData] = useState({
+    title: "",
+    description: "",
+    stageIds: [] as string[]
+  });
+
+  const handleOpenCreateEpic = (deliverableId: string) => {
+    setSelectedDeliverableId(deliverableId);
+    setNewEpicData({
+      title: "",
+      description: "",
+      stageIds: []
+    });
+    setIsCreateEpicOpen(true);
+  };
+
+  const toggleStageSelection = (stageId: string) => {
+    setNewEpicData(prev => ({
+      ...prev,
+      stageIds: prev.stageIds.includes(stageId)
+        ? prev.stageIds.filter(id => id !== stageId)
+        : [...prev.stageIds, stageId]
+    }));
+  };
+
+  const handleCreateEpic = () => {
+    // In a real app, this would dispatch a create action
+    toast({
+      title: "Epic Created",
+      description: `${newEpicData.title} has been created with ${newEpicData.stageIds.length} assigned stages.`,
+    });
+    setIsCreateEpicOpen(false);
+  };
 
   return (
     <Shell>
@@ -147,7 +197,10 @@ export default function DeliverablesList() {
                         </div>
                       </AccordionTrigger>
                       <div className="flex items-center gap-2 pl-4 border-l ml-4 h-12">
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenCreateEpic(deliverable.id);
+                        }}>
                           <Plus className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon">
@@ -174,6 +227,11 @@ export default function DeliverablesList() {
                                       <h4 className="font-medium group-hover:text-primary transition-colors">{epic.title}</h4>
                                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                         <span>{epic.startDate} - {epic.endDate}</span>
+                                        {epic.stageIds && (
+                                            <span className="flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded bg-muted">
+                                                {epic.stageIds.length} Stages
+                                            </span>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -193,7 +251,13 @@ export default function DeliverablesList() {
                           </div>
                         ) : (
                           <div className="p-4 border border-dashed rounded-md text-center text-sm text-muted-foreground bg-muted/30">
-                            No epics created yet. <span className="text-primary cursor-pointer hover:underline">Add an Epic</span>
+                            No epics created yet. 
+                            <span 
+                              className="text-primary cursor-pointer hover:underline ml-1"
+                              onClick={() => handleOpenCreateEpic(deliverable.id)}
+                            >
+                              Add an Epic
+                            </span>
                           </div>
                         )}
                       </div>
@@ -204,6 +268,80 @@ export default function DeliverablesList() {
             </Accordion>
           )}
         </div>
+
+        {/* Create Epic Dialog */}
+        <Dialog open={isCreateEpicOpen} onOpenChange={setIsCreateEpicOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Create New Epic</DialogTitle>
+              <DialogDescription>
+                Define a new body of work for this deliverable.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="epic-title">Epic Title</Label>
+                <Input 
+                  id="epic-title" 
+                  value={newEpicData.title}
+                  onChange={(e) => setNewEpicData({...newEpicData, title: e.target.value})}
+                  placeholder="e.g. User Authentication"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="epic-desc">Description</Label>
+                <Input 
+                  id="epic-desc" 
+                  value={newEpicData.description}
+                  onChange={(e) => setNewEpicData({...newEpicData, description: e.target.value})}
+                  placeholder="Brief description of the work..."
+                />
+              </div>
+              
+              <div className="space-y-3 pt-2">
+                <Label>Assign Stages</Label>
+                <div className="text-xs text-muted-foreground mb-2">
+                    Select the workflow stages that apply to this epic. This determines the task workflow.
+                </div>
+                <ScrollArea className="h-[200px] border rounded-md p-2">
+                    <div className="space-y-2">
+                        {STAGE_TEMPLATES.map(stage => (
+                            <div 
+                                key={stage.id} 
+                                className={cn(
+                                    "flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors border",
+                                    newEpicData.stageIds.includes(stage.id) 
+                                        ? "bg-primary/5 border-primary" 
+                                        : "hover:bg-muted border-transparent"
+                                )}
+                                onClick={() => toggleStageSelection(stage.id)}
+                            >
+                                <div className={cn(
+                                    "h-4 w-4 rounded border flex items-center justify-center transition-colors",
+                                    newEpicData.stageIds.includes(stage.id)
+                                        ? "bg-primary border-primary text-primary-foreground"
+                                        : "border-muted-foreground"
+                                )}>
+                                    {newEpicData.stageIds.includes(stage.id) && <Check className="h-3 w-3" />}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-sm font-medium">{stage.name}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Includes {stage.defaultTasks.length} default tasks
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateEpic}>Create Epic</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Shell>
   );
