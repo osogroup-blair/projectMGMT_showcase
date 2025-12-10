@@ -14,6 +14,7 @@ import ProjectImportMapping from "@/pages/project-import-mapping";
 
 import ProjectImportPreview from "@/pages/project-import-preview";
 import ProjectOverview from "@/pages/project-overview";
+import StageDesigner from "@/pages/stage-designer";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
       <Route path="/projects/import/:sessionId/preview" component={ProjectImportPreview} />
       <Route path="/projects/:projectId" component={ProjectOverview} />
+      <Route path="/projects/:projectId/stages" component={StageDesigner} />
       <Route component={NotFound} />
     </Switch>
   );
