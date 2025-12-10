@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Tabs, 
   TabsContent, 
@@ -40,19 +42,175 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   PROJECT_TEMPLATES,
   DELIVERABLE_TEMPLATES,
   EPIC_TEMPLATES,
   TASK_TEMPLATES,
   STAGE_TEMPLATES,
-  ROLE_TEMPLATES
+  ROLE_TEMPLATES,
+  ProjectTemplate,
+  DeliverableTemplate,
+  EpicTemplate,
+  TaskTemplate,
+  StageTemplate,
+  RoleTemplate
 } from "@/lib/mock-data";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminTemplates() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("projects");
 
-  const TemplateCard = ({ title, description, badge, icon: Icon, itemsCount, itemLabel }: any) => (
+  // State for all template types
+  const [projectTemplates, setProjectTemplates] = useState<ProjectTemplate[]>(PROJECT_TEMPLATES);
+  const [stageTemplates, setStageTemplates] = useState<StageTemplate[]>(STAGE_TEMPLATES);
+  const [deliverableTemplates, setDeliverableTemplates] = useState<DeliverableTemplate[]>(DELIVERABLE_TEMPLATES);
+  const [epicTemplates, setEpicTemplates] = useState<EpicTemplate[]>(EPIC_TEMPLATES);
+  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>(TASK_TEMPLATES);
+  const [roleTemplates, setRoleTemplates] = useState<RoleTemplate[]>(ROLE_TEMPLATES);
+
+  // Modal State
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState<any>(null);
+  const [currentType, setCurrentType] = useState<"project" | "stage" | "deliverable" | "epic" | "task" | "role">("project");
+
+  // Form State (Generic)
+  const [formData, setFormData] = useState<any>({});
+
+  const filterTemplates = (templates: any[]) => {
+    return templates.filter(t => 
+      t.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
+  // CRUD Handlers
+  const handleCreate = (type: string) => {
+    setCurrentTemplate(null);
+    setCurrentType(type as any);
+    
+    // Initialize empty form data based on type
+    const initialData: any = { description: "" };
+    if (type === "project") initialData.name = "";
+    if (type === "stage") initialData.name = "";
+    if (type === "deliverable") initialData.title = "";
+    if (type === "epic") initialData.title = "";
+    if (type === "task") {
+        initialData.title = "";
+        initialData.defaultPriority = "Medium";
+        initialData.defaultEstimateHours = 1;
+        initialData.requiredRole = "Development";
+    }
+    if (type === "role") {
+        initialData.name = "";
+        initialData.defaultRoleType = "Development";
+    }
+
+    setFormData(initialData);
+    setIsEditOpen(true);
+  };
+
+  const handleEdit = (template: any, type: string) => {
+    setCurrentTemplate(template);
+    setCurrentType(type as any);
+    setFormData({ ...template });
+    setIsEditOpen(true);
+  };
+
+  const handleDeleteClick = (template: any, type: string) => {
+    setCurrentTemplate(template);
+    setCurrentType(type as any);
+    setIsDeleteOpen(true);
+  };
+
+  const handleSave = () => {
+    const isNew = !currentTemplate;
+    const newId = isNew ? `${currentType.charAt(0)}t${Date.now()}` : currentTemplate.id;
+    const newItem = { ...formData, id: newId };
+
+    if (currentType === "project") {
+        const list = isNew ? [...projectTemplates, { ...newItem, defaultStages: [], defaultRoles: [] }] : projectTemplates.map(t => t.id === newItem.id ? newItem : t);
+        setProjectTemplates(list);
+    } else if (currentType === "stage") {
+        const list = isNew ? [...stageTemplates, { ...newItem, defaultStages: [] }] : stageTemplates.map(t => t.id === newItem.id ? newItem : t);
+        setStageTemplates(list);
+    } else if (currentType === "deliverable") {
+        const list = isNew ? [...deliverableTemplates, { ...newItem, defaultEpics: [] }] : deliverableTemplates.map(t => t.id === newItem.id ? newItem : t);
+        setDeliverableTemplates(list);
+    } else if (currentType === "epic") {
+        const list = isNew ? [...epicTemplates, { ...newItem, defaultTasks: [] }] : epicTemplates.map(t => t.id === newItem.id ? newItem : t);
+        setEpicTemplates(list);
+    } else if (currentType === "task") {
+        const list = isNew ? [...taskTemplates, newItem] : taskTemplates.map(t => t.id === newItem.id ? newItem : t);
+        setTaskTemplates(list);
+    } else if (currentType === "role") {
+        const list = isNew ? [...roleTemplates, { ...newItem, defaultPermissions: [] }] : roleTemplates.map(t => t.id === newItem.id ? newItem : t);
+        setRoleTemplates(list);
+    }
+
+    setIsEditOpen(false);
+    toast({
+      title: isNew ? "Template Created" : "Template Updated",
+      description: `${newItem.name || newItem.title} has been successfully saved.`,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!currentTemplate) return;
+
+    if (currentType === "project") {
+        setProjectTemplates(projectTemplates.filter(t => t.id !== currentTemplate.id));
+    } else if (currentType === "stage") {
+        setStageTemplates(stageTemplates.filter(t => t.id !== currentTemplate.id));
+    } else if (currentType === "deliverable") {
+        setDeliverableTemplates(deliverableTemplates.filter(t => t.id !== currentTemplate.id));
+    } else if (currentType === "epic") {
+        setEpicTemplates(epicTemplates.filter(t => t.id !== currentTemplate.id));
+    } else if (currentType === "task") {
+        setTaskTemplates(taskTemplates.filter(t => t.id !== currentTemplate.id));
+    } else if (currentType === "role") {
+        setRoleTemplates(roleTemplates.filter(t => t.id !== currentTemplate.id));
+    }
+
+    setIsDeleteOpen(false);
+    toast({
+      title: "Template Deleted",
+      description: "The template has been permanently removed.",
+      variant: "destructive"
+    });
+  };
+
+  const TemplateCard = ({ item, type, icon: Icon, itemsCount, itemLabel, badge }: any) => (
     <Card className="hover:shadow-md transition-shadow cursor-pointer group">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
@@ -67,22 +225,26 @@ export default function AdminTemplates() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleEdit(item, type)}>
                 <Pencil className="mr-2 h-4 w-4" /> Edit Template
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                const dup = { ...item, id: undefined, name: `${item.name || item.title} (Copy)`, title: `${item.name || item.title} (Copy)` };
+                handleCreate(type);
+                setFormData(dup);
+              }}>
                 <Copy className="mr-2 h-4 w-4" /> Duplicate
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600">
+              <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(item, type)}>
                 <Trash2 className="mr-2 h-4 w-4" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <CardTitle className="text-lg mt-3">{title}</CardTitle>
+        <CardTitle className="text-lg mt-3">{item.name || item.title}</CardTitle>
         <CardDescription className="line-clamp-2 mt-1 h-10">
-          {description}
+          {item.description}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -109,9 +271,9 @@ export default function AdminTemplates() {
               <h1 className="text-3xl font-bold tracking-tight text-primary">Template Management</h1>
               <p className="text-muted-foreground">Manage and configure templates for projects, deliverables, epics, and tasks.</p>
             </div>
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={() => handleCreate(activeTab.slice(0, -1))}>
               <Plus className="h-4 w-4" />
-              Create Template
+              Create {activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1)} Template
             </Button>
           </div>
 
@@ -126,7 +288,7 @@ export default function AdminTemplates() {
           </div>
         </div>
 
-        <Tabs defaultValue="projects" className="w-full">
+        <Tabs defaultValue="projects" className="w-full" onValueChange={setActiveTab}>
           <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto">
             <TabsTrigger 
               value="projects" 
@@ -168,18 +330,21 @@ export default function AdminTemplates() {
           <div className="mt-6">
             <TabsContent value="projects" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {PROJECT_TEMPLATES.map(t => (
+                {filterTemplates(projectTemplates).map(t => (
                   <TemplateCard 
                     key={t.id}
-                    title={t.name}
-                    description={t.description}
+                    item={t}
+                    type="project"
                     icon={LayoutTemplate}
-                    itemsCount={t.defaultStages.length}
+                    itemsCount={t.defaultStages?.length || 0}
                     itemLabel="Stages"
                     badge="Full Stack"
                   />
                 ))}
-                <Card className="flex flex-col items-center justify-center border-dashed cursor-pointer hover:bg-muted/10 transition-colors min-h-[200px]">
+                <Card 
+                    className="flex flex-col items-center justify-center border-dashed cursor-pointer hover:bg-muted/10 transition-colors min-h-[200px]"
+                    onClick={() => handleCreate('project')}
+                >
                   <div className="p-4 rounded-full bg-muted text-muted-foreground mb-4">
                     <Plus className="h-6 w-6" />
                   </div>
@@ -191,11 +356,11 @@ export default function AdminTemplates() {
 
             <TabsContent value="stages" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {STAGE_TEMPLATES.map(t => (
+                {filterTemplates(stageTemplates).map(t => (
                   <TemplateCard 
                     key={t.id}
-                    title={t.name}
-                    description={t.description || "Standard stage configuration"}
+                    item={t}
+                    type="stage"
                     icon={Layers}
                     itemsCount={t.defaultStages?.length || 5}
                     itemLabel="Phases"
@@ -206,13 +371,13 @@ export default function AdminTemplates() {
 
             <TabsContent value="deliverables" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {DELIVERABLE_TEMPLATES.map(t => (
+                {filterTemplates(deliverableTemplates).map(t => (
                   <TemplateCard 
                     key={t.id}
-                    title={t.title}
-                    description={t.description}
+                    item={t}
+                    type="deliverable"
                     icon={Package}
-                    itemsCount={t.defaultEpics.length}
+                    itemsCount={t.defaultEpics?.length || 0}
                     itemLabel="Default Epics"
                   />
                 ))}
@@ -221,13 +386,13 @@ export default function AdminTemplates() {
 
             <TabsContent value="epics" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {EPIC_TEMPLATES.map(t => (
+                {filterTemplates(epicTemplates).map(t => (
                   <TemplateCard 
                     key={t.id}
-                    title={t.title}
-                    description={t.description}
+                    item={t}
+                    type="epic"
                     icon={FileBox}
-                    itemsCount={t.defaultTasks.length}
+                    itemsCount={t.defaultTasks?.length || 0}
                     itemLabel="Standard Tasks"
                   />
                 ))}
@@ -236,13 +401,18 @@ export default function AdminTemplates() {
 
             <TabsContent value="tasks" className="space-y-8">
               <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <ListTodo className="h-5 w-5 text-primary" />
-                  Task Templates
-                </h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <ListTodo className="h-5 w-5 text-primary" />
+                    Task Templates
+                    </h3>
+                    <Button variant="outline" size="sm" onClick={() => handleCreate('task')}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Task
+                    </Button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {TASK_TEMPLATES.map(t => (
-                    <Card key={t.id} className="hover:shadow-md transition-shadow">
+                  {filterTemplates(taskTemplates).map(t => (
+                    <Card key={t.id} className="hover:shadow-md transition-shadow group">
                       <CardHeader className="p-4 pb-2">
                         <div className="flex justify-between items-start">
                           <Badge variant={t.defaultPriority === 'High' ? 'destructive' : 'secondary'} className="text-[10px]">
@@ -250,13 +420,13 @@ export default function AdminTemplates() {
                           </Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-6 w-6">
+                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <MoreHorizontal className="h-3 w-3" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEdit(t, 'task')}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(t, 'task')}>Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -275,23 +445,39 @@ export default function AdminTemplates() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Role Templates
-                </h3>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Role Templates
+                    </h3>
+                    <Button variant="outline" size="sm" onClick={() => handleCreate('role')}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Role
+                    </Button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {ROLE_TEMPLATES.map(t => (
-                    <Card key={t.id} className="hover:shadow-md transition-shadow">
+                  {filterTemplates(roleTemplates).map(t => (
+                    <Card key={t.id} className="hover:shadow-md transition-shadow group">
                       <CardHeader className="pb-2">
                         <div className="flex justify-between">
                           <CardTitle className="text-base">{t.name}</CardTitle>
                           <Badge variant="outline">{t.defaultRoleType}</Badge>
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity -mr-2 -mt-2">
+                                <MoreHorizontal className="h-3 w-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => handleEdit(t, 'role')}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(t, 'role')}>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                         <CardDescription className="text-xs">{t.description}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="text-xs text-muted-foreground">
-                          <strong>Permissions:</strong> {t.defaultPermissions.length} assigned
+                          <strong>Permissions:</strong> {t.defaultPermissions?.length || 0} assigned
                         </div>
                       </CardContent>
                     </Card>
@@ -302,6 +488,136 @@ export default function AdminTemplates() {
           </div>
         </Tabs>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+                {currentTemplate ? 'Edit' : 'Create'} {currentType.charAt(0).toUpperCase() + currentType.slice(1)} Template
+            </DialogTitle>
+            <DialogDescription>
+              Configure the details for this template below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+                <Label htmlFor="name">
+                    {currentType === 'task' || currentType === 'deliverable' || currentType === 'epic' ? 'Title' : 'Name'}
+                </Label>
+                <Input 
+                    id="name" 
+                    value={formData.name || formData.title || ""} 
+                    onChange={(e) => {
+                        if (currentType === 'task' || currentType === 'deliverable' || currentType === 'epic') {
+                            setFormData({...formData, title: e.target.value});
+                        } else {
+                            setFormData({...formData, name: e.target.value});
+                        }
+                    }}
+                />
+            </div>
+            
+            <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea 
+                    id="description" 
+                    value={formData.description || ""} 
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                />
+            </div>
+
+            {/* Task Specific Fields */}
+            {currentType === 'task' && (
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Default Priority</Label>
+                        <Select 
+                            value={formData.defaultPriority} 
+                            onValueChange={(val) => setFormData({...formData, defaultPriority: val})}
+                        >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Low">Low</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="High">High</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Est. Hours</Label>
+                        <Input 
+                            type="number" 
+                            min="1"
+                            value={formData.defaultEstimateHours}
+                            onChange={(e) => setFormData({...formData, defaultEstimateHours: parseInt(e.target.value)})}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Required Role</Label>
+                        <Select 
+                            value={formData.requiredRole} 
+                            onValueChange={(val) => setFormData({...formData, requiredRole: val})}
+                        >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Management">Management</SelectItem>
+                                <SelectItem value="Design">Design</SelectItem>
+                                <SelectItem value="Development">Development</SelectItem>
+                                <SelectItem value="QA & Testing">QA & Testing</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            )}
+
+            {/* Role Specific Fields */}
+            {currentType === 'role' && (
+                <div className="space-y-2">
+                    <Label>Role Type</Label>
+                    <Select 
+                        value={formData.defaultRoleType} 
+                        onValueChange={(val) => setFormData({...formData, defaultRoleType: val})}
+                    >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Management">Management</SelectItem>
+                            <SelectItem value="Discovery">Discovery</SelectItem>
+                            <SelectItem value="Design">Design</SelectItem>
+                            <SelectItem value="Development">Development</SelectItem>
+                            <SelectItem value="QA & Testing">QA & Testing</SelectItem>
+                            <SelectItem value="Launch">Launch</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave}>Save Template</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the 
+              <span className="font-semibold"> {currentTemplate?.name || currentTemplate?.title} </span>
+              template.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete Template
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Shell>
   );
 }
