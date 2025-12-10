@@ -5,7 +5,8 @@ import {
   Settings,
   Save,
   AlertTriangle,
-  Info
+  Info,
+  Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,10 +83,18 @@ export default function ProjectSettings() {
               <h1 className="text-3xl font-bold tracking-tight text-primary">Project Settings</h1>
               <p className="text-muted-foreground mt-1">Manage configuration and defaults for {project.name}.</p>
             </div>
-            <Button onClick={handleSave} className="gap-2">
-              <Save className="h-4 w-4" />
-              Save Changes
-            </Button>
+            <div className="flex gap-2">
+              <Link href={`/projects/${projectId}/export`}>
+                <Button variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export Data
+                </Button>
+              </Link>
+              <Button onClick={handleSave} className="gap-2">
+                <Save className="h-4 w-4" />
+                Save Changes
+              </Button>
+            </div>
           </div>
         </div>
 

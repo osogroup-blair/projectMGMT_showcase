@@ -1,0 +1,461 @@
+App Gen Prompt – Robust Export (Round-trip Import/Export)
+
+Build a “Data Export” feature for my project management system.
+The domain model is:
+
+Projects
+
+Deliverables (children of Projects)
+
+Epics (children of Deliverables)
+
+Stages (global stage definitions)
+
+EpicStages (junction between Epics and Stages; sequence of an epic through stages)
+
+Tasks (children of Epics/EpicStages, ultimately under a Project)
+
+Milestones (tied to Projects, and optionally to EpicStages and/or Tasks)
+
+Plus supporting config entities: Users, ProjectRoles, ProjectRoleAssignments, SavedViews, StageViewConfigs, GuidanceItems, StageTemplates, MappingTemplates, RoleTemplates.
+
+Goal
+
+Implement a robust export that:
+
+Produces a single XLSX workbook with one sheet per entity.
+
+Each sheet contains all attributes for that entity (no fields are omitted).
+
+Relationships between entities are expressed strictly through IDs and foreign key columns across sheets.
+
+The exported workbook schema is round-trippable: the exact same structure can be used as input for an import endpoint to recreate or update the data.
+
+The export should contain all data necessary to power all existing views we’ve defined (projects list, project overview, task board, stage workspace, milestones, roles/assignments, saved views, guidance, etc.).
+
+UX Requirements
+
+Create a “Data Export” page at route /projects/:projectId/export.
+
+The page should:
+
+Show the current project header (name, client, status).
+
+Let the user choose scope:
+
+“This project only” (default).
+
+“All projects” (admin only).
+
+Let the user choose format:
+
+XLSX (primary) – multi-sheet workbook.
+
+Optionally CSV (one zip with multiple CSV files) – not required, but if easy, include.
+
+Options for include configuration data (SavedViews, StageViewConfigs, Roles, RoleAssignments, Guidance, Templates, etc.). Default ON.
+
+Show a summary of the workbook schema (sheet names and key foreign keys).
+
+Provide a primary “Export” button that triggers the export and downloads the workbook.
+
+Provide a secondary “Download Template Only” button that generates an empty workbook with correct sheets/columns but no data (for import templates).
+
+API + Backend Requirements
+
+Implement an endpoint like:
+
+GET /api/export?scope=project&project_id={id}
+
+GET /api/export?scope=all
+
+The endpoint should:
+
+Load all entities required for the scope.
+
+Populate a workbook with one sheet per entity as defined in the schema below.
+
+Ensure column order is deterministic and stable over time.
+
+Serialize IDs as strings consistently across all sheets.
+
+Also add an import endpoint that accepts the same workbook:
+
+POST /api/import (multipart upload).
+
+It should parse each sheet, respect IDs and foreign keys, and upsert records:
+
+If id exists → update.
+
+If id is blank → create new (where allowed).
+
+Validation rules:
+
+Fail fast on missing required foreign keys (e.g., Deliverable.project_id that doesn’t match any Projects.id in the workbook or DB).
+
+Provide a clear summary of errors per sheet and row.
+
+Workbook Structure (Tabs / Sheets)
+
+Generate one sheet per entity with all attributes. Use the following names and key columns.
+Important: The system may have more fields than listed below; include all persisted fields in the actual implementation, not only these examples.
+
+Projects
+
+id (PK)
+
+name
+
+client_id
+
+client_name
+
+status
+
+phase
+
+owner_id
+
+start_date
+
+end_date
+
+risk_level
+
+progress_percent
+
+default_stage_template_id
+
+default_mapping_template_id
+
+permissions (JSON / text)
+
+Deliverables
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+name
+
+description
+
+type
+
+status
+
+owner_id
+
+start_date
+
+end_date
+
+Epics
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+deliverable_id (FK → Deliverables.id)
+
+name
+
+description
+
+status
+
+owner_id
+
+start_date
+
+end_date
+
+priority
+
+tags (comma-separated or JSON text)
+
+Stages
+
+id (PK)
+
+name
+
+description
+
+order_index
+
+type
+
+entry_criteria
+
+exit_criteria
+
+default_view_type
+
+color
+
+is_active
+
+EpicStages
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+epic_id (FK → Epics.id)
+
+stage_id (FK → Stages.id)
+
+sequence_index
+
+status
+
+planned_start_date
+
+planned_end_date
+
+actual_start_date
+
+actual_end_date
+
+wip_limit
+
+default_milestone_id (FK → Milestones.id, optional)
+
+Tasks
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+deliverable_id (FK → Deliverables.id, optional)
+
+epic_id (FK → Epics.id, optional)
+
+epic_stage_id (FK → EpicStages.id, optional)
+
+stage_id (FK → Stages.id, optional; should mirror EpicStages.stage_id where set)
+
+milestone_id (FK → Milestones.id, optional)
+
+parent_task_id (FK → Tasks.id, for subtasks, optional)
+
+title
+
+description
+
+status
+
+assignee_id
+
+due_date
+
+priority
+
+estimate_hours
+
+tags (comma-separated or JSON text)
+
+external_reference
+
+created_at
+
+updated_at
+
+Milestones
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+epic_id (FK → Epics.id, optional)
+
+epic_stage_id (FK → EpicStages.id, optional)
+
+task_id (FK → Tasks.id, optional primary task)
+
+name
+
+description
+
+type
+
+status
+
+target_date
+
+completed_date
+
+owner_id
+
+billing_gate (boolean)
+
+required_completion_ratio
+
+progress_percent
+
+Users
+
+id (PK)
+
+name
+
+email
+
+Any other user attributes used by the app (e.g., avatar_url, department).
+
+ProjectRoles
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+name
+
+description
+
+role_type
+
+is_required
+
+max_assignees
+
+permissions (JSON/text)
+
+ProjectRoleAssignments
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+project_role_id (FK → ProjectRoles.id)
+
+user_id (FK → Users.id)
+
+is_primary
+
+allocation_percent
+
+SavedViews
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+name
+
+description
+
+stage_ids (IDs list as comma-separated or JSON)
+
+view_type
+
+visibility (e.g., global, personal)
+
+is_default
+
+config (JSON/text)
+
+StageViewConfigs
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+stage_id (FK → Stages.id)
+
+view_type
+
+visible_fields (JSON/text list)
+
+default_sort_field
+
+default_sort_direction
+
+default_filters (JSON/text)
+
+metrics (JSON/text)
+
+is_default_for_stage
+
+GuidanceItems
+
+id (PK)
+
+project_id (FK → Projects.id)
+
+context_type (e.g., project, stage, milestone, task)
+
+context_id (FK to the respective entity id)
+
+title
+
+body
+
+priority
+
+tags (list)
+
+StageTemplates
+
+id (PK)
+
+name
+
+description
+
+config (JSON/text describing default stages/pipeline)
+
+MappingTemplates
+
+id (PK)
+
+name
+
+data_type
+
+mapping_config (JSON/text)
+
+RoleTemplates
+
+id (PK)
+
+name
+
+description
+
+default_role_type
+
+default_permissions (JSON/text)
+
+Metadata (optional sheet)
+
+schema_version
+
+exported_at
+
+export_scope (project/all)
+
+project_id (if scope=project)
+
+Relationship & Integrity Rules
+
+All foreign key columns (*_id) should reference the id column of the corresponding sheet.
+
+The export should be self-contained: if exporting a project, include all related rows from the other sheets that belong to that project.
+
+When importing:
+
+Respect sheet-level order: Projects → Deliverables → Epics → Stages → EpicStages → Tasks → Milestones → Config tables.
+
+Validate referential integrity and report any missing dependencies with clear sheet name + row index.
+
+Ensure the schema is stable: subsequent exports of the same project should produce columns in the same order, so that external tooling and templates do not break.
+
+Performance & DX
+
+The export endpoint should be efficient for projects with thousands of tasks. Use streaming or chunking where supported.
+
+Provide meaningful progress/“Export in progress” feedback on the UI if the App Gen tool supports it.
+
+Document the workbook schema in the UI (e.g., expandable “Schema” section that lists sheets and key columns) so users understand how to edit and re-import.
