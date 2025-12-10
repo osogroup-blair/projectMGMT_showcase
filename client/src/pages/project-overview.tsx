@@ -150,6 +150,12 @@ export default function ProjectOverview() {
                   Edit Stages
                 </Button>
               </Link>
+              <Link href={`/projects/${projectId}/milestones`}>
+                <Button variant="outline" className="gap-2 flex-1 lg:flex-none">
+                  <Flag className="h-4 w-4" />
+                  Milestones
+                </Button>
+              </Link>
               <Button size="icon" variant="ghost">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>

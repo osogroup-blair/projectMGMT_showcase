@@ -1,0 +1,158 @@
+App Gen Prompt – Task Board
+
+Build a “Task Board” page at route /projects/:projectId/tasks.
+The page should show project tasks in a board-style view (e.g., grouped by stage or status) with filters and actions.
+Load tasks, stages, milestones, and saved views for this project.
+Filters: stage, status, assignee, milestone, and saved view.
+Each task should include title, description (optional), stage, status, assignee, due date, priority, milestone, estimate hours, and tags.
+Actions: create task, update task, move task between stages, bulk update tasks, and open task detail at /projects/{projectId}/tasks/{taskId}.
+Use the JSON view schema provided to wire up data, filters, and actions.
+
+JSON – Task Board
+{
+  "id": "task_board",
+  "name": "Task Board",
+  "route": "/projects/:projectId/tasks",
+  "primary_entity": "Task",
+  "data_sources": [
+    {
+      "id": "tasks",
+      "entity": "Task",
+      "endpoint": "/api/projects/{{route.projectId}}/tasks",
+      "method": "GET",
+      "params": {
+        "stage_id": "{{filters.stage_id}}",
+        "status": "{{filters.status}}",
+        "assignee_id": "{{filters.assignee_id}}",
+        "milestone_id": "{{filters.milestone_id}}",
+        "view_id": "{{filters.view_id}}"
+      }
+    },
+    {
+      "id": "stages",
+      "entity": "ProjectStage",
+      "endpoint": "/api/projects/{{route.projectId}}/stages",
+      "method": "GET"
+    },
+    {
+      "id": "milestones",
+      "entity": "Milestone",
+      "endpoint": "/api/projects/{{route.projectId}}/milestones",
+      "method": "GET"
+    },
+    {
+      "id": "views",
+      "entity": "SavedView",
+      "endpoint": "/api/projects/{{route.projectId}}/views",
+      "method": "GET"
+    }
+  ],
+  "entities": {
+    "Task": [
+      { "id": "id", "label": "Task Id", "type": "string", "source": "id" },
+      { "id": "title", "label": "Title", "type": "string", "source": "title" },
+      { "id": "description", "label": "Description", "type": "string", "source": "description" },
+      { "id": "stage_id", "label": "Stage Id", "type": "string", "source": "stage_id" },
+      { "id": "status", "label": "Status", "type": "enum", "source": "status" },
+      { "id": "assignee_id", "label": "Assignee Id", "type": "string", "source": "assignee_id" },
+      { "id": "assignee_name", "label": "Assignee", "type": "string", "source": "assignee.name" },
+      { "id": "due_date", "label": "Due Date", "type": "date", "source": "due_date" },
+      { "id": "priority", "label": "Priority", "type": "enum", "source": "priority" },
+      { "id": "milestone_id", "label": "Milestone Id", "type": "string", "source": "milestone_id" },
+      { "id": "milestone_name", "label": "Milestone", "type": "string", "source": "milestone.name" },
+      { "id": "estimate_hours", "label": "Estimate (hrs)", "type": "number", "source": "estimate_hours" },
+      { "id": "tags", "label": "Tags", "type": "array", "items_type": "string", "source": "tags" }
+    ],
+    "ProjectStage": [
+      { "id": "id", "label": "Stage Id", "type": "string", "source": "id" },
+      { "id": "name", "label": "Stage Name", "type": "string", "source": "name" }
+    ],
+    "Milestone": [
+      { "id": "id", "label": "Milestone Id", "type": "string", "source": "id" },
+      { "id": "name", "label": "Milestone Name", "type": "string", "source": "name" }
+    ],
+    "SavedView": [
+      { "id": "id", "label": "View Id", "type": "string", "source": "id" },
+      { "id": "name", "label": "View Name", "type": "string", "source": "name" }
+    ]
+  },
+  "filters": [
+    {
+      "id": "stage_id",
+      "label": "Stage",
+      "type": "reference",
+      "field": "Task.stage_id",
+      "operator": "eq",
+      "reference_entity": "ProjectStage"
+    },
+    {
+      "id": "status",
+      "label": "Status",
+      "type": "enum",
+      "field": "Task.status",
+      "operator": "in"
+    },
+    {
+      "id": "assignee_id",
+      "label": "Assignee",
+      "type": "reference",
+      "field": "Task.assignee_id",
+      "operator": "eq",
+      "reference_entity": "User"
+    },
+    {
+      "id": "milestone_id",
+      "label": "Milestone",
+      "type": "reference",
+      "field": "Task.milestone_id",
+      "operator": "eq",
+      "reference_entity": "Milestone"
+    },
+    {
+      "id": "view_id",
+      "label": "Saved View",
+      "type": "reference",
+      "field": "SavedView.id",
+      "operator": "eq",
+      "reference_entity": "SavedView"
+    }
+  ],
+  "actions": [
+    {
+      "id": "create_task",
+      "label": "Create Task",
+      "type": "mutation",
+      "endpoint": "/api/projects/{{route.projectId}}/tasks",
+      "method": "POST"
+    },
+    {
+      "id": "update_task",
+      "label": "Update Task",
+      "type": "mutation",
+      "endpoint": "/api/projects/{{route.projectId}}/tasks/{{Task.id}}",
+      "method": "PUT"
+    },
+    {
+      "id": "move_task_stage",
+      "label": "Move Task To Stage",
+      "type": "mutation",
+      "endpoint": "/api/projects/{{route.projectId}}/tasks/{{Task.id}}/move",
+      "method": "POST"
+    },
+    {
+      "id": "bulk_update_tasks",
+      "label": "Bulk Update Tasks",
+      "type": "mutation",
+      "endpoint": "/api/projects/{{route.projectId}}/tasks/bulk",
+      "method": "POST"
+    },
+    {
+      "id": "open_task_detail",
+      "label": "Open Task Detail",
+      "type": "navigation",
+      "target_route": "/projects/{{route.projectId}}/tasks/{{Task.id}}"
+    }
+  ],
+  "parameters": [],
+  "state": {}
+}

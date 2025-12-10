@@ -15,7 +15,8 @@ import {
   User,
   Flag,
   CreditCard,
-  Percent
+  Percent,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,8 +43,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -77,6 +89,11 @@ export default function MilestonesManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
 
+  // Dialog State
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
+  const [formData, setFormData] = useState<Partial<Milestone>>({});
+
   const filteredMilestones = milestones.filter(m => {
     const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           m.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -95,6 +112,60 @@ export default function MilestonesManagement() {
     });
   };
 
+  const handleOpenCreate = () => {
+    setEditingMilestone(null);
+    setFormData({
+      name: "",
+      description: "",
+      stageId: "s1",
+      targetDate: new Date().toISOString().split('T')[0],
+      status: "Pending",
+      ownerId: TEAM[0].id,
+      progressPercent: 0,
+      isBillingGate: false,
+      requiredCompletionRatio: 100
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleOpenEdit = (milestone: Milestone) => {
+    setEditingMilestone(milestone);
+    setFormData({ ...milestone });
+    setIsDialogOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!formData.name || !formData.stageId || !formData.targetDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (editingMilestone) {
+      // Update existing
+      setMilestones(prev => prev.map(m => m.id === editingMilestone.id ? { ...m, ...formData } as Milestone : m));
+      toast({
+        title: "Milestone Updated",
+        description: "Your changes have been saved successfully.",
+      });
+    } else {
+      // Create new
+      const newMilestone: Milestone = {
+        id: `m_${Date.now()}`,
+        ...formData as any
+      };
+      setMilestones(prev => [...prev, newMilestone]);
+      toast({
+        title: "Milestone Created",
+        description: "The new milestone has been added to the project.",
+      });
+    }
+    setIsDialogOpen(false);
+  };
+
   const getStageName = (id: string) => MOCK_STAGES.find(s => s.id === id)?.name || "Unknown Stage";
   const getStageColor = (id: string) => MOCK_STAGES.find(s => s.id === id)?.color || "bg-slate-100 text-slate-700";
   const getOwnerName = (id: string) => TEAM.find(t => t.id === id)?.name || "Unassigned";
@@ -109,7 +180,7 @@ export default function MilestonesManagement() {
               <h1 className="text-2xl font-bold tracking-tight text-primary">Milestones</h1>
               <p className="text-muted-foreground">Track key project gates, deliverables, and billing events.</p>
             </div>
-            <Button className="gap-2">
+            <Button onClick={handleOpenCreate} className="gap-2">
               <Plus className="h-4 w-4" />
               Create Milestone
             </Button>
@@ -182,7 +253,7 @@ export default function MilestonesManagement() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenEdit(milestone)}>
                           <Edit className="mr-2 h-4 w-4" />
                           Edit Details
                         </DropdownMenuItem>
@@ -262,6 +333,132 @@ export default function MilestonesManagement() {
             </Button>
           </div>
         )}
+
+        {/* Create/Edit Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>{editingMilestone ? "Edit Milestone" : "Create Milestone"}</DialogTitle>
+              <DialogDescription>
+                {editingMilestone ? "Update the details of this milestone." : "Add a new milestone to track key project deliverables."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">Name</Label>
+                <Input 
+                  id="name" 
+                  value={formData.name || ""} 
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="col-span-3" 
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="description" className="text-right">Description</Label>
+                <Input 
+                  id="description" 
+                  value={formData.description || ""} 
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="col-span-3" 
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="stage" className="text-right">Stage</Label>
+                <Select 
+                  value={formData.stageId} 
+                  onValueChange={(v) => setFormData({ ...formData, stageId: v })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MOCK_STAGES.map(stage => (
+                      <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="owner" className="text-right">Owner</Label>
+                <Select 
+                  value={formData.ownerId} 
+                  onValueChange={(v) => setFormData({ ...formData, ownerId: v })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Assign owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TEAM.map(member => (
+                      <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="date" className="text-right">Target Date</Label>
+                <Input 
+                  id="date" 
+                  type="date"
+                  value={formData.targetDate || ""} 
+                  onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
+                  className="col-span-3" 
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">Status</Label>
+                <Select 
+                  value={formData.status} 
+                  onValueChange={(v: any) => setFormData({ ...formData, status: v })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Set status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Blocked">Blocked</SelectItem>
+                    <SelectItem value="Skipped">Skipped</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4 pt-2">
+                <div className="col-start-2 col-span-3 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Billing Gate</Label>
+                    <p className="text-xs text-muted-foreground">Does this trigger an invoice?</p>
+                  </div>
+                  <Switch 
+                    checked={formData.isBillingGate} 
+                    onCheckedChange={(c) => setFormData({ ...formData, isBillingGate: c })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4 pt-2">
+                <Label className="text-right">Progress</Label>
+                <div className="col-span-3 space-y-2">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formData.progressPercent || 0}% Complete</span>
+                  </div>
+                  <Input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    value={formData.progressPercent || 0} 
+                    onChange={(e) => setFormData({ ...formData, progressPercent: parseInt(e.target.value) })}
+                    className="h-2"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSave}>{editingMilestone ? "Save Changes" : "Create Milestone"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Shell>
   );
