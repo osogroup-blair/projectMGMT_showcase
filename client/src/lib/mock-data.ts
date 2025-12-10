@@ -89,7 +89,7 @@ export interface ProjectRole {
   id: string;
   name: string;
   description: string;
-  roleType: "Technical" | "Management" | "Design" | "Strategy";
+  roleType: "Management" | "Discovery" | "Design" | "Development" | "QA & Testing" | "Launch";
   isRequired: boolean;
   maxAssignees?: number;
   permissions: string[];
@@ -107,7 +107,7 @@ export interface RoleTemplate {
   id: string;
   name: string;
   description: string;
-  defaultRoleType: "Technical" | "Management" | "Design" | "Strategy";
+  defaultRoleType: "Management" | "Discovery" | "Design" | "Development" | "QA & Testing" | "Launch";
   defaultPermissions: string[];
 }
 
@@ -429,7 +429,7 @@ export const PROJECT_ROLES: ProjectRole[] = [
     id: "r3",
     name: "Senior Developer",
     description: "Technical lead responsible for architecture and code quality.",
-    roleType: "Technical",
+    roleType: "Development",
     isRequired: true,
     maxAssignees: 2,
     permissions: ["manage_code", "approve_pr", "deploy"]
@@ -438,7 +438,7 @@ export const PROJECT_ROLES: ProjectRole[] = [
     id: "r4",
     name: "Product Owner",
     description: "Client stakeholder responsible for requirements and acceptance.",
-    roleType: "Strategy",
+    roleType: "Discovery",
     isRequired: false,
     permissions: ["approve_requirements", "accept_delivery"]
   },
@@ -446,7 +446,7 @@ export const PROJECT_ROLES: ProjectRole[] = [
     id: "r5",
     name: "QA Specialist",
     description: "Responsible for testing and quality assurance.",
-    roleType: "Technical",
+    roleType: "QA & Testing",
     isRequired: false,
     maxAssignees: 3,
     permissions: ["manage_qa", "report_bugs"]
@@ -474,14 +474,14 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     id: "rt2",
     name: "DevOps Engineer",
     description: "Responsible for CI/CD pipelines and infrastructure.",
-    defaultRoleType: "Technical",
+    defaultRoleType: "Development",
     defaultPermissions: ["manage_infra", "deploy_production"]
   },
   {
     id: "rt3",
     name: "Business Analyst",
     description: "Analyzes business needs and documents requirements.",
-    defaultRoleType: "Strategy",
+    defaultRoleType: "Discovery",
     defaultPermissions: ["write_requirements", "create_user_stories"]
   }
 ];

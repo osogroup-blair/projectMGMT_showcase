@@ -13,7 +13,9 @@ import {
   BarChart,
   Copy,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Bug,
+  Rocket
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,16 +63,20 @@ import {
 
 const ROLE_TYPE_ICONS = {
   "Management": Briefcase,
+  "Discovery": Search,
   "Design": PenTool,
-  "Technical": Code,
-  "Strategy": BarChart
+  "Development": Code,
+  "QA & Testing": Bug,
+  "Launch": Rocket
 };
 
 const ROLE_TYPE_COLORS = {
   "Management": "text-purple-600 bg-purple-100 border-purple-200",
+  "Discovery": "text-indigo-600 bg-indigo-100 border-indigo-200",
   "Design": "text-pink-600 bg-pink-100 border-pink-200",
-  "Technical": "text-blue-600 bg-blue-100 border-blue-200",
-  "Strategy": "text-amber-600 bg-amber-100 border-amber-200"
+  "Development": "text-blue-600 bg-blue-100 border-blue-200",
+  "QA & Testing": "text-amber-600 bg-amber-100 border-amber-200",
+  "Launch": "text-green-600 bg-green-100 border-green-200"
 };
 
 export default function ProjectRoles() {
@@ -88,7 +94,7 @@ export default function ProjectRoles() {
     setFormData({
       name: "",
       description: "",
-      roleType: "Technical",
+      roleType: "Development",
       isRequired: false,
       maxAssignees: 0, // 0 means unlimited
       permissions: []
@@ -207,7 +213,7 @@ export default function ProjectRoles() {
         {/* Roles Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {roles.map(role => {
-            const Icon = ROLE_TYPE_ICONS[role.roleType];
+            const Icon = ROLE_TYPE_ICONS[role.roleType] || Briefcase;
 
             return (
               <Card key={role.id} className="group relative overflow-hidden transition-all hover:shadow-md">
@@ -247,7 +253,7 @@ export default function ProjectRoles() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className={cn("gap-1.5 pl-1.5", ROLE_TYPE_COLORS[role.roleType])}>
+                    <Badge variant="outline" className={cn("gap-1.5 pl-1.5", ROLE_TYPE_COLORS[role.roleType] || "bg-muted")}>
                       <Icon className="h-3 w-3" />
                       {role.roleType}
                     </Badge>
@@ -320,9 +326,11 @@ export default function ProjectRoles() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Management">Management</SelectItem>
-                      <SelectItem value="Technical">Technical</SelectItem>
+                      <SelectItem value="Discovery">Discovery</SelectItem>
                       <SelectItem value="Design">Design</SelectItem>
-                      <SelectItem value="Strategy">Strategy</SelectItem>
+                      <SelectItem value="Development">Development</SelectItem>
+                      <SelectItem value="QA & Testing">QA & Testing</SelectItem>
+                      <SelectItem value="Launch">Launch</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

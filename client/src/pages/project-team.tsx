@@ -8,13 +8,15 @@ import {
   Users,
   Shield,
   Briefcase,
-  Code,
   PenTool,
+  Code,
   BarChart,
   UserPlus,
   ArrowRight,
   User as UserIcon,
-  Crown
+  Crown,
+  Bug,
+  Rocket
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,16 +57,20 @@ import { cn } from "@/lib/utils";
 
 const ROLE_TYPE_ICONS = {
   "Management": Briefcase,
+  "Discovery": Search,
   "Design": PenTool,
-  "Technical": Code,
-  "Strategy": BarChart
+  "Development": Code,
+  "QA & Testing": Bug,
+  "Launch": Rocket
 };
 
 const ROLE_TYPE_COLORS = {
   "Management": "text-purple-600 bg-purple-100",
+  "Discovery": "text-indigo-600 bg-indigo-100",
   "Design": "text-pink-600 bg-pink-100",
-  "Technical": "text-blue-600 bg-blue-100",
-  "Strategy": "text-amber-600 bg-amber-100"
+  "Development": "text-blue-600 bg-blue-100",
+  "QA & Testing": "text-amber-600 bg-amber-100",
+  "Launch": "text-green-600 bg-green-100"
 };
 
 export default function ProjectTeam() {
@@ -164,7 +170,7 @@ export default function ProjectTeam() {
                 <TableBody>
                   {filteredRoles.map(role => {
                     const assignees = getAssigneesForRole(role.id);
-                    const Icon = ROLE_TYPE_ICONS[role.roleType];
+                    const Icon = ROLE_TYPE_ICONS[role.roleType] || Briefcase;
                     
                     return (
                       <TableRow key={role.id}>
@@ -177,7 +183,7 @@ export default function ProjectTeam() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={cn("gap-1 font-normal", ROLE_TYPE_COLORS[role.roleType])}>
+                          <Badge variant="secondary" className={cn("gap-1 font-normal", ROLE_TYPE_COLORS[role.roleType] || "bg-muted")}>
                             <Icon className="h-3 w-3" />
                             {role.roleType}
                           </Badge>
