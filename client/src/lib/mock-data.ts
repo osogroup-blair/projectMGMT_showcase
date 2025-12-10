@@ -171,7 +171,6 @@ export interface FrameworkTemplate {
   name: string;
   description?: string;
   defaultStages: string[]; // List of StageTemplate IDs
-  defaultRoles: string[]; // List of RoleTemplate IDs
 }
 
 export interface StageTemplate {
@@ -778,22 +777,19 @@ export const FRAMEWORK_TEMPLATES: FrameworkTemplate[] = [
     id: "ft1", 
     name: "Standard Software Development",
     description: "Standard agile workflow for software projects",
-    defaultStages: ["st_discovery", "st_design", "st_dev", "st_qa", "st_launch"],
-    defaultRoles: ["rt1", "rt2"]
+    defaultStages: ["st_discovery", "st_design", "st_dev", "st_qa", "st_launch"]
   },
   { 
     id: "ft2", 
     name: "Marketing Campaign",
     description: "Workflow for digital and print marketing campaigns",
-    defaultStages: ["st_discovery", "st_design", "st_launch"],
-    defaultRoles: ["rt3"]
+    defaultStages: ["st_discovery", "st_design", "st_launch"]
   },
   { 
     id: "ft3", 
     name: "Construction Project",
     description: "Phased workflow for physical construction",
-    defaultStages: ["st_discovery", "st_dev", "st_qa"], // Simplified for mock
-    defaultRoles: []
+    defaultStages: ["st_discovery", "st_dev", "st_qa"] // Simplified for mock
   },
 ];
 
