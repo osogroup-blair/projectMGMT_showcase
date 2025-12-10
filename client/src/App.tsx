@@ -12,6 +12,8 @@ import ProjectImport from "@/pages/project-import";
 
 import ProjectImportMapping from "@/pages/project-import-mapping";
 
+import ProjectImportPreview from "@/pages/project-import-preview";
+
 function Router() {
   return (
     <Switch>
@@ -19,6 +21,7 @@ function Router() {
       <Route path="/projects" component={ProjectsList} />
       <Route path="/projects/import" component={ProjectImport} />
       <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
+      <Route path="/projects/import/:sessionId/preview" component={ProjectImportPreview} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,0 +1,80 @@
+App Gen Prompt – Project Import: Preview & Confirm
+
+Build a “Project Import – Preview & Confirm” page at route /projects/import/:sessionId/preview.
+Show a summary of what will be created/updated/ignored plus a paginated grid of preview rows with their status (new, update, ignored, error).
+Allow filtering by row status.
+Include actions to go back to mapping, and to “Import & Apply” which runs the import and then routes to the project overview.
+Use the JSON view schema provided.
+
+JSON – Project Import: Preview & Confirm
+{
+  "id": "project_import_preview",
+  "name": "Project Import - Preview & Confirm",
+  "route": "/projects/import/:sessionId/preview",
+  "primary_entity": "ProjectImportSession",
+  "data_sources": [
+    {
+      "id": "session",
+      "entity": "ProjectImportSession",
+      "endpoint": "/api/project-import/sessions/{{route.sessionId}}",
+      "method": "GET"
+    },
+    {
+      "id": "preview_rows",
+      "entity": "ImportPreviewRow",
+      "endpoint": "/api/project-import/sessions/{{route.sessionId}}/preview",
+      "method": "GET",
+      "params": {
+        "page": "{{state.pagination.page}}",
+        "page_size": "{{state.pagination.page_size}}"
+      }
+    },
+    {
+      "id": "summary",
+      "entity": "ImportPreviewSummary",
+      "endpoint": "/api/project-import/sessions/{{route.sessionId}}/summary",
+      "method": "GET"
+    }
+  ],
+  "entities": {
+    "ImportPreviewRow": [
+      { "id": "row_index", "label": "Row", "type": "number", "source": "row_index" },
+      { "id": "entity_type", "label": "Entity Type", "type": "string", "source": "entity_type" },
+      { "id": "name", "label": "Name", "type": "string", "source": "data.name" },
+      { "id": "stage", "label": "Stage", "type": "string", "source": "data.stage" },
+      { "id": "milestone", "label": "Milestone", "type": "string", "source": "data.milestone" },
+      { "id": "status", "label": "Row Status", "type": "enum", "source": "status" }
+    ],
+    "ImportPreviewSummary": [
+      { "id": "new_count", "label": "New Records", "type": "number", "source": "new_count" },
+      { "id": "update_count", "label": "Updated Records", "type": "number", "source": "update_count" },
+      { "id": "ignored_count", "label": "Ignored Records", "type": "number", "source": "ignored_count" },
+      { "id": "error_count", "label": "Error Records", "type": "number", "source": "error_count" }
+    ],
+    "ProjectImportSession": [
+      { "id": "id", "label": "Session Id", "type": "string", "source": "id" },
+      { "id": "target_project_id", "label": "Target Project Id", "type": "string", "source": "target_project_id" }
+    ]
+  },
+  "filters": [
+    { "id": "row_status", "label": "Row Status", "type": "enum", "field": "ImportPreviewRow.status", "operator": "in" }
+  ],
+  "actions": [
+    { "id": "confirm_import", "label": "Import & Apply", "type": "mutation", "endpoint": "/api/project-import/sessions/{{route.sessionId}}/apply", "method": "POST" },
+    { "id": "back_to_mapping", "label": "Back to Mapping", "type": "navigation", "target_route": "/projects/import/{{route.sessionId}}/mapping" },
+    {
+      "id": "open_project_after_import",
+      "label": "Open Project Overview",
+      "type": "navigation",
+      "target_route": "/projects/{{ProjectImportSession.target_project_id}}",
+      "trigger": "onImportSuccess"
+    }
+  ],
+  "parameters": [],
+  "state": {
+    "pagination": {
+      "page": 1,
+      "page_size": 50
+    }
+  }
+}
