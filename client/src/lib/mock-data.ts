@@ -220,6 +220,30 @@ export interface TaskTemplate {
   requiredRole?: string; // Role Type
 }
 
+export interface StatusOption {
+  id: string;
+  label: string;
+  color: string;
+  isDefault?: boolean;
+  type: "project" | "task" | "epic" | "deliverable";
+}
+
+export const PROJECT_STATUS_OPTIONS: StatusOption[] = [
+  { id: "ps1", label: "Upcoming", color: "bg-purple-50 text-purple-700", type: "project" },
+  { id: "ps2", label: "In Progress", color: "bg-blue-50 text-blue-700", type: "project" },
+  { id: "ps3", label: "Completed", color: "bg-green-50 text-green-700", type: "project" },
+  { id: "ps4", label: "On Hold", color: "bg-gray-100 text-gray-700", type: "project" },
+  { id: "ps5", label: "Archived", color: "bg-slate-100 text-slate-700", type: "project" },
+  { id: "ps6", label: "Overdue", color: "bg-red-50 text-red-700", type: "project" },
+];
+
+export const TASK_STATUS_OPTIONS: StatusOption[] = [
+  { id: "ts1", label: "Todo", color: "bg-slate-100 text-slate-700", type: "task" },
+  { id: "ts2", label: "In Progress", color: "bg-blue-50 text-blue-700", type: "task" },
+  { id: "ts3", label: "Review", color: "bg-amber-50 text-amber-700", type: "task" },
+  { id: "ts4", label: "Done", color: "bg-green-50 text-green-700", type: "task" },
+];
+
 export const PROJECTS: Project[] = [
   { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, frameworkId: "ft1", defaultMappingTemplateId: "mt1" },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0, frameworkId: "ft1" },

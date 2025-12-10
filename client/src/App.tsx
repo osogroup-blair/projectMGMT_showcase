@@ -29,6 +29,7 @@ import ProjectSettings from "@/pages/project-settings";
 import DeliverablesList from "@/pages/deliverables";
 import EpicDetail from "@/pages/epic-detail";
 import AdminTemplates from "@/pages/admin/templates";
+import AdminAppDefaults from "@/pages/admin/app-defaults";
 
 function Router() {
   return (
@@ -54,6 +55,7 @@ function Router() {
       <Route path="/projects/:projectId/views" component={SavedViewsGallery} />
       <Route path="/admin/users" component={UserManagement} />
       <Route path="/admin/templates" component={AdminTemplates} />
+      <Route path="/admin/defaults" component={AdminAppDefaults} />
       <Route component={NotFound} />
     </Switch>
   );
