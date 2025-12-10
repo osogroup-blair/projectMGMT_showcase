@@ -12,7 +12,8 @@ import {
   Settings,
   Flag,
   ListTodo,
-  Layers
+  Layers,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -142,6 +143,12 @@ export default function ProjectOverview() {
                 <Button variant="outline" className="gap-2 flex-1 lg:flex-none">
                   <Kanban className="h-4 w-4" />
                   Task Board
+                </Button>
+              </Link>
+              <Link href={`/projects/${projectId}/team`}>
+                <Button variant="outline" className="gap-2 flex-1 lg:flex-none">
+                  <Users className="h-4 w-4" />
+                  Team
                 </Button>
               </Link>
               <Link href={`/projects/${projectId}/stages`}>

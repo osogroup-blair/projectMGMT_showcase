@@ -39,6 +39,7 @@ export interface TeamMember {
   role: string;
   avatar?: string;
   status: "Online" | "Offline" | "In Meeting";
+  email?: string;
 }
 
 export interface Milestone {
@@ -84,6 +85,24 @@ export interface History {
   changedBy: string;
 }
 
+export interface ProjectRole {
+  id: string;
+  name: string;
+  description: string;
+  roleType: "Technical" | "Management" | "Design" | "Strategy";
+  isRequired: boolean;
+  maxAssignees?: number;
+  permissions: string[];
+}
+
+export interface RoleAssignment {
+  id: string;
+  roleId: string;
+  userId: string;
+  isPrimary: boolean;
+  allocationPercent: number;
+}
+
 export const PROJECTS: Project[] = [
   { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65 },
   { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0 },
@@ -93,13 +112,13 @@ export const PROJECTS: Project[] = [
 ];
 
 export const TEAM: TeamMember[] = [
-  { id: "1", name: "Joy Mason", role: "Product Manager", status: "Online" },
-  { id: "2", name: "Jessica Lin", role: "Project Manager", status: "In Meeting" },
-  { id: "3", name: "Susan Smith", role: "UX Designer", status: "Online" },
-  { id: "4", name: "Jason Ho", role: "CEO", status: "Offline" },
-  { id: "5", name: "Jason Roberts", role: "Senior Developer", status: "Online" },
-  { id: "6", name: "Nigel Wong", role: "UX Designer", status: "Offline" },
-  { id: "7", name: "Steven Ahmed", role: "UX Designer", status: "In Meeting" },
+  { id: "1", name: "Joy Mason", role: "Product Manager", status: "Online", email: "joy.mason@nexus.com" },
+  { id: "2", name: "Jessica Lin", role: "Project Manager", status: "In Meeting", email: "jessica.lin@nexus.com" },
+  { id: "3", name: "Susan Smith", role: "UX Designer", status: "Online", email: "susan.smith@nexus.com" },
+  { id: "4", name: "Jason Ho", role: "CEO", status: "Offline", email: "jason.ho@nexus.com" },
+  { id: "5", name: "Jason Roberts", role: "Senior Developer", status: "Online", email: "jason.roberts@nexus.com" },
+  { id: "6", name: "Nigel Wong", role: "UX Designer", status: "Offline", email: "nigel.wong@nexus.com" },
+  { id: "7", name: "Steven Ahmed", role: "UX Designer", status: "In Meeting", email: "steven.ahmed@nexus.com" },
 ];
 
 export const TASKS: Task[] = [
@@ -377,4 +396,60 @@ export const HISTORY: History[] = [
     changedAt: "2023-11-19T16:45:00Z",
     changedBy: "Joy Mason"
   }
+];
+
+export const PROJECT_ROLES: ProjectRole[] = [
+  {
+    id: "r1",
+    name: "Project Manager",
+    description: "Responsible for overall project delivery, timeline, and budget.",
+    roleType: "Management",
+    isRequired: true,
+    maxAssignees: 1,
+    permissions: ["manage_project", "manage_budget", "assign_tasks"]
+  },
+  {
+    id: "r2",
+    name: "Lead Designer",
+    description: "Owns the design direction and visual language of the project.",
+    roleType: "Design",
+    isRequired: true,
+    maxAssignees: 1,
+    permissions: ["manage_design", "approve_design", "assign_tasks"]
+  },
+  {
+    id: "r3",
+    name: "Senior Developer",
+    description: "Technical lead responsible for architecture and code quality.",
+    roleType: "Technical",
+    isRequired: true,
+    maxAssignees: 2,
+    permissions: ["manage_code", "approve_pr", "deploy"]
+  },
+  {
+    id: "r4",
+    name: "Product Owner",
+    description: "Client stakeholder responsible for requirements and acceptance.",
+    roleType: "Strategy",
+    isRequired: false,
+    permissions: ["approve_requirements", "accept_delivery"]
+  },
+  {
+    id: "r5",
+    name: "QA Specialist",
+    description: "Responsible for testing and quality assurance.",
+    roleType: "Technical",
+    isRequired: false,
+    maxAssignees: 3,
+    permissions: ["manage_qa", "report_bugs"]
+  }
+];
+
+export const ROLE_ASSIGNMENTS: RoleAssignment[] = [
+  { id: "ra1", roleId: "r1", userId: "2", isPrimary: true, allocationPercent: 100 }, // Jessica Lin -> PM
+  { id: "ra2", roleId: "r2", userId: "3", isPrimary: true, allocationPercent: 80 },  // Susan Smith -> Lead Designer
+  { id: "ra3", roleId: "r3", userId: "5", isPrimary: true, allocationPercent: 100 }, // Jason Roberts -> Senior Dev
+  { id: "ra4", roleId: "r4", userId: "1", isPrimary: true, allocationPercent: 20 },  // Joy Mason -> Product Owner
+  { id: "ra5", roleId: "r2", userId: "6", isPrimary: false, allocationPercent: 50 }, // Nigel Wong -> Designer (Secondary)
+  { id: "ra6", roleId: "r5", userId: "7", isPrimary: true, allocationPercent: 100 }, // Steven Ahmed -> QA
 ];

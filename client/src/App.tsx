@@ -19,6 +19,7 @@ import StageViewSettings from "@/pages/stage-view-settings";
 import MilestonesManagement from "@/pages/milestones-management";
 import TaskBoard from "@/pages/task-board";
 import TaskDetail from "@/pages/task-detail";
+import ProjectTeam from "@/pages/project-team";
 
 function Router() {
   return (
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/projects/:projectId/milestones" component={MilestonesManagement} />
       <Route path="/projects/:projectId/tasks" component={TaskBoard} />
       <Route path="/projects/:projectId/tasks/:taskId" component={TaskDetail} />
+      <Route path="/projects/:projectId/team" component={ProjectTeam} />
       <Route component={NotFound} />
     </Switch>
   );
