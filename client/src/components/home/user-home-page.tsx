@@ -1,8 +1,10 @@
-import { UserHomeState } from "@/types/home";
+import { UserHomeState, HomeTask, WorkBlock } from "@/types/home";
 import { Shell } from "@/components/layout/shell";
 import { TodayTasksPanel } from "./today-tasks-panel";
 import { WeekPlanner } from "./week-planner";
 import { UpcomingMilestonesPanel } from "./upcoming-milestones-panel";
+import { DailyCalendar } from "./daily-calendar";
+import { TaskCard } from "./task-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,18 +12,133 @@ import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, T
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TEAM } from "@/lib/mock-data";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  DropAnimation,
+} from "@dnd-kit/core";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 interface UserHomePageProps {
   homeState: UserHomeState;
 }
 
 export function UserHomePage({ homeState }: UserHomePageProps) {
-  const currentUser = TEAM.find(u => u.id === "5") || TEAM[0]; // Mock current user (Jason Roberts)
+  const currentUser = TEAM.find(u => u.id === "5") || TEAM[0]; // Mock current user
+  const [tasks, setTasks] = useState(homeState.todayTasks);
+  const [dayPlans, setDayPlans] = useState(homeState.dayPlans);
+  
+  // DnD State
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeTask, setActiveTask] = useState<HomeTask | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: any) => {
+    const { active } = event;
+    setActiveId(active.id);
+    setActiveTask(active.data.current?.task || null);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+    // Logic for drag over can be added here if needed for visual feedback
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    setActiveTask(null);
+
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    // 1. Dropped on a Calendar Slot
+    if (over.data.current?.type === 'calendar-slot') {
+      const time = over.data.current.time;
+      const task = active.data.current?.task as HomeTask;
+      
+      if (task) {
+        // Create a new event (WorkBlock)
+        const newBlock: WorkBlock = {
+          id: `wb-${Date.now()}`,
+          userId: currentUser.id,
+          date: homeState.today,
+          startTime: time,
+          endTime: time, // Logic to add duration would go here, defaulting to slot start
+          label: task.title,
+          taskIds: [task.id],
+          totalPlannedMinutes: task.estimatedDurationMinutes || 30,
+          status: "planned"
+        };
+
+        setDayPlans(prev => {
+           const updated = [...prev];
+           const todayPlan = updated.find(p => p.date === homeState.today);
+           if (todayPlan) {
+             todayPlan.workBlocks.push(newBlock);
+           }
+           return updated;
+        });
+      }
+      return;
+    }
+
+    // 2. Reordering within Tasks Panel
+    if (activeId !== overId) {
+       // Check if we are reordering tasks
+       const activeTaskIndex = tasks.findIndex(t => t.id === activeId);
+       const overTaskIndex = tasks.findIndex(t => t.id === overId);
+       
+       if (activeTaskIndex !== -1 && overTaskIndex !== -1) {
+          setTasks((prev) => {
+            // Also handle bucket change if needed
+            const newTasks = [...prev];
+            const activeT = newTasks[activeTaskIndex];
+            const overT = newTasks[overTaskIndex];
+            
+            if (activeT.durationBucket !== overT.durationBucket) {
+              activeT.durationBucket = overT.durationBucket;
+            }
+            
+            return arrayMove(newTasks, activeTaskIndex, overTaskIndex);
+          });
+       }
+    }
+  };
+
+  const dropAnimation: DropAnimation = {
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: {
+        active: { opacity: '0.5' },
+      },
+    }),
+  };
+
+  const todayPlan = dayPlans.find(p => p.date === homeState.today);
+  const todayEvents = todayPlan?.workBlocks || [];
 
   return (
     <Shell>
       <div className="max-w-7xl mx-auto space-y-8 pb-8">
-        
         {/* Top Bar / Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-6 rounded-xl border shadow-sm">
            <div>
@@ -70,41 +187,46 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
           </TabsList>
 
           <TabsContent value="today" className="mt-0">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* Left Column: Today's Tasks & Focus (8 cols) */}
-              <div className="lg:col-span-8 space-y-8">
-                <div className="bg-card/50 rounded-xl p-1">
-                  <TodayTasksPanel tasks={homeState.todayTasks} />
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Left Column: Today's Tasks & Focus (8 cols) */}
+                <div className="lg:col-span-8 space-y-8">
+                  <div className="bg-card/50 rounded-xl p-1">
+                    <TodayTasksPanel tasks={tasks} />
+                  </div>
                 </div>
-              </div>
 
-              {/* Right Column: Context & Milestones (4 cols) */}
-              <div className="lg:col-span-4 space-y-6">
-                <div className="bg-card rounded-xl border shadow-sm overflow-hidden h-fit">
-                   <UpcomingMilestonesPanel milestones={homeState.upcomingMilestones} />
-                </div>
-
-                <div className="bg-muted/30 rounded-xl p-4 border">
-                  <h3 className="font-semibold text-sm mb-3">Quick Links</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="p-2 hover:bg-muted rounded cursor-pointer transition-colors flex items-center justify-between group">
-                      <span className="text-muted-foreground group-hover:text-foreground">My Open Pull Requests</span>
-                      <Badge variant="outline" className="bg-background">3</Badge>
-                    </div>
-                    <div className="p-2 hover:bg-muted rounded cursor-pointer transition-colors flex items-center justify-between group">
-                      <span className="text-muted-foreground group-hover:text-foreground">Team Capacity</span>
-                      <Badge variant="outline" className="bg-background">85%</Badge>
-                    </div>
+                {/* Right Column: Daily Calendar (4 cols) */}
+                <div className="lg:col-span-4 space-y-6">
+                  <div className="h-[700px]">
+                     <DailyCalendar 
+                       date={homeState.today} 
+                       events={todayEvents} 
+                       tasks={tasks}
+                     />
                   </div>
                 </div>
               </div>
-            </div>
+              
+              {createPortal(
+                <DragOverlay dropAnimation={dropAnimation}>
+                  {activeTask ? <TaskCard task={activeTask} /> : null}
+                </DragOverlay>,
+                document.body
+              )}
+            </DndContext>
           </TabsContent>
 
           <TabsContent value="week" className="mt-0">
              <div className="space-y-6">
                <div className="bg-card/50 rounded-xl p-6 border shadow-sm">
-                  <WeekPlanner dayPlans={homeState.dayPlans} />
+                  <WeekPlanner dayPlans={dayPlans} />
                </div>
              </div>
           </TabsContent>
