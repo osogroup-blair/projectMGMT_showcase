@@ -89,6 +89,7 @@ import {
 } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { StageTemplateEditor } from "@/components/admin/stage-template-editor";
 
 export default function AdminTemplates() {
   const { toast } = useToast();
@@ -106,6 +107,7 @@ export default function AdminTemplates() {
 
   // Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isStageDesignerOpen, setIsStageDesignerOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<any>(null);
   const [currentType, setCurrentType] = useState<"project" | "framework" | "stage" | "deliverable" | "epic" | "task" | "role">("project");
@@ -141,6 +143,12 @@ export default function AdminTemplates() {
     setCurrentTemplate(null);
     setCurrentType(type as any);
     
+    // Special handling for Stage Template to use the new Designer
+    if (type === "stage") {
+      setIsStageDesignerOpen(true);
+      return;
+    }
+
     // Initialize empty form data based on type
     const initialData: any = { description: "" };
     if (type === "project") { initialData.name = ""; initialData.defaultRoles = []; initialData.defaultDeliverables = []; initialData.defaultFrameworkId = ""; }
@@ -173,6 +181,12 @@ export default function AdminTemplates() {
     setCurrentTemplate(template);
     setCurrentType(type as any);
     
+    // Special handling for Stage Template
+    if (type === "stage") {
+      setIsStageDesignerOpen(true);
+      return;
+    }
+
     let data = { ...template };
     
     // If editing a stage, populate assigned frameworks
@@ -190,6 +204,18 @@ export default function AdminTemplates() {
     setCurrentTemplate(template);
     setCurrentType(type as any);
     setIsDeleteOpen(true);
+  };
+
+  const handleStageSave = (updatedStage: StageTemplate) => {
+    const isNew = !currentTemplate;
+    const list = isNew ? [...stageTemplates, updatedStage] : stageTemplates.map(t => t.id === updatedStage.id ? updatedStage : t);
+    setStageTemplates(list);
+    
+    setIsStageDesignerOpen(false);
+    toast({
+      title: isNew ? "Stage Template Created" : "Stage Template Updated",
+      description: `${updatedStage.name} has been successfully saved.`,
+    });
   };
 
   const handleSave = () => {
@@ -534,6 +560,19 @@ export default function AdminTemplates() {
           </div>
         </Tabs>
       </div>
+
+      {/* Full Screen Stage Designer */}
+      <Dialog open={isStageDesignerOpen} onOpenChange={setIsStageDesignerOpen}>
+        <DialogContent className="max-w-[100vw] h-[100vh] p-0 border-none rounded-none">
+          <StageTemplateEditor 
+            template={currentTemplate} 
+            taskTemplates={taskTemplates}
+            roleTemplates={roleTemplates}
+            onSave={handleStageSave}
+            onCancel={() => setIsStageDesignerOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

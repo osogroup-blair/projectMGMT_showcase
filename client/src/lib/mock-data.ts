@@ -179,6 +179,9 @@ export interface StageTemplate {
   description?: string;
   defaultTasks: string[]; // List of TaskTemplate IDs
   defaultRoles: string[]; // List of RoleTemplate IDs required for this stage
+  entryCriteria?: string;
+  exitCriteria?: string;
+  allowedTaskStatuses?: string[]; // IDs from TASK_STATUS_OPTIONS or custom
 }
 
 export interface MappingTemplate {
