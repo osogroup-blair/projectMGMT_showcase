@@ -38,6 +38,7 @@ import { useRoute, Link } from "wouter";
 import { PROJECTS, PROJECT_STAGES, MILESTONES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { StageTabContent } from "@/components/project/stage-tab-content";
+import { TimelineView } from "@/components/project/timeline-view";
 
 // Mock Data Types
 interface TaskStats {
@@ -298,76 +299,8 @@ export default function ProjectOverview() {
             </TabsContent>
             
             {/* Timeline Tab Content */}
-            <TabsContent value="timeline">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Project Timeline</CardTitle>
-                  <CardDescription>Milestones and key dates across all stages</CardDescription>
-                </CardHeader>
-                <CardContent>
-                   <div className="relative pt-2 pb-6 mb-8">
-                      {/* Progress Bar Background */}
-                      <div className="absolute top-[14px] left-0 right-0 h-1 bg-muted rounded-full" />
-                      
-                      {/* Active Progress */}
-                      <div className="absolute top-[14px] left-0 h-1 bg-primary rounded-full transition-all duration-500" style={{ width: '35%' }} />
-
-                      {/* Stages */}
-                      <div className="relative flex justify-between">
-                        {stages.map((stage, i) => {
-                          const isActive = stage.status === 'active';
-                          const isCompleted = stage.status === 'completed';
-                          
-                          return (
-                            <div key={stage.id} className="flex flex-col items-center gap-3 group cursor-pointer">
-                              <div className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center border-2 z-10 bg-background transition-colors",
-                                isCompleted ? "border-primary bg-primary text-primary-foreground" :
-                                isActive ? "border-primary ring-4 ring-primary/20 text-primary" :
-                                "border-muted-foreground/30 text-muted-foreground"
-                              )}>
-                                {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs font-bold">{i + 1}</span>}
-                              </div>
-                              <div className="flex flex-col items-center text-center">
-                                <span className={cn(
-                                  "text-sm font-semibold",
-                                  isActive ? "text-primary" : "text-muted-foreground"
-                                )}>{stage.name}</span>
-                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{stage.status}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      {milestones.map((milestone) => (
-                        <div key={milestone.id} className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-muted/20 transition-colors group">
-                          <div className={cn(
-                            "p-2 rounded-full",
-                            milestone.status === 'Completed' ? "bg-green-100 text-green-600" :
-                            "bg-blue-50 text-blue-600"
-                          )}>
-                            <Flag className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-medium truncate">{milestone.name}</h4>
-                              <Badge variant="outline">{milestone.status}</Badge>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                Target: {milestone.targetDate}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                </CardContent>
-              </Card>
+            <TabsContent value="timeline" className="h-[700px]">
+               <TimelineView stages={stages} milestones={milestones} project={project} />
             </TabsContent>
 
             {/* Dynamic Stage Tabs */}
