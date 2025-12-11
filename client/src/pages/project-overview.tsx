@@ -114,6 +114,12 @@ export default function ProjectOverview() {
             </div>
 
             <div className="flex gap-2 w-full lg:w-auto">
+              <Link href={`/projects/${projectId}/team`}>
+                <Button variant="outline" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Team
+                </Button>
+              </Link>
               <Link href={`/projects/${projectId}/settings`}>
                 <Button variant="outline" className="gap-2">
                   <Settings className="h-4 w-4" />
@@ -176,13 +182,6 @@ export default function ProjectOverview() {
                 </TabsTrigger>
               );
             })}
-
-            <TabsTrigger 
-              value="team" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Team
-            </TabsTrigger>
 
             <TabsTrigger 
               value="overview" 
@@ -343,20 +342,6 @@ export default function ProjectOverview() {
                     </p>
                     <Link href={`/projects/${projectId}/deliverables`} className="mt-6">
                         <Button>View Deliverables</Button>
-                    </Link>
-                </div>
-            </TabsContent>
-
-            {/* Team Tab */}
-            <TabsContent value="team">
-                <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg bg-muted/10">
-                    <Users className="h-10 w-10 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium">Project Team</h3>
-                    <p className="text-muted-foreground max-w-sm mt-2">
-                        Manage team members, roles, and assignments.
-                    </p>
-                    <Link href={`/projects/${projectId}/team`} className="mt-6">
-                        <Button>Manage Team</Button>
                     </Link>
                 </div>
             </TabsContent>
