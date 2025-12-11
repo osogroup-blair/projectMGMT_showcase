@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useDroppable } from "@dnd-kit/core";
-import { Calendar, Clock, Plus } from "lucide-react";
+import { Calendar, Clock, Plus, Briefcase, ChevronRight, GripVertical } from "lucide-react";
 import { format, addMinutes, parse, set } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 interface DailyCalendarProps {
   date: string; // YYYY-MM-DD
@@ -34,46 +35,80 @@ function CalendarSlot({ time, events, tasks }: { time: string, events: WorkBlock
     <div 
       ref={setNodeRef}
       className={cn(
-        "relative flex border-b border-border/50 min-h-[60px] group transition-colors",
-        isOver ? "bg-primary/10" : "hover:bg-muted/20"
+        "relative flex border-b border-border/50 min-h-[80px] group transition-colors",
+        isOver ? "bg-primary/5" : "hover:bg-muted/10"
       )}
     >
       {/* Time Label */}
-      <div className="w-16 flex-none py-2 px-2 text-xs text-muted-foreground text-right border-r border-border/50">
-        {time.substring(0, 5)}
+      <div className="w-16 flex-none py-2 px-2 text-xs text-muted-foreground text-right border-r border-border/50 font-medium">
+        {format(parse(time, 'HH:mm:ss', new Date()), 'h:mm a')}
       </div>
 
       {/* Content Area */}
       <div className="flex-1 relative p-1">
         {/* Placeholder/Guide */}
         {slotEvents.length === 0 && (
-           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
-             <div className="flex items-center text-xs text-muted-foreground/50">
+           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+             <div className="flex items-center text-xs text-muted-foreground/50 border border-dashed border-primary/20 rounded-md px-3 py-1.5 bg-background/50">
                <Plus className="w-3 h-3 mr-1" />
-               Drop task here
+               Schedule task at {format(parse(time, 'HH:mm:ss', new Date()), 'h:mm')}
              </div>
            </div>
         )}
 
         {/* Events */}
         {slotEvents.map(event => {
-          // Calculate height based on duration (30min = 60px approx)
-          // Simple estimation for prototype
+          // Calculate height based on duration (30min = 80px approx)
           const durationMinutes = event.totalPlannedMinutes || 30;
-          const height = Math.max((durationMinutes / 30) * 60 - 4, 56); 
+          const height = Math.max((durationMinutes / 30) * 80 - 4, 76); 
           
+          // Get first task details if available
+          const primaryTask = event.taskIds.length > 0 ? tasks.find(t => t.id === event.taskIds[0]) : null;
+
           return (
             <div 
               key={event.id}
               className={cn(
-                "absolute left-1 right-1 top-1 rounded-md border p-2 text-xs shadow-sm overflow-hidden z-10",
-                event.status === 'in_progress' ? "bg-primary/10 border-primary text-primary" : "bg-card border-border text-card-foreground"
+                "absolute left-1 right-1 top-1 rounded-lg border p-3 text-xs shadow-sm overflow-hidden z-10 transition-all hover:shadow-md group/event",
+                event.status === 'in_progress' 
+                  ? "bg-primary/10 border-primary text-primary" 
+                  : "bg-card border-l-4 border-l-blue-500 border-y-border border-r-border text-card-foreground"
               )}
               style={{ height: `${height}px` }}
             >
-              <div className="font-semibold truncate">{event.label}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                {event.taskIds.length} tasks • {durationMinutes}m
+              <div className="flex justify-between items-start gap-2">
+                 <div className="space-y-1 flex-1 min-w-0">
+                    <div className="font-semibold text-sm truncate flex items-center gap-2">
+                       {event.label}
+                    </div>
+                    
+                    {primaryTask && (
+                       <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Briefcase className="w-3 h-3 shrink-0 opacity-70" />
+                            <span className="truncate">{primaryTask.projectName}</span>
+                          </div>
+                          {primaryTask.epicName && (
+                            <div className="flex items-center gap-1.5 truncate ml-0.5">
+                               <div className="w-1 h-1 rounded-full bg-muted-foreground/50 shrink-0" />
+                               <span className="truncate opacity-90">{primaryTask.epicName}</span>
+                            </div>
+                          )}
+                       </div>
+                    )}
+                 </div>
+                 
+                 <div className="shrink-0 flex flex-col items-end gap-1">
+                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal bg-background/80 backdrop-blur">
+                       <Clock className="w-3 h-3 mr-1 opacity-70" />
+                       {durationMinutes}m
+                    </Badge>
+                 </div>
+              </div>
+
+              {/* Hover Actions (Mock) */}
+              <div className="absolute top-2 right-2 opacity-0 group-hover/event:opacity-100 transition-opacity">
+                 <GripVertical className="w-4 h-4 text-muted-foreground/50 cursor-grab" />
               </div>
             </div>
           );

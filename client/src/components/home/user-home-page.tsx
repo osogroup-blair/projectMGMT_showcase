@@ -195,21 +195,21 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
               onDragEnd={handleDragEnd}
             >
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Column: Today's Tasks & Focus (8 cols) */}
-                <div className="lg:col-span-8 space-y-8">
-                  <div className="bg-card/50 rounded-xl p-1">
-                    <TodayTasksPanel tasks={tasks} />
-                  </div>
-                </div>
-
-                {/* Right Column: Daily Calendar (4 cols) */}
-                <div className="lg:col-span-4 space-y-6">
-                  <div className="h-[700px]">
+                {/* Left Column: Daily Calendar (5 cols) */}
+                <div className="lg:col-span-5 space-y-6">
+                  <div className="h-[800px]">
                      <DailyCalendar 
                        date={homeState.today} 
                        events={todayEvents} 
                        tasks={tasks}
                      />
+                  </div>
+                </div>
+
+                {/* Right Column: Today's Tasks & Focus (7 cols) */}
+                <div className="lg:col-span-7 space-y-8">
+                  <div className="bg-card/50 rounded-xl p-1">
+                    <TodayTasksPanel tasks={tasks} />
                   </div>
                 </div>
               </div>
