@@ -36,7 +36,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { useRoute, Link } from "wouter";
-import { PROJECTS, PROJECT_STAGES, MILESTONES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
+import { PROJECTS, PROJECT_STAGES, MILESTONES, STAGE_STATUS_OPTIONS, TASKS, Task } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { StageTabContent } from "@/components/project/stage-tab-content";
 import { TimelineView } from "@/components/project/timeline-view";
@@ -59,6 +59,9 @@ const getProjectData = (id: string) => {
   // Filter milestones for this project (mocking association)
   const milestones = MILESTONES; // In a real app, filter by projectId
 
+  // Filter tasks (loose matching for prototype)
+  const tasks = TASKS;
+
   const stats: TaskStats = {
     total: 45,
     completed: 18,
@@ -66,7 +69,7 @@ const getProjectData = (id: string) => {
     atRisk: 3
   };
 
-  return { project, stages, milestones, stats };
+  return { project, stages, milestones, stats, tasks };
 };
 
 import { DeliverablesContent } from "@/pages/deliverables";
@@ -76,7 +79,7 @@ import { MOCK_DASHBOARD_DATA } from "@/lib/mock-dashboard-data";
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
   const projectId = params?.projectId || "1";
-  const { project, stages, milestones, stats } = getProjectData(projectId);
+  const { project, stages, milestones, stats, tasks } = getProjectData(projectId);
 
   const completionPercentage = Math.round((stats.completed / stats.total) * 100);
 
@@ -210,7 +213,7 @@ export default function ProjectOverview() {
             
             {/* Timeline Tab Content */}
             <TabsContent value="timeline" className="h-[700px]">
-               <TimelineView stages={stages} milestones={milestones} project={project} />
+               <TimelineView stages={stages} milestones={milestones} project={project} tasks={tasks} />
             </TabsContent>
 
             {/* Dynamic Stage Tabs */}

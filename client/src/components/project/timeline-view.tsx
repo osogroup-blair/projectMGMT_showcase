@@ -24,15 +24,19 @@ import {
   MoreVertical,
   Calendar,
   Trash2,
-  Edit2
+  Edit2,
+  CheckSquare,
+  Square
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { ProjectStage, Milestone, Project } from "@/lib/mock-data";
+import { ProjectStage, Milestone, Project, Task } from "@/lib/mock-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -43,6 +47,7 @@ interface TimelineViewProps {
   stages: ProjectStage[];
   milestones: Milestone[];
   project: Project;
+  tasks?: Task[];
 }
 
 // Helper to calculate stage dates based on project start
@@ -77,24 +82,44 @@ const generateStageDates = (stages: ProjectStage[], projectStartDate?: string) =
 
 type ViewMode = "month" | "week" | "day";
 
-export function TimelineView({ stages, milestones: initialMilestones, project }: TimelineViewProps) {
+export function TimelineView({ stages, milestones: initialMilestones, project, tasks: initialTasks = [] }: TimelineViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filter, setFilter] = useState<"all" | "stages" | "milestones">("all");
   
-  // Local state for milestones to allow adding/editing
+  // Local state for milestones and tasks
   const [milestones, setMilestones] = useState<Milestone[]>(initialMilestones);
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  
   const [isMilestoneDialogOpen, setIsMilestoneDialogOpen] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
   const [milestoneForm, setMilestoneForm] = useState({
     name: "",
     date: format(new Date(), "yyyy-MM-dd"),
     stageId: stages[0]?.id || "",
-    description: ""
+    description: "",
+    assignedTaskIds: [] as string[]
   });
 
   const stagesWithDates = useMemo(() => generateStageDates(stages, project.startDate), [stages, project.startDate]);
   
+  // Calculate milestone progress based on assigned tasks
+  const getMilestoneProgress = (milestoneId: string) => {
+    const assignedTasks = tasks.filter(t => t.milestoneId === milestoneId);
+    if (assignedTasks.length === 0) return 0;
+    
+    const completedTasks = assignedTasks.filter(t => t.status === 'Done' || t.status === 'Review'); // Assuming Review counts or just Done? Let's use Done for stricter progress
+    // Or maybe check if status is 'Done' strictly
+    const doneTasks = assignedTasks.filter(t => t.status === 'Done');
+    return Math.round((doneTasks.length / assignedTasks.length) * 100);
+  };
+
+  const getMilestoneTaskStats = (milestoneId: string) => {
+    const assignedTasks = tasks.filter(t => t.milestoneId === milestoneId);
+    const doneTasks = assignedTasks.filter(t => t.status === 'Done');
+    return { total: assignedTasks.length, completed: doneTasks.length };
+  };
+
   // Calculate total timeline range
   const timelineStart = startOfMonth(addMonths(stagesWithDates[0].startDate, -1));
   const timelineEnd = endOfMonth(addMonths(stagesWithDates[stagesWithDates.length - 1].endDate, 1));
@@ -135,17 +160,21 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
 
   // Milestone Management
   const handleSaveMilestone = () => {
+    let savedMilestoneId = editingMilestone?.id;
+
     if (editingMilestone) {
       setMilestones(prev => prev.map(m => m.id === editingMilestone.id ? {
         ...m,
         name: milestoneForm.name,
         targetDate: milestoneForm.date,
         stageId: milestoneForm.stageId,
-        description: milestoneForm.description
+        description: milestoneForm.description,
+        progressPercent: getMilestoneProgress(m.id) // Update progress immediately just in case
       } : m));
     } else {
+      savedMilestoneId = `m-${Date.now()}`;
       const newMilestone: Milestone = {
-        id: `m-${Date.now()}`,
+        id: savedMilestoneId,
         name: milestoneForm.name,
         targetDate: milestoneForm.date,
         stageId: milestoneForm.stageId,
@@ -158,12 +187,31 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
       };
       setMilestones(prev => [...prev, newMilestone]);
     }
+
+    // Update Task Assignments
+    if (savedMilestoneId) {
+      const currentId = savedMilestoneId; // Capture for closure
+      setTasks(prevTasks => prevTasks.map(task => {
+        // If task is in the assigned list, set its milestoneId
+        if (milestoneForm.assignedTaskIds.includes(task.id)) {
+          return { ...task, milestoneId: currentId };
+        }
+        // If task was previously assigned to this milestone but now unchecked, clear it
+        if (task.milestoneId === currentId && !milestoneForm.assignedTaskIds.includes(task.id)) {
+           return { ...task, milestoneId: undefined };
+        }
+        return task;
+      }));
+    }
+
     setIsMilestoneDialogOpen(false);
     resetForm();
   };
 
   const handleDeleteMilestone = (id: string) => {
     setMilestones(prev => prev.filter(m => m.id !== id));
+    // Also clear milestoneId from assigned tasks
+    setTasks(prev => prev.map(t => t.milestoneId === id ? { ...t, milestoneId: undefined } : t));
   };
 
   const openAddDialog = () => {
@@ -174,13 +222,29 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
 
   const openEditDialog = (milestone: Milestone) => {
     setEditingMilestone(milestone);
+    
+    // Find tasks currently assigned to this milestone
+    const assignedIds = tasks.filter(t => t.milestoneId === milestone.id).map(t => t.id);
+
     setMilestoneForm({
       name: milestone.name,
       date: milestone.targetDate,
       stageId: milestone.stageId,
-      description: milestone.description
+      description: milestone.description,
+      assignedTaskIds: assignedIds
     });
     setIsMilestoneDialogOpen(true);
+  };
+
+  const toggleTaskAssignment = (taskId: string) => {
+    setMilestoneForm(prev => {
+      const exists = prev.assignedTaskIds.includes(taskId);
+      if (exists) {
+        return { ...prev, assignedTaskIds: prev.assignedTaskIds.filter(id => id !== taskId) };
+      } else {
+        return { ...prev, assignedTaskIds: [...prev.assignedTaskIds, taskId] };
+      }
+    });
   };
 
   const resetForm = () => {
@@ -188,7 +252,8 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
       name: "",
       date: format(new Date(), "yyyy-MM-dd"),
       stageId: stages[0]?.id || "",
-      description: ""
+      description: "",
+      assignedTaskIds: []
     });
   };
 
@@ -278,44 +343,58 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
           </CardHeader>
           <ScrollArea className="flex-1 pr-4">
              <div className="space-y-3">
-               {milestones.sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime()).map(milestone => (
-                 <div key={milestone.id} className="p-3 bg-card border rounded-lg hover:shadow-sm transition-all group relative">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="font-medium text-sm flex items-center gap-2">
-                           {milestone.name}
-                           {milestone.status === 'Completed' && <span className="text-green-600 text-[10px]"><Flag className="h-3 w-3 fill-current" /></span>}
+               {milestones.sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime()).map(milestone => {
+                 const progress = getMilestoneProgress(milestone.id);
+                 const stats = getMilestoneTaskStats(milestone.id);
+                 
+                 return (
+                   <div key={milestone.id} className="p-3 bg-card border rounded-lg hover:shadow-sm transition-all group relative">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1 w-full pr-6">
+                          <div className="font-medium text-sm flex items-center gap-2">
+                             {milestone.name}
+                             {progress === 100 && <span className="text-green-600 text-[10px]"><Flag className="h-3 w-3 fill-current" /></span>}
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
+                            <Calendar className="h-3 w-3" />
+                            {format(parseISO(milestone.targetDate), "MMM d, yyyy")}
+                          </div>
+                          
+                          {/* Progress Bar */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>Tasks: {stats.completed}/{stats.total}</span>
+                              <span>{progress}%</span>
+                            </div>
+                            <Progress value={progress} className="h-1.5" />
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {format(parseISO(milestone.targetDate), "MMM d, yyyy")}
-                        </div>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-32 p-1">
+                            <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8" onClick={() => openEditDialog(milestone)}>
+                              <Edit2 className="h-3 w-3 mr-2" />
+                              Edit
+                            </Button>
+                            <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteMilestone(milestone.id)}>
+                              <Trash2 className="h-3 w-3 mr-2" />
+                              Delete
+                            </Button>
+                          </PopoverContent>
+                        </Popover>
                       </div>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-32 p-1">
-                          <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8" onClick={() => openEditDialog(milestone)}>
-                            <Edit2 className="h-3 w-3 mr-2" />
-                            Edit
-                          </Button>
-                          <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteMilestone(milestone.id)}>
-                            <Trash2 className="h-3 w-3 mr-2" />
-                            Delete
-                          </Button>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                       <Badge variant="outline" className="text-[10px] font-normal">
-                         {stages.find(s => s.id === milestone.stageId)?.name || 'Unknown Stage'}
-                       </Badge>
-                    </div>
-                 </div>
-               ))}
+                      <div className="mt-3 flex items-center gap-2">
+                         <Badge variant="outline" className="text-[10px] font-normal">
+                           {stages.find(s => s.id === milestone.stageId)?.name || 'Unknown Stage'}
+                         </Badge>
+                      </div>
+                   </div>
+                 );
+               })}
              </div>
           </ScrollArea>
         </Card>
@@ -434,6 +513,8 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
                        if (!isValid(mDate)) return null;
 
                        const left = getPosition(mDate);
+                       const progress = getMilestoneProgress(milestone.id);
+                       const isCompleted = progress === 100;
                        
                        return (
                           <Popover key={milestone.id}>
@@ -441,21 +522,30 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
                               <div 
                                 className={cn(
                                   "absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border-2 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform z-20 shadow-sm",
-                                  milestone.status === 'Completed' ? "bg-green-100 border-green-500 text-green-700" :
+                                  isCompleted ? "bg-green-100 border-green-500 text-green-700" :
                                   "bg-background border-primary text-primary"
                                 )}
                                 style={{ left }}
                               >
-                                <Flag className="h-4 w-4" fill={milestone.status === 'Completed' ? "currentColor" : "none"} />
+                                <Flag className="h-4 w-4" fill={isCompleted ? "currentColor" : "none"} />
                               </div>
                             </PopoverTrigger>
                             <PopoverContent className="w-80">
                               <div className="space-y-2">
                                 <h4 className="font-semibold leading-none">{milestone.name}</h4>
                                 <p className="text-sm text-muted-foreground">{milestone.description}</p>
-                                <div className="flex items-center gap-2 pt-2">
-                                  <Badge variant={milestone.status === 'Completed' ? "default" : "secondary"}>
-                                    {milestone.status}
+                                
+                                <div className="py-2">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span>Progress</span>
+                                    <span>{progress}%</span>
+                                  </div>
+                                  <Progress value={progress} className="h-2" />
+                                </div>
+                                
+                                <div className="flex items-center gap-2 pt-1">
+                                  <Badge variant={isCompleted ? "default" : "secondary"}>
+                                    {isCompleted ? 'Completed' : 'In Progress'}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">{format(mDate, "MMM d, yyyy")}</span>
                                 </div>
@@ -479,11 +569,11 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
 
       {/* Milestone Add/Edit Dialog */}
       <Dialog open={isMilestoneDialogOpen} onOpenChange={setIsMilestoneDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editingMilestone ? 'Edit Milestone' : 'Add New Milestone'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-1">
             <div className="space-y-2">
               <Label>Milestone Name</Label>
               <Input 
@@ -492,29 +582,31 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
                 placeholder="e.g., Client Sign-off"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Target Date</Label>
-              <Input 
-                type="date"
-                value={milestoneForm.date} 
-                onChange={(e) => setMilestoneForm({...milestoneForm, date: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Related Stage</Label>
-              <Select 
-                value={milestoneForm.stageId} 
-                onValueChange={(val) => setMilestoneForm({...milestoneForm, stageId: val})}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {stages.map(stage => (
-                    <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Target Date</Label>
+                <Input 
+                  type="date"
+                  value={milestoneForm.date} 
+                  onChange={(e) => setMilestoneForm({...milestoneForm, date: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Related Stage</Label>
+                <Select 
+                  value={milestoneForm.stageId} 
+                  onValueChange={(val) => setMilestoneForm({...milestoneForm, stageId: val})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stages.map(stage => (
+                      <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Description</Label>
@@ -523,6 +615,57 @@ export function TimelineView({ stages, milestones: initialMilestones, project }:
                 onChange={(e) => setMilestoneForm({...milestoneForm, description: e.target.value})}
                 placeholder="Brief description..."
               />
+            </div>
+
+            {/* Task Assignment Section */}
+            <div className="space-y-2 pt-2 border-t">
+              <Label className="flex items-center justify-between">
+                <span>Assigned Tasks</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  {milestoneForm.assignedTaskIds.length} selected
+                </span>
+              </Label>
+              <div className="border rounded-md max-h-[200px] overflow-y-auto p-1 bg-muted/20">
+                {tasks.length > 0 ? (
+                  <div className="space-y-1">
+                    {tasks.map(task => {
+                      const isAssigned = milestoneForm.assignedTaskIds.includes(task.id);
+                      // Show tasks that are either already assigned to this milestone OR not assigned to any milestone
+                      // (Or maybe show all and let them steal? Let's show all for simplicity but indicate if taken)
+                      const assignedToOther = task.milestoneId && task.milestoneId !== editingMilestone?.id && !isAssigned;
+                      
+                      return (
+                        <div 
+                          key={task.id} 
+                          className={cn(
+                            "flex items-start space-x-2 p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer",
+                            assignedToOther ? "opacity-50" : ""
+                          )}
+                          onClick={() => !assignedToOther && toggleTaskAssignment(task.id)}
+                        >
+                          <div className={cn(
+                            "h-4 w-4 rounded border flex items-center justify-center mt-0.5",
+                            isAssigned ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground"
+                          )}>
+                             {isAssigned && <CheckSquare className="h-3 w-3" />}
+                          </div>
+                          <div className="flex-1 text-sm">
+                            <div className="font-medium leading-none mb-1">{task.title}</div>
+                            <div className="text-xs text-muted-foreground flex justify-between">
+                               <span>{task.status}</span>
+                               {assignedToOther && <span className="text-amber-600">Assigned elsewhere</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No tasks available
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
