@@ -70,6 +70,8 @@ const getProjectData = (id: string) => {
 };
 
 import { DeliverablesContent } from "@/pages/deliverables";
+import ProjectDashboardPage from "@/components/project/project-dashboard-page";
+import { MOCK_DASHBOARD_DATA } from "@/lib/mock-dashboard-data";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -203,130 +205,7 @@ export default function ProjectOverview() {
           <div className="mt-6">
             {/* Project Overview Tab Content */}
             <TabsContent value="overview" className="space-y-8">
-               {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="bg-primary/5 border-primary/10">
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                        <ListTodo className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-primary">{stats.total}</div>
-                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Tasks</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="p-2 bg-green-50 rounded-lg text-green-600">
-                        <CheckCircle2 className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-foreground">{stats.completed}</div>
-                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Completed</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                        <Clock className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-foreground">{stats.inProgress}</div>
-                        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">In Progress</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className={cn(stats.atRisk > 0 && "bg-red-50/50 border-red-100")}>
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className="p-2 bg-red-100 rounded-lg text-red-600">
-                        <AlertTriangle className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-red-700">{stats.atRisk}</div>
-                        <div className="text-xs font-medium text-red-600/80 uppercase tracking-wide">At Risk</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-2 space-y-6">
-                     <Card>
-                      <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                        <CardDescription>Latest updates from the team</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="flex gap-4 p-3 hover:bg-muted/50 rounded-lg transition-colors">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarFallback>U{i}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="space-y-1">
-                                        <p className="text-sm">
-                                            <span className="font-medium">User {i}</span> updated task <span className="font-medium text-primary">Requirement Analysis</span>
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">2 hours ago</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                      </CardContent>
-                     </Card>
-                  </div>
-
-                  <div className="space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Project Health</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Overall Progress</span>
-                            <span className="font-bold">{completionPercentage}%</span>
-                          </div>
-                          <Progress value={completionPercentage} className="h-2" />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                          <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground">Budget Used</span>
-                            <div className="text-lg font-bold">65%</div>
-                            <Progress value={65} className="h-1.5 bg-muted" />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground">Time Elapsed</span>
-                            <div className="text-lg font-bold">42%</div>
-                            <Progress value={42} className="h-1.5 bg-muted" />
-                          </div>
-                        </div>
-
-                        <div className="pt-4 border-t">
-                          <h4 className="text-sm font-medium mb-3">Key Stakeholders</h4>
-                          <div className="flex items-center -space-x-2 overflow-hidden">
-                            <Avatar className="inline-block border-2 border-background w-8 h-8">
-                              <AvatarImage src="https://github.com/shadcn.png" />
-                              <AvatarFallback>CN</AvatarFallback>
-                            </Avatar>
-                            <Avatar className="inline-block border-2 border-background w-8 h-8">
-                              <AvatarFallback>JD</AvatarFallback>
-                            </Avatar>
-                            <Avatar className="inline-block border-2 border-background w-8 h-8">
-                              <AvatarFallback>WK</AvatarFallback>
-                            </Avatar>
-                            <div className="flex items-center justify-center w-8 h-8 rounded-full border-2 border-background bg-muted text-[10px] font-medium text-muted-foreground">
-                              +4
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
+               <ProjectDashboardPage dashboard={MOCK_DASHBOARD_DATA} />
             </TabsContent>
             
             {/* Timeline Tab Content */}
