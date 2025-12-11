@@ -113,30 +113,37 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="milestones" className="w-full">
-        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
+      <Tabs defaultValue="milestones" className="w-full flex flex-col md:flex-row gap-6">
+        <TabsList className="w-full md:w-64 flex-col h-auto justify-start border-r rounded-none p-0 bg-transparent space-y-1">
+          <div className="px-2 py-2 mb-2">
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Stage Views</h4>
+          </div>
           <TabsTrigger 
             value="milestones" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+            className="w-full justify-start rounded-md border-0 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
           >
+            <Flag className="mr-2 h-4 w-4" />
             Milestones
           </TabsTrigger>
           <TabsTrigger 
             value="tasks" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+            className="w-full justify-start rounded-md border-0 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
           >
+            <CheckCircle2 className="mr-2 h-4 w-4" />
             All Tasks
           </TabsTrigger>
           <TabsTrigger 
             value="config" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+            className="w-full justify-start rounded-md border-0 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
           >
-            Stage Configuration
+            <Target className="mr-2 h-4 w-4" />
+            Configuration
           </TabsTrigger>
         </TabsList>
 
-        {/* Milestones Tab */}
-        <TabsContent value="milestones" className="mt-6 space-y-6">
+        <div className="flex-1 mt-0">
+          {/* Milestones Tab */}
+          <TabsContent value="milestones" className="mt-0 space-y-6">
           {stageMilestones.length === 0 ? (
              <div className="text-center py-12 border rounded-lg bg-muted/10 border-dashed">
                <Flag className="h-10 w-10 mx-auto text-muted-foreground mb-4 opacity-50" />
@@ -235,7 +242,7 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
         </TabsContent>
 
         {/* All Tasks Tab */}
-        <TabsContent value="tasks" className="mt-6">
+        <TabsContent value="tasks" className="mt-0">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -386,7 +393,7 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
         </TabsContent>
 
         {/* Stage Configuration Tab */}
-        <TabsContent value="config" className="mt-6">
+        <TabsContent value="config" className="mt-0">
           <Card className="bg-muted/10 border-dashed">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -587,6 +594,7 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
             </CardContent>
           </Card>
         </TabsContent>
+        </div>
       </Tabs>
     </div>
   );
