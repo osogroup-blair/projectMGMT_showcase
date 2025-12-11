@@ -42,6 +42,21 @@ export function SubNav() {
         <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Admin
         </div>
+        <Link href="/admin/demo">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start gap-3 h-9 font-normal text-sm",
+              location === "/admin/demo"
+                ? "bg-secondary text-primary font-medium shadow-xs" 
+                : "text-foreground/70 hover:text-foreground hover:bg-secondary/50"
+            )}
+            data-testid="subnav-admin-demo"
+          >
+            <Sliders className={cn("h-4 w-4", location === "/admin/demo" && "text-primary")} />
+            Demo Management
+          </Button>
+        </Link>
         <Link href="/admin/templates">
           <Button
             variant="ghost"

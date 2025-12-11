@@ -91,7 +91,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 
-export default function AdminTemplates() {
+export default function AdminTemplates({ disableShell = false }: { disableShell?: boolean }) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -344,8 +344,7 @@ export default function AdminTemplates() {
     </Card>
   );
 
-  return (
-    <Shell>
+  const content = (
       <div className="mx-auto max-w-7xl space-y-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -989,6 +988,13 @@ export default function AdminTemplates() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+  );
+
+  if (disableShell) return content;
+
+  return (
+    <Shell>
+      {content}
     </Shell>
   );
 }

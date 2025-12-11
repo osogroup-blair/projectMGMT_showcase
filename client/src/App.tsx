@@ -33,6 +33,7 @@ import ProjectWizard from "@/pages/project-wizard";
 import AdminTemplates from "@/pages/admin/templates";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import AdminAppDefaults from "@/pages/admin/app-defaults";
+import DemoManagement from "@/pages/admin/demo-management";
 
 function Router() {
   return (
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/projects/:projectId/roles/:roleId/assignments" component={RoleAssignments} />
       <Route path="/projects/:projectId/views" component={SavedViewsGallery} />
       <Route path="/admin/users" component={UserManagement} />
+      <Route path="/admin/demo" component={DemoManagement} />
       <Route path="/admin/templates" component={AdminTemplates} />
       <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
       <Route path="/admin/defaults" component={AdminAppDefaults} />
