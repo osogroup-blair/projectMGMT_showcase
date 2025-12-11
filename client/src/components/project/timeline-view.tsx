@@ -149,12 +149,53 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
     assignedTaskIds: [] as string[]
   });
 
-  const stagesWithDates = useMemo(() => generateStageDates(stages, project.startDate), [stages, project.startDate]);
+  const [stagesWithDates, setStagesWithDates] = useState(() => generateStageDates(stages, project.startDate));
   
-  // Calculate milestone progress based on assigned tasks
-  const getMilestoneProgress = (milestoneId: string) => {
-    const assignedTasks = tasks.filter(t => t.milestoneId === milestoneId);
-    if (assignedTasks.length === 0) return 0;
+  // Recalculate if project start date changes, but only if we haven't modified them?
+  // For this prototype, we'll just respect the initial load or manual changes
+  // useEffect(() => {
+  //   setStagesWithDates(generateStageDates(stages, project.startDate));
+  // }, [stages, project.startDate]);
+
+  // Stage Editing State
+  const [editingStage, setEditingStage] = useState<any | null>(null);
+  const [isStageDialogOpen, setIsStageDialogOpen] = useState(false);
+  const [stageForm, setStageForm] = useState({
+    id: "",
+    name: "",
+    startDate: "",
+    endDate: ""
+  });
+
+  const openStageEditDialog = (stage: any) => {
+    setEditingStage(stage);
+    setStageForm({
+      id: stage.id,
+      name: stage.name,
+      startDate: format(stage.startDate, "yyyy-MM-dd"),
+      endDate: format(stage.endDate, "yyyy-MM-dd")
+    });
+    setIsStageDialogOpen(true);
+  };
+
+  const handleSaveStage = () => {
+    if (!editingStage) return;
+    
+    setStagesWithDates(prev => prev.map(s => {
+      if (s.id === editingStage.id) {
+        return {
+          ...s,
+          startDate: parseISO(stageForm.startDate),
+          endDate: parseISO(stageForm.endDate)
+        };
+      }
+      return s;
+    }));
+    
+    setIsStageDialogOpen(false);
+    setEditingStage(null);
+  };
+
     
     const doneTasks = assignedTasks.filter(t => t.status === 'Done');
     return Math.round((doneTasks.length / assignedTasks.length) * 100);
@@ -598,6 +639,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                           {/* Row 1: Stage Bar */}
                           <div className="h-[40px] relative mb-2">
                             <div 
+                              onClick={() => openStageEditDialog(stage)}
                               className={cn(
                                 "absolute top-0 h-10 rounded-lg shadow-sm border flex items-center px-4 transition-all hover:shadow-md cursor-pointer",
                                 isCompleted ? "bg-green-50 border-green-200 text-green-800" :
@@ -688,6 +730,43 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
           </div>
         </Card>
       </div>
+
+      {/* Stage Edit Dialog */}
+      <Dialog open={isStageDialogOpen} onOpenChange={setIsStageDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Stage Dates</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Stage Name</Label>
+              <Input value={stageForm.name} disabled />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Start Date</Label>
+                <Input 
+                  type="date" 
+                  value={stageForm.startDate} 
+                  onChange={(e) => setStageForm(prev => ({ ...prev, startDate: e.target.value }))} 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>End Date</Label>
+                <Input 
+                  type="date" 
+                  value={stageForm.endDate} 
+                  onChange={(e) => setStageForm(prev => ({ ...prev, endDate: e.target.value }))} 
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStageDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveStage}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Milestone Dialog */}
       <Dialog open={isMilestoneDialogOpen} onOpenChange={setIsMilestoneDialogOpen}>
