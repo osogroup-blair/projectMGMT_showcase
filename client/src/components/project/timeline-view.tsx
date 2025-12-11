@@ -359,6 +359,13 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
     resetForm();
   };
 
+  const handleUpdateMilestoneDate = (id: string, dateStr: string) => {
+    setMilestones(prev => prev.map(m => m.id === id ? {
+      ...m,
+      targetDate: dateStr
+    } : m));
+  };
+
   const handleDeleteMilestone = (id: string) => {
     setMilestones(prev => prev.filter(m => m.id !== id));
     setTasks(prev => prev.map(t => t.milestoneId === id ? { ...t, milestoneId: undefined } : t));
@@ -702,10 +709,23 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                                     </div>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-80">
-                                    <div className="space-y-2">
-                                      <h4 className="font-semibold leading-none">{milestone.name}</h4>
-                                      <p className="text-sm text-muted-foreground">{milestone.description}</p>
+                                    <div className="space-y-4">
+                                      <div>
+                                        <h4 className="font-semibold leading-none mb-1">{milestone.name}</h4>
+                                        <p className="text-sm text-muted-foreground">{milestone.description}</p>
+                                      </div>
                                       
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                                        <span className="text-muted-foreground">Target:</span>
+                                        <input 
+                                          type="date"
+                                          className="flex h-6 w-full rounded-md border border-input bg-background px-2 py-1 text-xs ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                          value={milestone.targetDate}
+                                          onChange={(e) => handleUpdateMilestoneDate(milestone.id, e.target.value)}
+                                        />
+                                      </div>
+
                                       <div className="py-2">
                                         <div className="flex justify-between text-xs mb-1">
                                           <span>Progress</span>
@@ -714,8 +734,8 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                                         <Progress value={progress} className="h-2" />
                                       </div>
                                       
-                                      <div className="flex gap-2 justify-end pt-2">
-                                        <Button variant="outline" size="sm" onClick={() => openEditDialog(milestone)}>Edit</Button>
+                                      <div className="flex gap-2 justify-end pt-2 border-t">
+                                        <Button variant="outline" size="sm" onClick={() => openEditDialog(milestone)}>Edit Details</Button>
                                         <Button variant="destructive" size="sm" onClick={() => handleDeleteMilestone(milestone.id)}>Delete</Button>
                                       </div>
                                     </div>
