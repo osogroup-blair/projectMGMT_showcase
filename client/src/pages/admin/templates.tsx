@@ -345,6 +345,7 @@ export default function AdminTemplates({ disableShell = false }: { disableShell?
   );
 
   const content = (
+    <>
       <div className="mx-auto max-w-7xl space-y-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -988,6 +989,7 @@ export default function AdminTemplates({ disableShell = false }: { disableShell?
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
   );
 
   if (disableShell) return content;

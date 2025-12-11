@@ -171,6 +171,7 @@ export default function AdminAppDefaults({ disableShell = false }: { disableShel
   };
 
   const content = (
+    <>
       <div className="mx-auto max-w-5xl space-y-8">
         <div className="flex flex-col gap-6">
           <div>
@@ -389,6 +390,7 @@ export default function AdminAppDefaults({ disableShell = false }: { disableShel
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
   );
 
   if (disableShell) return content;
