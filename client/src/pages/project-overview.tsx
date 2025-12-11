@@ -128,8 +128,15 @@ export default function ProjectOverview() {
         </div>
 
         {/* Tabs Navigation */}
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="deliverables" className="w-full">
           <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto">
+            <TabsTrigger 
+              value="deliverables" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+            >
+              Deliverables
+            </TabsTrigger>
+
              <TabsTrigger 
               value="timeline" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
@@ -137,22 +144,33 @@ export default function ProjectOverview() {
               Timeline
             </TabsTrigger>
             
-            {stages.map(stage => (
-              <TabsTrigger 
-                key={stage.id}
-                value={`stage-${stage.id}`}
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-              >
-                {stage.name}
-              </TabsTrigger>
-            ))}
+            {stages.map(stage => {
+              const statusColor = 
+                stage.status === 'completed' ? 'text-green-600 data-[state=active]:border-green-600' :
+                stage.status === 'active' ? 'text-blue-600 data-[state=active]:border-blue-600' :
+                'text-muted-foreground';
 
-            <TabsTrigger 
-              value="deliverables" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Deliverables
-            </TabsTrigger>
+              return (
+                <TabsTrigger 
+                  key={stage.id}
+                  value={`stage-${stage.id}`}
+                  className={cn(
+                    "rounded-none border-b-2 border-transparent data-[state=active]:bg-transparent px-0 py-2 font-medium",
+                    statusColor
+                  )}
+                >
+                  <span className={cn(
+                    "mr-2 flex h-5 w-5 items-center justify-center rounded-full border text-[10px]",
+                    stage.status === 'completed' ? 'border-green-200 bg-green-50' :
+                    stage.status === 'active' ? 'border-blue-200 bg-blue-50' :
+                    'border-muted bg-muted/50'
+                  )}>
+                    {stage.order}
+                  </span>
+                  {stage.name}
+                </TabsTrigger>
+              );
+            })}
 
             <TabsTrigger 
               value="team" 
