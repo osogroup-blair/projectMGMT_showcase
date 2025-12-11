@@ -31,6 +31,7 @@ import EpicDetail from "@/pages/epic-detail";
 import ProjectExport from "@/pages/project-export";
 import ProjectWizard from "@/pages/project-wizard";
 import AdminTemplates from "@/pages/admin/templates";
+import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import AdminAppDefaults from "@/pages/admin/app-defaults";
 
 function Router() {
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/projects/:projectId/views" component={SavedViewsGallery} />
       <Route path="/admin/users" component={UserManagement} />
       <Route path="/admin/templates" component={AdminTemplates} />
+      <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
       <Route path="/admin/defaults" component={AdminAppDefaults} />
       <Route component={NotFound} />
     </Switch>

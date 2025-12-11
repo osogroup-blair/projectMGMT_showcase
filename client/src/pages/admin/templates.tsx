@@ -89,9 +89,10 @@ import {
 } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { StageTemplateEditor } from "@/components/admin/stage-template-editor";
+import { useLocation } from "wouter";
 
 export default function AdminTemplates() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("projects");
@@ -107,7 +108,6 @@ export default function AdminTemplates() {
 
   // Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isStageDesignerOpen, setIsStageDesignerOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<any>(null);
   const [currentType, setCurrentType] = useState<"project" | "framework" | "stage" | "deliverable" | "epic" | "task" | "role">("project");
@@ -145,7 +145,7 @@ export default function AdminTemplates() {
     
     // Special handling for Stage Template to use the new Designer
     if (type === "stage") {
-      setIsStageDesignerOpen(true);
+      setLocation("/admin/templates/stage/new");
       return;
     }
 
@@ -183,7 +183,7 @@ export default function AdminTemplates() {
     
     // Special handling for Stage Template
     if (type === "stage") {
-      setIsStageDesignerOpen(true);
+      setLocation(`/admin/templates/stage/${template.id}`);
       return;
     }
 
@@ -206,17 +206,6 @@ export default function AdminTemplates() {
     setIsDeleteOpen(true);
   };
 
-  const handleStageSave = (updatedStage: StageTemplate) => {
-    const isNew = !currentTemplate;
-    const list = isNew ? [...stageTemplates, updatedStage] : stageTemplates.map(t => t.id === updatedStage.id ? updatedStage : t);
-    setStageTemplates(list);
-    
-    setIsStageDesignerOpen(false);
-    toast({
-      title: isNew ? "Stage Template Created" : "Stage Template Updated",
-      description: `${updatedStage.name} has been successfully saved.`,
-    });
-  };
 
   const handleSave = () => {
     const isNew = !currentTemplate;
@@ -561,18 +550,6 @@ export default function AdminTemplates() {
         </Tabs>
       </div>
 
-      {/* Full Screen Stage Designer */}
-      <Dialog open={isStageDesignerOpen} onOpenChange={setIsStageDesignerOpen}>
-        <DialogContent className="max-w-[100vw] h-[100vh] p-0 border-none rounded-none">
-          <StageTemplateEditor 
-            template={currentTemplate} 
-            taskTemplates={taskTemplates}
-            roleTemplates={roleTemplates}
-            onSave={handleStageSave}
-            onCancel={() => setIsStageDesignerOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
