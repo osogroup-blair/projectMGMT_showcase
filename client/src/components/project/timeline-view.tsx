@@ -125,6 +125,11 @@ export function TimelineView({ stages, milestones, project }: TimelineViewProps)
 
   return (
     <div className="flex flex-col gap-4 h-full">
+      <div className="flex items-center justify-between p-2 bg-muted/20 rounded border mb-2">
+         <h3 className="font-semibold text-sm">Gantt Timeline</h3>
+         <Badge variant="outline" className="text-xs">Beta</Badge>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-2 rounded-lg border shadow-sm">
         <div className="flex items-center gap-2">
