@@ -104,7 +104,7 @@ const ENRICHED_PROJECTS: ExtendedProject[] = PROJECTS.map(p => ({
   description: "A strategic initiative to overhaul the core systems and improve user experience across all digital touchpoints."
 }));
 
-export default function ProjectsList({ disableShell = false }: { disableShell?: boolean }) {
+export default function ProjectsList() {
   const { toast } = useToast();
   
   // State for Projects Data

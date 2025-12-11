@@ -59,7 +59,7 @@ import {
 } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
-export default function AdminAppDefaults({ disableShell = false }: { disableShell?: boolean }) {
+export default function AdminAppDefaults() {
   const { toast } = useToast();
   
   // State for Defaults
@@ -170,8 +170,8 @@ export default function AdminAppDefaults({ disableShell = false }: { disableShel
     );
   };
 
-  const content = (
-    <>
+  return (
+    <Shell>
       <div className="mx-auto max-w-5xl space-y-8">
         <div className="flex flex-col gap-6">
           <div>
@@ -390,14 +390,6 @@ export default function AdminAppDefaults({ disableShell = false }: { disableShel
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
-  );
-
-  if (disableShell) return content;
-
-  return (
-    <Shell>
-      {content}
     </Shell>
   );
 }
