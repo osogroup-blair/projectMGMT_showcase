@@ -8,7 +8,7 @@ import { TaskCard } from "./task-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, Target } from "lucide-react";
+import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, Target, Briefcase } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TEAM } from "@/lib/mock-data";
@@ -28,6 +28,7 @@ import {
   DropAnimation,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { CurrentProjectsPanel } from "./current-projects-panel";
 
 interface UserHomePageProps {
   homeState: UserHomeState;
@@ -161,8 +162,15 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
            </div>
         </div>
 
-        <Tabs defaultValue="today" className="space-y-6">
+        <Tabs defaultValue="projects" className="space-y-6">
           <TabsList className="bg-transparent p-0 border-b w-full justify-start rounded-none h-auto gap-6">
+            <TabsTrigger 
+              value="projects" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
+            >
+              <Briefcase className="w-4 h-4 mr-2" />
+              Current Projects
+            </TabsTrigger>
             <TabsTrigger 
               value="today" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
@@ -185,6 +193,12 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
               This Quarter
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="projects" className="mt-0">
+             <div className="bg-card/50 rounded-xl p-6 border shadow-sm">
+                <CurrentProjectsPanel />
+             </div>
+          </TabsContent>
 
           <TabsContent value="today" className="mt-0">
             <DndContext
