@@ -12,7 +12,20 @@ import {
   isSameDay, 
   differenceInDays,
   parseISO,
-  isValid
+  isValid,
+  startOfQuarter,
+  endOfQuarter,
+  eachQuarterOfInterval,
+  startOfYear,
+  endOfYear,
+  eachYearOfInterval,
+  isSameMonth,
+  isSameQuarter,
+  isSameYear,
+  addQuarters,
+  subQuarters,
+  addYears,
+  subYears
 } from "date-fns";
 import { 
   ChevronLeft, 
@@ -107,7 +120,7 @@ const getSmartInitialDate = (project: Project, milestones: Milestone[]) => {
   return new Date();
 };
 
-type ViewMode = "month" | "week" | "day";
+type ViewMode = "month" | "quarter" | "year";
 
 export function TimelineView({ stages, milestones: initialMilestones, project, tasks: initialTasks = [] }: TimelineViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -138,8 +151,6 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
     const assignedTasks = tasks.filter(t => t.milestoneId === milestoneId);
     if (assignedTasks.length === 0) return 0;
     
-    const completedTasks = assignedTasks.filter(t => t.status === 'Done' || t.status === 'Review'); // Assuming Review counts or just Done? Let's use Done for stricter progress
-    // Or maybe check if status is 'Done' strictly
     const doneTasks = assignedTasks.filter(t => t.status === 'Done');
     return Math.round((doneTasks.length / assignedTasks.length) * 100);
   };
@@ -150,31 +161,71 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
     return { total: assignedTasks.length, completed: doneTasks.length };
   };
 
-  // Calculate total timeline range
-  const timelineStart = startOfMonth(addMonths(stagesWithDates[0].startDate, -1));
-  const timelineEnd = endOfMonth(addMonths(stagesWithDates[stagesWithDates.length - 1].endDate, 1));
+  // View Configuration
+  const viewConfig = useMemo(() => {
+    switch (viewMode) {
+      case "month":
+        return {
+          dayWidth: 15, // ~3 months visible in standard desktop view
+          tickInterval: eachMonthOfInterval,
+          tickFormat: "MMMM yyyy",
+          subTickFormat: "d",
+          timeAdd: addMonths,
+          timeSub: subMonths,
+          headerUnit: "month"
+        };
+      case "quarter":
+        return {
+          dayWidth: 4, // ~1 year visible
+          tickInterval: eachQuarterOfInterval,
+          tickFormat: "QQQ yyyy", // Q1 2024
+          subTickFormat: "MMM",
+          timeAdd: addQuarters,
+          timeSub: subQuarters,
+          headerUnit: "quarter"
+        };
+      case "year":
+        return {
+          dayWidth: 1.5, // ~3 years visible
+          tickInterval: eachYearOfInterval,
+          tickFormat: "yyyy",
+          subTickFormat: "QQQ",
+          timeAdd: addYears,
+          timeSub: subYears,
+          headerUnit: "year"
+        };
+    }
+  }, [viewMode]);
+
+  // Calculate total timeline range based on data, but padded generously
+  const timelineStart = useMemo(() => {
+    const baseStart = stagesWithDates[0].startDate;
+    // Pad significantly to allow scrolling around
+    return startOfYear(subYears(baseStart, 1)); 
+  }, [stagesWithDates]);
+
+  const timelineEnd = useMemo(() => {
+    const baseEnd = stagesWithDates[stagesWithDates.length - 1].endDate;
+    return endOfYear(addYears(baseEnd, 2));
+  }, [stagesWithDates]);
 
   // Generate ticks based on view mode
   const timeTicks = useMemo(() => {
-    return eachMonthOfInterval({ start: timelineStart, end: timelineEnd });
-  }, [timelineStart, timelineEnd]);
+    return viewConfig.tickInterval({ start: timelineStart, end: timelineEnd });
+  }, [timelineStart, timelineEnd, viewConfig]);
 
   const days = useMemo(() => {
     return eachDayOfInterval({ start: timelineStart, end: timelineEnd });
   }, [timelineStart, timelineEnd]);
 
-  // Dimensions
-  const dayWidth = viewMode === "month" ? 40 : viewMode === "week" ? 80 : 120;
-  const headerHeight = 60;
-  
   const getPosition = (date: Date) => {
     const diff = differenceInDays(date, timelineStart);
-    return diff * dayWidth;
+    return diff * viewConfig.dayWidth;
   };
 
   const getWidth = (start: Date, end: Date) => {
     const diff = differenceInDays(end, start) + 1; // Include end day
-    return diff * dayWidth;
+    return diff * viewConfig.dayWidth;
   };
 
   // Scroll to current date on mount and when date changes
@@ -189,7 +240,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
         behavior: 'smooth'
       });
     }
-  }, [currentDate, timelineStart]); // Added dependency on currentDate
+  }, [currentDate, viewMode]); // Re-center when view mode changes too
 
   // Milestone Management
   const handleSaveMilestone = () => {
@@ -202,7 +253,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
         targetDate: milestoneForm.date,
         stageId: milestoneForm.stageId,
         description: milestoneForm.description,
-        progressPercent: getMilestoneProgress(m.id) // Update progress immediately just in case
+        progressPercent: getMilestoneProgress(m.id)
       } : m));
     } else {
       savedMilestoneId = `m-${Date.now()}`;
@@ -221,15 +272,12 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
       setMilestones(prev => [...prev, newMilestone]);
     }
 
-    // Update Task Assignments
     if (savedMilestoneId) {
-      const currentId = savedMilestoneId; // Capture for closure
+      const currentId = savedMilestoneId;
       setTasks(prevTasks => prevTasks.map(task => {
-        // If task is in the assigned list, set its milestoneId
         if (milestoneForm.assignedTaskIds.includes(task.id)) {
           return { ...task, milestoneId: currentId };
         }
-        // If task was previously assigned to this milestone but now unchecked, clear it
         if (task.milestoneId === currentId && !milestoneForm.assignedTaskIds.includes(task.id)) {
            return { ...task, milestoneId: undefined };
         }
@@ -243,7 +291,6 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
 
   const handleDeleteMilestone = (id: string) => {
     setMilestones(prev => prev.filter(m => m.id !== id));
-    // Also clear milestoneId from assigned tasks
     setTasks(prev => prev.map(t => t.milestoneId === id ? { ...t, milestoneId: undefined } : t));
   };
 
@@ -255,8 +302,6 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
 
   const openEditDialog = (milestone: Milestone) => {
     setEditingMilestone(milestone);
-    
-    // Find tasks currently assigned to this milestone
     const assignedIds = tasks.filter(t => t.milestoneId === milestone.id).map(t => t.id);
 
     setMilestoneForm({
@@ -290,6 +335,46 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
     });
   };
 
+  // Helper for rendering sub-ticks (days/months/quarters)
+  const renderSubTicks = (parentTickStart: Date, parentTickEnd: Date) => {
+    if (viewMode === 'month') {
+      // Render days - but sparse to avoid clutter if too zoomed out? 
+      // With width 15, we can render every few days or just day numbers
+      const intervalDays = eachDayOfInterval({ start: parentTickStart, end: parentTickEnd });
+      return intervalDays.map((d) => (
+         <div 
+          key={d.toISOString()} 
+          className="flex-1 text-center text-[10px] border-r border-border/10 last:border-0"
+          style={{ width: viewConfig.dayWidth }}
+         >
+           {/* Only show dates for 1, 5, 10, 15, 20, 25 */}
+           {(d.getDate() === 1 || d.getDate() % 5 === 0) ? format(d, "d") : ""}
+         </div>
+      ));
+    }
+    
+    if (viewMode === 'quarter') {
+      // Render Months
+      const months = eachMonthOfInterval({ start: parentTickStart, end: parentTickEnd });
+      return months.map(m => (
+        <div key={m.toISOString()} className="flex-1 text-center border-r border-border/10 last:border-0">
+          {format(m, "MMM")}
+        </div>
+      ));
+    }
+
+    if (viewMode === 'year') {
+      // Render Quarters
+      const quarters = eachQuarterOfInterval({ start: parentTickStart, end: parentTickEnd });
+      return quarters.map(q => (
+        <div key={q.toISOString()} className="flex-1 text-center border-r border-border/10 last:border-0">
+          {format(q, "QQQ")}
+        </div>
+      ));
+    }
+    return null;
+  };
+
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Header & Controls */}
@@ -299,14 +384,14 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
              Today
            </Button>
            <div className="flex items-center border rounded-md bg-background">
-             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-l-md" onClick={() => setCurrentDate(prev => subMonths(prev, 1))}>
+             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-l-md" onClick={() => setCurrentDate(prev => viewConfig.timeSub(prev, 1))}>
                <ChevronLeft className="h-4 w-4" />
              </Button>
              
              <Popover>
                <PopoverTrigger asChild>
                  <Button variant="ghost" className="px-3 py-1 h-8 rounded-none min-w-[140px] font-medium border-x hover:bg-muted/50">
-                   {format(currentDate, "MMMM yyyy")}
+                   {format(currentDate, viewMode === 'year' ? "yyyy" : "MMMM yyyy")}
                  </Button>
                </PopoverTrigger>
                <PopoverContent className="w-auto p-0" align="center">
@@ -319,7 +404,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                </PopoverContent>
              </Popover>
 
-             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-r-md" onClick={() => setCurrentDate(prev => addMonths(prev, 1))}>
+             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-r-md" onClick={() => setCurrentDate(prev => viewConfig.timeAdd(prev, 1))}>
                <ChevronRight className="h-4 w-4" />
              </Button>
            </div>
@@ -333,14 +418,14 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
 
           <div className="w-px h-6 bg-border mx-2" />
 
-          <Select value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
-            <SelectTrigger className="w-[120px] h-8">
+          <Select value={viewMode} onValueChange={(v: ViewMode) => setViewMode(v)}>
+            <SelectTrigger className="w-[140px] h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="month">Month View</SelectItem>
-              <SelectItem value="week">Week View</SelectItem>
-              <SelectItem value="day">Day View</SelectItem>
+              <SelectItem value="quarter">Quarter View</SelectItem>
+              <SelectItem value="year">Yearly View</SelectItem>
             </SelectContent>
           </Select>
           
@@ -355,153 +440,84 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
               <SelectItem value="milestones">Milestones Only</SelectItem>
             </SelectContent>
           </Select>
-
-          <div className="flex items-center border rounded-md bg-background ml-2">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8" 
-              onClick={() => setViewMode(prev => prev === 'month' ? 'week' : 'day')}
-              disabled={viewMode === 'day'}
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={() => setViewMode(prev => prev === 'day' ? 'week' : 'month')}
-              disabled={viewMode === 'month'}
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
 
-      <div className="flex gap-4 h-[600px]">
-        {/* Milestone Sidebar List */}
-        <Card className="w-[300px] flex flex-col h-full border-none shadow-none bg-transparent">
-          <CardHeader className="px-0 pt-0 pb-4">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Flag className="h-4 w-4 text-primary" />
-              Milestones
-            </CardTitle>
-          </CardHeader>
-          <ScrollArea className="flex-1 pr-4">
-             <div className="space-y-3">
-               {milestones.sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime()).map(milestone => {
-                 const progress = getMilestoneProgress(milestone.id);
-                 const stats = getMilestoneTaskStats(milestone.id);
-                 
-                 return (
-                   <div key={milestone.id} className="p-3 bg-card border rounded-lg hover:shadow-sm transition-all group relative">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1 w-full pr-6">
-                          <div className="font-medium text-sm flex items-center gap-2">
-                             {milestone.name}
-                             {progress === 100 && <span className="text-green-600 text-[10px]"><Flag className="h-3 w-3 fill-current" /></span>}
-                          </div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
-                            <Calendar className="h-3 w-3" />
-                            {format(parseISO(milestone.targetDate), "MMM d, yyyy")}
-                          </div>
-                          
-                          {/* Progress Bar */}
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-[10px] text-muted-foreground">
-                              <span>Tasks: {stats.completed}/{stats.total}</span>
-                              <span>{progress}%</span>
-                            </div>
-                            <Progress value={progress} className="h-1.5" />
-                          </div>
-                        </div>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <MoreVertical className="h-3 w-3" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-32 p-1">
-                            <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8" onClick={() => openEditDialog(milestone)}>
-                              <Edit2 className="h-3 w-3 mr-2" />
-                              Edit
-                            </Button>
-                            <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteMilestone(milestone.id)}>
-                              <Trash2 className="h-3 w-3 mr-2" />
-                              Delete
-                            </Button>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                         <Badge variant="outline" className="text-[10px] font-normal">
-                           {stages.find(s => s.id === milestone.stageId)?.name || 'Unknown Stage'}
-                         </Badge>
-                      </div>
-                   </div>
-                 );
-               })}
-             </div>
-          </ScrollArea>
-        </Card>
-
-        {/* Gantt Chart Area */}
+      <div className="flex gap-4 h-[600px] w-full">
+        {/* Gantt Chart Area - Full Width */}
         <Card className="flex-1 overflow-hidden border-none shadow-none bg-transparent flex flex-col">
           <ScrollArea className="flex-1 w-full border rounded-lg bg-background" ref={scrollContainerRef}>
             <div 
               className="relative" 
-              style={{ width: `${days.length * dayWidth}px`, minHeight: "100%" }}
+              style={{ width: `${days.length * viewConfig.dayWidth}px`, minHeight: "100%" }}
             >
               {/* Grid Background */}
               <div className="absolute inset-0 flex pointer-events-none">
-                {days.map((day, i) => (
-                  <div 
-                    key={day.toISOString()} 
-                    className={cn(
-                      "h-full border-r border-dashed border-border/40 box-content",
-                      isSameDay(day, new Date()) ? "bg-primary/5" : ""
-                    )}
-                    style={{ width: dayWidth - 1 }} // -1 for border
-                  />
-                ))}
+                {timeTicks.map((tick) => {
+                  let tickStart, tickEnd;
+                  if (viewMode === 'month') {
+                    tickStart = startOfMonth(tick);
+                    tickEnd = endOfMonth(tick);
+                  } else if (viewMode === 'quarter') {
+                    tickStart = startOfQuarter(tick);
+                    tickEnd = endOfQuarter(tick);
+                  } else {
+                    tickStart = startOfYear(tick);
+                    tickEnd = endOfYear(tick);
+                  }
+
+                  const width = (differenceInDays(tickEnd, tickStart) + 1) * viewConfig.dayWidth;
+                  
+                  return (
+                    <div 
+                      key={tick.toISOString()} 
+                      className="h-full border-r border-border/20 box-content"
+                      style={{ width: width }} 
+                    />
+                  );
+                })}
               </div>
 
               {/* Current Day Marker Line */}
               <div 
                 className="absolute top-0 bottom-0 w-px bg-red-500 z-30"
-                style={{ left: getPosition(new Date()) + (dayWidth / 2) }}
+                style={{ left: getPosition(new Date()) + (viewConfig.dayWidth / 2) }}
               >
-                <div className="absolute -top-1 -translate-x-1/2 bg-red-500 text-white text-[10px] px-1 rounded-sm">
+                <div className="absolute -top-1 -translate-x-1/2 bg-red-500 text-white text-[10px] px-1 rounded-sm whitespace-nowrap z-50">
                   Today
                 </div>
               </div>
 
               {/* Header */}
               <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b h-[60px] flex">
-                {timeTicks.map(month => (
-                  <div 
-                    key={month.toISOString()} 
-                    className="flex-shrink-0 border-r px-2 py-2 font-medium text-sm text-muted-foreground bg-muted/20"
-                    style={{ width: differenceInDays(endOfMonth(month), startOfMonth(month)) * dayWidth + dayWidth }} // Approx
-                  >
-                    {format(month, "MMMM yyyy")}
-                    <div className="flex mt-2 text-[10px] text-muted-foreground/60 font-normal">
-                      {eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) }).map((d, i) => {
-                        if (viewMode === 'month' && i % 7 !== 0) return null; // Only show some dates in month view
-                        return (
-                           <div 
-                            key={d.toISOString()} 
-                            className="flex-1 text-center"
-                            style={{ width: viewMode === 'month' ? dayWidth * 7 : dayWidth }}
-                           >
-                             {format(d, "d")}
-                           </div>
-                        )
-                      })}
+                {timeTicks.map(tick => {
+                   let tickStart, tickEnd;
+                   if (viewMode === 'month') {
+                     tickStart = startOfMonth(tick);
+                     tickEnd = endOfMonth(tick);
+                   } else if (viewMode === 'quarter') {
+                     tickStart = startOfQuarter(tick);
+                     tickEnd = endOfQuarter(tick);
+                   } else {
+                     tickStart = startOfYear(tick);
+                     tickEnd = endOfYear(tick);
+                   }
+
+                   const width = (differenceInDays(tickEnd, tickStart) + 1) * viewConfig.dayWidth;
+                  
+                   return (
+                    <div 
+                      key={tick.toISOString()} 
+                      className="flex-shrink-0 border-r px-2 py-2 font-medium text-sm text-muted-foreground bg-muted/20 overflow-hidden"
+                      style={{ width }} 
+                    >
+                      {format(tick, viewConfig.tickFormat)}
+                      <div className="flex mt-2 text-[10px] text-muted-foreground/60 font-normal">
+                        {renderSubTicks(tickStart, tickEnd)}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Content Body */}
@@ -530,7 +546,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                           >
                             <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
                               <div className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border",
+                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border shrink-0",
                                 isCompleted ? "bg-green-200 border-green-300" :
                                 isActive ? "bg-blue-200 border-blue-300" :
                                 "bg-slate-200 border-slate-300"
@@ -541,7 +557,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                             </div>
                             
                             {/* Duration Label */}
-                            <div className="absolute -bottom-5 left-0 text-[10px] text-muted-foreground">
+                            <div className="absolute -bottom-5 left-0 text-[10px] text-muted-foreground whitespace-nowrap">
                                 {format(stage.startDate, "MMM d")} - {format(stage.endDate, "MMM d")}
                             </div>
                           </div>
@@ -590,14 +606,9 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                                   <Progress value={progress} className="h-2" />
                                 </div>
                                 
-                                <div className="flex items-center gap-2 pt-1">
-                                  <Badge variant={isCompleted ? "default" : "secondary"}>
-                                    {isCompleted ? 'Completed' : 'In Progress'}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">{format(mDate, "MMM d, yyyy")}</span>
-                                </div>
-                                <div className="pt-2 flex justify-end gap-2">
-                                    <Button variant="outline" size="sm" onClick={() => openEditDialog(milestone)}>Edit</Button>
+                                <div className="flex gap-2 justify-end pt-2">
+                                  <Button variant="outline" size="sm" onClick={() => openEditDialog(milestone)}>Edit</Button>
+                                  <Button variant="destructive" size="sm" onClick={() => handleDeleteMilestone(milestone.id)}>Delete</Button>
                                 </div>
                               </div>
                             </PopoverContent>
@@ -606,118 +617,110 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                      })}
                    </div>
                 )}
-
               </div>
             </div>
-            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </Card>
       </div>
 
-      {/* Milestone Add/Edit Dialog */}
+      {/* Milestone Dialog */}
       <Dialog open={isMilestoneDialogOpen} onOpenChange={setIsMilestoneDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{editingMilestone ? 'Edit Milestone' : 'Add New Milestone'}</DialogTitle>
+            <DialogTitle>{editingMilestone ? "Edit Milestone" : "Add Milestone"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-1">
-            <div className="space-y-2">
-              <Label>Milestone Name</Label>
-              <Input 
-                value={milestoneForm.name} 
-                onChange={(e) => setMilestoneForm({...milestoneForm, name: e.target.value})}
-                placeholder="e.g., Client Sign-off"
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="name"
+                value={milestoneForm.name}
+                onChange={(e) => setMilestoneForm({ ...milestoneForm, name: e.target.value })}
+                className="col-span-3"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Target Date</Label>
-                <Input 
-                  type="date"
-                  value={milestoneForm.date} 
-                  onChange={(e) => setMilestoneForm({...milestoneForm, date: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Related Stage</Label>
-                <Select 
-                  value={milestoneForm.stageId} 
-                  onValueChange={(val) => setMilestoneForm({...milestoneForm, stageId: val})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stages.map(stage => (
-                      <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="date" className="text-right">
+                Date
+              </Label>
+              <Input
+                id="date"
+                type="date"
+                value={milestoneForm.date}
+                onChange={(e) => setMilestoneForm({ ...milestoneForm, date: e.target.value })}
+                className="col-span-3"
+              />
             </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea 
-                value={milestoneForm.description} 
-                onChange={(e) => setMilestoneForm({...milestoneForm, description: e.target.value})}
-                placeholder="Brief description..."
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stage" className="text-right">
+                Stage
+              </Label>
+              <Select 
+                value={milestoneForm.stageId} 
+                onValueChange={(v) => setMilestoneForm({ ...milestoneForm, stageId: v })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stages.map(stage => (
+                    <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">
+                Desc
+              </Label>
+              <Textarea
+                id="description"
+                value={milestoneForm.description}
+                onChange={(e) => setMilestoneForm({ ...milestoneForm, description: e.target.value })}
+                className="col-span-3"
               />
             </div>
 
-            {/* Task Assignment Section */}
-            <div className="space-y-2 pt-2 border-t">
-              <Label className="flex items-center justify-between">
-                <span>Assigned Tasks</span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  {milestoneForm.assignedTaskIds.length} selected
-                </span>
-              </Label>
-              <div className="border rounded-md max-h-[200px] overflow-y-auto p-1 bg-muted/20">
-                {tasks.length > 0 ? (
-                  <div className="space-y-1">
-                    {tasks.map(task => {
-                      const isAssigned = milestoneForm.assignedTaskIds.includes(task.id);
-                      // Show tasks that are either already assigned to this milestone OR not assigned to any milestone
-                      // (Or maybe show all and let them steal? Let's show all for simplicity but indicate if taken)
-                      const assignedToOther = task.milestoneId && task.milestoneId !== editingMilestone?.id && !isAssigned;
-                      
-                      return (
-                        <div 
-                          key={task.id} 
-                          className={cn(
-                            "flex items-start space-x-2 p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer",
-                            assignedToOther ? "opacity-50" : ""
-                          )}
-                          onClick={() => !assignedToOther && toggleTaskAssignment(task.id)}
-                        >
-                          <div className={cn(
-                            "h-4 w-4 rounded border flex items-center justify-center mt-0.5",
-                            isAssigned ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground"
-                          )}>
-                             {isAssigned && <CheckSquare className="h-3 w-3" />}
-                          </div>
-                          <div className="flex-1 text-sm">
-                            <div className="font-medium leading-none mb-1">{task.title}</div>
-                            <div className="text-xs text-muted-foreground flex justify-between">
-                               <span>{task.status}</span>
-                               {assignedToOther && <span className="text-amber-600">Assigned elsewhere</span>}
-                            </div>
-                          </div>
+            {/* Task Assignment */}
+            <div className="grid grid-cols-4 gap-4 pt-4 border-t">
+              <Label className="text-right pt-2">Tasks</Label>
+              <div className="col-span-3 border rounded-md max-h-[150px] overflow-y-auto p-2 bg-muted/20">
+                <div className="space-y-1">
+                  {tasks.map(task => {
+                    const isAssigned = milestoneForm.assignedTaskIds.includes(task.id);
+                    const assignedToOther = task.milestoneId && task.milestoneId !== editingMilestone?.id && !isAssigned;
+                    
+                    return (
+                      <div 
+                        key={task.id} 
+                        className={cn(
+                          "flex items-start space-x-2 p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer",
+                          assignedToOther ? "opacity-50" : ""
+                        )}
+                        onClick={() => !assignedToOther && toggleTaskAssignment(task.id)}
+                      >
+                        <div className={cn(
+                          "h-4 w-4 rounded border flex items-center justify-center mt-0.5",
+                          isAssigned ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground"
+                        )}>
+                           {isAssigned && <CheckSquare className="h-3 w-3" />}
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-xs text-muted-foreground">
-                    No tasks available
-                  </div>
-                )}
+                        <div className="flex-1 text-sm">
+                          <div className="font-medium leading-none mb-1">{task.title}</div>
+                          <div className="text-xs text-muted-foreground">{task.status}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsMilestoneDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveMilestone}>Save Milestone</Button>
+            <Button onClick={handleSaveMilestone}>Save changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
