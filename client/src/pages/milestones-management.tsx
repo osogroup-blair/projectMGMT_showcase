@@ -54,6 +54,13 @@ const PHASES = [
   { id: "enable_users", label: "Enable Users", color: "bg-green-100 text-green-800" }
 ];
 
+const TASK_STAGES = [
+  { id: "st_plan", label: "Plan Strategy", color: "bg-purple-100 text-purple-800" },
+  { id: "st_validate", label: "Validate Blueprints", color: "bg-blue-100 text-blue-800" },
+  { id: "st_develop", label: "Develop Solution", color: "bg-indigo-100 text-indigo-800" },
+  { id: "st_enable", label: "Enable Users", color: "bg-green-100 text-green-800" }
+];
+
 const STATUS_CONFIG = {
   "planned": { icon: Circle, color: "text-slate-500", label: "Planned" },
   "in_progress": { icon: Clock, color: "text-blue-500", label: "In Progress" },
@@ -69,6 +76,164 @@ const STATUS_CONFIG = {
 };
 
 // --- Sub-Components ---
+
+function TaskDialog({
+  open,
+  onOpenChange,
+  task,
+  epics,
+  team,
+  onSave
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  task?: Task | null;
+  epics: Epic[];
+  team: any[];
+  onSave: (task: Partial<Task>) => void;
+}) {
+  const [formData, setFormData] = useState<Partial<Task>>({
+    title: "",
+    status: "Todo",
+    epicId: "",
+    stageId: "",
+    assigneeId: ""
+  });
+
+  // Reset form when dialog opens/closes or task changes
+  useMemo(() => {
+    if (open) {
+      if (task) {
+        setFormData({
+          title: task.title,
+          status: task.status,
+          epicId: task.epicId,
+          stageId: task.stageId,
+          assigneeId: task.assigneeId
+        });
+      } else {
+        setFormData({
+          title: "",
+          status: "Todo",
+          epicId: "",
+          stageId: "",
+          assigneeId: ""
+        });
+      }
+    }
+  }, [open, task]);
+
+  // Filter stages based on selected epic
+  const availableStages = useMemo(() => {
+    if (!formData.epicId) return TASK_STAGES;
+    const epic = epics.find(e => e.id === formData.epicId);
+    if (!epic || !epic.stageIds) return TASK_STAGES;
+    return TASK_STAGES.filter(s => epic.stageIds.includes(s.id));
+  }, [formData.epicId, epics]);
+
+  const handleSave = () => {
+    onSave(formData);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{task ? "Edit Task" : "Create Task"}</DialogTitle>
+          <DialogDescription>
+            {task ? "Update task details." : "Add a new task to an epic and stage."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="task-title">Title</Label>
+            <Input
+              id="task-title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="Task title"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="task-epic">Epic</Label>
+              <Select 
+                value={formData.epicId} 
+                onValueChange={(v) => setFormData({ ...formData, epicId: v, stageId: "" })} // Reset stage on epic change
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Epic" />
+                </SelectTrigger>
+                <SelectContent>
+                  {epics.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="task-stage">Stage</Label>
+              <Select 
+                value={formData.stageId} 
+                onValueChange={(v) => setFormData({ ...formData, stageId: v })}
+                disabled={!formData.epicId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableStages.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="task-status">Status</Label>
+              <Select 
+                value={formData.status} 
+                onValueChange={(v) => setFormData({ ...formData, status: v as any })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todo">Todo</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Review">Review</SelectItem>
+                  <SelectItem value="Done">Done</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="task-assignee">Assignee</Label>
+              <Select 
+                value={formData.assigneeId} 
+                onValueChange={(v) => setFormData({ ...formData, assigneeId: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  {team.map(t => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={!formData.title || !formData.epicId || !formData.stageId}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function MilestoneListPanel({ 
   milestones, 
@@ -191,13 +356,20 @@ function ActiveTasksList({
   milestone,
   tasks,
   links,
-  epics
+  epics,
+  onCreateTask,
+  onUpdateTask
 }: {
   milestone: Milestone,
   tasks: Task[],
   links: MilestoneTaskLink[],
-  epics: Epic[]
+  epics: Epic[],
+  onCreateTask: (task: Partial<Task>) => void,
+  onUpdateTask: (taskId: string, updates: Partial<Task>) => void
 }) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
   const activeTasks = useMemo(() => {
     return links
       .filter(l => l.milestoneId === milestone.id)
@@ -208,17 +380,25 @@ function ActiveTasksList({
       .filter(Boolean) as (Task & { link: MilestoneTaskLink })[];
   }, [milestone.id, links, tasks]);
 
-  if (activeTasks.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border rounded-lg bg-muted/5 mt-4">
-        <ListTodo className="h-12 w-12 opacity-20 mb-4" />
-        <h3 className="text-lg font-medium text-foreground">No Active Tasks</h3>
-        <p className="max-w-xs text-center mt-2 text-sm">
-          There are no tasks currently scoped to this milestone. Use the "Scope Definition" tab to add tasks via rules or manually.
-        </p>
-      </div>
-    );
-  }
+  const handleCreate = (data: Partial<Task>) => {
+    onCreateTask(data);
+  };
+
+  const handleUpdate = (data: Partial<Task>) => {
+    if (editingTask) {
+      onUpdateTask(editingTask.id, data);
+    }
+  };
+
+  const openCreate = () => {
+    setEditingTask(null);
+    setIsDialogOpen(true);
+  };
+
+  const openEdit = (task: Task) => {
+    setEditingTask(task);
+    setIsDialogOpen(true);
+  };
 
   return (
     <div className="space-y-4 mt-6">
@@ -226,63 +406,89 @@ function ActiveTasksList({
         <h3 className="text-sm font-medium">Active Tasks ({activeTasks.length})</h3>
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Filter className="h-3 w-3 mr-2" /> Filter</Button>
+          <Button size="sm" onClick={openCreate}><Plus className="h-3 w-3 mr-2" /> Create Task</Button>
         </div>
       </div>
 
-      <div className="border rounded-md overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Task</TableHead>
-              <TableHead>Epic</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Assignee</TableHead>
-              <TableHead className="text-right">Source</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {activeTasks.map(task => {
-              const epic = epics.find(e => e.id === task.epicId);
-              const stage = PHASES.find(p => p.id === task.stageId) || { label: "Unknown", color: "bg-gray-100 text-gray-800" };
-              
-              return (
-                <TableRow key={task.id}>
-                  <TableCell className="font-medium">
-                    {task.title}
-                    <div className="text-xs text-muted-foreground">{task.id}</div>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {epic?.title || "No Epic"}
-                  </TableCell>
-                  <TableCell>
-                    {task.stageId ? (
-                      <Badge variant="outline" className={cn("text-xs font-normal border-transparent", stage.color)}>
-                        {stage.label}
+      <TaskDialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen}
+        task={editingTask}
+        epics={epics}
+        team={TEAM}
+        onSave={editingTask ? handleUpdate : handleCreate}
+      />
+
+      {activeTasks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border rounded-lg bg-muted/5">
+          <ListTodo className="h-12 w-12 opacity-20 mb-4" />
+          <h3 className="text-lg font-medium text-foreground">No Active Tasks</h3>
+          <p className="max-w-xs text-center mt-2 text-sm">
+             Use the create button or "Scope Definition" tab to add tasks.
+          </p>
+        </div>
+      ) : (
+        <div className="border rounded-md overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Task</TableHead>
+                <TableHead>Epic</TableHead>
+                <TableHead>Stage</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Assignee</TableHead>
+                <TableHead className="text-right">Source</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeTasks.map(task => {
+                const epic = epics.find(e => e.id === task.epicId);
+                const stage = TASK_STAGES.find(p => p.id === task.stageId) || { label: "Unknown", color: "bg-gray-100 text-gray-800" };
+                
+                return (
+                  <TableRow key={task.id} className="group">
+                    <TableCell className="font-medium">
+                      {task.title}
+                      <div className="text-xs text-muted-foreground">{task.id}</div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {epic?.title || "No Epic"}
+                    </TableCell>
+                    <TableCell>
+                      {task.stageId ? (
+                        <Badge variant="outline" className={cn("text-xs font-normal border-transparent", stage.color)}>
+                          {stage.label}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {task.status}
                       </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs font-normal">
-                      {task.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {TEAM.find(t => t.id === task.assigneeId)?.name || "Unassigned"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted font-normal text-[10px]">
-                      {task.link.source === 'rule' ? 'Rule' : 'Manual'}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {TEAM.find(t => t.id === task.assigneeId)?.name || "Unassigned"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted font-normal text-[10px]">
+                        {task.link.source === 'rule' ? 'Rule' : 'Manual'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(task)}>
+                        <Edit className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
@@ -634,7 +840,9 @@ function MilestoneDetailPanel({
   scopeRules,
   taskLinks,
   onUpdateScopeRules,
-  onUpdateTaskLinks
+  onUpdateTaskLinks,
+  onCreateTask,
+  onUpdateTask
 }: { 
   milestone: Milestone, 
   onSave: (m: Milestone) => void,
@@ -644,7 +852,9 @@ function MilestoneDetailPanel({
   scopeRules: MilestoneScopeRules,
   taskLinks: MilestoneTaskLink[],
   onUpdateScopeRules: (rules: MilestoneScopeRules) => void,
-  onUpdateTaskLinks: (links: MilestoneTaskLink[]) => void
+  onUpdateTaskLinks: (links: MilestoneTaskLink[]) => void,
+  onCreateTask: (task: Partial<Task>) => void,
+  onUpdateTask: (taskId: string, updates: Partial<Task>) => void
 }) {
   const [formData, setFormData] = useState<Milestone>({ ...milestone });
   const [isDirty, setIsDirty] = useState(false);
@@ -793,6 +1003,8 @@ function MilestoneDetailPanel({
                   tasks={tasks}
                   links={taskLinks}
                   epics={epics}
+                  onCreateTask={onCreateTask}
+                  onUpdateTask={onUpdateTask}
                 />
               </TabsContent>
 
@@ -942,6 +1154,44 @@ export default function MilestonesManagementPage() {
     }
   };
 
+  const handleCreateTask = (taskData: Partial<Task>) => {
+    const newTask: Task = {
+      id: `${Date.now()}`,
+      title: taskData.title || "New Task",
+      project: PROJECTS[0].name,
+      stageId: taskData.stageId,
+      epicId: taskData.epicId,
+      status: taskData.status || "Todo",
+      assigneeId: taskData.assigneeId,
+      deadline: new Date().toISOString(),
+      priority: "Medium",
+      estimateHours: 0,
+      tags: [],
+      ...taskData
+    } as Task;
+
+    setTasks([...tasks, newTask]);
+
+    if (selectedId) {
+      const newLink: MilestoneTaskLink = {
+        id: `l-${Date.now()}`,
+        milestoneId: selectedId,
+        taskId: newTask.id,
+        source: "manual_add",
+        locked: true,
+        createdAt: new Date().toISOString()
+      };
+      // Reuse handleUpdateLinks to ensure progress calc triggers
+      handleUpdateLinks([...selectedLinks, newLink]);
+    }
+    toast({ title: "Task Created", description: "Task added to project and milestone." });
+  };
+
+  const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+    toast({ title: "Task Updated" });
+  };
+
   return (
     <Shell>
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
@@ -965,6 +1215,8 @@ export default function MilestonesManagementPage() {
               taskLinks={selectedLinks}
               onUpdateScopeRules={handleUpdateRules}
               onUpdateTaskLinks={handleUpdateLinks}
+              onCreateTask={handleCreateTask}
+              onUpdateTask={handleUpdateTask}
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
