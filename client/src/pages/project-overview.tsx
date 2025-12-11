@@ -68,6 +68,8 @@ const getProjectData = (id: string) => {
   return { project, stages, milestones, stats };
 };
 
+import { DeliverablesContent } from "@/pages/deliverables";
+
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
   const projectId = params?.projectId || "1";
@@ -334,16 +336,9 @@ export default function ProjectOverview() {
 
             {/* Deliverables Tab */}
             <TabsContent value="deliverables">
-                <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg bg-muted/10">
-                    <CheckCircle2 className="h-10 w-10 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium">Deliverables</h3>
-                    <p className="text-muted-foreground max-w-sm mt-2">
-                        Track and manage key project deliverables and their status.
-                    </p>
-                    <Link href={`/projects/${projectId}/deliverables`} className="mt-6">
-                        <Button>View Deliverables</Button>
-                    </Link>
-                </div>
+              <div className="mt-6">
+                <DeliverablesContent projectId={projectId} />
+              </div>
             </TabsContent>
 
           </div>
