@@ -235,6 +235,7 @@ function ActiveTasksList({
             <TableRow>
               <TableHead>Task</TableHead>
               <TableHead>Epic</TableHead>
+              <TableHead>Stage</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Assignee</TableHead>
               <TableHead className="text-right">Source</TableHead>
@@ -243,6 +244,8 @@ function ActiveTasksList({
           <TableBody>
             {activeTasks.map(task => {
               const epic = epics.find(e => e.id === task.epicId);
+              const stage = PHASES.find(p => p.id === task.stageId) || { label: "Unknown", color: "bg-gray-100 text-gray-800" };
+              
               return (
                 <TableRow key={task.id}>
                   <TableCell className="font-medium">
@@ -251,6 +254,15 @@ function ActiveTasksList({
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {epic?.title || "No Epic"}
+                  </TableCell>
+                  <TableCell>
+                    {task.stageId ? (
+                      <Badge variant="outline" className={cn("text-xs font-normal border-transparent", stage.color)}>
+                        {stage.label}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-xs font-normal">
