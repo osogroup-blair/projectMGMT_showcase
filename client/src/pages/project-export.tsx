@@ -67,14 +67,16 @@ import {
   EPIC_TEMPLATES,
   TASK_TEMPLATES,
   MAPPING_TEMPLATES,
-  ROLE_TEMPLATES
+  ROLE_TEMPLATES,
+  MILESTONE_SCOPE_RULES,
+  MILESTONE_TASK_LINKS
 } from "@/lib/mock-data";
 
 // Schema Definitions based on Prompt
 const SCHEMA_DEFINITIONS = [
   {
     sheet: "Projects",
-    columns: ["id", "name", "client_id", "status", "deadline", "progress", "framework_id", "default_mapping_template_id", "permissions"]
+    columns: ["id", "name", "client_id", "status", "start_date", "deadline", "progress", "framework_id", "default_mapping_template_id", "permissions"]
   },
   {
     sheet: "Deliverables",
@@ -98,7 +100,15 @@ const SCHEMA_DEFINITIONS = [
   },
   {
     sheet: "Milestones",
-    columns: ["id", "project_id", "stage_id", "name", "description", "target_date", "status", "owner_id", "progress_percent", "is_billing_gate"]
+    columns: ["id", "project_id", "stage_id", "name", "description", "phase", "target_date", "status", "owner_id", "scope_type", "completion_mode", "completion_target_percent", "tags", "progress_percent", "is_billing_gate"]
+  },
+  {
+    sheet: "MilestoneScopeRules",
+    columns: ["id", "milestone_id", "label", "task_template_key", "stage", "active", "filters"]
+  },
+  {
+    sheet: "MilestoneTaskLinks",
+    columns: ["id", "milestone_id", "task_id", "source", "rule_id", "locked"]
   },
   {
     sheet: "Users",
@@ -157,6 +167,7 @@ export default function ProjectExport() {
       id: p.id,
       name: p.name,
       status: p.status,
+      start_date: p.startDate,
       deadline: p.deadline,
       progress: p.progress,
       framework_id: p.frameworkId,
@@ -245,17 +256,55 @@ export default function ProjectExport() {
     }));
 
     // 7. Milestones
-    const milestonesData = MILESTONES.map(m => ({
+    const milestonesData = MILESTONES.filter(m => scope === "all" || m.projectId === projectId).map(m => ({
       id: m.id,
-      project_id: projectId, // Mock assumption
+      project_id: m.projectId || projectId, // Mock assumption
       stage_id: m.stageId,
       name: m.name,
       description: m.description,
+      phase: m.phase,
       target_date: m.targetDate,
       status: m.status,
       owner_id: m.ownerId,
-      progress_percent: m.progressPercent,
+      scope_type: m.scopeType,
+      completion_mode: m.completionMode,
+      completion_target_percent: m.completionTargetPercent,
+      tags: JSON.stringify(m.tags || []),
+      progress_percent: m.progress.percentComplete, // Use new progress object
       is_billing_gate: m.isBillingGate
+    }));
+
+    // 8. MilestoneScopeRules
+    const milestoneScopeRulesData: any[] = [];
+    MILESTONE_SCOPE_RULES.forEach(msr => {
+        // Filter by milestone ID if scoping to project
+        const milestone = MILESTONES.find(m => m.id === msr.milestoneId);
+        if (scope === "all" || (milestone && (milestone.projectId === projectId))) {
+             msr.rules.forEach(rule => {
+                milestoneScopeRulesData.push({
+                    id: rule.id,
+                    milestone_id: msr.milestoneId,
+                    label: rule.label,
+                    task_template_key: rule.taskTemplateKey,
+                    stage: rule.stage,
+                    active: rule.active,
+                    filters: JSON.stringify(rule.filters || {})
+                });
+             });
+        }
+    });
+
+    // 9. MilestoneTaskLinks
+    const milestoneTaskLinksData = MILESTONE_TASK_LINKS.filter(mtl => {
+         const milestone = MILESTONES.find(m => m.id === mtl.milestoneId);
+         return scope === "all" || (milestone && (milestone.projectId === projectId));
+    }).map(mtl => ({
+        id: mtl.id,
+        milestone_id: mtl.milestoneId,
+        task_id: mtl.taskId,
+        source: mtl.source,
+        rule_id: mtl.ruleId,
+        locked: mtl.locked
     }));
 
     // Config Data (included if toggle is on)
@@ -276,6 +325,8 @@ export default function ProjectExport() {
       EpicStages: epicStagesData,
       Tasks: tasksData,
       Milestones: milestonesData,
+      MilestoneScopeRules: milestoneScopeRulesData,
+      MilestoneTaskLinks: milestoneTaskLinksData,
       Users: usersData,
       ProjectRoles: rolesData,
       RoleAssignments: assignmentsData,
