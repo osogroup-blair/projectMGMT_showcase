@@ -2,12 +2,17 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { 
   format, 
   addDays, 
+  subDays,
+  addWeeks,
+  subWeeks,
   addMonths, 
   subMonths,
-  addWeeks,
+  startOfWeek,
+  endOfWeek,
   startOfMonth, 
   endOfMonth, 
   eachDayOfInterval, 
+  eachWeekOfInterval,
   eachMonthOfInterval, 
   isSameDay, 
   differenceInDays,
@@ -120,7 +125,7 @@ const getSmartInitialDate = (project: Project, milestones: Milestone[]) => {
   return new Date();
 };
 
-type ViewMode = "month" | "quarter" | "year";
+type ViewMode = "day" | "week" | "month" | "quarter" | "year";
 
 export function TimelineView({ stages, milestones: initialMilestones, project, tasks: initialTasks = [] }: TimelineViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -164,6 +169,26 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
   // View Configuration
   const viewConfig = useMemo(() => {
     switch (viewMode) {
+      case "day":
+        return {
+          dayWidth: 100, // Very wide for daily view
+          tickInterval: eachDayOfInterval,
+          tickFormat: "EEE, MMM d",
+          subTickFormat: "", // No sub-ticks needed
+          timeAdd: addDays,
+          timeSub: subDays,
+          headerUnit: "day"
+        };
+      case "week":
+        return {
+          dayWidth: 40, // Wide enough for week view
+          tickInterval: eachWeekOfInterval,
+          tickFormat: "'Week of' MMM d",
+          subTickFormat: "EEE",
+          timeAdd: addWeeks,
+          timeSub: subWeeks,
+          headerUnit: "week"
+        };
       case "month":
         return {
           dayWidth: 15, // ~3 months visible in standard desktop view
@@ -337,6 +362,22 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
 
   // Helper for rendering sub-ticks (days/months/quarters)
   const renderSubTicks = (parentTickStart: Date, parentTickEnd: Date) => {
+    if (viewMode === 'day') {
+      // For Day View, maybe show hours? Or nothing for now to keep it clean.
+      // Let's just return null or maybe a simple divider
+      return null;
+    }
+
+    if (viewMode === 'week') {
+      // Render Days
+      const days = eachDayOfInterval({ start: parentTickStart, end: parentTickEnd });
+      return days.map(d => (
+        <div key={d.toISOString()} className="flex-1 text-center text-xs border-r border-border/10 last:border-0">
+          {format(d, "EEE")}
+        </div>
+      ));
+    }
+
     if (viewMode === 'month') {
       // Render days - but sparse to avoid clutter if too zoomed out? 
       // With width 15, we can render every few days or just day numbers
@@ -391,7 +432,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
              <Popover>
                <PopoverTrigger asChild>
                  <Button variant="ghost" className="px-3 py-1 h-8 rounded-none min-w-[140px] font-medium border-x hover:bg-muted/50">
-                   {format(currentDate, viewMode === 'year' ? "yyyy" : "MMMM yyyy")}
+                   {format(currentDate, (viewMode === 'year' || viewMode === 'quarter') ? "yyyy" : "MMMM yyyy")}
                  </Button>
                </PopoverTrigger>
                <PopoverContent className="w-auto p-0" align="center">
@@ -423,9 +464,11 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="month">Month View</SelectItem>
-              <SelectItem value="quarter">Quarter View</SelectItem>
-              <SelectItem value="year">Yearly View</SelectItem>
+              <SelectItem value="day">Daily</SelectItem>
+              <SelectItem value="week">Weekly</SelectItem>
+              <SelectItem value="month">Monthly</SelectItem>
+              <SelectItem value="quarter">Quarterly</SelectItem>
+              <SelectItem value="year">Yearly</SelectItem>
             </SelectContent>
           </Select>
           
@@ -458,7 +501,13 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
               <div className="absolute inset-0 flex pointer-events-none">
                 {timeTicks.map((tick) => {
                   let tickStart, tickEnd;
-                  if (viewMode === 'month') {
+                  if (viewMode === 'day') {
+                    tickStart = tick;
+                    tickEnd = tick;
+                  } else if (viewMode === 'week') {
+                    tickStart = startOfWeek(tick);
+                    tickEnd = endOfWeek(tick);
+                  } else if (viewMode === 'month') {
                     tickStart = startOfMonth(tick);
                     tickEnd = endOfMonth(tick);
                   } else if (viewMode === 'quarter') {
@@ -495,7 +544,13 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
               <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b h-[60px] flex">
                 {timeTicks.map(tick => {
                    let tickStart, tickEnd;
-                   if (viewMode === 'month') {
+                   if (viewMode === 'day') {
+                     tickStart = tick;
+                     tickEnd = tick;
+                   } else if (viewMode === 'week') {
+                     tickStart = startOfWeek(tick);
+                     tickEnd = endOfWeek(tick);
+                   } else if (viewMode === 'month') {
                      tickStart = startOfMonth(tick);
                      tickEnd = endOfMonth(tick);
                    } else if (viewMode === 'quarter') {
