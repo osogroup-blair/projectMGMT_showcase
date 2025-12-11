@@ -37,6 +37,7 @@ import {
 import { useRoute, Link } from "wouter";
 import { PROJECTS, PROJECT_STAGES, MILESTONES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { StageTabContent } from "@/components/project/stage-tab-content";
 
 // Mock Data Types
 interface TaskStats {
@@ -371,22 +372,8 @@ export default function ProjectOverview() {
 
             {/* Dynamic Stage Tabs */}
             {stages.map(stage => (
-              <TabsContent key={stage.id} value={`stage-${stage.id}`}>
-                 <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg bg-muted/10">
-                    <Layers className="h-10 w-10 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium">{stage.name} Workspace</h3>
-                    <p className="text-muted-foreground max-w-sm mt-2">
-                        Manage tasks, documents, and approvals specifically for the {stage.name} phase.
-                    </p>
-                    <div className="flex gap-4 mt-6">
-                        <Link href={`/projects/${projectId}/stages/${stage.id}`}>
-                            <Button>Open Stage Board</Button>
-                        </Link>
-                        <Link href={`/projects/${projectId}/tasks`}>
-                            <Button variant="outline">View All Tasks</Button>
-                        </Link>
-                    </div>
-                 </div>
+              <TabsContent key={stage.id} value={`stage-${stage.id}`} className="mt-6">
+                 <StageTabContent stage={stage} projectId={projectId} />
               </TabsContent>
             ))}
 
