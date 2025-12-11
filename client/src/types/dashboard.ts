@@ -39,7 +39,11 @@ export interface FinancialResourceSnapshot {
     entityId: string;
     entityType: "role" | "person";
     name: string;
-    utilizationPercent?: number;
+    monthlyBudgetedHours?: number;
+    monthlyActualHours?: number;
+    totalBudgetedHours?: number;
+    totalActualHours?: number;
+    utilizationPercent?: number; // Kept for backward compatibility if needed, though likely unused now
     status?: "underallocated" | "healthy" | "overallocated";
   }[];
 }
@@ -61,6 +65,7 @@ export interface UpcomingItem {
   owner?: string;
   relatedPhase?: "plan_strategy" | "validate_blueprints" | "develop_solution" | "enable_users";
   priority?: "low" | "medium" | "high" | "critical";
+  progress?: number;
 }
 
 export interface RiskIssuePanel {

@@ -31,9 +31,46 @@ export const MOCK_DASHBOARD_DATA: ProjectDashboard = {
       { phase: "enable_users", budgetUsed: 0, hoursUsed: 0 }
     ],
     resourceUtilization: [
-      { entityId: "1", entityType: "person", name: "Alex Johnson", utilizationPercent: 95, status: "healthy" },
-      { entityId: "2", entityType: "person", name: "Sarah Williams", utilizationPercent: 110, status: "overallocated" },
-      { entityId: "3", entityType: "role", name: "Frontend Dev", utilizationPercent: 80, status: "underallocated" }
+      { 
+        entityId: "1", 
+        entityType: "person", 
+        name: "Alex Johnson", 
+        monthlyBudgetedHours: 160,
+        monthlyActualHours: 152,
+        totalBudgetedHours: 480,
+        totalActualHours: 420,
+        status: "healthy" 
+      },
+      { 
+        entityId: "2", 
+        entityType: "person", 
+        name: "Sarah Williams", 
+        monthlyBudgetedHours: 120,
+        monthlyActualHours: 135,
+        totalBudgetedHours: 360,
+        totalActualHours: 390,
+        status: "overallocated" 
+      },
+      { 
+        entityId: "3", 
+        entityType: "role", 
+        name: "Frontend Dev", 
+        monthlyBudgetedHours: 160,
+        monthlyActualHours: 120,
+        totalBudgetedHours: 480,
+        totalActualHours: 350,
+        status: "underallocated" 
+      },
+      { 
+        entityId: "4", 
+        entityType: "role", 
+        name: "UX Designer", 
+        monthlyBudgetedHours: 80,
+        monthlyActualHours: 78,
+        totalBudgetedHours: 240,
+        totalActualHours: 235,
+        status: "healthy" 
+      }
     ]
   },
   upcomingWork: {
@@ -49,7 +86,8 @@ export const MOCK_DASHBOARD_DATA: ProjectDashboard = {
         status: "in_progress",
         owner: "Alex Johnson",
         priority: "high",
-        relatedPhase: "develop_solution"
+        relatedPhase: "develop_solution",
+        progress: 75
       },
       {
         id: "2",
@@ -60,7 +98,8 @@ export const MOCK_DASHBOARD_DATA: ProjectDashboard = {
         status: "not_started",
         owner: "Product Owner",
         priority: "critical",
-        relatedPhase: "develop_solution"
+        relatedPhase: "develop_solution",
+        progress: 0
       },
       {
         id: "3",
@@ -70,7 +109,8 @@ export const MOCK_DASHBOARD_DATA: ProjectDashboard = {
         horizon: "long",
         status: "not_started",
         priority: "high",
-        relatedPhase: "enable_users"
+        relatedPhase: "enable_users",
+        progress: 0
       },
       {
         id: "4",
@@ -79,7 +119,20 @@ export const MOCK_DASHBOARD_DATA: ProjectDashboard = {
         dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
         horizon: "long",
         status: "not_started",
-        priority: "medium"
+        priority: "medium",
+        progress: 0
+      },
+      {
+        id: "5",
+        type: "task",
+        title: "User Acceptance Testing Setup",
+        dueDate: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
+        horizon: "long",
+        status: "in_progress",
+        owner: "QA Lead",
+        priority: "medium",
+        relatedPhase: "validate_blueprints",
+        progress: 30
       }
     ]
   },

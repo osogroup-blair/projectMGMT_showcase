@@ -162,6 +162,17 @@ const StatusSnapshotCard = ({ data }: { data: StatusSnapshot }) => {
   );
 };
 
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+
+// ... (previous imports)
+
 const UpcomingWorkSection = ({ data }: { data: UpcomingWork }) => {
   const renderItem = (item: UpcomingItem) => {
     const Icon = {
@@ -189,7 +200,16 @@ const UpcomingWorkSection = ({ data }: { data: UpcomingWork }) => {
             <h4 className="font-medium truncate group-hover:text-primary transition-colors">{item.title}</h4>
             {item.priority === 'critical' && <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />}
           </div>
-          <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2 items-center">
+          
+          {/* Progress Bar (Only for tasks/deliverables or if progress is defined) */}
+          {(item.type === 'task' || item.type === 'deliverable' || item.progress !== undefined) && (
+            <div className="mt-2 flex items-center gap-2">
+              <Progress value={item.progress || 0} className="h-1.5 flex-1" />
+              <span className="text-xs text-muted-foreground w-8 text-right">{item.progress || 0}%</span>
+            </div>
+          )}
+
+          <div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-2 items-center">
             <span className={cn("flex items-center gap-1", isOverdue && "text-red-600 font-medium")}>
               <Calendar className="h-3 w-3" />
               {format(parseISO(item.dueDate), "MMM d")}
@@ -203,6 +223,8 @@ const UpcomingWorkSection = ({ data }: { data: UpcomingWork }) => {
       </div>
     );
   };
+// ... (rest of UpcomingWorkSection)
+
 
   const shortTerm = data.items?.filter(i => i.horizon === 'short') || [];
   const longTerm = data.items?.filter(i => i.horizon === 'long') || [];
@@ -381,35 +403,50 @@ const FinancialResourceSection = ({ data }: { data: FinancialResourceSnapshot })
         <Separator />
 
         <div className="space-y-3">
-           <h5 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Team Utilization</h5>
-           <div className="space-y-2">
-             {data.resourceUtilization?.map((res, i) => (
-               <div key={i} className="flex items-center justify-between text-sm">
-                 <div className="flex items-center gap-2">
-                   <Avatar className="h-6 w-6">
-                     <AvatarFallback className="text-[10px]">{res.name.charAt(0)}</AvatarFallback>
-                   </Avatar>
-                   <span className="font-medium">{res.name}</span>
-                   <span className="text-xs text-muted-foreground">({res.entityType})</span>
-                 </div>
-                 <div className="flex items-center gap-3">
-                   <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                     <div 
-                        className={cn("h-full", 
-                          res.status === 'overallocated' ? "bg-red-500" : 
-                          res.status === 'underallocated' ? "bg-yellow-500" : "bg-green-500"
-                        )} 
-                        style={{ width: `${Math.min(res.utilizationPercent || 0, 100)}%` }} 
-                     />
-                   </div>
-                   <span className={cn(
-                     "w-12 text-right font-medium",
-                     res.status === 'overallocated' ? "text-red-600" : 
-                     res.status === 'underallocated' ? "text-yellow-600" : "text-green-600"
-                   )}>{res.utilizationPercent}%</span>
-                 </div>
-               </div>
-             ))}
+           <h5 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Resource Utilization (Hours)</h5>
+           <div className="border rounded-md overflow-hidden">
+             <Table>
+               <TableHeader>
+                 <TableRow className="bg-muted/50">
+                   <TableHead className="w-[180px]">Resource</TableHead>
+                   <TableHead className="text-right text-xs">Monthly<br/>Budget</TableHead>
+                   <TableHead className="text-right text-xs">Monthly<br/>Actual</TableHead>
+                   <TableHead className="text-right text-xs">Total<br/>Budget</TableHead>
+                   <TableHead className="text-right text-xs">Total<br/>Actual</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {data.resourceUtilization?.map((res, i) => (
+                   <TableRow key={i}>
+                     <TableCell className="font-medium py-3">
+                        <div className="flex items-center gap-2">
+                           <Avatar className="h-6 w-6">
+                             <AvatarFallback className="text-[10px]">{res.name.charAt(0)}</AvatarFallback>
+                           </Avatar>
+                           <div className="flex flex-col">
+                             <span>{res.name}</span>
+                             <span className="text-[10px] text-muted-foreground capitalize">{res.entityType}</span>
+                           </div>
+                        </div>
+                     </TableCell>
+                     <TableCell className="text-right py-3">{res.monthlyBudgetedHours || '-'}</TableCell>
+                     <TableCell className={cn(
+                       "text-right py-3", 
+                       (res.monthlyActualHours || 0) > (res.monthlyBudgetedHours || 0) ? "text-red-600 font-medium" : ""
+                     )}>
+                       {res.monthlyActualHours || '-'}
+                     </TableCell>
+                     <TableCell className="text-right py-3">{res.totalBudgetedHours || '-'}</TableCell>
+                     <TableCell className={cn(
+                       "text-right py-3", 
+                       (res.totalActualHours || 0) > (res.totalBudgetedHours || 0) ? "text-red-600 font-medium" : ""
+                     )}>
+                       {res.totalActualHours || '-'}
+                     </TableCell>
+                   </TableRow>
+                 ))}
+               </TableBody>
+             </Table>
            </div>
         </div>
       </CardContent>
