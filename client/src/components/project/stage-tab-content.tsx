@@ -11,7 +11,10 @@ import {
   Clock, 
   User,
   ArrowRight,
-  Target
+  Target,
+  X,
+  Check,
+  ChevronsUpDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,12 +26,12 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -58,12 +61,15 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
     stage.id === 'st_plan' ? new Date(2023, 11, 15) : undefined
   );
   
-  const [entryMilestone, setEntryMilestone] = useState<string>(
-    stage.id === 'st_validate' ? 'm1' : 'none'
+  const [entryMilestones, setEntryMilestones] = useState<string[]>(
+    stage.id === 'st_validate' ? ['m1'] : []
   );
-  const [exitMilestone, setExitMilestone] = useState<string>(
-    stage.id === 'st_plan' ? 'm1' : 'none'
+  const [exitMilestones, setExitMilestones] = useState<string[]>(
+    stage.id === 'st_plan' ? ['m1'] : []
   );
+
+  const [openEntry, setOpenEntry] = useState(false);
+  const [openExit, setOpenExit] = useState(false);
 
   // Task Board State
   const [viewType, setViewType] = useState<"board" | "list">("board");
@@ -75,6 +81,18 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
   );
 
   const getAssignee = (id?: string) => TEAM.find(u => u.id === id);
+
+  const toggleMilestone = (id: string, current: string[], setFn: (val: string[]) => void) => {
+    if (current.includes(id)) {
+      setFn(current.filter(i => i !== id));
+    } else {
+      setFn([...current, id]);
+    }
+  };
+
+  const removeMilestone = (id: string, current: string[], setFn: (val: string[]) => void) => {
+     setFn(current.filter(i => i !== id));
+  };
 
   return (
     <div className="space-y-6">
@@ -148,34 +166,130 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
             {/* Criteria Mapping */}
             <div className="space-y-4">
               <div className="flex items-center gap-4">
+                {/* Entry Criteria Multi-Select */}
                 <div className="grid gap-1.5 flex-1">
-                  <span className="text-xs font-medium text-muted-foreground">Entry Criteria (Milestone)</span>
-                  <Select value={entryMilestone} onValueChange={setEntryMilestone}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select Milestone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Entry Milestone</SelectItem>
-                      {MILESTONES.map(m => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <span className="text-xs font-medium text-muted-foreground">Entry Criteria (Milestones)</span>
+                  <Popover open={openEntry} onOpenChange={setOpenEntry}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openEntry}
+                        className="w-full justify-between h-auto min-h-[2.25rem] px-3 py-2"
+                      >
+                        <div className="flex flex-wrap gap-1 items-center">
+                          {entryMilestones.length === 0 && <span className="text-muted-foreground font-normal">Select Milestones...</span>}
+                          {entryMilestones.map((id) => (
+                            <Badge key={id} variant="secondary" className="mr-1 font-normal">
+                              {MILESTONES.find((m) => m.id === id)?.name}
+                              <div
+                                className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  removeMilestone(id, entryMilestones, setEntryMilestones);
+                                }}
+                              >
+                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                              </div>
+                            </Badge>
+                          ))}
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search milestones..." />
+                        <CommandEmpty>No milestone found.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {MILESTONES.map((milestone) => (
+                            <CommandItem
+                              key={milestone.id}
+                              value={milestone.name}
+                              onSelect={() => toggleMilestone(milestone.id, entryMilestones, setEntryMilestones)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  entryMilestones.includes(milestone.id) ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {milestone.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
+
                 <div className="w-px h-10 bg-border mt-4" />
+
+                {/* Exit Criteria Multi-Select */}
                 <div className="grid gap-1.5 flex-1">
-                  <span className="text-xs font-medium text-muted-foreground">Exit Criteria (Milestone)</span>
-                  <Select value={exitMilestone} onValueChange={setExitMilestone}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select Milestone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Exit Milestone</SelectItem>
-                      {MILESTONES.map(m => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <span className="text-xs font-medium text-muted-foreground">Exit Criteria (Milestones)</span>
+                  <Popover open={openExit} onOpenChange={setOpenExit}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openExit}
+                        className="w-full justify-between h-auto min-h-[2.25rem] px-3 py-2"
+                      >
+                        <div className="flex flex-wrap gap-1 items-center">
+                          {exitMilestones.length === 0 && <span className="text-muted-foreground font-normal">Select Milestones...</span>}
+                          {exitMilestones.map((id) => (
+                            <Badge key={id} variant="secondary" className="mr-1 font-normal">
+                              {MILESTONES.find((m) => m.id === id)?.name}
+                              <div
+                                className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  removeMilestone(id, exitMilestones, setExitMilestones);
+                                }}
+                              >
+                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                              </div>
+                            </Badge>
+                          ))}
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search milestones..." />
+                        <CommandEmpty>No milestone found.</CommandEmpty>
+                        <CommandGroup className="max-h-64 overflow-auto">
+                          {MILESTONES.map((milestone) => (
+                            <CommandItem
+                              key={milestone.id}
+                              value={milestone.name}
+                              onSelect={() => toggleMilestone(milestone.id, exitMilestones, setExitMilestones)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  exitMilestones.includes(milestone.id) ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {milestone.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </div>
