@@ -142,7 +142,7 @@ export default function ProjectOverview() {
               value="overview" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
             >
-              Project Overview
+              Dashboard
             </TabsTrigger>
 
             <TabsTrigger 
