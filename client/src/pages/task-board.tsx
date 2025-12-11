@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Plus, 
@@ -15,7 +15,9 @@ import {
   ChevronDown,
   LayoutGrid,
   List,
-  Columns
+  Columns,
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +59,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { PROJECTS, TASKS, TEAM, MILESTONES, Task } from "@/lib/mock-data";
+import { TEAM, Task } from "@/lib/mock-data";
+import { useTasks, useProject, useMilestones } from "@/hooks/use-nexus-data";
 
 // Reuse Mock Stages
 const MOCK_STAGES = [
@@ -78,10 +81,12 @@ export default function TaskBoard() {
   const [match, params] = useRoute("/projects/:projectId/tasks");
   const [, setLocation] = useLocation();
   const projectId = params?.projectId || "1";
-  const project = PROJECTS.find(p => p.id === projectId) || PROJECTS[0];
   const { toast } = useToast();
 
-  const [tasks, setTasks] = useState<Task[]>(TASKS);
+  const { data: project, isLoading: isProjectLoading } = useProject(projectId);
+  const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask, remove: deleteTask } = useTasks();
+  const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState<"board" | "list">("board");
   
@@ -94,6 +99,12 @@ export default function TaskBoard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
 
+  // Derived Tasks
+  const tasks = useMemo(() => {
+    if (!project || !allTasks) return [];
+    return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
+  }, [project, allTasks]);
+
   const filteredTasks = tasks.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
@@ -104,11 +115,13 @@ export default function TaskBoard() {
   });
 
   const handleOpenCreate = (stageId?: string) => {
+    if (!project) return;
     setEditingTask(null);
     setFormData({
       title: "",
       description: "",
-      project: project.name,
+      project: project.name, // Legacy field
+      projectId: project.id, // New field
       stageId: stageId || "s1",
       status: "Todo",
       assigneeId: TEAM[0].id,
@@ -121,7 +134,10 @@ export default function TaskBoard() {
   };
 
   const handleOpenEdit = (task: Task) => {
-    setLocation(`/projects/${projectId}/tasks/${task.id}`);
+    // For now, we open the dialog instead of navigating, to keep it simple
+    setEditingTask(task);
+    setFormData({ ...task });
+    setIsDialogOpen(true);
   };
 
   const handleSave = () => {
@@ -135,36 +151,36 @@ export default function TaskBoard() {
     }
 
     if (editingTask) {
-      setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...formData } as Task : t));
-      toast({
-        title: "Task Updated",
-        description: "Task details saved successfully.",
-      });
+      updateTask({ id: editingTask.id, updates: formData });
     } else {
-      const newTask: Task = {
-        id: `t_${Date.now()}`,
-        ...formData as any
-      };
-      setTasks(prev => [...prev, newTask]);
-      toast({
-        title: "Task Created",
-        description: "New task added to the board.",
+      createTask({
+        ...formData,
+        project: project?.name,
+        projectId: project?.id
       });
     }
     setIsDialogOpen(false);
   };
 
   const handleDelete = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-    toast({
-      title: "Task Deleted",
-      description: "Task removed from project.",
-      variant: "destructive"
-    });
+    deleteTask(id);
+    setIsDialogOpen(false);
   };
 
   const getAssignee = (id?: string) => TEAM.find(t => t.id === id);
-  const getMilestone = (id?: string) => MILESTONES.find(m => m.id === id);
+  const getMilestone = (id?: string) => milestones.find((m: any) => m.id === id);
+
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading) {
+    return (
+      <Shell>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (!project) return null;
 
   return (
     <Shell>

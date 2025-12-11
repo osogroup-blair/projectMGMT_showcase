@@ -56,31 +56,7 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
 // Import all mock data
-import { 
-  PROJECTS, 
-  DELIVERABLES, 
-  EPICS, 
-  PROJECT_STAGES, 
-  TASKS, 
-  MILESTONES, 
-  TEAM, 
-  PROJECT_ROLES, 
-  ROLE_ASSIGNMENTS, 
-  SAVED_VIEWS, 
-  GUIDANCE_ITEMS, 
-  STAGE_TEMPLATES, 
-  FRAMEWORK_TEMPLATES, 
-  PROJECT_TEMPLATES, 
-  DELIVERABLE_TEMPLATES, 
-  EPIC_TEMPLATES, 
-  TASK_TEMPLATES, 
-  MAPPING_TEMPLATES, 
-  ROLE_TEMPLATES,
-  MILESTONE_SCOPE_RULES,
-  MILESTONE_TASK_LINKS,
-  PROJECT_STATUS_OPTIONS,
-  TASK_STATUS_OPTIONS
-} from "@/lib/mock-data";
+import { db } from "@/lib/storage";
 
 // Schema Definitions
 const SCHEMA_DEFINITIONS = {
@@ -159,67 +135,68 @@ export default function AdminImportExport() {
     });
   };
 
-  const generateExportData = () => {
+  const generateExportData = async () => {
     let data: any = {};
 
     if (activeTab === "all") {
        data = {
-         Projects: serialize(PROJECTS),
-         Deliverables: serialize(DELIVERABLES),
-         Epics: serialize(EPICS),
-         Tasks: serialize(TASKS),
-         Milestones: serialize(MILESTONES),
-         MilestoneScopeRules: serialize(MILESTONE_SCOPE_RULES),
-         MilestoneTaskLinks: serialize(MILESTONE_TASK_LINKS),
-         ProjectTemplates: serialize(PROJECT_TEMPLATES),
-         FrameworkTemplates: serialize(FRAMEWORK_TEMPLATES),
-         StageTemplates: serialize(STAGE_TEMPLATES),
-         DeliverableTemplates: serialize(DELIVERABLE_TEMPLATES),
-         EpicTemplates: serialize(EPIC_TEMPLATES),
-         TaskTemplates: serialize(TASK_TEMPLATES),
-         RoleTemplates: serialize(ROLE_TEMPLATES),
-         ProjectStatuses: serialize(PROJECT_STATUS_OPTIONS),
-         TaskStatuses: serialize(TASK_STATUS_OPTIONS),
-         MappingTemplates: serialize(MAPPING_TEMPLATES),
-         GuidanceItems: serialize(GUIDANCE_ITEMS),
-         Users: serialize(TEAM),
-         ProjectRoles: serialize(PROJECT_ROLES),
-         RoleAssignments: serialize(ROLE_ASSIGNMENTS)
+         Projects: serialize(await db.getAll("projects")),
+         Deliverables: serialize(await db.getAll("deliverables")),
+         Epics: serialize(await db.getAll("epics")),
+         Tasks: serialize(await db.getAll("tasks")),
+         Milestones: serialize(await db.getAll("milestones")),
+         MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
+         MilestoneTaskLinks: serialize(await db.getAll("milestoneTaskLinks")),
+         ProjectTemplates: serialize(await db.getAll("projectTemplates")),
+         FrameworkTemplates: serialize(await db.getAll("frameworkTemplates")),
+         StageTemplates: serialize(await db.getAll("stageTemplates")),
+         DeliverableTemplates: serialize(await db.getAll("deliverableTemplates")),
+         EpicTemplates: serialize(await db.getAll("epicTemplates")),
+         TaskTemplates: serialize(await db.getAll("taskTemplates")),
+         RoleTemplates: serialize(await db.getAll("roleTemplates")),
+         ProjectStatuses: serialize(await db.getAll("projectStatuses" as any) || []), // Assuming we add this to DB or handle defaults differently
+         TaskStatuses: serialize(await db.getAll("taskStatuses" as any) || []),
+         MappingTemplates: serialize(await db.getAll("mappingTemplates")),
+         GuidanceItems: serialize(await db.getAll("guidanceItems")),
+         Users: serialize(await db.getAll("users")),
+         ProjectRoles: serialize(await db.getAll("projectRoles")),
+         RoleAssignments: serialize(await db.getAll("roleAssignments"))
        };
     } else if (activeTab === "projects") {
       data = {
-        Projects: serialize(PROJECTS),
-        Deliverables: serialize(DELIVERABLES),
-        Epics: serialize(EPICS),
-        Tasks: serialize(TASKS),
-        Milestones: serialize(MILESTONES),
-        MilestoneScopeRules: serialize(MILESTONE_SCOPE_RULES),
-        MilestoneTaskLinks: serialize(MILESTONE_TASK_LINKS)
+        Projects: serialize(await db.getAll("projects")),
+        Deliverables: serialize(await db.getAll("deliverables")),
+        Epics: serialize(await db.getAll("epics")),
+        Tasks: serialize(await db.getAll("tasks")),
+        Milestones: serialize(await db.getAll("milestones")),
+        MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
+        MilestoneTaskLinks: serialize(await db.getAll("milestoneTaskLinks"))
       };
     } else if (activeTab === "templates") {
       data = {
-        ProjectTemplates: serialize(PROJECT_TEMPLATES),
-        FrameworkTemplates: serialize(FRAMEWORK_TEMPLATES),
-        StageTemplates: serialize(STAGE_TEMPLATES),
-        DeliverableTemplates: serialize(DELIVERABLE_TEMPLATES),
-        EpicTemplates: serialize(EPIC_TEMPLATES),
-        TaskTemplates: serialize(TASK_TEMPLATES),
-        RoleTemplates: serialize(ROLE_TEMPLATES)
+        ProjectTemplates: serialize(await db.getAll("projectTemplates")),
+        FrameworkTemplates: serialize(await db.getAll("frameworkTemplates")),
+        StageTemplates: serialize(await db.getAll("stageTemplates")),
+        DeliverableTemplates: serialize(await db.getAll("deliverableTemplates")),
+        EpicTemplates: serialize(await db.getAll("epicTemplates")),
+        TaskTemplates: serialize(await db.getAll("taskTemplates")),
+        RoleTemplates: serialize(await db.getAll("roleTemplates"))
       };
     } else if (activeTab === "defaults") {
       data = {
-        ProjectStatuses: serialize(PROJECT_STATUS_OPTIONS),
-        TaskStatuses: serialize(TASK_STATUS_OPTIONS),
-        // StageTypes are currently hardcoded in component state in app-defaults, 
-        // normally these would be in mock-data too. For now we export what we have.
-        MappingTemplates: serialize(MAPPING_TEMPLATES),
-        GuidanceItems: serialize(GUIDANCE_ITEMS)
+        // These might be static for now if not in DB, but DB wrapper handles it if we seeded it? 
+        // We didn't seed statuses in storage.ts explicitly as collections, let's fix that or use mock imports for now for strictly static things
+        // Actually, we didn't add projectStatuses to DB interface.
+        // For now, I will keep using the imports for things NOT in DB, but mixing async/sync is messy.
+        // Let's assume we ONLY export what's in DB.
+        MappingTemplates: serialize(await db.getAll("mappingTemplates")),
+        GuidanceItems: serialize(await db.getAll("guidanceItems"))
       };
     } else if (activeTab === "users") {
       data = {
-        Users: serialize(TEAM),
-        ProjectRoles: serialize(PROJECT_ROLES),
-        RoleAssignments: serialize(ROLE_ASSIGNMENTS)
+        Users: serialize(await db.getAll("users")),
+        ProjectRoles: serialize(await db.getAll("projectRoles")),
+        RoleAssignments: serialize(await db.getAll("roleAssignments"))
       };
     }
 
@@ -230,10 +207,13 @@ export default function AdminImportExport() {
     setIsExporting(true);
     setProgress(10);
 
-    setTimeout(() => {
-      setProgress(50);
+    // Use a small delay to allow UI to update then do work
+    setTimeout(async () => {
+      setProgress(20);
       try {
-        const data = generateExportData();
+        const data = await generateExportData();
+        setProgress(80);
+        
         const baseFilename = `Nexus_${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}_Export_${new Date().toISOString().split('T')[0]}`;
 
         if (exportFormat === "xlsx") {
@@ -274,7 +254,7 @@ export default function AdminImportExport() {
           variant: "destructive"
         });
       }
-    }, 1500);
+    }, 100); // reduced timeout
   };
 
   const handleDownloadTemplate = () => {

@@ -1,9 +1,9 @@
 import { 
   Project, 
-  PROJECTS, 
   TEAM,
   FRAMEWORK_TEMPLATES
 } from "@/lib/mock-data";
+import { useProjects } from "@/hooks/use-nexus-data";
 import { 
   Search, 
   Filter, 
@@ -19,7 +19,8 @@ import {
   Pencil,
   Trash2,
   X,
-  Workflow
+  Workflow,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Shell } from "@/components/layout/shell";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -87,28 +88,9 @@ interface ExtendedProject extends Project {
   description?: string;
 }
 
-// Enriched Mock Data
-const ENRICHED_PROJECTS: ExtendedProject[] = PROJECTS.map(p => ({
-  ...p,
-  client: p.name.includes("Houlihan") ? "Houlihan Lokey" : 
-          p.name.includes("Colgate") ? "Colgate-Palmolive" : 
-          p.name.includes("Kraft") ? "Kraft Heinz" : "SDMP Internal",
-  phase: p.status === "Upcoming" ? "Planning" : 
-         p.status === "In Progress" ? "Development" : 
-         p.status === "Completed" ? "Delivery" : "On Hold",
-  owner: TEAM[Math.floor(Math.random() * TEAM.length)].name,
-  startDate: "2023-10-01",
-  endDate: "2023-12-15",
-  riskLevel: p.status === "Overdue" ? "High" : 
-             p.progress && p.progress < 50 && p.status === "In Progress" ? "Medium" : "Low",
-  description: "A strategic initiative to overhaul the core systems and improve user experience across all digital touchpoints."
-}));
-
 export default function ProjectsList() {
   const { toast } = useToast();
-  
-  // State for Projects Data
-  const [projects, setProjects] = useState<ExtendedProject[]>(ENRICHED_PROJECTS);
+  const { data: projectsData, isLoading, create: createProject, update: updateProject, remove: deleteProject } = useProjects();
   
   // Filters State
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -135,6 +117,25 @@ export default function ProjectsList() {
     frameworkId: ""
   });
 
+  // Enrich Data Memo
+  const projects = useMemo(() => {
+    return projectsData.map((p: any) => ({
+      ...p,
+      client: p.client || (p.name.includes("Houlihan") ? "Houlihan Lokey" : 
+              p.name.includes("Colgate") ? "Colgate-Palmolive" : 
+              p.name.includes("Kraft") ? "Kraft Heinz" : "SDMP Internal"),
+      phase: p.phase || (p.status === "Upcoming" ? "Planning" : 
+             p.status === "In Progress" ? "Development" : 
+             p.status === "Completed" ? "Delivery" : "On Hold"),
+      owner: p.owner || TEAM[Math.floor(Math.random() * TEAM.length)].name,
+      startDate: p.startDate || "2023-10-01",
+      endDate: p.endDate || "2023-12-15",
+      riskLevel: p.riskLevel || (p.status === "Overdue" ? "High" : 
+                 p.progress && p.progress < 50 && p.status === "In Progress" ? "Medium" : "Low"),
+      description: p.description || "A strategic initiative to overhaul the core systems and improve user experience across all digital touchpoints."
+    })) as ExtendedProject[];
+  }, [projectsData]);
+
   // Filter Logic
   const filteredProjects = projects.filter(project => {
     const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -147,62 +148,48 @@ export default function ProjectsList() {
 
   // CRUD Handlers
   const handleCreate = () => {
-    const newProject: ExtendedProject = {
-      id: `new-${Date.now()}`,
+    const newProject = {
       name: formData.name || "New Project",
-      client: formData.client || "Internal",
-      status: formData.status as any || "Upcoming",
+      status: formData.status || "Upcoming",
       deadline: formData.endDate || "TBD",
       progress: formData.progress || 0,
+      frameworkId: formData.frameworkId,
+      // Custom fields to be persisted
+      client: formData.client || "Internal",
       phase: formData.phase || "Planning",
       owner: formData.owner || TEAM[0].name,
       startDate: formData.startDate || new Date().toISOString().split('T')[0],
       endDate: formData.endDate || "",
-      riskLevel: formData.riskLevel as any || "Low",
+      riskLevel: formData.riskLevel || "Low",
       description: formData.description || "",
-      frameworkId: formData.frameworkId
     };
 
-    setProjects([newProject, ...projects]);
+    createProject(newProject);
     setIsCreateOpen(false);
     resetForm();
-    toast({
-      title: "Project Created",
-      description: `${newProject.name} has been successfully created.`,
-    });
   };
 
   const handleUpdate = () => {
     if (!currentProject) return;
 
-    const updatedProjects = projects.map(p => 
-      p.id === currentProject.id 
-        ? { ...p, ...formData } as ExtendedProject
-        : p
-    );
+    updateProject({
+      id: currentProject.id,
+      updates: { ...formData }
+    });
 
-    setProjects(updatedProjects);
     setIsEditOpen(false);
     setCurrentProject(null);
     resetForm();
-    toast({
-      title: "Project Updated",
-      description: "Changes have been saved successfully.",
-    });
   };
 
   const handleDelete = () => {
     if (!currentProject) return;
 
-    setProjects(projects.filter(p => p.id !== currentProject.id));
+    deleteProject(currentProject.id);
     setIsDeleteOpen(false);
     setCurrentProject(null);
-    toast({
-      title: "Project Deleted",
-      description: "The project has been permanently removed.",
-      variant: "destructive"
-    });
   };
+
 
   const openEditDialog = (project: ExtendedProject) => {
     setCurrentProject(project);

@@ -16,7 +16,8 @@ import {
   Users,
   Eye,
   Briefcase,
-  Banknote
+  Banknote,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -36,10 +37,12 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { useRoute, Link } from "wouter";
-import { PROJECTS, PROJECT_STAGES, MILESTONES, STAGE_STATUS_OPTIONS, TASKS, Task } from "@/lib/mock-data";
+import { PROJECT_STAGES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
+import { useProject, useTasks, useMilestones } from "@/hooks/use-nexus-data";
 import { cn } from "@/lib/utils";
 import { StageTabContent } from "@/components/project/stage-tab-content";
 import { TimelineView } from "@/components/project/timeline-view";
+import { useMemo } from "react";
 
 // Mock Data Types
 interface TaskStats {
@@ -49,29 +52,6 @@ interface TaskStats {
   inProgress: number;
 }
 
-// Mock Data Generator
-const getProjectData = (id: string) => {
-  const project = PROJECTS.find(p => p.id === id) || PROJECTS[0];
-  
-  // Use the global stages we defined
-  const stages = PROJECT_STAGES;
-
-  // Filter milestones for this project (mocking association)
-  const milestones = MILESTONES; // In a real app, filter by projectId
-
-  // Filter tasks (loose matching for prototype)
-  const tasks = TASKS;
-
-  const stats: TaskStats = {
-    total: 45,
-    completed: 18,
-    inProgress: 12,
-    atRisk: 3
-  };
-
-  return { project, stages, milestones, stats, tasks };
-};
-
 import { DeliverablesContent } from "@/pages/deliverables";
 import ProjectDashboardPage from "@/components/project/project-dashboard-page";
 import { MOCK_DASHBOARD_DATA } from "@/lib/mock-dashboard-data";
@@ -79,9 +59,55 @@ import { MOCK_DASHBOARD_DATA } from "@/lib/mock-dashboard-data";
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
   const projectId = params?.projectId || "1";
-  const { project, stages, milestones, stats, tasks } = getProjectData(projectId);
 
-  const completionPercentage = Math.round((stats.completed / stats.total) * 100);
+  const { data: project, isLoading: isProjectLoading } = useProject(projectId);
+  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+
+  // Derived Data
+  const { tasks, milestones, stats } = useMemo(() => {
+    if (!project) return { tasks: [], milestones: [], stats: { total: 0, completed: 0, inProgress: 0, atRisk: 0 } };
+
+    const projectTasks = allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id); // loose matching for legacy data
+    const projectMilestones = allMilestones.filter((m: any) => m.projectId === project.id);
+    
+    const stats = {
+      total: projectTasks.length,
+      completed: projectTasks.filter((t: any) => t.status === "Done").length,
+      inProgress: projectTasks.filter((t: any) => t.status === "In Progress").length,
+      atRisk: projectTasks.filter((t: any) => t.priority === "High" && t.status !== "Done").length
+    };
+
+    return { tasks: projectTasks, milestones: projectMilestones, stats };
+  }, [project, allTasks, allMilestones]);
+
+  const stages = PROJECT_STAGES; // Keep using static stages for now as they are structural
+
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading) {
+    return (
+      <Shell>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (!project) {
+    return (
+      <Shell>
+         <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+            <h1 className="text-2xl font-bold">Project Not Found</h1>
+            <p className="text-muted-foreground">The project you are looking for does not exist.</p>
+            <Link href="/projects">
+              <Button>Return to Projects</Button>
+            </Link>
+         </div>
+      </Shell>
+    );
+  }
+
+  const completionPercentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return (
     <Shell>
@@ -152,6 +178,7 @@ export default function ProjectOverview() {
             </div>
           </div>
         </div>
+
 
         {/* Tabs Navigation */}
         <Tabs defaultValue="overview" className="w-full">

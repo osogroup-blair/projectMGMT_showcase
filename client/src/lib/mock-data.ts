@@ -41,6 +41,7 @@ export interface Task {
   title: string;
   description?: string;
   project: string;
+  projectId?: string; // Added for linking
   stageId?: string;
   epicId?: string;
   status: "Todo" | "In Progress" | "Review" | "Done";
