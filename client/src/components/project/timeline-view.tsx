@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { 
   format, 
   addDays, 
@@ -678,6 +679,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                             </div>
                           </div>
 
+
                           {/* Row 2: Milestone Track */}
                           <div className="h-[40px] relative">
                             {/* Track Line */}
@@ -697,18 +699,38 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                               return (
                                 <Popover key={milestone.id}>
                                   <PopoverTrigger asChild>
-                                    <div 
+                                    <motion.div 
                                       className={cn(
-                                        "absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border-2 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform z-20 shadow-sm bg-background",
+                                        "absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border-2 flex items-center justify-center cursor-grab active:cursor-grabbing hover:scale-110 transition-transform z-20 shadow-sm bg-background",
                                         isMCompleted ? "bg-green-50 border-green-500 text-green-700" :
                                         "border-primary text-primary"
                                       )}
                                       style={{ left: mLeft }}
+                                      drag="x"
+                                      dragMomentum={false}
+                                      whileDrag={{ scale: 1.2, zIndex: 50 }}
+                                      onDragEnd={(_, info) => {
+                                        if (!scrollContainerRef.current) return;
+                                        
+                                        const containerRect = scrollContainerRef.current.getBoundingClientRect();
+                                        // Calculate position relative to the scroll container's content
+                                        // info.point.x is client X
+                                        const relativeX = info.point.x - containerRect.left + scrollContainerRef.current.scrollLeft;
+                                        
+                                        // Convert pixels to days
+                                        const daysDiff = Math.round(relativeX / viewConfig.dayWidth);
+                                        const newDate = addDays(timelineStart, daysDiff);
+                                        
+                                        // Update milestone
+                                        handleUpdateMilestoneDate(milestone.id, format(newDate, "yyyy-MM-dd"));
+                                      }}
+                                      onClick={(e) => e.stopPropagation()} // Prevent click when dragging if needed
                                     >
                                       <Flag className="h-4 w-4" fill={isMCompleted ? "currentColor" : "none"} />
-                                    </div>
+                                    </motion.div>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-80">
+
                                     <div className="space-y-4">
                                       <div>
                                         <h4 className="font-semibold leading-none mb-1">{milestone.name}</h4>
