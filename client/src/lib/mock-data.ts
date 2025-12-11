@@ -210,6 +210,7 @@ export interface GuidanceItem {
 export interface ProjectStage {
   id: string;
   name: string;
+  description?: string;
   order: number;
   type: "planning" | "execution" | "review" | "delivery";
   status: "completed" | "active" | "pending";
@@ -881,10 +882,10 @@ export const SAVED_VIEWS: SavedView[] = [
 ];
 
 export const PROJECT_STAGES: ProjectStage[] = [
-  { id: "st_plan", name: "Plan Strategy", order: 1, type: "planning", status: "completed" },
-  { id: "st_validate", name: "Validate Blueprints", order: 2, type: "execution", status: "active" },
-  { id: "st_develop", name: "Develop Solution", order: 3, type: "execution", status: "pending" },
-  { id: "st_enable", name: "Enable Users", order: 4, type: "delivery", status: "pending" },
+  { id: "st_plan", name: "Plan Strategy", description: "Define the strategic direction and core requirements.", order: 1, type: "planning", status: "completed" },
+  { id: "st_validate", name: "Validate Blueprints", description: "Confirm design and architecture decisions.", order: 2, type: "execution", status: "active" },
+  { id: "st_develop", name: "Develop Solution", description: "Build and implement the solution components.", order: 3, type: "execution", status: "pending" },
+  { id: "st_enable", name: "Enable Users", description: "Train users and prepare for go-live.", order: 4, type: "delivery", status: "pending" },
 ];
 
 export const GUIDANCE_ITEMS: GuidanceItem[] = [

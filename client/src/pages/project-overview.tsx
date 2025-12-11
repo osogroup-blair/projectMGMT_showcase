@@ -234,7 +234,7 @@ export default function ProjectOverview() {
                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
                       <h2 className="text-xl font-semibold tracking-tight">{stage.name}</h2>
-                      <p className="text-sm text-muted-foreground">Manage tasks, milestones, and configuration for this stage.</p>
+                      <p className="text-sm text-muted-foreground">{stage.description || "Manage tasks, milestones, and configuration for this stage."}</p>
                     </div>
                   </div>
                  <StageTabContent stage={stage} projectId={projectId} />

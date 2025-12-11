@@ -237,6 +237,15 @@ export default function ProjectSettings() {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      <div className="col-span-1 md:col-span-2 space-y-2">
+                        <Label>Description</Label>
+                        <Input 
+                          value={stage.description || ''}
+                          onChange={(e) => handleStageChange(stage.id, 'description', e.target.value)}
+                          placeholder="Stage description"
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
