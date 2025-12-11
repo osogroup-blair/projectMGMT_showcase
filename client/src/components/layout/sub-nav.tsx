@@ -1,4 +1,4 @@
-import { Home, Layers, Settings, LayoutTemplate, Sliders, Users } from "lucide-react";
+import { Home, Layers, Settings, LayoutTemplate, Sliders, Users, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -85,6 +85,21 @@ export function SubNav() {
           >
             <Users className={cn("h-4 w-4", location === "/admin/users" && "text-primary")} />
             User Management
+          </Button>
+        </Link>
+        <Link href="/admin/import-export">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start gap-3 h-9 font-normal text-sm",
+              location === "/admin/import-export"
+                ? "bg-secondary text-primary font-medium shadow-xs" 
+                : "text-foreground/70 hover:text-foreground hover:bg-secondary/50"
+            )}
+            data-testid="subnav-admin-import-export"
+          >
+            <Download className={cn("h-4 w-4", location === "/admin/import-export" && "text-primary")} />
+            Import & Export
           </Button>
         </Link>
       </div>

@@ -33,6 +33,7 @@ import ProjectWizard from "@/pages/project-wizard";
 import AdminTemplates from "@/pages/admin/templates";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import AdminAppDefaults from "@/pages/admin/app-defaults";
+import AdminImportExport from "@/pages/admin/import-export";
 
 function Router() {
   return (
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/admin/templates" component={AdminTemplates} />
       <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
       <Route path="/admin/defaults" component={AdminAppDefaults} />
+      <Route path="/admin/import-export" component={AdminImportExport} />
       <Route component={NotFound} />
     </Switch>
   );
