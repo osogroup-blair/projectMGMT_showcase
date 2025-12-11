@@ -15,7 +15,8 @@ import {
   Layers,
   Users,
   Eye,
-  Briefcase
+  Briefcase,
+  Banknote
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -120,6 +121,12 @@ export default function ProjectOverview() {
                 <Button variant="outline" className="gap-2">
                   <Users className="h-4 w-4" />
                   Team
+                </Button>
+              </Link>
+              <Link href={`/projects/${projectId}/finance`}>
+                <Button variant="outline" className="gap-2">
+                  <Banknote className="h-4 w-4" />
+                  Finance
                 </Button>
               </Link>
               <Link href={`/projects/${projectId}/settings`}>
