@@ -1,10 +1,10 @@
 import { HomeTask } from "@/types/home";
-import { PROJECTS, TASKS } from "@/lib/mock-data";
+import { PROJECTS, TASKS, EPICS } from "@/lib/mock-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List } from "lucide-react";
+import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List, Layers, Workflow, Flag } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
@@ -21,14 +21,19 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Helper to map raw Task to HomeTask for the TaskCard
 const mapToHomeTask = (task: any): HomeTask => {
   const project = PROJECTS.find(p => p.name === task.project || p.id === task.projectId);
+  const epic = EPICS.find(e => e.id === task.epicId);
+  
   return {
     id: task.id,
     projectId: project?.id || "unknown",
     projectName: task.project || project?.name || "Unknown Project",
+    epicId: epic?.id,
+    epicName: epic?.title,
     title: task.title,
     description: task.description,
     status: task.status === "Done" ? "complete" : task.status === "Todo" ? "not_started" : "in_progress",
@@ -37,6 +42,7 @@ const mapToHomeTask = (task: any): HomeTask => {
     priority: task.priority?.toLowerCase() || "medium",
     isOverdue: task.status === "Overdue",
     durationBucket: (task.estimateHours || 1) < 2 ? "quick_win" : (task.estimateHours || 1) < 4 ? "medium" : "deep_work",
+    stageId: task.stageId, // Pass through stageId if available in Task type or add to HomeTask if needed. For now assuming task has it.
   };
 };
 
@@ -62,6 +68,24 @@ export function CurrentProjectsPanel() {
       prev.includes(status) 
         ? prev.filter(s => s !== status) 
         : [...prev, status]
+    );
+  };
+
+  // Helper to render task grid
+  const renderTaskGrid = (tasks: HomeTask[]) => {
+    if (tasks.length === 0) {
+      return (
+        <div className="col-span-full text-center py-8 text-muted-foreground text-sm border border-dashed rounded-lg">
+          No tasks found in this view.
+        </div>
+      );
+    }
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {tasks.map(task => (
+          <TaskCard key={task.id} task={task} compact />
+        ))}
+      </div>
     );
   };
 
@@ -128,9 +152,37 @@ export function CurrentProjectsPanel() {
              const tasks = getProjectTasks(project.id, project.name);
              const progress = project.progress || 0;
              
+             // Groupings
+             const tasksByStatus = {
+               "Todo": tasks.filter(t => t.status === "not_started"),
+               "In Progress": tasks.filter(t => t.status === "in_progress"),
+               "Done": tasks.filter(t => t.status === "complete"),
+             };
+
+             const tasksByEpic = tasks.reduce((acc, task) => {
+                const epicName = task.epicName || "No Epic";
+                if (!acc[epicName]) acc[epicName] = [];
+                acc[epicName].push(task);
+                return acc;
+             }, {} as Record<string, HomeTask[]>);
+
+             const tasksByStage = tasks.reduce((acc, task) => {
+                // @ts-ignore - stageId comes from raw task but not fully typed in HomeTask yet, accessing directly or we mapped it
+                const stageId = (task as any).stageId || "no_stage"; 
+                // Simple mapping for demo
+                const stageName = stageId === "st_plan" ? "Planning" : 
+                                  stageId === "st_validate" ? "Validation" : 
+                                  stageId === "st_develop" ? "Development" : 
+                                  stageId === "st_enable" ? "Enablement" : "Unknown Stage";
+                
+                if (!acc[stageName]) acc[stageName] = [];
+                acc[stageName].push(task);
+                return acc;
+             }, {} as Record<string, HomeTask[]>);
+             
              return (
                <Card key={project.id} className="overflow-hidden">
-                 <Accordion type="single" collapsible>
+                 <Accordion type="single" collapsible defaultValue="item-1">
                    <AccordionItem value="item-1" className="border-b-0">
                      <div className="flex items-center p-4 gap-4">
                         <div className="flex-none">
@@ -178,18 +230,67 @@ export function CurrentProjectsPanel() {
                         <AccordionTrigger className="w-8 h-8 p-0" />
                      </div>
                      
-                     <AccordionContent className="border-t bg-muted/20 p-4">
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {tasks.length > 0 ? (
-                            tasks.map(task => (
-                              <TaskCard key={task.id} task={task} compact />
-                            ))
-                          ) : (
-                            <div className="col-span-full text-center py-8 text-muted-foreground text-sm">
-                              No active tasks in this project.
-                            </div>
-                          )}
-                       </div>
+                     <AccordionContent className="border-t bg-muted/20 p-6">
+                       <Tabs defaultValue="status" className="w-full">
+                         <TabsList className="mb-6 bg-background border">
+                           <TabsTrigger value="status" className="gap-2">
+                             <Layers className="w-4 h-4" />
+                             By Status
+                           </TabsTrigger>
+                           <TabsTrigger value="epic" className="gap-2">
+                             <Flag className="w-4 h-4" />
+                             By Epic
+                           </TabsTrigger>
+                           <TabsTrigger value="stage" className="gap-2">
+                             <Workflow className="w-4 h-4" />
+                             By Stage
+                           </TabsTrigger>
+                         </TabsList>
+
+                         <TabsContent value="status" className="mt-0 space-y-8">
+                            {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
+                               <div key={status} className="space-y-3">
+                                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                                     <div className={cn(
+                                       "w-2 h-2 rounded-full",
+                                       status === "Done" ? "bg-green-500" :
+                                       status === "In Progress" ? "bg-blue-500" :
+                                       "bg-slate-300"
+                                     )} />
+                                     {status} 
+                                     <span className="text-muted-foreground font-normal ml-1">({statusTasks.length})</span>
+                                  </h4>
+                                  {renderTaskGrid(statusTasks)}
+                               </div>
+                            ))}
+                         </TabsContent>
+
+                         <TabsContent value="epic" className="mt-0 space-y-8">
+                            {Object.entries(tasksByEpic).map(([epicName, epicTasks]) => (
+                               <div key={epicName} className="space-y-3">
+                                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                                     <Flag className="w-4 h-4 text-purple-500" />
+                                     {epicName}
+                                     <span className="text-muted-foreground font-normal ml-1">({epicTasks.length})</span>
+                                  </h4>
+                                  {renderTaskGrid(epicTasks)}
+                               </div>
+                            ))}
+                         </TabsContent>
+
+                         <TabsContent value="stage" className="mt-0 space-y-8">
+                            {Object.entries(tasksByStage).map(([stageName, stageTasks]) => (
+                               <div key={stageName} className="space-y-3">
+                                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                                     <Workflow className="w-4 h-4 text-orange-500" />
+                                     {stageName}
+                                     <span className="text-muted-foreground font-normal ml-1">({stageTasks.length})</span>
+                                  </h4>
+                                  {renderTaskGrid(stageTasks)}
+                               </div>
+                            ))}
+                         </TabsContent>
+                       </Tabs>
                      </AccordionContent>
                    </AccordionItem>
                  </Accordion>
