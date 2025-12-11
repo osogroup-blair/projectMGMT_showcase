@@ -760,18 +760,42 @@ function MilestoneDetailPanel({
         </div>
       </div>
 
-      {/* Scope Builder Area */}
+      {/* Main Content Tabs: Active Tasks vs Scope Definition */}
       <div className="flex-1 overflow-auto bg-muted/5 p-6">
          <div className="max-w-4xl mx-auto">
-            <ScopeBuilder 
-               milestone={formData}
-               tasks={tasks}
-               epics={epics}
-               links={taskLinks}
-               rules={scopeRules}
-               onUpdateLinks={onUpdateTaskLinks}
-               onUpdateRules={onUpdateScopeRules}
-            />
+            <Tabs defaultValue="tasks" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="tasks" className="gap-2">
+                  <CheckSquare className="h-4 w-4" />
+                  Active Tasks
+                </TabsTrigger>
+                <TabsTrigger value="scope" className="gap-2">
+                  <Target className="h-4 w-4" />
+                  Scope Definition
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="tasks">
+                <ActiveTasksList 
+                  milestone={formData}
+                  tasks={tasks}
+                  links={taskLinks}
+                  epics={epics}
+                />
+              </TabsContent>
+
+              <TabsContent value="scope">
+                <ScopeBuilder 
+                   milestone={formData}
+                   tasks={tasks}
+                   epics={epics}
+                   links={taskLinks}
+                   rules={scopeRules}
+                   onUpdateLinks={onUpdateTaskLinks}
+                   onUpdateRules={onUpdateScopeRules}
+                />
+              </TabsContent>
+            </Tabs>
          </div>
       </div>
     </div>
