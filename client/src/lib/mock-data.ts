@@ -73,15 +73,63 @@ export interface TeamMember {
 
 export interface Milestone {
   id: string;
+  projectId?: string; // Added for schema compatibility
   name: string;
   description: string;
-  stageId: string;
+  phase: "plan_strategy" | "validate_blueprints" | "develop_solution" | "enable_users"; // Changed from stageId to phase enum
+  stageId?: string; // Keep for backward compatibility if needed, or map phase to stageId
   targetDate: string;
-  status: "Pending" | "In Progress" | "Completed" | "Blocked" | "Skipped";
+  status: "planned" | "in_progress" | "achieved" | "slipped" | "cancelled" | "Pending" | "In Progress" | "Completed" | "Blocked" | "Skipped"; // Expanded for schema
   ownerId: string;
-  progressPercent: number;
-  isBillingGate: boolean;
-  requiredCompletionRatio: number;
+  scopeType: "rule_based" | "manual" | "mixed";
+  completionMode: "all_tasks" | "percentage" | "custom_rule";
+  completionTargetPercent?: number;
+  tags?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+  progress: {
+    totalTasks: number;
+    completedTasks: number;
+    percentComplete: number;
+    lastCalculatedAt?: string;
+  };
+  // Deprecated/Legacy fields to keep TS happy until full refactor
+  progressPercent?: number;
+  isBillingGate?: boolean;
+  requiredCompletionRatio?: number;
+}
+
+export interface MilestoneScopeRule {
+  id: string;
+  label?: string;
+  taskTemplateKey?: string; // e.g. 'validate_user_story' or just 'task_type'
+  stage?: "plan_strategy" | "validate_blueprints" | "develop_solution" | "enable_users";
+  epicType?: string;
+  filters?: {
+    includeEpicIds?: string[];
+    excludeEpicIds?: string[];
+    includeTaskIds?: string[];
+    excludeTaskIds?: string[];
+  };
+  active: boolean;
+}
+
+export interface MilestoneScopeRules {
+  milestoneId: string;
+  rules: MilestoneScopeRule[];
+  lastEvaluatedAt?: string;
+}
+
+export interface MilestoneTaskLink {
+  id: string;
+  milestoneId: string;
+  taskId: string;
+  projectId?: string;
+  source: "rule" | "manual_add";
+  ruleId?: string;
+  locked?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Comment {
@@ -472,64 +520,152 @@ export const TEAM: TeamMember[] = [
 export const MILESTONES: Milestone[] = [
   {
     id: "m1",
+    projectId: "1",
     name: "Strategy Sign-off",
     description: "Final approval of brand strategy and core messaging",
-    stageId: "st_plan", // Was s1
+    phase: "plan_strategy",
+    stageId: "st_plan",
     targetDate: "2024-12-15",
-    status: "Completed",
+    status: "achieved", // mapped from Completed
     ownerId: "1", // Joy Mason
+    scopeType: "manual",
+    completionMode: "all_tasks",
+    completionTargetPercent: 100,
+    tags: ["Strategy", "Client"],
+    progress: {
+      totalTasks: 5,
+      completedTasks: 5,
+      percentComplete: 100
+    },
+    // Legacy
     progressPercent: 100,
     isBillingGate: true,
     requiredCompletionRatio: 100
   },
   {
     id: "m2",
+    projectId: "1",
     name: "Visual Identity Presentation",
     description: "Presenting the 3 directions for visual identity",
-    stageId: "st_validate", // Was s2
+    phase: "validate_blueprints",
+    stageId: "st_validate",
     targetDate: "2025-01-10",
-    status: "In Progress",
+    status: "in_progress",
     ownerId: "3", // Susan Smith
+    scopeType: "mixed",
+    completionMode: "percentage",
+    completionTargetPercent: 80,
+    tags: ["Design", "Review"],
+    progress: {
+      totalTasks: 10,
+      completedTasks: 6,
+      percentComplete: 60
+    },
+    // Legacy
     progressPercent: 60,
     isBillingGate: false,
     requiredCompletionRatio: 80
   },
   {
     id: "m3",
+    projectId: "1",
     name: "Alpha Release",
     description: "Internal release for team testing",
-    stageId: "st_develop", // Was s3
+    phase: "develop_solution",
+    stageId: "st_develop",
     targetDate: "2025-02-01",
-    status: "Pending",
+    status: "planned",
     ownerId: "5", // Jason Roberts
+    scopeType: "rule_based",
+    completionMode: "percentage",
+    completionTargetPercent: 90,
+    tags: ["Dev", "Release"],
+    progress: {
+      totalTasks: 20,
+      completedTasks: 0,
+      percentComplete: 0
+    },
+    // Legacy
     progressPercent: 0,
     isBillingGate: true,
     requiredCompletionRatio: 90
   },
   {
     id: "m4",
+    projectId: "1",
     name: "UAT Completion",
     description: "User acceptance testing sign-off from client",
-    stageId: "st_enable", // Was s4
+    phase: "enable_users",
+    stageId: "st_enable",
     targetDate: "2025-02-20",
-    status: "Pending",
+    status: "planned",
     ownerId: "2", // Jessica Lin
+    scopeType: "rule_based",
+    completionMode: "all_tasks",
+    completionTargetPercent: 100,
+    tags: ["QA", "Client"],
+    progress: {
+      totalTasks: 15,
+      completedTasks: 0,
+      percentComplete: 0
+    },
+    // Legacy
     progressPercent: 0,
     isBillingGate: false,
     requiredCompletionRatio: 100
   },
   {
     id: "m5",
+    projectId: "1",
     name: "Go Live",
     description: "Public launch of the new brand",
-    stageId: "st_enable", // Was s5, mapped to last stage
+    phase: "enable_users",
+    stageId: "st_enable",
     targetDate: "2025-03-01",
-    status: "Pending",
+    status: "planned",
     ownerId: "1", // Joy Mason
+    scopeType: "manual",
+    completionMode: "all_tasks",
+    completionTargetPercent: 100,
+    tags: ["Launch", "Major"],
+    progress: {
+      totalTasks: 0,
+      completedTasks: 0,
+      percentComplete: 0
+    },
+    // Legacy
     progressPercent: 0,
     isBillingGate: true,
     requiredCompletionRatio: 100
   }
+];
+
+export const MILESTONE_SCOPE_RULES: MilestoneScopeRules[] = [
+  {
+    milestoneId: "m3",
+    rules: [
+      {
+        id: "r1",
+        label: "Include all Backend tasks in Develop Stage",
+        taskTemplateKey: "backend",
+        stage: "develop_solution",
+        active: true,
+        filters: { includeEpicIds: ["e1", "e2"] }
+      }
+    ],
+    lastEvaluatedAt: "2024-12-10T10:00:00Z"
+  }
+];
+
+export const MILESTONE_TASK_LINKS: MilestoneTaskLink[] = [
+  { id: "l1", milestoneId: "m1", taskId: "8", source: "manual_add" },
+  { id: "l2", milestoneId: "m2", taskId: "7", source: "manual_add" },
+  { id: "l3", milestoneId: "m3", taskId: "1", source: "rule", ruleId: "r1" },
+  { id: "l4", milestoneId: "m3", taskId: "2", source: "rule", ruleId: "r1" },
+  { id: "l5", milestoneId: "m3", taskId: "4", source: "rule", ruleId: "r1" },
+  { id: "l6", milestoneId: "m3", taskId: "5", source: "rule", ruleId: "r1" },
+  { id: "l7", milestoneId: "m4", taskId: "3", source: "manual_add" },
+  { id: "l8", milestoneId: "m4", taskId: "6", source: "manual_add" },
 ];
 
 export const ACTIVITY: Activity[] = [
