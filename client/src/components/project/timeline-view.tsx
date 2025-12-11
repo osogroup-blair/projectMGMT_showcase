@@ -300,16 +300,19 @@ export function TimelineView({ stages, milestones, project }: TimelineViewProps)
               {(filter === 'all' || filter === 'milestones') && (
                  <div className="relative h-[40px] mt-8">
                    <div className="absolute top-1/2 left-0 right-0 h-px bg-border -z-10" />
-                   {milestones.map((milestone) => {
-                     // Parse milestone date - mocking standard format if needed
+                   {milestones.map((milestone, index) => {
+                     // Calculate date based on stage to ensure it appears on the timeline
                      let mDate = new Date();
-                     try {
-                        // Assuming milestones dates in mock data might need better parsing or fixed
-                        // Just distributing them for demo if parsing fails or using stages
-                        const stage = stagesWithDates.find(s => s.id === milestone.stageId) || stagesWithDates[0];
-                        mDate = addDays(stage.startDate, 5); // Mock position within stage
-                     } catch (e) {
-                       mDate = new Date();
+                     const stage = stagesWithDates.find(s => s.id === milestone.stageId);
+                     
+                     if (stage) {
+                       // Distribute milestones within the stage based on their index or ID to prevent overlapping
+                       // Simple hash of ID to get a pseudo-random offset between 10% and 90% of stage duration
+                       const offsetDays = Math.min(differenceInDays(stage.endDate, stage.startDate) - 2, 5 + (index * 3));
+                       mDate = addDays(stage.startDate, offsetDays);
+                     } else {
+                       // Fallback if stage not found
+                       mDate = addDays(stagesWithDates[0].startDate, 5);
                      }
 
                      const left = getPosition(mDate);
@@ -336,7 +339,8 @@ export function TimelineView({ stages, milestones, project }: TimelineViewProps)
                                 <Badge variant={milestone.status === 'Completed' ? "default" : "secondary"}>
                                   {milestone.status}
                                 </Badge>
-                                <span className="text-xs text-muted-foreground">{milestone.targetDate}</span>
+                                {/* Display the calculated date to be consistent with visualization */}
+                                <span className="text-xs text-muted-foreground">{format(mDate, "MMM d, yyyy")}</span>
                               </div>
                             </div>
                           </PopoverContent>

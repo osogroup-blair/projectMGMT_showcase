@@ -467,7 +467,7 @@ export const MILESTONES: Milestone[] = [
     id: "m1",
     name: "Strategy Sign-off",
     description: "Final approval of brand strategy and core messaging",
-    stageId: "s1", // Discovery
+    stageId: "st_plan", // Was s1
     targetDate: "2024-12-15",
     status: "Completed",
     ownerId: "1", // Joy Mason
@@ -479,7 +479,7 @@ export const MILESTONES: Milestone[] = [
     id: "m2",
     name: "Visual Identity Presentation",
     description: "Presenting the 3 directions for visual identity",
-    stageId: "s2", // Design
+    stageId: "st_validate", // Was s2
     targetDate: "2025-01-10",
     status: "In Progress",
     ownerId: "3", // Susan Smith
@@ -491,7 +491,7 @@ export const MILESTONES: Milestone[] = [
     id: "m3",
     name: "Alpha Release",
     description: "Internal release for team testing",
-    stageId: "s3", // Development
+    stageId: "st_develop", // Was s3
     targetDate: "2025-02-01",
     status: "Pending",
     ownerId: "5", // Jason Roberts
@@ -503,7 +503,7 @@ export const MILESTONES: Milestone[] = [
     id: "m4",
     name: "UAT Completion",
     description: "User acceptance testing sign-off from client",
-    stageId: "s4", // QA & Testing
+    stageId: "st_enable", // Was s4
     targetDate: "2025-02-20",
     status: "Pending",
     ownerId: "2", // Jessica Lin
@@ -515,7 +515,7 @@ export const MILESTONES: Milestone[] = [
     id: "m5",
     name: "Go Live",
     description: "Public launch of the new brand",
-    stageId: "s5", // Launch
+    stageId: "st_enable", // Was s5, mapped to last stage
     targetDate: "2025-03-01",
     status: "Pending",
     ownerId: "1", // Joy Mason
