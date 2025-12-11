@@ -4,7 +4,7 @@ import {
   Plus, Search, Filter, MoreVertical, Edit, Trash2, 
   CheckCircle2, Circle, Clock, AlertCircle, Calendar, 
   User, Flag, CheckSquare, Target, Briefcase, Layers,
-  ListTodo, SlidersHorizontal, ArrowRight, Copy
+  ListTodo, SlidersHorizontal, ArrowRight, Copy, Lock, Unlock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,12 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
@@ -77,6 +83,7 @@ function MilestoneListPanel({
   onDelete: (id: string) => void
 }) {
   const [search, setSearch] = useState("");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = milestones.filter(m => 
     m.name.toLowerCase().includes(search.toLowerCase())
@@ -125,7 +132,7 @@ function MilestoneListPanel({
                       variant="ghost" 
                       size="icon" 
                       className="h-4 w-4 text-muted-foreground hover:text-destructive"
-                      onClick={(e) => { e.stopPropagation(); onDelete(m.id); }}
+                      onClick={(e) => { e.stopPropagation(); setDeleteId(m.id); }}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -155,6 +162,26 @@ function MilestoneListPanel({
           )}
         </div>
       </ScrollArea>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the milestone and remove all task associations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (deleteId) onDelete(deleteId);
+              setDeleteId(null);
+            }} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -195,6 +222,7 @@ function ScopeBuilder({
     const existingLink = links.find(l => l.taskId === taskId && l.milestoneId === milestone.id);
     
     if (existingLink) {
+      if (existingLink.locked) return; // Prevent unlocking via simple toggle, need unlock action
       // Remove link
       onUpdateLinks(links.filter(l => l.id !== existingLink.id));
     } else {
@@ -209,6 +237,11 @@ function ScopeBuilder({
       };
       onUpdateLinks([...links, newLink]);
     }
+  };
+
+  const handleToggleLock = (link: MilestoneTaskLink) => {
+    const updated = { ...link, locked: !link.locked };
+    onUpdateLinks(links.map(l => l.id === link.id ? updated : l));
   };
 
   const handleAddRule = () => {
@@ -228,6 +261,13 @@ function ScopeBuilder({
     onUpdateRules({
       ...rules,
       rules: rules.rules.filter(r => r.id !== ruleId)
+    });
+  };
+
+  const handleUpdateRule = (ruleId: string, updates: any) => {
+    onUpdateRules({
+      ...rules,
+      rules: rules.rules.map(r => r.id === ruleId ? { ...r, ...updates } : r)
     });
   };
 
@@ -276,12 +316,15 @@ function ScopeBuilder({
                 rules.rules.map((rule) => (
                   <Card key={rule.id} className="relative overflow-hidden group">
                     <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-                      <div className="font-medium flex items-center gap-2">
-                        <Target className="h-4 w-4 text-primary" />
-                        {rule.label || "Untitled Rule"}
+                      <div className="flex-1 mr-4">
+                         <Input 
+                           value={rule.label} 
+                           onChange={(e) => handleUpdateRule(rule.id, { label: e.target.value })}
+                           className="h-8 font-medium border-transparent hover:border-input focus:border-input px-0"
+                         />
                       </div>
                       <div className="flex items-center gap-2">
-                        <Switch checked={rule.active} />
+                        <Switch checked={rule.active} onCheckedChange={(c) => handleUpdateRule(rule.id, { active: c })} />
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteRule(rule.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -291,7 +334,7 @@ function ScopeBuilder({
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                            <Label className="text-xs">Task Type</Label>
-                           <Select defaultValue={rule.taskTemplateKey || "all"}>
+                           <Select value={rule.taskTemplateKey || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}>
                              <SelectTrigger className="h-8"><SelectValue placeholder="Any Type" /></SelectTrigger>
                              <SelectContent>
                                <SelectItem value="all">Any Type</SelectItem>
@@ -303,12 +346,25 @@ function ScopeBuilder({
                         </div>
                         <div className="space-y-1">
                            <Label className="text-xs">Stage</Label>
-                           <Select defaultValue={rule.stage || "all"}>
+                           <Select value={rule.stage || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}>
                              <SelectTrigger className="h-8"><SelectValue placeholder="Any Stage" /></SelectTrigger>
                              <SelectContent>
                                <SelectItem value="all">Any Stage</SelectItem>
                                <SelectItem value="develop_solution">Develop Solution</SelectItem>
                                <SelectItem value="validate_blueprints">Validate Blueprints</SelectItem>
+                               <SelectItem value="plan_strategy">Plan Strategy</SelectItem>
+                               <SelectItem value="enable_users">Enable Users</SelectItem>
+                             </SelectContent>
+                           </Select>
+                        </div>
+                        <div className="space-y-1">
+                           <Label className="text-xs">Epic Type</Label>
+                           <Select value={rule.epicType || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}>
+                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Epic Type" /></SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="all">Any Epic Type</SelectItem>
+                               <SelectItem value="use_case">Use Case</SelectItem>
+                               <SelectItem value="technical">Technical</SelectItem>
                              </SelectContent>
                            </Select>
                         </div>
@@ -347,6 +403,7 @@ function ScopeBuilder({
                     <TableHead>Epic</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Included</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -386,6 +443,17 @@ function ScopeBuilder({
                           ) : (
                             <span className="text-muted-foreground text-xs">-</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                           {isLinked && (
+                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToggleLock(link)}>
+                               {link.locked ? (
+                                 <Lock className="h-3 w-3 text-amber-500" />
+                               ) : (
+                                 <Unlock className="h-3 w-3 text-muted-foreground/30" />
+                               )}
+                             </Button>
+                           )}
                         </TableCell>
                       </TableRow>
                     );
@@ -576,15 +644,28 @@ function MilestoneDetailPanel({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Progress</Label>
+            <Label className="text-xs text-muted-foreground">Phase</Label>
+            <Select value={formData.phase} onValueChange={v => handleChange('phase', v)}>
+              <SelectTrigger className="bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PHASES.map(p => (
+                   <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <div className="pt-2">
             <div className="h-10 flex flex-col justify-center gap-1.5">
               <div className="flex justify-between text-xs">
-                <span>{formData.progress?.completedTasks || 0}/{formData.progress?.totalTasks || 0} tasks</span>
+                <span>{formData.progress?.completedTasks || 0}/{formData.progress?.totalTasks || 0} tasks completed</span>
                 <span className="font-medium">{formData.progress?.percentComplete || 0}%</span>
               </div>
               <Progress value={formData.progress?.percentComplete || 0} className="h-2" />
             </div>
-          </div>
         </div>
       </div>
 
@@ -617,6 +698,14 @@ export default function MilestonesManagementPage() {
   const [tasks, setTasks] = useState<Task[]>(TASKS);
   const [scopeRules, setScopeRules] = useState<MilestoneScopeRules[]>(MILESTONE_SCOPE_RULES);
   const [taskLinks, setTaskLinks] = useState<MilestoneTaskLink[]>(MILESTONE_TASK_LINKS);
+  
+  // Create Dialog State
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    phase: "plan_strategy",
+    targetDate: new Date().toISOString().split('T')[0]
+  });
 
   const selectedMilestone = useMemo(() => 
     milestones.find(m => m.id === selectedId), 
@@ -634,15 +723,26 @@ export default function MilestonesManagementPage() {
   );
 
   // Handlers
-  const handleCreate = () => {
+  const handleOpenCreate = () => {
+    setCreateForm({
+      name: "",
+      phase: "plan_strategy",
+      targetDate: new Date().toISOString().split('T')[0]
+    });
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleCreateConfirm = () => {
+    if (!createForm.name) return;
+
     const newId = `m-${Date.now()}`;
     const newMilestone: Milestone = {
       id: newId,
       projectId: "1",
-      name: "New Milestone",
+      name: createForm.name,
       description: "Describe the milestone goal...",
-      phase: "plan_strategy",
-      targetDate: new Date().toISOString().split('T')[0],
+      phase: createForm.phase as any,
+      targetDate: createForm.targetDate,
       status: "planned",
       ownerId: TEAM[0].id,
       scopeType: "manual",
@@ -656,15 +756,14 @@ export default function MilestonesManagementPage() {
     
     setMilestones([...milestones, newMilestone]);
     setSelectedId(newId);
+    setIsCreateDialogOpen(false);
     toast({ title: "Milestone Created", description: "Start by defining its scope." });
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this milestone?")) {
-      setMilestones(prev => prev.filter(m => m.id !== id));
-      if (selectedId === id) setSelectedId(null);
-      toast({ title: "Milestone Deleted" });
-    }
+    setMilestones(prev => prev.filter(m => m.id !== id));
+    if (selectedId === id) setSelectedId(null);
+    toast({ title: "Milestone Deleted" });
   };
 
   const handleUpdateMilestone = (updated: Milestone) => {
@@ -723,7 +822,7 @@ export default function MilestonesManagementPage() {
           milestones={milestones}
           selectedId={selectedId || undefined}
           onSelect={setSelectedId}
-          onCreate={handleCreate}
+          onCreate={handleOpenCreate}
           onDelete={handleDelete}
         />
         
@@ -747,11 +846,62 @@ export default function MilestonesManagementPage() {
               </div>
               <h3 className="text-lg font-medium text-foreground">No Milestone Selected</h3>
               <p className="max-w-xs text-center mt-2">Select a milestone from the list or create a new one to get started.</p>
-              <Button onClick={handleCreate} className="mt-6">Create Milestone</Button>
+              <Button onClick={handleOpenCreate} className="mt-6">Create Milestone</Button>
             </div>
           )}
         </div>
       </div>
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Milestone</DialogTitle>
+            <DialogDescription>
+              Define the basics for your new milestone. You can configure scope and rules later.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={createForm.name}
+                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                placeholder="e.g. Alpha Release"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phase">Phase</Label>
+              <Select 
+                value={createForm.phase} 
+                onValueChange={(v) => setCreateForm({ ...createForm, phase: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHASES.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="date">Target Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={createForm.targetDate}
+                onChange={(e) => setCreateForm({ ...createForm, targetDate: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateConfirm} disabled={!createForm.name}>Create Milestone</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Shell>
   );
 }
