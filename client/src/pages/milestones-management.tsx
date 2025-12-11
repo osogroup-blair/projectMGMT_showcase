@@ -16,7 +16,8 @@ import {
   Flag,
   CreditCard,
   Percent,
-  X
+  X,
+  CheckSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +60,7 @@ import { Switch } from "@/components/ui/switch";
 import { useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { PROJECTS, MILESTONES, TEAM, Milestone } from "@/lib/mock-data";
+import { PROJECTS, MILESTONES, TEAM, TASKS, Milestone, Task } from "@/lib/mock-data";
 
 // Reuse Mock Stages from stage-designer.tsx since we can't easily import from there
 const MOCK_STAGES = [
@@ -85,6 +86,7 @@ export default function MilestonesManagement() {
   const { toast } = useToast();
 
   const [milestones, setMilestones] = useState<Milestone[]>(MILESTONES);
+  const [tasks, setTasks] = useState<Task[]>(TASKS);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
@@ -92,7 +94,15 @@ export default function MilestonesManagement() {
   // Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
-  const [formData, setFormData] = useState<Partial<Milestone>>({});
+  const [formData, setFormData] = useState<Partial<Milestone> & { assignedTaskIds?: string[] }>({});
+
+  const getMilestoneProgress = (milestoneId: string) => {
+    const assignedTasks = tasks.filter(t => t.milestoneId === milestoneId);
+    if (assignedTasks.length === 0) return 0;
+    
+    const doneTasks = assignedTasks.filter(t => t.status === 'Done');
+    return Math.round((doneTasks.length / assignedTasks.length) * 100);
+  };
 
   const filteredMilestones = milestones.filter(m => {
     const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -105,6 +115,9 @@ export default function MilestonesManagement() {
 
   const handleDelete = (id: string) => {
     setMilestones(prev => prev.filter(m => m.id !== id));
+    // Unassign tasks
+    setTasks(prev => prev.map(t => t.milestoneId === id ? { ...t, milestoneId: undefined } : t));
+    
     toast({
       title: "Milestone Deleted",
       description: "The milestone has been removed successfully.",
@@ -123,15 +136,33 @@ export default function MilestonesManagement() {
       ownerId: TEAM[0].id,
       progressPercent: 0,
       isBillingGate: false,
-      requiredCompletionRatio: 100
+      requiredCompletionRatio: 100,
+      assignedTaskIds: []
     });
     setIsDialogOpen(true);
   };
 
   const handleOpenEdit = (milestone: Milestone) => {
     setEditingMilestone(milestone);
-    setFormData({ ...milestone });
+    const assignedIds = tasks.filter(t => t.milestoneId === milestone.id).map(t => t.id);
+    
+    setFormData({ 
+      ...milestone,
+      assignedTaskIds: assignedIds
+    });
     setIsDialogOpen(true);
+  };
+
+  const toggleTaskAssignment = (taskId: string) => {
+    setFormData(prev => {
+      const currentIds = prev.assignedTaskIds || [];
+      const exists = currentIds.includes(taskId);
+      if (exists) {
+        return { ...prev, assignedTaskIds: currentIds.filter(id => id !== taskId) };
+      } else {
+        return { ...prev, assignedTaskIds: [...currentIds, taskId] };
+      }
+    });
   };
 
   const handleSave = () => {
@@ -144,25 +175,46 @@ export default function MilestonesManagement() {
       return;
     }
 
+    let savedMilestoneId = editingMilestone?.id;
+    let newMilestone = { ...formData };
+    delete newMilestone.assignedTaskIds; // Don't save this to milestone object directly if strict
+
     if (editingMilestone) {
       // Update existing
-      setMilestones(prev => prev.map(m => m.id === editingMilestone.id ? { ...m, ...formData } as Milestone : m));
+      setMilestones(prev => prev.map(m => m.id === editingMilestone.id ? { ...m, ...newMilestone } as Milestone : m));
       toast({
         title: "Milestone Updated",
         description: "Your changes have been saved successfully.",
       });
     } else {
       // Create new
-      const newMilestone: Milestone = {
-        id: `m_${Date.now()}`,
-        ...formData as any
+      savedMilestoneId = `m_${Date.now()}`;
+      const createdMilestone: Milestone = {
+        id: savedMilestoneId,
+        ...newMilestone as any,
+        progressPercent: 0 // Will be calculated
       };
-      setMilestones(prev => [...prev, newMilestone]);
+      setMilestones(prev => [...prev, createdMilestone]);
       toast({
         title: "Milestone Created",
         description: "The new milestone has been added to the project.",
       });
     }
+
+    // Update Tasks
+    if (savedMilestoneId && formData.assignedTaskIds) {
+      const mId = savedMilestoneId;
+      setTasks(prev => prev.map(t => {
+        if (formData.assignedTaskIds?.includes(t.id)) {
+          return { ...t, milestoneId: mId };
+        }
+        if (t.milestoneId === mId && !formData.assignedTaskIds?.includes(t.id)) {
+          return { ...t, milestoneId: undefined };
+        }
+        return t;
+      }));
+    }
+
     setIsDialogOpen(false);
   };
 
@@ -237,6 +289,11 @@ export default function MilestonesManagement() {
           {filteredMilestones.map((milestone) => {
             const StatusIcon = STATUS_CONFIG[milestone.status as keyof typeof STATUS_CONFIG].icon;
             const statusColor = STATUS_CONFIG[milestone.status as keyof typeof STATUS_CONFIG].color;
+            const progress = getMilestoneProgress(milestone.id);
+
+            // Get assigned task stats
+            const assignedTasks = tasks.filter(t => t.milestoneId === milestone.id);
+            const doneTasks = assignedTasks.filter(t => t.status === 'Done');
 
             return (
               <Card key={milestone.id} className="flex flex-col hover:border-primary/50 transition-colors group">
@@ -301,19 +358,12 @@ export default function MilestonesManagement() {
                   {/* Progress Bar */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Progress</span>
-                      <span className="font-medium">{milestone.progressPercent}%</span>
+                      <span>Tasks Completed: {doneTasks.length}/{assignedTasks.length}</span>
+                      <span className="font-medium">{progress}%</span>
                     </div>
-                    <Progress value={milestone.progressPercent} className="h-2" />
-                    <div className="flex justify-end text-[10px] text-muted-foreground">
-                      Target: {milestone.requiredCompletionRatio}% required
-                    </div>
+                    <Progress value={progress} className="h-2" />
                   </div>
                 </CardContent>
-
-                <CardFooter className="pt-0 pb-4">
-                  {/* Optional footer content could go here */}
-                </CardFooter>
               </Card>
             );
           })}
@@ -336,7 +386,7 @@ export default function MilestonesManagement() {
 
         {/* Create/Edit Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingMilestone ? "Edit Milestone" : "Create Milestone"}</DialogTitle>
               <DialogDescription>
@@ -436,20 +486,42 @@ export default function MilestonesManagement() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4 pt-2">
-                <Label className="text-right">Progress</Label>
-                <div className="col-span-3 space-y-2">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{formData.progressPercent || 0}% Complete</span>
+              {/* Task Assignment Section in Dialog */}
+              <div className="grid grid-cols-4 gap-4 pt-4 border-t">
+                <Label className="text-right pt-2">Assigned Tasks</Label>
+                <div className="col-span-3 border rounded-md max-h-[200px] overflow-y-auto p-2 bg-muted/20">
+                  <div className="space-y-1">
+                    {tasks.map(task => {
+                      const isAssigned = formData.assignedTaskIds?.includes(task.id);
+                      const assignedToOther = task.milestoneId && task.milestoneId !== editingMilestone?.id && !isAssigned;
+                      
+                      return (
+                        <div 
+                          key={task.id} 
+                          className={cn(
+                            "flex items-start space-x-2 p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer",
+                            assignedToOther ? "opacity-50" : ""
+                          )}
+                          onClick={() => !assignedToOther && toggleTaskAssignment(task.id)}
+                        >
+                          <div className={cn(
+                            "h-4 w-4 rounded border flex items-center justify-center mt-0.5",
+                            isAssigned ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground"
+                          )}>
+                             {isAssigned && <CheckSquare className="h-3 w-3" />}
+                          </div>
+                          <div className="flex-1 text-sm">
+                            <div className="font-medium leading-none mb-1">{task.title}</div>
+                            <div className="text-xs text-muted-foreground flex justify-between">
+                               <span>{task.status}</span>
+                               {assignedToOther && <span className="text-amber-600">Assigned elsewhere</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {tasks.length === 0 && <p className="text-xs text-muted-foreground">No tasks available.</p>}
                   </div>
-                  <Input 
-                    type="range" 
-                    min="0" 
-                    max="100" 
-                    value={formData.progressPercent || 0} 
-                    onChange={(e) => setFormData({ ...formData, progressPercent: parseInt(e.target.value) })}
-                    className="h-2"
-                  />
                 </div>
               </div>
             </div>
