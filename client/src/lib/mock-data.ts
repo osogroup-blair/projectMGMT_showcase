@@ -4,6 +4,7 @@ export interface Project {
   id: string;
   name: string;
   status: "Upcoming" | "In Progress" | "Completed" | "On Hold" | "Archived" | "Overdue";
+  startDate?: string; // Added for dynamic timeline calculation
   deadline: string;
   progress?: number;
   frameworkId?: string; 
@@ -256,8 +257,8 @@ export const TASK_STATUS_OPTIONS: StatusOption[] = [
 ];
 
 export const PROJECTS: Project[] = [
-  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", deadline: "11/28", progress: 65, frameworkId: "ft_impl", defaultMappingTemplateId: "mt1" },
-  { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", deadline: "Tomorrow", progress: 0, frameworkId: "ft_impl" },
+  { id: "1", name: "Houlihan Lokey Rebrand", status: "In Progress", startDate: "2024-10-01", deadline: "11/28", progress: 65, frameworkId: "ft_impl", defaultMappingTemplateId: "mt1" },
+  { id: "2", name: "Colgate-Palmolive Retool", status: "Upcoming", startDate: "2025-01-01", deadline: "Tomorrow", progress: 0, frameworkId: "ft_impl" },
   { id: "3", name: "Kraft HR", status: "On Hold", deadline: "11/30", progress: 30, frameworkId: "ft_impl" },
   { id: "4", name: "SDMP Internal Project", status: "Completed", deadline: "Yesterday", progress: 100, frameworkId: "ft_impl" },
   { id: "5", name: "Quality Matters", status: "Overdue", deadline: "Yesterday", progress: 85, frameworkId: "ft_impl" },
