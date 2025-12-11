@@ -4,7 +4,8 @@ import {
   Plus, Search, Filter, MoreVertical, Edit, Trash2, 
   CheckCircle2, Circle, Clock, AlertCircle, Calendar, 
   User, Flag, CheckSquare, Target, Briefcase, Layers,
-  ListTodo, SlidersHorizontal, ArrowRight, Copy, Lock, Unlock
+  ListTodo, SlidersHorizontal, ArrowRight, Copy, Lock, Unlock,
+  Grid3X3, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -186,6 +187,94 @@ function MilestoneListPanel({
   );
 }
 
+function ActiveTasksList({
+  milestone,
+  tasks,
+  links,
+  epics
+}: {
+  milestone: Milestone,
+  tasks: Task[],
+  links: MilestoneTaskLink[],
+  epics: Epic[]
+}) {
+  const activeTasks = useMemo(() => {
+    return links
+      .filter(l => l.milestoneId === milestone.id)
+      .map(l => {
+        const task = tasks.find(t => t.id === l.taskId);
+        return task ? { ...task, link: l } : null;
+      })
+      .filter(Boolean) as (Task & { link: MilestoneTaskLink })[];
+  }, [milestone.id, links, tasks]);
+
+  if (activeTasks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground border rounded-lg bg-muted/5 mt-4">
+        <ListTodo className="h-12 w-12 opacity-20 mb-4" />
+        <h3 className="text-lg font-medium text-foreground">No Active Tasks</h3>
+        <p className="max-w-xs text-center mt-2 text-sm">
+          There are no tasks currently scoped to this milestone. Use the "Scope Definition" tab to add tasks via rules or manually.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 mt-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-medium">Active Tasks ({activeTasks.length})</h3>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm"><Filter className="h-3 w-3 mr-2" /> Filter</Button>
+        </div>
+      </div>
+
+      <div className="border rounded-md overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Task</TableHead>
+              <TableHead>Epic</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Assignee</TableHead>
+              <TableHead className="text-right">Source</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {activeTasks.map(task => {
+              const epic = epics.find(e => e.id === task.epicId);
+              return (
+                <TableRow key={task.id}>
+                  <TableCell className="font-medium">
+                    {task.title}
+                    <div className="text-xs text-muted-foreground">{task.id}</div>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {epic?.title || "No Epic"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs font-normal">
+                      {task.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {TEAM.find(t => t.id === task.assigneeId)?.name || "Unassigned"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted font-normal text-[10px]">
+                      {task.link.source === 'rule' ? 'Rule' : 'Manual'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 function ScopeBuilder({ 
   milestone, 
   tasks, 
@@ -272,7 +361,7 @@ function ScopeBuilder({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mt-6">
       <Tabs defaultValue="rules" className="w-full">
         <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
           <TabsTrigger 
@@ -492,20 +581,22 @@ function ScopeBuilder({
                            const isIncluded = hasTask && Math.random() > 0.5;
                            
                            return (
-                             <td key={idx} className="p-3 text-center border-l">
-                               {hasTask ? (
-                                 isIncluded ? (
-                                   <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center mx-auto">
-                                     <CheckCircle2 className="h-4 w-4" />
-                                   </div>
+                             <td key={idx} className="p-3 text-center border-l group cursor-pointer hover:bg-muted/10 transition-colors">
+                               <div className="flex flex-col items-center justify-center gap-1">
+                                 {hasTask ? (
+                                   isIncluded ? (
+                                     <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center">
+                                       <CheckCircle2 className="h-4 w-4" />
+                                     </div>
+                                   ) : (
+                                     <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-slate-200">
+                                       <Circle className="h-4 w-4" />
+                                     </div>
+                                   )
                                  ) : (
-                                   <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                                     <Circle className="h-4 w-4" />
-                                   </div>
-                                 )
-                               ) : (
-                                 <span className="text-muted-foreground/20 text-xs">-</span>
-                               )}
+                                   <span className="text-muted-foreground/20 text-xs">-</span>
+                                 )}
+                               </div>
                              </td>
                            );
                          })}
