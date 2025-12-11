@@ -147,7 +147,7 @@ export function StageTemplateEditor({
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="flex items-center justify-between p-6 border-b">
+      <div className="flex items-center justify-between p-6 border-b shrink-0">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
             {template ? "Edit Stage Template" : "Create Stage Template"}
@@ -162,7 +162,7 @@ export function StageTemplateEditor({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-6 space-y-8 max-w-5xl mx-auto">
           {/* Basic Info */}
           <Card>
