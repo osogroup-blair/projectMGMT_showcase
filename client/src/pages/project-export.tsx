@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import * as XLSX from "xlsx";
+import * as yaml from "js-yaml";
 import { saveAs } from "file-saver";
 import { Shell } from "@/components/layout/shell";
 import { 
@@ -12,7 +13,9 @@ import {
   Database,
   Info,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  FileJson,
+  FileCode
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -20,7 +23,7 @@ import {
   CardContent, 
   CardDescription, 
   CardHeader, 
-  CardTitle,
+  CardTitle, 
   CardFooter
 } from "@/components/ui/card";
 import { 
@@ -57,16 +60,16 @@ import {
   MILESTONES, 
   TEAM, 
   PROJECT_ROLES, 
-  ROLE_ASSIGNMENTS,
-  SAVED_VIEWS,
-  GUIDANCE_ITEMS,
-  STAGE_TEMPLATES,
-  FRAMEWORK_TEMPLATES,
-  PROJECT_TEMPLATES,
-  DELIVERABLE_TEMPLATES,
-  EPIC_TEMPLATES,
-  TASK_TEMPLATES,
-  MAPPING_TEMPLATES,
+  ROLE_ASSIGNMENTS, 
+  SAVED_VIEWS, 
+  GUIDANCE_ITEMS, 
+  STAGE_TEMPLATES, 
+  FRAMEWORK_TEMPLATES, 
+  PROJECT_TEMPLATES, 
+  DELIVERABLE_TEMPLATES, 
+  EPIC_TEMPLATES, 
+  TASK_TEMPLATES, 
+  MAPPING_TEMPLATES, 
   ROLE_TEMPLATES,
   MILESTONE_SCOPE_RULES,
   MILESTONE_TASK_LINKS
@@ -151,6 +154,7 @@ export default function ProjectExport() {
   const { toast } = useToast();
 
   const [scope, setScope] = useState<"project" | "all">("project");
+  const [exportFormat, setExportFormat] = useState<"xlsx" | "json" | "yaml">("xlsx");
   const [includeConfig, setIncludeConfig] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -347,27 +351,36 @@ export default function ProjectExport() {
       setProgress(50);
       try {
         const data = generateExportData();
-        const wb = XLSX.utils.book_new();
+        const baseFilename = `${project.name.replace(/\s+/g, '_')}_Export_${new Date().toISOString().split('T')[0]}`;
 
-        // Add Sheets
-        Object.entries(data).forEach(([sheetName, sheetData]) => {
-          if (sheetData.length > 0) {
-            const ws = XLSX.utils.json_to_sheet(sheetData);
-            XLSX.utils.book_append_sheet(wb, ws, sheetName);
-          }
-        });
-
-        // Write File
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/octet-stream' });
-        saveAs(blob, `${project.name.replace(/\s+/g, '_')}_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+        if (exportFormat === "xlsx") {
+          const wb = XLSX.utils.book_new();
+          // Add Sheets
+          Object.entries(data).forEach(([sheetName, sheetData]) => {
+            if (sheetData.length > 0) {
+              const ws = XLSX.utils.json_to_sheet(sheetData);
+              XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            }
+          });
+          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+          const blob = new Blob([wbout], { type: 'application/octet-stream' });
+          saveAs(blob, `${baseFilename}.xlsx`);
+        } else if (exportFormat === "json") {
+          const jsonString = JSON.stringify(data, null, 2);
+          const blob = new Blob([jsonString], { type: 'application/json' });
+          saveAs(blob, `${baseFilename}.json`);
+        } else if (exportFormat === "yaml") {
+          const yamlString = yaml.dump(data);
+          const blob = new Blob([yamlString], { type: 'text/yaml' });
+          saveAs(blob, `${baseFilename}.yaml`);
+        }
 
         setProgress(100);
         setTimeout(() => setIsExporting(false), 500);
         
         toast({
           title: "Export Complete",
-          description: "Your project data has been successfully exported.",
+          description: `Your project data has been successfully exported as ${exportFormat.toUpperCase()}.`,
         });
 
       } catch (error) {
@@ -441,21 +454,41 @@ export default function ProjectExport() {
 
                 <div className="space-y-3">
                   <Label>Format</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="border rounded-md p-4 flex items-center gap-3 bg-primary/5 border-primary">
-                        <FileSpreadsheet className="h-5 w-5 text-primary" />
-                        <div>
-                            <div className="font-medium text-sm">Excel Workbook (.xlsx)</div>
-                            <div className="text-xs text-muted-foreground">Multi-sheet, full schema</div>
-                        </div>
-                        <CheckCircle2 className="h-4 w-4 text-primary ml-auto" />
+                  <div className="grid grid-cols-3 gap-4">
+                    <div 
+                      className={cn(
+                        "border rounded-md p-4 flex flex-col items-center gap-2 cursor-pointer transition-all hover:bg-muted/50 relative",
+                        exportFormat === "xlsx" ? "bg-primary/5 border-primary ring-1 ring-primary" : "opacity-70"
+                      )}
+                      onClick={() => setExportFormat("xlsx")}
+                    >
+                        <FileSpreadsheet className={cn("h-6 w-6", exportFormat === "xlsx" ? "text-primary" : "text-muted-foreground")} />
+                        <div className="text-xs font-medium">Excel (.xlsx)</div>
+                        {exportFormat === "xlsx" && <CheckCircle2 className="h-4 w-4 text-primary absolute top-2 right-2" />}
                     </div>
-                    <div className="border rounded-md p-4 flex items-center gap-3 opacity-50 cursor-not-allowed">
-                        <Database className="h-5 w-5" />
-                        <div>
-                            <div className="font-medium text-sm">CSV Archive (.zip)</div>
-                            <div className="text-xs text-muted-foreground">Separate files</div>
-                        </div>
+                    
+                    <div 
+                      className={cn(
+                        "border rounded-md p-4 flex flex-col items-center gap-2 cursor-pointer transition-all hover:bg-muted/50 relative",
+                        exportFormat === "json" ? "bg-primary/5 border-primary ring-1 ring-primary" : "opacity-70"
+                      )}
+                      onClick={() => setExportFormat("json")}
+                    >
+                        <FileJson className={cn("h-6 w-6", exportFormat === "json" ? "text-primary" : "text-muted-foreground")} />
+                        <div className="text-xs font-medium">JSON (.json)</div>
+                        {exportFormat === "json" && <CheckCircle2 className="h-4 w-4 text-primary absolute top-2 right-2" />}
+                    </div>
+
+                    <div 
+                      className={cn(
+                        "border rounded-md p-4 flex flex-col items-center gap-2 cursor-pointer transition-all hover:bg-muted/50 relative",
+                        exportFormat === "yaml" ? "bg-primary/5 border-primary ring-1 ring-primary" : "opacity-70"
+                      )}
+                      onClick={() => setExportFormat("yaml")}
+                    >
+                        <FileCode className={cn("h-6 w-6", exportFormat === "yaml" ? "text-primary" : "text-muted-foreground")} />
+                        <div className="text-xs font-medium">YAML (.yaml)</div>
+                        {exportFormat === "yaml" && <CheckCircle2 className="h-4 w-4 text-primary absolute top-2 right-2" />}
                     </div>
                   </div>
                 </div>
@@ -486,7 +519,7 @@ export default function ProjectExport() {
                     {isExporting ? "Exporting..." : (
                         <>
                             <Download className="h-4 w-4" />
-                            Export Data
+                            Export {exportFormat.toUpperCase()}
                         </>
                     )}
                  </Button>
@@ -498,7 +531,7 @@ export default function ProjectExport() {
                 <div className="text-sm text-blue-900">
                     <p className="font-semibold mb-1">Round-trip Compatible</p>
                     <p>
-                        The exported XLSX file follows a strict schema that allows it to be re-imported to update data or migrate to another environment.
+                        The exported file follows a strict schema that allows it to be re-imported to update data or migrate to another environment.
                         IDs are preserved to ensure relationships are maintained.
                     </p>
                 </div>
@@ -546,8 +579,8 @@ export default function ProjectExport() {
                 <CardContent>
                     <div className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer">
                         <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-sm font-medium">Upload XLSX</p>
-                        <p className="text-xs text-muted-foreground mt-1">Drag & drop or click to browse</p>
+                        <p className="text-sm font-medium">Upload File</p>
+                        <p className="text-xs text-muted-foreground mt-1">Supports .xlsx, .json, .yaml</p>
                     </div>
                 </CardContent>
             </Card>
