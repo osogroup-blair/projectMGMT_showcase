@@ -153,7 +153,7 @@ export function StageTemplateEditor({
             {template ? "Edit Stage Template" : "Create Stage Template"}
           </h2>
           <p className="text-muted-foreground">
-            Configure the default behavior, criteria, and tasks for this stage.
+            Configure the default behavior and tasks for this stage.
           </p>
         </div>
         <div className="flex gap-2">
@@ -162,7 +162,7 @@ export function StageTemplateEditor({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-6 space-y-8 max-w-5xl mx-auto">
           {/* Basic Info */}
           <Card>
@@ -191,36 +191,7 @@ export function StageTemplateEditor({
             </CardContent>
           </Card>
 
-          {/* Criteria & Gates */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Stage Criteria & Gates</CardTitle>
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="grid gap-2">
-                  <Label>Entry Criteria</Label>
-                  <Input 
-                    value={formData.entryCriteria} 
-                    onChange={(e) => setFormData({ ...formData, entryCriteria: e.target.value })}
-                    placeholder="e.g. Project Charter Approved"
-                  />
-                  <p className="text-xs text-muted-foreground">Conditions that must be met to start this stage.</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="grid gap-2">
-                  <Label>Exit Criteria</Label>
-                  <Input 
-                    value={formData.exitCriteria} 
-                    onChange={(e) => setFormData({ ...formData, exitCriteria: e.target.value })}
-                    placeholder="e.g. Sign-off received"
-                  />
-                  <p className="text-xs text-muted-foreground">Conditions required to complete this stage.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Criteria removed as they are project-specific */}
 
           {/* Task Configuration */}
           <Card className="border-primary/20">
@@ -401,7 +372,7 @@ export function StageTemplateEditor({
             </Card>
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
