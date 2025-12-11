@@ -446,7 +446,10 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
       <div className="flex gap-4 h-[600px] w-full">
         {/* Gantt Chart Area - Full Width */}
         <Card className="flex-1 overflow-hidden border-none shadow-none bg-transparent flex flex-col">
-          <ScrollArea className="flex-1 w-full border rounded-lg bg-background" ref={scrollContainerRef}>
+          <div 
+            className="flex-1 w-full overflow-x-auto overflow-y-hidden border rounded-lg bg-background relative" 
+            ref={scrollContainerRef}
+          >
             <div 
               className="relative" 
               style={{ width: `${days.length * viewConfig.dayWidth}px`, minHeight: "100%" }}
@@ -619,7 +622,7 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
                 )}
               </div>
             </div>
-          </ScrollArea>
+          </div>
         </Card>
       </div>
 
