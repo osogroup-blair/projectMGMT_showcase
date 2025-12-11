@@ -230,7 +230,7 @@ export function TodayTasksPanel({ tasks: initialTasks }: TodayTasksPanelProps) {
           ) : (
             <Accordion
               type="multiple"
-              defaultValue={["deep_work", "medium", "small", "quick_win", "uncategorized"]}
+              defaultValue={[]}
               className="space-y-4"
             >
               {buckets.map((bucket) => {
