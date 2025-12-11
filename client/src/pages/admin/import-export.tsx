@@ -84,6 +84,28 @@ import {
 
 // Schema Definitions
 const SCHEMA_DEFINITIONS = {
+  all: [
+    { sheet: "Projects", columns: ["id", "name", "client_id", "status", "start_date", "deadline", "progress", "framework_id", "default_mapping_template_id", "permissions"] },
+    { sheet: "Deliverables", columns: ["id", "project_id", "title", "description", "status", "owner_id", "due_date", "progress"] },
+    { sheet: "Epics", columns: ["id", "project_id", "deliverable_id", "title", "description", "status", "owner_id", "start_date", "end_date", "progress"] },
+    { sheet: "Tasks", columns: ["id", "project_id", "deliverable_id", "epic_id", "stage_id", "epic_stage_id", "title", "description", "status", "assignee_id", "deadline", "priority", "estimate_hours", "milestone_id", "tags"] },
+    { sheet: "Milestones", columns: ["id", "project_id", "stage_id", "name", "description", "phase", "target_date", "status", "owner_id", "scope_type", "completion_mode", "completion_target_percent", "tags", "progress_percent", "is_billing_gate"] },
+    { sheet: "ProjectTemplates", columns: ["id", "name", "description", "default_roles", "default_deliverables", "default_framework_id"] },
+    { sheet: "FrameworkTemplates", columns: ["id", "name", "description", "default_stages"] },
+    { sheet: "StageTemplates", columns: ["id", "name", "description", "default_tasks", "default_roles", "assigned_frameworks"] },
+    { sheet: "DeliverableTemplates", columns: ["id", "title", "description", "default_epics"] },
+    { sheet: "EpicTemplates", columns: ["id", "title", "description", "default_stages"] },
+    { sheet: "TaskTemplates", columns: ["id", "title", "description", "default_priority", "default_estimate_hours", "required_role"] },
+    { sheet: "RoleTemplates", columns: ["id", "name", "description", "default_role_type", "default_permissions"] },
+    { sheet: "ProjectStatuses", columns: ["id", "label", "color", "description"] },
+    { sheet: "TaskStatuses", columns: ["id", "label", "color", "description"] },
+    { sheet: "StageTypes", columns: ["id", "label", "description"] },
+    { sheet: "MappingTemplates", columns: ["id", "name", "data_type"] },
+    { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stage_id"] },
+    { sheet: "Users", columns: ["id", "name", "email", "role", "status"] },
+    { sheet: "ProjectRoles", columns: ["id", "name", "description", "role_type", "is_required", "max_assignees", "permissions"] },
+    { sheet: "RoleAssignments", columns: ["id", "role_id", "user_id", "is_primary", "allocation_percent"] }
+  ],
   projects: [
     { sheet: "Projects", columns: ["id", "name", "client_id", "status", "start_date", "deadline", "progress", "framework_id", "default_mapping_template_id", "permissions"] },
     { sheet: "Deliverables", columns: ["id", "project_id", "title", "description", "status", "owner_id", "due_date", "progress"] },
@@ -116,7 +138,7 @@ const SCHEMA_DEFINITIONS = {
 
 export default function AdminImportExport() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("projects");
+  const [activeTab, setActiveTab] = useState("all");
   const [exportFormat, setExportFormat] = useState<"xlsx" | "json" | "yaml">("xlsx");
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -140,7 +162,31 @@ export default function AdminImportExport() {
   const generateExportData = () => {
     let data: any = {};
 
-    if (activeTab === "projects") {
+    if (activeTab === "all") {
+       data = {
+         Projects: serialize(PROJECTS),
+         Deliverables: serialize(DELIVERABLES),
+         Epics: serialize(EPICS),
+         Tasks: serialize(TASKS),
+         Milestones: serialize(MILESTONES),
+         MilestoneScopeRules: serialize(MILESTONE_SCOPE_RULES),
+         MilestoneTaskLinks: serialize(MILESTONE_TASK_LINKS),
+         ProjectTemplates: serialize(PROJECT_TEMPLATES),
+         FrameworkTemplates: serialize(FRAMEWORK_TEMPLATES),
+         StageTemplates: serialize(STAGE_TEMPLATES),
+         DeliverableTemplates: serialize(DELIVERABLE_TEMPLATES),
+         EpicTemplates: serialize(EPIC_TEMPLATES),
+         TaskTemplates: serialize(TASK_TEMPLATES),
+         RoleTemplates: serialize(ROLE_TEMPLATES),
+         ProjectStatuses: serialize(PROJECT_STATUS_OPTIONS),
+         TaskStatuses: serialize(TASK_STATUS_OPTIONS),
+         MappingTemplates: serialize(MAPPING_TEMPLATES),
+         GuidanceItems: serialize(GUIDANCE_ITEMS),
+         Users: serialize(TEAM),
+         ProjectRoles: serialize(PROJECT_ROLES),
+         RoleAssignments: serialize(ROLE_ASSIGNMENTS)
+       };
+    } else if (activeTab === "projects") {
       data = {
         Projects: serialize(PROJECTS),
         Deliverables: serialize(DELIVERABLES),
@@ -290,7 +336,8 @@ export default function AdminImportExport() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <TabCard value="all" icon={Database} title="Full System" description="Complete data backup of all entities" />
           <TabCard value="projects" icon={Briefcase} title="Projects" description="Project data, tasks, and milestones" />
           <TabCard value="templates" icon={LayoutTemplate} title="Templates" description="Project, stage, and task templates" />
           <TabCard value="defaults" icon={Settings} title="App Defaults" description="Global settings and status options" />
