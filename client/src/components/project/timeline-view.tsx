@@ -581,99 +581,107 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
               {/* Content Body */}
               <div className="p-4 space-y-6 pt-8">
                 
-                {/* Stages */}
+                {/* Stages with Nested Milestones */}
                 {(filter === 'all' || filter === 'stages') && (
-                  <div className="space-y-4">
+                  <div className="space-y-8">
                     {stagesWithDates.map((stage) => {
                       const left = getPosition(stage.startDate);
                       const width = getWidth(stage.startDate, stage.endDate);
                       const isCompleted = stage.status === 'completed';
                       const isActive = stage.status === 'active';
+                      
+                      // Get Milestones for this stage
+                      const stageMilestones = milestones.filter(m => m.stageId === stage.id);
 
                       return (
-                        <div key={stage.id} className="relative h-[60px] group">
-                          {/* Stage Bar */}
-                          <div 
-                            className={cn(
-                              "absolute top-2 h-10 rounded-lg shadow-sm border flex items-center px-4 transition-all hover:shadow-md cursor-pointer",
-                              isCompleted ? "bg-green-50 border-green-200 text-green-800" :
-                              isActive ? "bg-blue-50 border-blue-200 text-blue-800" :
-                              "bg-slate-50 border-slate-200 text-slate-600"
-                            )}
-                            style={{ left, width }}
-                          >
-                            <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
-                              <div className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border shrink-0",
-                                isCompleted ? "bg-green-200 border-green-300" :
-                                isActive ? "bg-blue-200 border-blue-300" :
-                                "bg-slate-200 border-slate-300"
-                              )}>
-                                {stage.order}
+                        <div key={stage.id} className="relative group">
+                          {/* Row 1: Stage Bar */}
+                          <div className="h-[40px] relative mb-2">
+                            <div 
+                              className={cn(
+                                "absolute top-0 h-10 rounded-lg shadow-sm border flex items-center px-4 transition-all hover:shadow-md cursor-pointer",
+                                isCompleted ? "bg-green-50 border-green-200 text-green-800" :
+                                isActive ? "bg-blue-50 border-blue-200 text-blue-800" :
+                                "bg-slate-50 border-slate-200 text-slate-600"
+                              )}
+                              style={{ left, width }}
+                            >
+                              <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
+                                <div className={cn(
+                                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border shrink-0",
+                                  isCompleted ? "bg-green-200 border-green-300" :
+                                  isActive ? "bg-blue-200 border-blue-300" :
+                                  "bg-slate-200 border-slate-300"
+                                )}>
+                                  {stage.order}
+                                </div>
+                                <span className="font-semibold text-sm truncate">{stage.name}</span>
                               </div>
-                              <span className="font-semibold text-sm truncate">{stage.name}</span>
+                              
+                              {/* Duration Label */}
+                              <div className="absolute -bottom-5 left-0 text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {format(stage.startDate, "MMM d")} - {format(stage.endDate, "MMM d")}
+                              </div>
                             </div>
+                          </div>
+
+                          {/* Row 2: Milestone Track */}
+                          <div className="h-[40px] relative">
+                            {/* Track Line */}
+                            <div 
+                              className="absolute top-1/2 left-0 right-0 h-px bg-border/50 -z-10" 
+                              style={{ left, width }}
+                            />
                             
-                            {/* Duration Label */}
-                            <div className="absolute -bottom-5 left-0 text-[10px] text-muted-foreground whitespace-nowrap">
-                                {format(stage.startDate, "MMM d")} - {format(stage.endDate, "MMM d")}
-                            </div>
+                            {stageMilestones.map((milestone) => {
+                              const mDate = parseISO(milestone.targetDate);
+                              if (!isValid(mDate)) return null;
+
+                              const mLeft = getPosition(mDate);
+                              const progress = getMilestoneProgress(milestone.id);
+                              const isMCompleted = progress === 100;
+                              
+                              return (
+                                <Popover key={milestone.id}>
+                                  <PopoverTrigger asChild>
+                                    <div 
+                                      className={cn(
+                                        "absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border-2 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform z-20 shadow-sm bg-background",
+                                        isMCompleted ? "bg-green-50 border-green-500 text-green-700" :
+                                        "border-primary text-primary"
+                                      )}
+                                      style={{ left: mLeft }}
+                                    >
+                                      <Flag className="h-4 w-4" fill={isMCompleted ? "currentColor" : "none"} />
+                                    </div>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-80">
+                                    <div className="space-y-2">
+                                      <h4 className="font-semibold leading-none">{milestone.name}</h4>
+                                      <p className="text-sm text-muted-foreground">{milestone.description}</p>
+                                      
+                                      <div className="py-2">
+                                        <div className="flex justify-between text-xs mb-1">
+                                          <span>Progress</span>
+                                          <span>{progress}%</span>
+                                        </div>
+                                        <Progress value={progress} className="h-2" />
+                                      </div>
+                                      
+                                      <div className="flex gap-2 justify-end pt-2">
+                                        <Button variant="outline" size="sm" onClick={() => openEditDialog(milestone)}>Edit</Button>
+                                        <Button variant="destructive" size="sm" onClick={() => handleDeleteMilestone(milestone.id)}>Delete</Button>
+                                      </div>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              );
+                            })}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                )}
-
-                {/* Milestones on Gantt */}
-                {(filter === 'all' || filter === 'milestones') && (
-                   <div className="relative h-[40px] mt-8">
-                     <div className="absolute top-1/2 left-0 right-0 h-px bg-border -z-10" />
-                     {milestones.map((milestone) => {
-                       const mDate = parseISO(milestone.targetDate);
-                       if (!isValid(mDate)) return null;
-
-                       const left = getPosition(mDate);
-                       const progress = getMilestoneProgress(milestone.id);
-                       const isCompleted = progress === 100;
-                       
-                       return (
-                          <Popover key={milestone.id}>
-                            <PopoverTrigger asChild>
-                              <div 
-                                className={cn(
-                                  "absolute top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border-2 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform z-20 shadow-sm",
-                                  isCompleted ? "bg-green-100 border-green-500 text-green-700" :
-                                  "bg-background border-primary text-primary"
-                                )}
-                                style={{ left }}
-                              >
-                                <Flag className="h-4 w-4" fill={isCompleted ? "currentColor" : "none"} />
-                              </div>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-80">
-                              <div className="space-y-2">
-                                <h4 className="font-semibold leading-none">{milestone.name}</h4>
-                                <p className="text-sm text-muted-foreground">{milestone.description}</p>
-                                
-                                <div className="py-2">
-                                  <div className="flex justify-between text-xs mb-1">
-                                    <span>Progress</span>
-                                    <span>{progress}%</span>
-                                  </div>
-                                  <Progress value={progress} className="h-2" />
-                                </div>
-                                
-                                <div className="flex gap-2 justify-end pt-2">
-                                  <Button variant="outline" size="sm" onClick={() => openEditDialog(milestone)}>Edit</Button>
-                                  <Button variant="destructive" size="sm" onClick={() => handleDeleteMilestone(milestone.id)}>Delete</Button>
-                                </div>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                       );
-                     })}
-                   </div>
                 )}
               </div>
             </div>
