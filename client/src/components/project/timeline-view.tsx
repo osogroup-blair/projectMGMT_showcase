@@ -3,6 +3,7 @@ import {
   format, 
   addDays, 
   addMonths, 
+  subMonths,
   addWeeks,
   startOfMonth, 
   endOfMonth, 
@@ -42,6 +43,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 interface TimelineViewProps {
   stages: ProjectStage[];
@@ -80,11 +82,39 @@ const generateStageDates = (stages: ProjectStage[], projectStartDate?: string) =
   });
 };
 
+const getSmartInitialDate = (project: Project, milestones: Milestone[]) => {
+  // 1. Look for first In Progress or Pending milestone
+  const activeMilestones = milestones
+    .filter(m => m.status === 'In Progress' || m.status === 'Pending')
+    .sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime());
+  
+  if (activeMilestones.length > 0) {
+    return parseISO(activeMilestones[0].targetDate);
+  }
+
+  // 2. Look for any milestone
+  const allMilestones = [...milestones].sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime());
+  if (allMilestones.length > 0) {
+    return parseISO(allMilestones[0].targetDate);
+  }
+
+  // 3. Project Start
+  if (project.startDate) {
+    return parseISO(project.startDate);
+  }
+
+  // 4. Today
+  return new Date();
+};
+
 type ViewMode = "month" | "week" | "day";
 
 export function TimelineView({ stages, milestones: initialMilestones, project, tasks: initialTasks = [] }: TimelineViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Smart default date
+  const [currentDate, setCurrentDate] = useState(() => getSmartInitialDate(project, initialMilestones));
+  
   const [filter, setFilter] = useState<"all" | "stages" | "milestones">("all");
   
   // Local state for milestones and tasks
@@ -147,16 +177,19 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
     return diff * dayWidth;
   };
 
-  // Scroll to current date on mount
+  // Scroll to current date on mount and when date changes
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (scrollContainerRef.current) {
-      const todayPos = getPosition(new Date());
+      const targetPos = getPosition(currentDate);
       const containerWidth = scrollContainerRef.current.clientWidth;
-      scrollContainerRef.current.scrollLeft = todayPos - (containerWidth / 2);
+      scrollContainerRef.current.scrollTo({
+        left: targetPos - (containerWidth / 2),
+        behavior: 'smooth'
+      });
     }
-  }, []);
+  }, [currentDate, timelineStart]); // Added dependency on currentDate
 
   // Milestone Management
   const handleSaveMilestone = () => {
@@ -266,13 +299,27 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
              Today
            </Button>
            <div className="flex items-center border rounded-md bg-background">
-             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-l-md" onClick={() => setViewMode("month")}>
+             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-l-md" onClick={() => setCurrentDate(prev => subMonths(prev, 1))}>
                <ChevronLeft className="h-4 w-4" />
              </Button>
-             <div className="px-3 py-1 text-sm font-medium min-w-[120px] text-center border-x">
-               {format(currentDate, "MMMM yyyy")}
-             </div>
-             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-r-md" onClick={() => setViewMode("month")}>
+             
+             <Popover>
+               <PopoverTrigger asChild>
+                 <Button variant="ghost" className="px-3 py-1 h-8 rounded-none min-w-[140px] font-medium border-x hover:bg-muted/50">
+                   {format(currentDate, "MMMM yyyy")}
+                 </Button>
+               </PopoverTrigger>
+               <PopoverContent className="w-auto p-0" align="center">
+                 <CalendarComponent
+                   mode="single"
+                   selected={currentDate}
+                   onSelect={(date) => date && setCurrentDate(date)}
+                   initialFocus
+                 />
+               </PopoverContent>
+             </Popover>
+
+             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none rounded-r-md" onClick={() => setCurrentDate(prev => addMonths(prev, 1))}>
                <ChevronRight className="h-4 w-4" />
              </Button>
            </div>
