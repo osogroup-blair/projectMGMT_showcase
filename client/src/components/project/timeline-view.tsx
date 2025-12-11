@@ -196,6 +196,10 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
     setEditingStage(null);
   };
 
+  // Calculate milestone progress based on assigned tasks
+  const getMilestoneProgress = (milestoneId: string) => {
+    const assignedTasks = tasks.filter(t => t.milestoneId === milestoneId);
+    if (assignedTasks.length === 0) return 0;
     
     const doneTasks = assignedTasks.filter(t => t.status === 'Done');
     return Math.round((doneTasks.length / assignedTasks.length) * 100);
