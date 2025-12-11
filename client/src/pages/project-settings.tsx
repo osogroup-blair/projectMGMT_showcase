@@ -33,7 +33,9 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   PROJECTS, 
   FRAMEWORK_TEMPLATES, 
-  MAPPING_TEMPLATES 
+  MAPPING_TEMPLATES,
+  PROJECT_STAGES,
+  STAGE_STATUS_OPTIONS
 } from "@/lib/mock-data";
 
 export default function ProjectSettings() {
@@ -56,12 +58,21 @@ export default function ProjectSettings() {
     isArchived: project.status === "Archived"
   });
 
+  // Local state for stages
+  const [stages, setStages] = useState(PROJECT_STAGES);
+
   const handleSave = () => {
-    // In a real app, this would mutate the project
+    // In a real app, this would mutate the project and stages
     toast({
       title: "Settings Saved",
-      description: "Project settings have been successfully updated.",
+      description: "Project settings and stage configurations have been successfully updated.",
     });
+  };
+
+  const handleStageChange = (id: string, field: string, value: any) => {
+    setStages(prev => prev.map(stage => 
+      stage.id === id ? { ...stage, [field]: value } : stage
+    ));
   };
 
   return (
@@ -176,6 +187,59 @@ export default function ProjectSettings() {
                     Default field mapping configuration for imports.
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stage Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Stage Configuration</CardTitle>
+              <CardDescription>Customize the stages, their order, and status colors for this project.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                {stages.map((stage, index) => (
+                  <div key={stage.id} className="flex items-start gap-4 p-4 border rounded-lg bg-card">
+                    <div className="flex-none pt-3">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full border bg-muted text-xs font-medium">
+                        {index + 1}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Stage Name</Label>
+                        <Input 
+                          value={stage.name}
+                          onChange={(e) => handleStageChange(stage.id, 'name', e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Status & Color</Label>
+                        <Select 
+                          value={stage.status}
+                          onValueChange={(val) => handleStageChange(stage.id, 'status', val)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STAGE_STATUS_OPTIONS.map(option => (
+                              <SelectItem key={option.id} value={option.label}>
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-3 h-3 rounded-full ${option.color.split(' ')[0]}`} />
+                                  <span className="capitalize">{option.label}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
