@@ -35,7 +35,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { useRoute, Link } from "wouter";
-import { PROJECTS, PROJECT_STAGES, MILESTONES } from "@/lib/mock-data";
+import { PROJECTS, PROJECT_STAGES, MILESTONES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { StageTabContent } from "@/components/project/stage-tab-content";
 import { TimelineView } from "@/components/project/timeline-view";
@@ -145,10 +145,16 @@ export default function ProjectOverview() {
             </TabsTrigger>
             
             {stages.map(stage => {
-              const statusColor = 
-                stage.status === 'completed' ? 'text-green-600 data-[state=active]:border-green-600' :
-                stage.status === 'active' ? 'text-blue-600 data-[state=active]:border-blue-600' :
-                'text-muted-foreground';
+              const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
+              // Extract base color from config or default to muted
+              // Assuming config.color follows "bg-X-50 text-X-700 border-X-200" pattern
+              const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
+              
+              // For the tab text/border, we need to adapt slightly or use the config directly
+              // We'll extract the text color part for the tab label
+              const textClass = statusConfig ? statusConfig.color.split(' ').find(c => c.startsWith('text-')) : 'text-muted-foreground';
+              // For the active border, we'll try to match the text color but as a border
+              const borderClass = textClass?.replace('text-', 'data-[state=active]:border-');
 
               return (
                 <TabsTrigger 
@@ -156,14 +162,13 @@ export default function ProjectOverview() {
                   value={`stage-${stage.id}`}
                   className={cn(
                     "rounded-none border-b-2 border-transparent data-[state=active]:bg-transparent px-0 py-2 font-medium",
-                    statusColor
+                    textClass,
+                    borderClass
                   )}
                 >
                   <span className={cn(
                     "mr-2 flex h-5 w-5 items-center justify-center rounded-full border text-[10px]",
-                    stage.status === 'completed' ? 'border-green-200 bg-green-50' :
-                    stage.status === 'active' ? 'border-blue-200 bg-blue-50' :
-                    'border-muted bg-muted/50'
+                    statusColorClass
                   )}>
                     {stage.order}
                   </span>

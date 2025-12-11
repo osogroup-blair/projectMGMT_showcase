@@ -230,8 +230,14 @@ export interface StatusOption {
   label: string;
   color: string;
   isDefault?: boolean;
-  type: "project" | "task" | "epic" | "deliverable";
+  type: "project" | "task" | "epic" | "deliverable" | "stage";
 }
+
+export const STAGE_STATUS_OPTIONS: StatusOption[] = [
+  { id: "ss1", label: "completed", color: "bg-green-50 text-green-700 border-green-200", type: "stage" },
+  { id: "ss2", label: "active", color: "bg-blue-50 text-blue-700 border-blue-200", type: "stage" },
+  { id: "ss3", label: "pending", color: "bg-muted/50 text-muted-foreground border-muted", type: "stage" },
+];
 
 export const PROJECT_STATUS_OPTIONS: StatusOption[] = [
   { id: "ps1", label: "Upcoming", color: "bg-purple-50 text-purple-700", type: "project" },
