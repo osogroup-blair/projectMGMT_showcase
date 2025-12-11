@@ -1,4 +1,4 @@
-import { Home, Layers, Settings, LayoutTemplate, Sliders, Users } from "lucide-react";
+import { Home, Layers, Settings, LayoutTemplate, Sliders, Users, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -70,6 +70,21 @@ export function SubNav() {
           >
             <Settings className={cn("h-4 w-4", location === "/admin/defaults" && "text-primary")} />
             App Defaults
+          </Button>
+        </Link>
+        <Link href="/admin/demo-data">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start gap-3 h-9 font-normal text-sm",
+              location === "/admin/demo-data"
+                ? "bg-secondary text-primary font-medium shadow-xs" 
+                : "text-foreground/70 hover:text-foreground hover:bg-secondary/50"
+            )}
+            data-testid="subnav-admin-demo-data"
+          >
+            <Database className={cn("h-4 w-4", location === "/admin/demo-data" && "text-primary")} />
+            Demo Data
           </Button>
         </Link>
         <Link href="/admin/users">
