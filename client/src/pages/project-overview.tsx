@@ -134,8 +134,15 @@ export default function ProjectOverview() {
         </div>
 
         {/* Tabs Navigation */}
-        <Tabs defaultValue="deliverables" className="w-full">
+        <Tabs defaultValue="overview" className="w-full">
           <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto">
+            <TabsTrigger 
+              value="overview" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+            >
+              Project Overview
+            </TabsTrigger>
+
             <TabsTrigger 
               value="deliverables" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
@@ -182,13 +189,6 @@ export default function ProjectOverview() {
                 </TabsTrigger>
               );
             })}
-
-            <TabsTrigger 
-              value="overview" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Project Overview
-            </TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
