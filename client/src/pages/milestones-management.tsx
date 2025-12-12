@@ -39,7 +39,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { 
   useMilestones, useTasks, useEpics, useUsers, useProject,
   useMilestoneScopeRules, useMilestoneTaskLinks
@@ -1164,12 +1164,13 @@ function MilestoneDetailPanel({
 
 export default function MilestonesManagementPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [match, params] = useRoute("/projects/:projectId/milestones");
   const projectId = params?.projectId || "1";
 
   // Database Hooks
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
-  const { data: allMilestones, isLoading: isMilestonesLoading, create: createMilestone, update: updateMilestone, remove: deleteMilestone } = useMilestones();
+  const { data: allMilestones, isLoading: isMilestonesLoading, createAsync: createMilestoneAsync, update: updateMilestone, remove: deleteMilestone } = useMilestones();
   const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
@@ -1192,12 +1193,6 @@ export default function MilestonesManagementPage() {
 
   // Local UI State
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    name: "",
-    phase: "plan_strategy",
-    targetDate: new Date().toISOString().split('T')[0]
-  });
 
   // Select first milestone when data loads
   useEffect(() => {
@@ -1257,43 +1252,29 @@ export default function MilestonesManagementPage() {
   }
 
   // Handlers
-  const handleOpenCreate = () => {
-    setCreateForm({
-      name: "",
-      phase: "plan_strategy",
-      targetDate: new Date().toISOString().split('T')[0]
-    });
-    setIsCreateDialogOpen(true);
-  };
-
-  const handleCreateConfirm = () => {
-    if (!createForm.name) return;
-
-    const newId = `m-${Date.now()}`;
-    createMilestone({
-      id: newId,
-      projectId: projectId,
-      name: createForm.name,
-      description: "Describe the milestone goal...",
-      phase: createForm.phase,
-      targetDate: createForm.targetDate,
-      status: "planned",
-      ownerId: team[0]?.id || "1",
-      scopeType: "manual",
-      completionMode: "all_tasks",
-      completionTargetPercent: 100,
-      tags: [],
-      progressTotalTasks: 0,
-      progressCompletedTasks: 0,
-      progressPercentComplete: 0,
-      progressPercent: 0,
-      isBillingGate: false,
-      requiredCompletionRatio: 100
-    });
-    
-    setSelectedId(newId);
-    setIsCreateDialogOpen(false);
-    toast({ title: "Milestone Created", description: "Start by defining its scope." });
+  const handleCreateMilestone = async () => {
+    try {
+      const newMilestone = await createMilestoneAsync({
+        projectId: projectId,
+        name: "New Milestone",
+        description: "",
+        phase: "plan_strategy",
+        targetDate: new Date().toISOString().split('T')[0],
+        status: "planned",
+        ownerId: team[0]?.id || "1",
+        scopeType: "manual",
+        completionMode: "all_tasks",
+        completionTargetPercent: 100,
+        tags: []
+      });
+      
+      if (newMilestone?.id) {
+        toast({ title: "Milestone Created", description: "Redirecting to edit details..." });
+        navigate(`/projects/${projectId}/milestones/${newMilestone.id}`);
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create milestone.", variant: "destructive" });
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -1417,7 +1398,7 @@ export default function MilestonesManagementPage() {
           milestones={milestonesWithProgress}
           selectedId={selectedId || undefined}
           onSelect={setSelectedId}
-          onCreate={handleOpenCreate}
+          onCreate={handleCreateMilestone}
           onDelete={handleDelete}
         />
         
@@ -1444,62 +1425,11 @@ export default function MilestonesManagementPage() {
               </div>
               <h3 className="text-lg font-medium text-foreground">No Milestone Selected</h3>
               <p className="max-w-xs text-center mt-2">Select a milestone from the list or create a new one to get started.</p>
-              <Button onClick={handleOpenCreate} className="mt-6">Create Milestone</Button>
+              <Button onClick={handleCreateMilestone} className="mt-6">Create Milestone</Button>
             </div>
           )}
         </div>
       </div>
-
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Milestone</DialogTitle>
-            <DialogDescription>
-              Define the basics for your new milestone. You can configure scope and rules later.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={createForm.name}
-                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                placeholder="e.g. Alpha Release"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="phase">Phase</Label>
-              <Select 
-                value={createForm.phase} 
-                onValueChange={(v) => setCreateForm({ ...createForm, phase: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PHASES.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="date">Target Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={createForm.targetDate}
-                onChange={(e) => setCreateForm({ ...createForm, targetDate: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateConfirm} disabled={!createForm.name}>Create Milestone</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Shell>
   );
 }
