@@ -63,6 +63,7 @@ interface TaskStats {
 import { DeliverablesContent } from "@/pages/deliverables";
 import ProjectDashboardPage from "@/components/project/project-dashboard-page";
 import { TaskBoardContent } from "@/pages/task-board";
+import { MilestonesContent } from "@/components/project/milestones-content";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -462,12 +463,6 @@ export default function ProjectOverview() {
             </div>
 
             <div className="flex gap-2 w-full lg:w-auto">
-              <Link href={`/projects/${projectId}/milestones`}>
-                <Button variant="outline" className="gap-2">
-                  <Flag className="h-4 w-4" />
-                  Milestones
-                </Button>
-              </Link>
               <Link href={`/projects/${projectId}/team`}>
                 <Button variant="outline" className="gap-2">
                   <Users className="h-4 w-4" />
@@ -523,6 +518,13 @@ export default function ProjectOverview() {
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
             >
               Timeline
+            </TabsTrigger>
+
+            <TabsTrigger 
+              value="milestones" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+            >
+              Milestones
             </TabsTrigger>
             
             {stages.map(stage => {
@@ -598,6 +600,13 @@ export default function ProjectOverview() {
             <TabsContent value="deliverables">
               <div className="mt-6">
                 <DeliverablesContent projectId={projectId} />
+              </div>
+            </TabsContent>
+
+            {/* Milestones Tab */}
+            <TabsContent value="milestones">
+              <div className="mt-6">
+                <MilestonesContent projectId={projectId} />
               </div>
             </TabsContent>
 
