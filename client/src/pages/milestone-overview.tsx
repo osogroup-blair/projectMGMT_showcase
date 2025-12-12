@@ -171,9 +171,15 @@ export default function MilestoneOverview() {
     const removed = links.filter((l: any) => !newIds.includes(l.id));
     removed.forEach((l: any) => removeLink(l.id));
     
-    // Find added links
+    // Find added links - only send required fields, not auto-generated ones like createdAt
     const added = updatedLinks.filter(l => !currentIds.includes(l.id));
-    added.forEach(l => createLink({ ...l, projectId }));
+    added.forEach(l => createLink({
+      milestoneId: l.milestoneId,
+      taskId: l.taskId,
+      projectId,
+      source: l.source || 'manual_add',
+      locked: l.locked
+    }));
     
     // Find updated links
     const updated = updatedLinks.filter(l => currentIds.includes(l.id));
