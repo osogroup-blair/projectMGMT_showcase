@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Flag, 
@@ -8,6 +8,7 @@ import {
   Circle,
   Calendar as CalendarIcon,
   ChevronRight,
+  ChevronDown,
   ListTodo,
   Target,
   User,
@@ -24,7 +25,10 @@ import {
   CheckSquare,
   Pencil,
   Check,
-  X
+  X,
+  RefreshCw,
+  AlertTriangle,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +42,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules, useProjectStages } from "@/hooks/use-nexus-data";
@@ -139,7 +144,7 @@ export default function MilestoneOverview() {
 
   // Get unique stage IDs from project tasks and map to stage objects
   const projectStages = useMemo(() => {
-    const stageIds = [...new Set(projectTasks.map((t: any) => t.stageId).filter(Boolean))];
+    const stageIds = Array.from(new Set(projectTasks.map((t: any) => t.stageId).filter(Boolean)));
     return stageIds.map(id => {
       const stage = (allStages || []).find((s: any) => s.id === id);
       return stage ? { id: stage.id, label: stage.name, order: stage.order } : null;
@@ -692,11 +697,75 @@ function ScopeDefinitionTab({
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [epicFilter, setEpicFilter] = useState<string>("all");
   const [showLinkedOnly, setShowLinkedOnly] = useState<boolean | null>(null);
+  const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
 
   const getEpicName = (epicId: string) => {
     const epic = epics.find((e: any) => e.id === epicId);
     return epic?.title || "";
   };
+
+  const getStageName = (stageId: string) => {
+    const stage = stages.find((s: any) => s.id === stageId);
+    return stage?.label || stage?.name || stageId;
+  };
+
+  const evaluateRule = useCallback((rule: any): any[] => {
+    if (!rule.active) return [];
+    
+    return tasks.filter(task => {
+      if (rule.stage && rule.stage !== "all" && task.stageId !== rule.stage) {
+        return false;
+      }
+      
+      const epic = epics.find((e: any) => e.id === task.epicId);
+      if (rule.epicType && rule.epicType !== "all") {
+        const epicType = epic?.type || epic?.epicType || "";
+        if (epicType !== rule.epicType) {
+          return false;
+        }
+      }
+      
+      if (rule.taskTemplateKey && rule.taskTemplateKey !== "all") {
+        const taskType = task.templateKey || task.type || "";
+        if (!taskType.toLowerCase().includes(rule.taskTemplateKey.toLowerCase())) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [tasks, epics]);
+
+  const allMatchedTasksByRule = useMemo(() => {
+    const result: Record<string, any[]> = {};
+    (rules.rules || []).forEach((rule: any) => {
+      result[rule.id] = evaluateRule(rule);
+    });
+    return result;
+  }, [rules.rules, evaluateRule]);
+
+  const allMatchedTasks = useMemo(() => {
+    const taskSet = new Set<string>();
+    Object.values(allMatchedTasksByRule).forEach((matchedTasks: any[]) => {
+      matchedTasks.forEach(t => taskSet.add(t.id));
+    });
+    return tasks.filter(t => taskSet.has(t.id));
+  }, [allMatchedTasksByRule, tasks]);
+
+  const currentLinkedTaskIds = useMemo(() => {
+    return links
+      .filter((l: any) => l.milestoneId === milestone.id)
+      .map((l: any) => l.taskId);
+  }, [links, milestone.id]);
+
+  const pendingTasks = useMemo(() => {
+    return allMatchedTasks.filter(t => !currentLinkedTaskIds.includes(t.id));
+  }, [allMatchedTasks, currentLinkedTaskIds]);
+
+  const alreadyLinkedFromRules = useMemo(() => {
+    return allMatchedTasks.filter(t => currentLinkedTaskIds.includes(t.id));
+  }, [allMatchedTasks, currentLinkedTaskIds]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
@@ -747,12 +816,15 @@ function ScopeDefinitionTab({
       id: `r-${Date.now()}`,
       label: "New Scope Rule",
       active: true,
-      filters: {}
+      stage: "all",
+      epicType: "all",
+      taskTemplateKey: "all"
     };
     onUpdateRules({
       ...rules,
       rules: [...(rules.rules || []), newRule]
     });
+    setExpandedRules(prev => ({ ...prev, [newRule.id]: true }));
   };
 
   const handleDeleteRule = (ruleId: string) => {
@@ -769,6 +841,31 @@ function ScopeDefinitionTab({
     });
   };
 
+  const handleApplyRules = () => {
+    if (pendingTasks.length === 0) {
+      toast({ 
+        title: "No Changes", 
+        description: "All matched tasks are already linked to this milestone." 
+      });
+      return;
+    }
+
+    const newLinks = pendingTasks.map(t => ({
+      id: `l-${Date.now()}-${t.id}`,
+      milestoneId: milestone.id,
+      taskId: t.id,
+      source: "rule_applied",
+      locked: false,
+      createdAt: new Date().toISOString()
+    }));
+
+    onUpdateLinks([...links, ...newLinks]);
+    toast({ 
+      title: "Rules Applied", 
+      description: `Added ${pendingTasks.length} task${pendingTasks.length !== 1 ? 's' : ''} to milestone scope.` 
+    });
+  };
+
   const handleToggleCellTasks = (epicId: string, stageId: string) => {
     const cellTasks = tasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
     if (cellTasks.length === 0) return;
@@ -776,17 +873,14 @@ function ScopeDefinitionTab({
     const milestoneLinks = links.filter((l: any) => l.milestoneId === milestone.id);
     const linkedTaskIds = milestoneLinks.map((l: any) => l.taskId);
     
-    // Find tasks that are unlinked
     const unlinkedTasks = cellTasks.filter((t: any) => !linkedTaskIds.includes(t.id));
     
-    // Find links that are unlocked (can be removed)
     const cellTaskIds = cellTasks.map((t: any) => t.id);
     const removableLinks = milestoneLinks.filter((l: any) => 
       cellTaskIds.includes(l.taskId) && !l.locked
     );
     
     if (unlinkedTasks.length > 0) {
-      // Add all unlinked tasks
       const newLinks = unlinkedTasks.map((t: any) => ({
         id: `l-${Date.now()}-${t.id}`,
         milestoneId: milestone.id,
@@ -796,12 +890,14 @@ function ScopeDefinitionTab({
       }));
       onUpdateLinks([...links, ...newLinks]);
     } else if (removableLinks.length > 0) {
-      // Remove all unlocked links for this cell
       const removableIds = removableLinks.map(l => l.id);
       const updatedLinks = links.filter((l: any) => !removableIds.includes(l.id));
       onUpdateLinks(updatedLinks);
     }
-    // If all tasks are linked AND all are locked, do nothing (can't remove locked tasks)
+  };
+
+  const toggleRuleExpanded = (ruleId: string) => {
+    setExpandedRules(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
   };
 
   return (
@@ -828,17 +924,68 @@ function ScopeDefinitionTab({
           >
             <SlidersHorizontal className="w-4 h-4 mr-2" />
             Rule-Based Scope
+            {pendingTasks.length > 0 && (
+              <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 text-xs">
+                {pendingTasks.length} pending
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
         <div className="mt-6">
           <TabsContent value="rules" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">Definition Rules</h3>
-              <Button size="sm" variant="outline" onClick={handleAddRule} className="gap-2">
-                <Plus className="h-4 w-4" /> Add Rule
-              </Button>
+              <div>
+                <h3 className="text-sm font-medium">Definition Rules</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Define criteria to automatically include tasks in this milestone
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {pendingTasks.length > 0 && (
+                  <Button 
+                    size="sm" 
+                    onClick={handleApplyRules}
+                    className="gap-2 bg-green-600 hover:bg-green-700"
+                    data-testid="button-apply-rules"
+                  >
+                    <Zap className="h-4 w-4" /> 
+                    Apply Rules ({pendingTasks.length} tasks)
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={handleAddRule} className="gap-2" data-testid="button-add-rule">
+                  <Plus className="h-4 w-4" /> Add Rule
+                </Button>
+              </div>
             </div>
+
+            {pendingTasks.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-800">
+                    {pendingTasks.length} task{pendingTasks.length !== 1 ? 's' : ''} matched but not yet applied
+                  </p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Click "Apply Rules" to add these tasks to the milestone scope.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {alreadyLinkedFromRules.length > 0 && pendingTasks.length === 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-800">
+                    All matched tasks are linked
+                  </p>
+                  <p className="text-xs text-green-700 mt-0.5">
+                    {alreadyLinkedFromRules.length} task{alreadyLinkedFromRules.length !== 1 ? 's' : ''} from rules are included in this milestone.
+                  </p>
+                </div>
+              </div>
+            )}
             
             <div className="space-y-3">
               {(rules.rules || []).length === 0 ? (
@@ -846,69 +993,184 @@ function ScopeDefinitionTab({
                    No rules defined. Add a rule to automatically include tasks in this milestone.
                  </div>
               ) : (
-                rules.rules.map((rule: any) => (
-                  <Card key={rule.id} className="relative overflow-hidden group">
-                    <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-                      <div className="flex-1 mr-4">
-                         <Input 
-                           value={rule.label} 
-                           onChange={(e) => handleUpdateRule(rule.id, { label: e.target.value })}
-                           className="h-8 font-medium border-transparent hover:border-input focus:border-input px-0"
-                         />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Switch checked={rule.active} onCheckedChange={(c) => handleUpdateRule(rule.id, { active: c })} />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteRule(rule.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-2 text-sm text-muted-foreground space-y-2">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                           <Label className="text-xs">Task Type</Label>
-                           <Select value={rule.taskTemplateKey || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}>
-                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Type" /></SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="all">Any Type</SelectItem>
-                               <SelectItem value="backend">Backend Task</SelectItem>
-                               <SelectItem value="frontend">Frontend Task</SelectItem>
-                               <SelectItem value="design">Design Task</SelectItem>
-                             </SelectContent>
-                           </Select>
+                rules.rules.map((rule: any) => {
+                  const matchedTasks = allMatchedTasksByRule[rule.id] || [];
+                  const linkedCount = matchedTasks.filter(t => currentLinkedTaskIds.includes(t.id)).length;
+                  const pendingCount = matchedTasks.length - linkedCount;
+                  const isExpanded = expandedRules[rule.id] || false;
+                  
+                  return (
+                    <Card key={rule.id} className={cn(
+                      "relative overflow-hidden transition-all",
+                      !rule.active && "opacity-60"
+                    )}>
+                      <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                        <div className="flex-1 mr-4">
+                           <Input 
+                             value={rule.label} 
+                             onChange={(e) => handleUpdateRule(rule.id, { label: e.target.value })}
+                             className="h-8 font-medium border-transparent hover:border-input focus:border-input px-0"
+                             data-testid={`input-rule-label-${rule.id}`}
+                           />
                         </div>
-                        <div className="space-y-1">
-                           <Label className="text-xs">Stage</Label>
-                           <Select value={rule.stage || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}>
-                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Stage" /></SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="all">Any Stage</SelectItem>
-                               <SelectItem value="st_develop">Develop Solution</SelectItem>
-                               <SelectItem value="st_validate">Validate Blueprints</SelectItem>
-                               <SelectItem value="st_plan">Plan Strategy</SelectItem>
-                               <SelectItem value="st_enable">Enable Users</SelectItem>
-                             </SelectContent>
-                           </Select>
+                        <div className="flex items-center gap-2">
+                          <Switch 
+                            checked={rule.active} 
+                            onCheckedChange={(c) => handleUpdateRule(rule.id, { active: c })} 
+                            data-testid={`switch-rule-active-${rule.id}`}
+                          />
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive" 
+                            onClick={() => handleDeleteRule(rule.id)}
+                            data-testid={`button-delete-rule-${rule.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <div className="space-y-1">
-                           <Label className="text-xs">Epic Type</Label>
-                           <Select value={rule.epicType || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}>
-                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Epic Type" /></SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="all">Any Epic Type</SelectItem>
-                               <SelectItem value="use_case">Use Case</SelectItem>
-                               <SelectItem value="technical">Technical</SelectItem>
-                             </SelectContent>
-                           </Select>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-2 text-sm text-muted-foreground space-y-3">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-1">
+                             <Label className="text-xs">Stage</Label>
+                             <Select 
+                               value={rule.stage || "all"} 
+                               onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}
+                             >
+                               <SelectTrigger className="h-8" data-testid={`select-rule-stage-${rule.id}`}>
+                                 <SelectValue placeholder="Any Stage" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="all">Any Stage</SelectItem>
+                                 {stages.map((stage: any) => (
+                                   <SelectItem key={stage.id} value={stage.id}>
+                                     {stage.label || stage.name}
+                                   </SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+                          </div>
+                          <div className="space-y-1">
+                             <Label className="text-xs">Epic Type</Label>
+                             <Select 
+                               value={rule.epicType || "all"} 
+                               onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}
+                             >
+                               <SelectTrigger className="h-8" data-testid={`select-rule-epic-type-${rule.id}`}>
+                                 <SelectValue placeholder="Any Epic Type" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="all">Any Epic Type</SelectItem>
+                                 <SelectItem value="use_case">Use Case</SelectItem>
+                                 <SelectItem value="technical">Technical</SelectItem>
+                               </SelectContent>
+                             </Select>
+                          </div>
+                          <div className="space-y-1">
+                             <Label className="text-xs">Task Type</Label>
+                             <Select 
+                               value={rule.taskTemplateKey || "all"} 
+                               onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}
+                             >
+                               <SelectTrigger className="h-8" data-testid={`select-rule-task-type-${rule.id}`}>
+                                 <SelectValue placeholder="Any Type" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="all">Any Type</SelectItem>
+                                 <SelectItem value="backend">Backend Task</SelectItem>
+                                 <SelectItem value="frontend">Frontend Task</SelectItem>
+                                 <SelectItem value="design">Design Task</SelectItem>
+                               </SelectContent>
+                             </Select>
+                          </div>
                         </div>
-                      </div>
-                      <div className="bg-muted/30 p-2 rounded text-xs flex items-center gap-2 mt-2">
-                         <ArrowRight className="h-3 w-3" />
-                         <span>Matches roughly <strong>{Math.floor(Math.random() * 10)} tasks</strong> across <strong>{Math.floor(Math.random() * 3)} epics</strong></span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+
+                        <Collapsible open={isExpanded} onOpenChange={() => toggleRuleExpanded(rule.id)}>
+                          <CollapsibleTrigger asChild>
+                            <button 
+                              className={cn(
+                                "w-full p-3 rounded-lg text-xs flex items-center justify-between transition-colors",
+                                matchedTasks.length > 0 
+                                  ? pendingCount > 0
+                                    ? "bg-amber-50 hover:bg-amber-100 border border-amber-200"
+                                    : "bg-green-50 hover:bg-green-100 border border-green-200"
+                                  : "bg-muted/30 hover:bg-muted/50"
+                              )}
+                              data-testid={`button-toggle-rule-preview-${rule.id}`}
+                            >
+                              <span className="flex items-center gap-2">
+                                {matchedTasks.length > 0 ? (
+                                  pendingCount > 0 ? (
+                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                  ) : (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                                  )
+                                ) : (
+                                  <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+                                )}
+                                <span>
+                                  Matches <strong>{matchedTasks.length}</strong> task{matchedTasks.length !== 1 ? 's' : ''}
+                                  {matchedTasks.length > 0 && (
+                                    <span className="text-muted-foreground ml-1">
+                                      ({linkedCount} linked{pendingCount > 0 && `, ${pendingCount} pending`})
+                                    </span>
+                                  )}
+                                </span>
+                              </span>
+                              <ChevronDown className={cn(
+                                "h-4 w-4 transition-transform",
+                                isExpanded && "rotate-180"
+                              )} />
+                            </button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            {matchedTasks.length > 0 ? (
+                              <div className="mt-2 border rounded-lg divide-y max-h-[200px] overflow-y-auto">
+                                {matchedTasks.map((task: any) => {
+                                  const isLinked = currentLinkedTaskIds.includes(task.id);
+                                  return (
+                                    <div 
+                                      key={task.id} 
+                                      className="px-3 py-2 flex items-center justify-between text-xs hover:bg-muted/30"
+                                    >
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        {isLinked ? (
+                                          <CheckSquare className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                        ) : (
+                                          <Circle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                                        )}
+                                        <span className="truncate font-medium">{task.title}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                        <Badge variant="outline" className="text-[10px]">
+                                          {getStageName(task.stageId)}
+                                        </Badge>
+                                        <Badge 
+                                          variant="secondary" 
+                                          className={cn(
+                                            "text-[10px]",
+                                            isLinked ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                                          )}
+                                        >
+                                          {isLinked ? "Linked" : "Pending"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="mt-2 p-4 border rounded-lg text-center text-muted-foreground text-xs">
+                                No tasks match this rule's criteria
+                              </div>
+                            )}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </CardContent>
+                    </Card>
+                  );
+                })
               )}
             </div>
           </TabsContent>
