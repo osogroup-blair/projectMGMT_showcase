@@ -94,7 +94,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
               <AccordionItem 
                 key={stage.id} 
                 value={stage.id} 
-                className="border rounded-lg bg-card px-4" 
+                className="border rounded-lg bg-card px-4 relative" 
                 data-testid={`accordion-stage-${stage.id}`}
               >
                 <AccordionTrigger className="hover:no-underline py-4">
@@ -130,14 +130,17 @@ export function StagesContent({ projectId }: { projectId: string }) {
                         </div>
                       </div>
                     </div>
-                    <Link href={`/projects/${projectId}/stages/${stage.id}`} onClick={(e) => e.stopPropagation()}>
-                      <Button variant="outline" size="sm" className="gap-2" data-testid={`open-workspace-${stage.id}`}>
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Open Workspace
-                      </Button>
-                    </Link>
                   </div>
                 </AccordionTrigger>
+
+                <div className="absolute right-12 top-4">
+                  <Link href={`/projects/${projectId}/stages/${stage.id}`}>
+                    <Button variant="outline" size="sm" className="gap-2" data-testid={`open-workspace-${stage.id}`}>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Open Workspace
+                    </Button>
+                  </Link>
+                </div>
 
                 <AccordionContent className="pt-0 pb-4 pl-14">
                   <div className="space-y-3 mt-4">
