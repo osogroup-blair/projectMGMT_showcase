@@ -25,6 +25,7 @@ export const frameworkTemplates = pgTable("framework_templates", {
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey(),
   name: text("name").notNull(),
+  description: text("description"),
   status: text("status").notNull().default("Upcoming"),
   startDate: text("start_date"),
   deadline: text("deadline").notNull(),
