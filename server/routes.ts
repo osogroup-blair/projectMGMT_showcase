@@ -735,6 +735,156 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Template Export/Import
+  app.get("/api/templates/export", async (req, res) => {
+    try {
+      const [
+        frameworkTemplates,
+        stageTemplates,
+        projectTemplates,
+        deliverableTemplates,
+        epicTemplates,
+        taskTemplates,
+        roleTemplates,
+        mappingTemplates
+      ] = await Promise.all([
+        storage.getFrameworkTemplates(),
+        storage.getStageTemplates(),
+        storage.getProjectTemplates(),
+        storage.getDeliverableTemplates(),
+        storage.getEpicTemplates(),
+        storage.getTaskTemplates(),
+        storage.getRoleTemplates(),
+        storage.getMappingTemplates()
+      ]);
+
+      const exportData = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        templates: {
+          framework: frameworkTemplates,
+          stage: stageTemplates,
+          project: projectTemplates,
+          deliverable: deliverableTemplates,
+          epic: epicTemplates,
+          task: taskTemplates,
+          role: roleTemplates,
+          mapping: mappingTemplates
+        }
+      };
+
+      res.json(exportData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/templates/import", async (req, res) => {
+    try {
+      const { templates, mode = "skip" } = req.body;
+      // mode: "skip" = skip existing, "overwrite" = update existing
+      
+      const results = {
+        framework: { created: 0, updated: 0, skipped: 0 },
+        stage: { created: 0, updated: 0, skipped: 0 },
+        project: { created: 0, updated: 0, skipped: 0 },
+        deliverable: { created: 0, updated: 0, skipped: 0 },
+        epic: { created: 0, updated: 0, skipped: 0 },
+        task: { created: 0, updated: 0, skipped: 0 },
+        role: { created: 0, updated: 0, skipped: 0 },
+        mapping: { created: 0, updated: 0, skipped: 0 }
+      };
+
+      // Helper to import a template type
+      async function importTemplates(
+        items: any[],
+        getAll: () => Promise<any[]>,
+        create: (data: any) => Promise<any>,
+        update: (id: string, data: any) => Promise<any>,
+        key: keyof typeof results
+      ) {
+        if (!items?.length) return;
+        const existing = await getAll();
+        const existingIds = new Set(existing.map((e: any) => e.id));
+
+        for (const item of items) {
+          if (existingIds.has(item.id)) {
+            if (mode === "overwrite") {
+              await update(item.id, item);
+              results[key].updated++;
+            } else {
+              results[key].skipped++;
+            }
+          } else {
+            await create(item);
+            results[key].created++;
+          }
+        }
+      }
+
+      await importTemplates(
+        templates.framework,
+        () => storage.getFrameworkTemplates(),
+        (d) => storage.createFrameworkTemplate(d),
+        (id, d) => storage.updateFrameworkTemplate(id, d),
+        "framework"
+      );
+      await importTemplates(
+        templates.stage,
+        () => storage.getStageTemplates(),
+        (d) => storage.createStageTemplate(d),
+        (id, d) => storage.updateStageTemplate(id, d),
+        "stage"
+      );
+      await importTemplates(
+        templates.project,
+        () => storage.getProjectTemplates(),
+        (d) => storage.createProjectTemplate(d),
+        (id, d) => storage.updateProjectTemplate(id, d),
+        "project"
+      );
+      await importTemplates(
+        templates.deliverable,
+        () => storage.getDeliverableTemplates(),
+        (d) => storage.createDeliverableTemplate(d),
+        (id, d) => storage.updateDeliverableTemplate(id, d),
+        "deliverable"
+      );
+      await importTemplates(
+        templates.epic,
+        () => storage.getEpicTemplates(),
+        (d) => storage.createEpicTemplate(d),
+        (id, d) => storage.updateEpicTemplate(id, d),
+        "epic"
+      );
+      await importTemplates(
+        templates.task,
+        () => storage.getTaskTemplates(),
+        (d) => storage.createTaskTemplate(d),
+        (id, d) => storage.updateTaskTemplate(id, d),
+        "task"
+      );
+      await importTemplates(
+        templates.role,
+        () => storage.getRoleTemplates(),
+        (d) => storage.createRoleTemplate(d),
+        (id, d) => storage.updateRoleTemplate(id, d),
+        "role"
+      );
+      await importTemplates(
+        templates.mapping,
+        () => storage.getMappingTemplates(),
+        (d) => storage.createMappingTemplate(d),
+        (id, d) => storage.updateMappingTemplate(id, d),
+        "mapping"
+      );
+
+      res.json({ success: true, results });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Status Options (covers projectStatuses, taskStatuses, stageTypes)
   app.get("/api/statusOptions", async (req, res) => {
     const options = await storage.getStatusOptions();
