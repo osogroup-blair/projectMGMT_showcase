@@ -10,8 +10,10 @@ import {
   List,
   Tags,
   Sliders,
-  Layers
+  Layers,
+  Users
 } from "lucide-react";
+import { useRoleTypes } from "@/hooks/use-nexus-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,6 +64,9 @@ import { cn } from "@/lib/utils";
 export default function AdminAppDefaults() {
   const { toast } = useToast();
   
+  // Database hook for role types
+  const { data: roleTypes = [], createAsync: createRoleType, updateAsync: updateRoleType, removeAsync: deleteRoleType, isLoading: roleTypesLoading } = useRoleTypes();
+  
   // State for Defaults
   const [projectStatuses, setProjectStatuses] = useState<StatusOption[]>(PROJECT_STATUS_OPTIONS);
   const [taskStatuses, setTaskStatuses] = useState<StatusOption[]>(TASK_STATUS_OPTIONS);
@@ -75,8 +80,9 @@ export default function AdminAppDefaults() {
 
   // Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [currentType, setCurrentType] = useState<"project" | "task" | "stage-type">("project");
+  const [currentType, setCurrentType] = useState<"project" | "task" | "stage-type" | "role-type">("project");
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [formData, setFormData] = useState<any>({
     label: "",
@@ -84,7 +90,7 @@ export default function AdminAppDefaults() {
     description: ""
   });
 
-  const handleOpenEdit = (type: "project" | "task" | "stage-type", item?: any) => {
+  const handleOpenEdit = (type: "project" | "task" | "stage-type" | "role-type", item?: any) => {
     setCurrentType(type);
     setEditingItem(item || null);
     if (item) {
@@ -100,46 +106,76 @@ export default function AdminAppDefaults() {
     setIsEditOpen(true);
   };
 
-  const handleSave = () => {
-    const newItem = {
-      ...formData,
-      id: editingItem?.id || `s_${Date.now()}`,
-    };
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (currentType === "role-type") {
+        const roleData = { label: formData.label, description: formData.description || "" };
+        if (editingItem) {
+          await updateRoleType({ id: editingItem.id, ...roleData });
+        } else {
+          await createRoleType(roleData);
+        }
+      } else {
+        const newItem = {
+          ...formData,
+          id: editingItem?.id || `s_${Date.now()}`,
+        };
 
-    if (currentType === "project") {
-      setProjectStatuses(prev => 
-        editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
-      );
-    } else if (currentType === "task") {
-      setTaskStatuses(prev => 
-        editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
-      );
-    } else if (currentType === "stage-type") {
-      setStageTypes(prev => 
-        editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
-      );
+        if (currentType === "project") {
+          setProjectStatuses(prev => 
+            editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
+          );
+        } else if (currentType === "task") {
+          setTaskStatuses(prev => 
+            editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
+          );
+        } else if (currentType === "stage-type") {
+          setStageTypes(prev => 
+            editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
+          );
+        }
+      }
+
+      setIsEditOpen(false);
+      toast({
+        title: "Settings Saved",
+        description: `${formData.label} has been successfully saved.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsEditOpen(false);
-    toast({
-      title: "Settings Saved",
-      description: `${newItem.label} has been successfully saved.`,
-    });
   };
 
-  const handleDelete = (type: "project" | "task" | "stage-type", id: string) => {
-    if (type === "project") {
-      setProjectStatuses(prev => prev.filter(i => i.id !== id));
-    } else if (type === "task") {
-      setTaskStatuses(prev => prev.filter(i => i.id !== id));
-    } else if (type === "stage-type") {
-      setStageTypes(prev => prev.filter(i => i.id !== id));
+  const handleDelete = async (type: "project" | "task" | "stage-type" | "role-type", id: string) => {
+    try {
+      if (type === "role-type") {
+        await deleteRoleType(id);
+      } else if (type === "project") {
+        setProjectStatuses(prev => prev.filter(i => i.id !== id));
+      } else if (type === "task") {
+        setTaskStatuses(prev => prev.filter(i => i.id !== id));
+      } else if (type === "stage-type") {
+        setStageTypes(prev => prev.filter(i => i.id !== id));
+      }
+      toast({
+        title: "Item Deleted",
+        description: "Item has been removed.",
+        variant: "destructive"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete. Please try again.",
+        variant: "destructive"
+      });
     }
-    toast({
-      title: "Item Deleted",
-      description: "Item has been removed.",
-      variant: "destructive"
-    });
   };
 
   const ColorPicker = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
@@ -189,6 +225,10 @@ export default function AdminAppDefaults() {
             <TabsTrigger value="stage-types" className="gap-2">
               <Layers className="h-4 w-4" />
               Stage Types
+            </TabsTrigger>
+            <TabsTrigger value="role-types" className="gap-2">
+              <Users className="h-4 w-4" />
+              Role Types
             </TabsTrigger>
             <TabsTrigger value="tags" className="gap-2">
               <Tags className="h-4 w-4" />
@@ -316,6 +356,55 @@ export default function AdminAppDefaults() {
             </Card>
           </TabsContent>
 
+          <TabsContent value="role-types" className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Role Types</CardTitle>
+                    <CardDescription>Define the types of roles that can be assigned to team members.</CardDescription>
+                  </div>
+                  <Button size="sm" onClick={() => handleOpenEdit("role-type")}>
+                    <Plus className="h-4 w-4 mr-2" /> Add Role Type
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {roleTypesLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading role types...</div>
+                ) : roleTypes.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p>No role types defined yet. Add your first role type to get started.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <div className="grid grid-cols-1 divide-y">
+                      {roleTypes.map((type: any) => (
+                        <div key={type.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
+                          <div>
+                            <div className="font-medium">{type.label}</div>
+                            {type.description && (
+                              <div className="text-sm text-muted-foreground">{type.description}</div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenEdit("role-type", type)}>
+                              <Pencil className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDelete("role-type", type.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="tags" className="mt-6">
             <Card>
               <CardContent className="p-12 text-center text-muted-foreground">
@@ -341,9 +430,15 @@ export default function AdminAppDefaults() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit" : "Create"} Status Option</DialogTitle>
+            <DialogTitle>
+              {editingItem ? "Edit" : "Create"} {currentType === "role-type" ? "Role Type" : currentType === "stage-type" ? "Stage Type" : "Status Option"}
+            </DialogTitle>
             <DialogDescription>
-              Configure the status label and appearance.
+              {currentType === "role-type" 
+                ? "Configure the role type label and description." 
+                : currentType === "stage-type"
+                ? "Configure the stage type label and description."
+                : "Configure the status label and appearance."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -353,23 +448,23 @@ export default function AdminAppDefaults() {
                 id="label" 
                 value={formData.label} 
                 onChange={(e) => setFormData({...formData, label: e.target.value})} 
-                placeholder={currentType === "stage-type" ? "e.g. Planning" : "e.g. In Review"}
+                placeholder={currentType === "stage-type" ? "e.g. Planning" : currentType === "role-type" ? "e.g. Project Manager" : "e.g. In Review"}
               />
             </div>
             
-            {currentType === "stage-type" && (
+            {(currentType === "stage-type" || currentType === "role-type") && (
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Input 
                   id="description" 
-                  value={formData.description} 
+                  value={formData.description || ""} 
                   onChange={(e) => setFormData({...formData, description: e.target.value})} 
-                  placeholder="Short description of this stage type"
+                  placeholder={currentType === "role-type" ? "Brief description of this role type" : "Short description of this stage type"}
                 />
               </div>
             )}
 
-            {currentType !== "stage-type" && (
+            {currentType !== "stage-type" && currentType !== "role-type" && (
               <div className="space-y-2">
                 <Label>Color Preset</Label>
                 <ColorPicker 
@@ -386,7 +481,9 @@ export default function AdminAppDefaults() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save Option</Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

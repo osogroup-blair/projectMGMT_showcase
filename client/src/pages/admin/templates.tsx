@@ -23,6 +23,7 @@ import {
   FileJson,
   AlertCircle
 } from "lucide-react";
+import { useRoleTypes } from "@/hooks/use-nexus-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,6 +161,8 @@ export default function AdminTemplates() {
     removeAsync: removeRole,
     isLoading: rolesLoading 
   } = useRoleTemplates();
+
+  const { data: roleTypes = [] } = useRoleTypes();
 
   const isLoading = projectsLoading || frameworksLoading || stagesLoading || 
                     deliverablesLoading || epicsLoading || tasksLoading || rolesLoading;
@@ -816,12 +819,13 @@ export default function AdminTemplates() {
                       <SelectValue placeholder="Select role type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Management">Management</SelectItem>
-                      <SelectItem value="Discovery">Discovery</SelectItem>
-                      <SelectItem value="Design">Design</SelectItem>
-                      <SelectItem value="Development">Development</SelectItem>
-                      <SelectItem value="QA & Testing">QA & Testing</SelectItem>
-                      <SelectItem value="Launch">Launch</SelectItem>
+                      {roleTypes.length > 0 ? (
+                        roleTypes.map((rt: any) => (
+                          <SelectItem key={rt.id} value={rt.label}>{rt.label}</SelectItem>
+                        ))
+                      ) : (
+                        <div className="text-xs text-muted-foreground p-2">No role types defined. Add them in App Defaults.</div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1038,12 +1042,13 @@ export default function AdminTemplates() {
                             >
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Management">Management</SelectItem>
-                                    <SelectItem value="Discovery">Discovery</SelectItem>
-                                    <SelectItem value="Design">Design</SelectItem>
-                                    <SelectItem value="Development">Development</SelectItem>
-                                    <SelectItem value="QA & Testing">QA & Testing</SelectItem>
-                                    <SelectItem value="Launch">Launch</SelectItem>
+                                    {roleTypes.length > 0 ? (
+                                      roleTypes.map((rt: any) => (
+                                        <SelectItem key={rt.id} value={rt.label}>{rt.label}</SelectItem>
+                                      ))
+                                    ) : (
+                                      <div className="text-xs text-muted-foreground p-2">No role types defined. Add them in App Defaults.</div>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
