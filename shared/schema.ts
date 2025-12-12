@@ -96,6 +96,10 @@ export const milestones = pgTable("milestones", {
   requiredCompletionRatio: integer("required_completion_ratio"),
 });
 
+// Fibonacci sequence values for effort estimation (1-100)
+export const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89] as const;
+export type EffortValue = typeof EFFORT_VALUES[number];
+
 // Tasks
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey(),
@@ -111,6 +115,7 @@ export const tasks = pgTable("tasks", {
   priority: text("priority").notNull().default("Medium"),
   milestoneId: varchar("milestone_id").references(() => milestones.id),
   estimateHours: integer("estimate_hours"),
+  effort: integer("effort"),
   tags: text("tags").array().default([]),
 });
 
