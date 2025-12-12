@@ -463,28 +463,37 @@ export default function ProjectWizard() {
         throw new Error("Failed to create project");
       }
       
-      // 2. Create project stages from templates and build mapping
-      const templateIdToStageId = new Map<string, string>();
-      let stageOrder = 0;
+      // 2. Create project stages and store by array index (not template ID which may be unreliable)
+      // Store created stages with their original wizard stage data for task creation
+      const createdStages: Array<{ 
+        createdStageId: string; 
+        includeTasks: boolean; 
+        defaultTasks: string[];
+        name: string;
+      }> = [];
       
-      for (const stageTemplate of stages) {
+      for (let i = 0; i < stages.length; i++) {
+        const stageTemplate = stages[i];
         const newStage = await createProjectStage({
           name: stageTemplate.name,
           description: stageTemplate.description || "",
-          order: stageOrder++,
+          order: i,
           type: stageTemplate.type || "standard",
           status: "pending"
         });
         
-        if (newStage?.id && stageTemplate.id) {
-          templateIdToStageId.set(stageTemplate.id, newStage.id);
+        if (newStage?.id) {
+          createdStages.push({
+            createdStageId: newStage.id,
+            includeTasks: stageTemplate.includeTasks || false,
+            defaultTasks: stageTemplate.defaultTasks || [],
+            name: stageTemplate.name
+          });
         }
       }
       
-      // Get the first created stage ID for default assignment
-      const firstStageId = stages.length > 0 && stages[0]?.id 
-        ? templateIdToStageId.get(stages[0].id) || null
-        : null;
+      // Get the first created stage ID for default epic assignment
+      const firstStageId = createdStages.length > 0 ? createdStages[0].createdStageId : null;
       
       // 3. Create deliverables with epics and collect created epic IDs
       const createdEpics: { id: string; title: string }[] = [];
@@ -522,15 +531,15 @@ export default function ProjectWizard() {
         }
       }
       
-      // 4. Create tasks per epic - each epic gets tasks from all stages with includeTasks enabled
+      // 4. Create tasks per epic - each epic gets tasks from ALL stages with includeTasks enabled
+      // Loop: for each epic → for each stage with tasks → create tasks with correct epicId and stageId
       let totalTasksCreated = 0;
       
       for (const createdEpic of createdEpics) {
-        for (const stageTemplate of stages) {
-          if (stageTemplate.includeTasks && stageTemplate.defaultTasks?.length > 0) {
-            const actualStageId = templateIdToStageId.get(stageTemplate.id) || null;
-            
-            for (const taskId of stageTemplate.defaultTasks) {
+        for (const createdStage of createdStages) {
+          // Only process stages that have includeTasks enabled and have default tasks
+          if (createdStage.includeTasks && createdStage.defaultTasks.length > 0) {
+            for (const taskId of createdStage.defaultTasks) {
               const taskTemplate = taskTemplates.find(t => t.id === taskId);
               if (taskTemplate) {
                 await createTask({
@@ -540,7 +549,7 @@ export default function ProjectWizard() {
                   description: taskTemplate.description || "",
                   status: "Todo",
                   priority: taskTemplate.defaultPriority || "Medium",
-                  stageId: actualStageId,
+                  stageId: createdStage.createdStageId,
                   epicId: createdEpic.id,
                   effort: 1,
                   deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
