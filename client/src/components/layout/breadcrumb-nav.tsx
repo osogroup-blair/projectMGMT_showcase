@@ -81,6 +81,30 @@ export function BreadcrumbNav() {
     staleTime: 60000,
   });
 
+  // Fetch the epic for a task (when viewing task detail)
+  const { data: taskEpic } = useQuery({
+    queryKey: ["/api/epics", task?.epicId],
+    queryFn: async () => {
+      const res = await fetch(`/api/epics/${task.epicId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!task?.epicId,
+    staleTime: 60000,
+  });
+
+  // Fetch the deliverable for the task's epic
+  const { data: taskDeliverable } = useQuery({
+    queryKey: ["/api/deliverables", taskEpic?.deliverableId],
+    queryFn: async () => {
+      const res = await fetch(`/api/deliverables/${taskEpic.deliverableId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!taskEpic?.deliverableId,
+    staleTime: 60000,
+  });
+
   const handleGoBack = () => {
     window.history.back();
   };
@@ -136,6 +160,15 @@ export function BreadcrumbNav() {
   // Check if we're on a project overview page (just /projects/:id with optional tab query)
   const isProjectOverviewPage = pathSegments.length === 2 && pathSegments[0] === "projects";
 
+  // Check if we're on a task detail page: /projects/:projectId/tasks/:taskId
+  const isTaskDetailPage = pathSegments.length === 4 && 
+    pathSegments[0] === "projects" && 
+    pathSegments[2] === "tasks";
+
+  // Get project info for task detail breadcrumb
+  const projectIdFromPath = pathSegments[1];
+  const projectForBreadcrumb = projects?.find((p: any) => p.id === projectIdFromPath);
+
   return (
     <div className="h-12 border-b border-border bg-background flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-2 text-sm text-muted-foreground overflow-hidden">
@@ -153,7 +186,31 @@ export function BreadcrumbNav() {
           <HomeIcon className="h-4 w-4" />
         </Link>
         
-        {pathSegments.map((segment, index) => {
+        {/* Custom breadcrumb for task detail page: Project > Deliverable > Epic > Task */}
+        {isTaskDetailPage && taskDeliverable && taskEpic && task ? (
+          <>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href="/projects" className="hover:text-primary transition-colors truncate max-w-[150px]">
+              Projects
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href={`/projects/${projectIdFromPath}?tab=deliverables`} className="hover:text-primary transition-colors truncate max-w-[150px]">
+              {projectForBreadcrumb?.name || "Project"}
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href={`/projects/${projectIdFromPath}?tab=deliverables`} className="hover:text-primary transition-colors truncate max-w-[150px]">
+              {taskDeliverable.title}
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href={`/projects/${projectIdFromPath}?tab=deliverables`} className="hover:text-primary transition-colors truncate max-w-[150px]">
+              {taskEpic.title}
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <span className="font-medium text-foreground truncate max-w-[200px]">
+              {task.title}
+            </span>
+          </>
+        ) : pathSegments.map((segment, index) => {
           let path = `/${pathSegments.slice(0, index + 1).join("/")}`;
           const isLast = index === pathSegments.length - 1;
           const label = getBreadcrumbLabel(segment, index, pathSegments);
