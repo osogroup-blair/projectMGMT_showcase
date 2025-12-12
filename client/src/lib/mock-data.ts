@@ -50,6 +50,7 @@ export interface Task {
   priority: "Low" | "Medium" | "High";
   milestoneId?: string;
   estimateHours?: number;
+  effort?: number; // Fibonacci sequence: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89
   tags?: string[];
 }
 
