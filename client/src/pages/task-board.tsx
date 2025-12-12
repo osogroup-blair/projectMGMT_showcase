@@ -57,7 +57,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useRoute, useLocation, Link } from "wouter";
+import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Task } from "@/lib/mock-data";
@@ -866,61 +868,85 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   }, [milestones, project]);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [groupBy, setGroupBy] = useState<GroupByType>("status");
+  const [activeAccordion, setActiveAccordion] = useState<string>("status");
   const [selectedSection, setSelectedSection] = useState<string>("all");
-  const [viewType, setViewType] = useState<"card" | "list">("card");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
+  
+  // Filter state for chips
+  const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
+  const [dueFilters, setDueFilters] = useState<string[]>([]);
 
-  // Reset selectedSection when groupBy changes
+  // Reset selectedSection when accordion changes
   useEffect(() => {
     setSelectedSection("all");
-  }, [groupBy]);
+  }, [activeAccordion]);
 
-  const filteredTasks = projectTasks.filter(t => {
-    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
-    
-    // Filter by selected section
-    if (selectedSection !== "all") {
-      if (groupBy === "stage") return matchesSearch && t.stageId === selectedSection;
-      if (groupBy === "status") return matchesSearch && t.status === selectedSection;
-      if (groupBy === "epic") return matchesSearch && (selectedSection === "unassigned" ? !t.epicId : t.epicId === selectedSection);
-      if (groupBy === "assignee") return matchesSearch && (selectedSection === "unassigned" ? !t.assigneeId : t.assigneeId === selectedSection);
-      if (groupBy === "milestone") return matchesSearch && (selectedSection === "unassigned" ? !t.milestoneId : t.milestoneId === selectedSection);
-    }
-    return matchesSearch;
-  });
+  // All accordion sections computed once
+  const accordionSections = useMemo(() => {
+    return {
+      status: ["Todo", "In Progress", "Review", "Done"].map(s => ({ id: s, name: s, count: projectTasks.filter(t => t.status === s).length })),
+      stage: stages.map((s: any) => ({ id: s.id, name: s.name, count: projectTasks.filter(t => t.stageId === s.id).length })),
+      epic: (() => {
+        const sections = projectEpics.map((e: any) => ({ id: e.id, name: e.title, count: projectTasks.filter(t => t.epicId === e.id).length }));
+        const unassigned = projectTasks.filter(t => !t.epicId).length;
+        if (unassigned > 0) sections.push({ id: "unassigned", name: "No Epic", count: unassigned });
+        return sections;
+      })(),
+      assignee: (() => {
+        const sections = users.map((u: any) => ({ id: u.id, name: u.name, count: projectTasks.filter(t => t.assigneeId === u.id).length }));
+        const unassigned = projectTasks.filter(t => !t.assigneeId).length;
+        if (unassigned > 0) sections.push({ id: "unassigned", name: "Unassigned", count: unassigned });
+        return sections;
+      })(),
+      milestone: (() => {
+        const sections = projectMilestones.map((m: any) => ({ id: m.id, name: m.name, count: projectTasks.filter(t => t.milestoneId === m.id).length }));
+        const unassigned = projectTasks.filter(t => !t.milestoneId).length;
+        if (unassigned > 0) sections.push({ id: "unassigned", name: "No Milestone", count: unassigned });
+        return sections;
+      })()
+    };
+  }, [stages, projectTasks, projectEpics, users, projectMilestones]);
 
-  // Sidebar sections based on groupBy
-  const sidebarSections = useMemo(() => {
-    if (groupBy === "stage") {
-      return stages.map((s: any) => ({ id: s.id, name: s.name, count: projectTasks.filter(t => t.stageId === s.id).length }));
-    }
-    if (groupBy === "status") {
-      return ["Todo", "In Progress", "Review", "Done"].map(s => ({ id: s, name: s, count: projectTasks.filter(t => t.status === s).length }));
-    }
-    if (groupBy === "epic") {
-      const sections = projectEpics.map((e: any) => ({ id: e.id, name: e.title, count: projectTasks.filter(t => t.epicId === e.id).length }));
-      const unassigned = projectTasks.filter(t => !t.epicId).length;
-      if (unassigned > 0) sections.push({ id: "unassigned", name: "No Epic", count: unassigned });
-      return sections;
-    }
-    if (groupBy === "assignee") {
-      const sections = users.map((u: any) => ({ id: u.id, name: u.name, count: projectTasks.filter(t => t.assigneeId === u.id).length }));
-      const unassigned = projectTasks.filter(t => !t.assigneeId).length;
-      if (unassigned > 0) sections.push({ id: "unassigned", name: "Unassigned", count: unassigned });
-      return sections;
-    }
-    if (groupBy === "milestone") {
-      const sections = projectMilestones.map((m: any) => ({ id: m.id, name: m.name, count: projectTasks.filter(t => t.milestoneId === m.id).length }));
-      const unassigned = projectTasks.filter(t => !t.milestoneId).length;
-      if (unassigned > 0) sections.push({ id: "unassigned", name: "No Milestone", count: unassigned });
-      return sections;
-    }
-    return [];
-  }, [groupBy, stages, projectTasks, projectEpics, users, projectMilestones]);
+  const filteredTasks = useMemo(() => {
+    return projectTasks.filter(t => {
+      const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+      
+      // Filter by selected accordion section
+      let matchesSection = true;
+      if (selectedSection !== "all") {
+        if (activeAccordion === "stage") matchesSection = t.stageId === selectedSection;
+        else if (activeAccordion === "status") matchesSection = t.status === selectedSection;
+        else if (activeAccordion === "epic") matchesSection = selectedSection === "unassigned" ? !t.epicId : t.epicId === selectedSection;
+        else if (activeAccordion === "assignee") matchesSection = selectedSection === "unassigned" ? !t.assigneeId : t.assigneeId === selectedSection;
+        else if (activeAccordion === "milestone") matchesSection = selectedSection === "unassigned" ? !t.milestoneId : t.milestoneId === selectedSection;
+      }
+
+      // Priority chip filter
+      const matchesPriority = priorityFilters.length === 0 || priorityFilters.includes(t.priority);
+
+      // Due date filter
+      let matchesDue = true;
+      if (dueFilters.length > 0) {
+        const today = new Date();
+        const deadline = new Date(t.deadline);
+        const diffDays = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        matchesDue = dueFilters.some(f => {
+          if (f === "overdue") return diffDays < 0;
+          if (f === "thisWeek") return diffDays >= 0 && diffDays <= 7;
+          if (f === "later") return diffDays > 7;
+          return true;
+        });
+      }
+
+      return matchesSearch && matchesSection && matchesPriority && matchesDue;
+    });
+  }, [projectTasks, searchQuery, selectedSection, activeAccordion, priorityFilters, dueFilters]);
+
+  const hasActiveFilters = priorityFilters.length > 0 || dueFilters.length > 0;
+  const clearAllFilters = () => { setPriorityFilters([]); setDueFilters([]); };
 
   const handleOpenCreate = (stageId?: string, epicId?: string) => {
     if (!project) return;
