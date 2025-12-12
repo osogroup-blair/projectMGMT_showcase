@@ -13,10 +13,8 @@ import {
   Flag,
   ListTodo,
   Layers,
-  Users,
   Eye,
   Briefcase,
-  Banknote,
   Loader2,
   Pencil,
   Check,
@@ -457,22 +455,10 @@ export default function ProjectOverview() {
             </div>
 
             <div className="flex gap-2 w-full lg:w-auto">
-              <Link href={`/projects/${projectId}/team`}>
-                <Button variant="outline" className="gap-2">
-                  <Users className="h-4 w-4" />
-                  Team
-                </Button>
-              </Link>
-              <Link href={`/projects/${projectId}/finance`}>
-                <Button variant="outline" className="gap-2">
-                  <Banknote className="h-4 w-4" />
-                  Finance
-                </Button>
-              </Link>
-              <Link href={`/projects/${projectId}/settings`}>
+              <Link href={`/projects/${projectId}/management`}>
                 <Button variant="outline" className="gap-2">
                   <Settings className="h-4 w-4" />
-                  Settings
+                  Management
                 </Button>
               </Link>
               <Button size="icon" variant="ghost">
