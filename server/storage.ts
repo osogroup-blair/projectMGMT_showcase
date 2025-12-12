@@ -223,7 +223,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
   async createUser(user: InsertUser): Promise<User> {
-    const id = crypto.randomUUID();
+    const id = (user as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.users).values({ ...user, id }).returning();
     return created;
   }
@@ -244,7 +244,7 @@ export class DatabaseStorage implements IStorage {
     return project;
   }
   async createProject(project: InsertProject): Promise<Project> {
-    const id = crypto.randomUUID();
+    const id = (project as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.projects).values({ ...project, id }).returning();
     return created;
   }
@@ -268,7 +268,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.deliverables).where(eq(schema.deliverables.projectId, projectId));
   }
   async createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.deliverables).values({ ...deliverable, id }).returning();
     return created;
   }
@@ -292,7 +292,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.epics).where(eq(schema.epics.deliverableId, deliverableId));
   }
   async createEpic(epic: InsertEpic): Promise<Epic> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.epics).values({ ...epic, id }).returning();
     return created;
   }
@@ -316,7 +316,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.tasks).where(eq(schema.tasks.projectId, projectId));
   }
   async createTask(task: InsertTask): Promise<Task> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.tasks).values({ ...task, id }).returning();
     return created;
   }
@@ -340,7 +340,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.milestones).where(eq(schema.milestones.projectId, projectId));
   }
   async createMilestone(milestone: InsertMilestone): Promise<Milestone> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.milestones).values({ ...milestone, id }).returning();
     return created;
   }
@@ -364,7 +364,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.milestoneScopeRules).where(eq(schema.milestoneScopeRules.milestoneId, milestoneId));
   }
   async createMilestoneScopeRule(rule: InsertMilestoneScopeRule): Promise<MilestoneScopeRule> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.milestoneScopeRules).values({ ...rule, id }).returning();
     return created;
   }
@@ -388,7 +388,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.milestoneId, milestoneId));
   }
   async createMilestoneTaskLink(link: InsertMilestoneTaskLink): Promise<MilestoneTaskLink> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.milestoneTaskLinks).values({ ...link, id }).returning();
     return created;
   }
@@ -405,7 +405,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.activity);
   }
   async createActivity(activity: InsertActivity): Promise<Activity> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.activity).values({ ...activity, id }).returning();
     return created;
   }
@@ -418,7 +418,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.comments).where(eq(schema.comments.taskId, taskId));
   }
   async createComment(comment: InsertComment): Promise<Comment> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.comments).values({ ...comment, id }).returning();
     return created;
   }
@@ -431,7 +431,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.attachments).where(eq(schema.attachments.taskId, taskId));
   }
   async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.attachments).values({ ...attachment, id }).returning();
     return created;
   }
@@ -444,7 +444,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.history).where(eq(schema.history.taskId, taskId));
   }
   async createHistory(history: InsertHistory): Promise<History> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.history).values({ ...history, id }).returning();
     return created;
   }
@@ -458,7 +458,7 @@ export class DatabaseStorage implements IStorage {
     return role;
   }
   async createProjectRole(role: InsertProjectRole): Promise<ProjectRole> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.projectRoles).values({ ...role, id }).returning();
     return created;
   }
@@ -482,7 +482,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.roleAssignments).where(eq(schema.roleAssignments.roleId, roleId));
   }
   async createRoleAssignment(assignment: InsertRoleAssignment): Promise<RoleAssignment> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.roleAssignments).values({ ...assignment, id }).returning();
     return created;
   }
@@ -503,7 +503,7 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createRoleTemplate(template: InsertRoleTemplate): Promise<RoleTemplate> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.roleTemplates).values({ ...template, id }).returning();
     return created;
   }
@@ -524,7 +524,7 @@ export class DatabaseStorage implements IStorage {
     return view;
   }
   async createSavedView(view: InsertSavedView): Promise<SavedView> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.savedViews).values({ ...view, id }).returning();
     return created;
   }
@@ -545,7 +545,7 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
   async createGuidanceItem(item: InsertGuidanceItem): Promise<GuidanceItem> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.guidanceItems).values({ ...item, id }).returning();
     return created;
   }
@@ -566,7 +566,7 @@ export class DatabaseStorage implements IStorage {
     return stage;
   }
   async createProjectStage(stage: InsertProjectStage): Promise<ProjectStage> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.projectStages).values({ ...stage, id }).returning();
     return created;
   }
@@ -587,7 +587,7 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createFrameworkTemplate(template: InsertFrameworkTemplate): Promise<FrameworkTemplate> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.frameworkTemplates).values({ ...template, id }).returning();
     return created;
   }
@@ -608,7 +608,7 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createStageTemplate(template: InsertStageTemplate): Promise<StageTemplate> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.stageTemplates).values({ ...template, id }).returning();
     return created;
   }
@@ -629,7 +629,7 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createProjectTemplate(template: InsertProjectTemplate): Promise<ProjectTemplate> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.projectTemplates).values({ ...template, id }).returning();
     return created;
   }
@@ -650,7 +650,7 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createDeliverableTemplate(template: InsertDeliverableTemplate): Promise<DeliverableTemplate> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.deliverableTemplates).values({ ...template, id }).returning();
     return created;
   }
@@ -671,7 +671,7 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createEpicTemplate(template: InsertEpicTemplate): Promise<EpicTemplate> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.epicTemplates).values({ ...template, id }).returning();
     return created;
   }
@@ -692,7 +692,7 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createTaskTemplate(template: InsertTaskTemplate): Promise<TaskTemplate> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.taskTemplates).values({ ...template, id }).returning();
     return created;
   }
@@ -713,7 +713,7 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createMappingTemplate(template: InsertMappingTemplate): Promise<MappingTemplate> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.mappingTemplates).values({ ...template, id }).returning();
     return created;
   }
@@ -737,7 +737,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.statusOptions).where(eq(schema.statusOptions.type, type));
   }
   async createStatusOption(option: InsertStatusOption): Promise<StatusOption> {
-    const id = crypto.randomUUID();
+    const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.statusOptions).values({ ...option, id }).returning();
     return created;
   }

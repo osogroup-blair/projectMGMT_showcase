@@ -30,10 +30,23 @@ import {
   insertStatusOptionSchema,
 } from "@shared/schema";
 
+// Import seed function
+import { seedDatabase } from "./seed";
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  // Seed endpoint (for development)
+  app.post("/api/seed", async (req, res) => {
+    try {
+      await seedDatabase();
+      res.json({ success: true, message: "Database seeded successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
   
   // Projects
   app.get("/api/projects", async (req, res) => {
