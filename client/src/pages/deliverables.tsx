@@ -210,71 +210,70 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               const taskCounts = getDeliverableTaskCounts(deliverable.id);
 
               return (
-                <AccordionItem key={deliverable.id} value={deliverable.id} className="border rounded-lg bg-card px-4">
-                  <div className="flex items-center py-4">
-                    <AccordionTrigger className="hover:no-underline py-0 flex-1">
-                      <div className="flex items-start gap-4 text-left w-full">
-                        <div className={cn(
-                          "p-2 rounded-lg mt-1",
-                          deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
-                          deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                          "bg-slate-100 text-slate-700"
-                        )}>
-                          <Package className="h-5 w-5" />
+                <AccordionItem key={deliverable.id} value={deliverable.id} className="border rounded-lg bg-card px-4" data-testid={`accordion-deliverable-${deliverable.id}`}>
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <div className="flex items-start gap-4 text-left w-full">
+                      <div className={cn(
+                        "p-2 rounded-lg mt-1",
+                        deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                        deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                        "bg-slate-100 text-slate-700"
+                      )}>
+                        <Package className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-semibold">{deliverable.title}</h3>
+                          <Badge variant="outline" className={cn(
+                            "font-normal",
+                            deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
+                            deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                            "bg-slate-50 text-slate-700 border-slate-200"
+                          )}>
+                            {deliverable.status}
+                          </Badge>
                         </div>
-                        <div className="space-y-1 flex-1">
-                          <div className="flex items-center gap-3">
-                            <h3 className="text-lg font-semibold">{deliverable.title}</h3>
-                            <Badge variant="outline" className={cn(
-                              "font-normal",
-                              deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
-                              deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                              "bg-slate-50 text-slate-700 border-slate-200"
-                            )}>
-                              {deliverable.status}
-                            </Badge>
+                        <p className="text-sm text-muted-foreground">{deliverable.description}</p>
+                        <div className="flex items-center gap-6 pt-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[9px]">{owner?.name?.charAt(0) || "?"}</AvatarFallback>
+                            </Avatar>
+                            <span>Owner: {owner?.name || "Unassigned"}</span>
                           </div>
-                          <p className="text-sm text-muted-foreground">{deliverable.description}</p>
-                          <div className="flex items-center gap-6 pt-2 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5">
-                                <AvatarFallback className="text-[9px]">{owner?.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <span>Owner: {owner?.name}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                              <span>Due: {deliverable.dueDate}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>{taskCounts.done}/{taskCounts.total} Tasks</span>
-                            </div>
-                            <div className="flex items-center gap-2 min-w-[100px]">
-                              <Progress value={progress} className="h-1.5 w-16" />
-                              <span>{progress}%</span>
-                            </div>
+                          <div className="flex items-center gap-1.5">
+                            <CalendarIcon className="h-3.5 w-3.5" />
+                            <span>Due: {deliverable.dueDate}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>{taskCounts.done}/{taskCounts.total} Tasks</span>
+                          </div>
+                          <div className="flex items-center gap-2 min-w-[100px]">
+                            <Progress value={progress} className="h-1.5 w-16" />
+                            <span>{progress}%</span>
                           </div>
                         </div>
                       </div>
-                    </AccordionTrigger>
-                    <div className="flex items-center gap-2 pl-4 border-l ml-4 h-12">
-                      <Button variant="ghost" size="icon" onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenCreateEpic(deliverable.id);
-                      }}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
                     </div>
-                  </div>
+                  </AccordionTrigger>
 
                   <AccordionContent className="pt-0 pb-4 pl-[3.25rem]">
                     <div className="space-y-3 mt-4">
-                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                        <span>Associated Epics ({epics.length})</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          Associated Epics ({epics.length})
+                        </span>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-1.5"
+                          onClick={() => handleOpenCreateEpic(deliverable.id)}
+                          data-testid={`button-add-epic-${deliverable.id}`}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add Epic
+                        </Button>
                       </div>
                       {epics.length > 0 ? (
                         <div className="grid gap-3">
@@ -320,14 +319,21 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                           })}
                         </div>
                       ) : (
-                        <div className="p-4 border border-dashed rounded-md text-center text-sm text-muted-foreground bg-muted/30">
-                          No epics created yet. 
-                          <span 
-                            className="text-primary cursor-pointer hover:underline ml-1"
+                        <div className="p-6 border border-dashed rounded-md text-center bg-muted/20">
+                          <Layers className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground mb-3">
+                            No epics created for this deliverable yet.
+                          </p>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-1.5"
                             onClick={() => handleOpenCreateEpic(deliverable.id)}
+                            data-testid={`button-add-first-epic-${deliverable.id}`}
                           >
-                            Add an Epic
-                          </span>
+                            <Plus className="h-3.5 w-3.5" />
+                            Create First Epic
+                          </Button>
                         </div>
                       )}
                     </div>
