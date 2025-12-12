@@ -841,6 +841,49 @@ function ScopeDefinitionTab({
     });
   };
 
+  const handleToggleRuleActive = (ruleId: string, newActive: boolean) => {
+    handleUpdateRule(ruleId, { active: newActive });
+    
+    if (!newActive) {
+      const rule = (rules.rules || []).find((r: any) => r.id === ruleId);
+      if (!rule) return;
+      
+      const tasksMatchedByThisRule = evaluateRule({ ...rule, active: true });
+      const tasksMatchedByOtherActiveRules = new Set<string>();
+      
+      (rules.rules || []).forEach((r: any) => {
+        if (r.id !== ruleId && r.active) {
+          evaluateRule(r).forEach(t => tasksMatchedByOtherActiveRules.add(t.id));
+        }
+      });
+      
+      const tasksToUnlink = tasksMatchedByThisRule.filter(t => 
+        !tasksMatchedByOtherActiveRules.has(t.id)
+      );
+      
+      if (tasksToUnlink.length > 0) {
+        const taskIdsToUnlink = new Set(tasksToUnlink.map(t => t.id));
+        const linksToRemove = links.filter((l: any) => 
+          l.milestoneId === milestone.id && 
+          taskIdsToUnlink.has(l.taskId) && 
+          !l.locked &&
+          typeof l.source === 'string' && 
+          l.source.startsWith('rule:')
+        );
+        
+        if (linksToRemove.length > 0) {
+          const linkIdsToRemove = new Set(linksToRemove.map((l: any) => l.id));
+          const updatedLinks = links.filter((l: any) => !linkIdsToRemove.has(l.id));
+          onUpdateLinks(updatedLinks);
+          toast({ 
+            title: "Rule Disabled", 
+            description: `Removed ${linksToRemove.length} task${linksToRemove.length !== 1 ? 's' : ''} from milestone scope.` 
+          });
+        }
+      }
+    }
+  };
+
   const handleApplyRules = () => {
     if (pendingTasks.length === 0) {
       toast({ 
@@ -850,14 +893,20 @@ function ScopeDefinitionTab({
       return;
     }
 
-    const newLinks = pendingTasks.map(t => ({
-      id: `l-${Date.now()}-${t.id}`,
-      milestoneId: milestone.id,
-      taskId: t.id,
-      source: "rule_applied",
-      locked: false,
-      createdAt: new Date().toISOString()
-    }));
+    const newLinks = pendingTasks.map(t => {
+      const matchingRuleIds = (rules.rules || [])
+        .filter((r: any) => r.active && allMatchedTasksByRule[r.id]?.some((mt: any) => mt.id === t.id))
+        .map((r: any) => r.id);
+      
+      return {
+        id: `l-${Date.now()}-${t.id}`,
+        milestoneId: milestone.id,
+        taskId: t.id,
+        source: `rule:${matchingRuleIds.join(',')}`,
+        locked: false,
+        createdAt: new Date().toISOString()
+      };
+    });
 
     onUpdateLinks([...links, ...newLinks]);
     toast({ 
@@ -1016,7 +1065,7 @@ function ScopeDefinitionTab({
                         <div className="flex items-center gap-2">
                           <Switch 
                             checked={rule.active} 
-                            onCheckedChange={(c) => handleUpdateRule(rule.id, { active: c })} 
+                            onCheckedChange={(c) => handleToggleRuleActive(rule.id, c)} 
                             data-testid={`switch-rule-active-${rule.id}`}
                           />
                           <Button 
