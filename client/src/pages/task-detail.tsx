@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
-  ChevronRight, 
   MoreHorizontal, 
   Calendar,
   User,
@@ -16,7 +15,6 @@ import {
   Image as ImageIcon,
   Loader2,
   Layers,
-  Package,
   Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -158,49 +156,6 @@ export default function TaskDetail() {
   return (
     <Shell>
       <div className="mx-auto max-w-5xl space-y-6">
-        {/* Breadcrumb Navigation */}
-        <nav className="flex items-center gap-2 text-sm" data-testid="breadcrumb-nav">
-          <Link 
-            href={`/projects/${projectId}/deliverables`} 
-            className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-            data-testid="breadcrumb-deliverables"
-          >
-            <Package className="h-4 w-4" />
-            Deliverables
-          </Link>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          
-          {deliverable ? (
-            <>
-              <Link 
-                href={`/projects/${projectId}/deliverables/${deliverable.id}`}
-                className="text-muted-foreground hover:text-primary transition-colors"
-                data-testid="breadcrumb-deliverable"
-              >
-                {deliverable.title}
-              </Link>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </>
-          ) : null}
-          
-          {epic ? (
-            <>
-              <Link 
-                href={`/projects/${projectId}/epics/${epic.id}`}
-                className="text-muted-foreground hover:text-primary transition-colors"
-                data-testid="breadcrumb-epic"
-              >
-                {epic.title}
-              </Link>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </>
-          ) : null}
-          
-          <span className="font-medium text-foreground" data-testid="breadcrumb-task">
-            {task.title}
-          </span>
-        </nav>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">

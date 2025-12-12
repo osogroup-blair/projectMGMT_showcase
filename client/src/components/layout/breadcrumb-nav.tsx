@@ -1,13 +1,20 @@
-import { RefreshCw, Settings, Grid3x3, Sliders, ChevronRight, Home as HomeIcon } from "lucide-react";
+import { RefreshCw, Settings, Grid3x3, Sliders, ChevronRight, Home as HomeIcon, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
-import { useProjects } from "@/hooks/use-nexus-data";
+import { useProjects, useDeliverables, useEpics, useTasks } from "@/hooks/use-nexus-data";
 import { Fragment } from "react";
 
 export function BreadcrumbNav() {
   const [location] = useLocation();
   const pathSegments = location.split("/").filter(Boolean);
   const { data: projects } = useProjects();
+  const { data: deliverables } = useDeliverables();
+  const { data: epics } = useEpics();
+  const { data: tasks } = useTasks();
+
+  const handleGoBack = () => {
+    window.history.back();
+  };
 
   const getBreadcrumbLabel = (segment: string, index: number, allSegments: string[]) => {
     if (segment === "projects") return "Projects";
@@ -15,13 +22,32 @@ export function BreadcrumbNav() {
     if (segment === "mapping") return "Field Mapping";
     if (segment === "preview") return "Preview & Confirm";
     if (segment === "stages") return "Stages";
+    if (segment === "deliverables") return "Deliverables";
+    if (segment === "epics") return "Epics";
+    if (segment === "tasks") return "Tasks";
+    if (segment === "milestones") return "Milestones";
     if (segment === "view-settings") return "View Settings";
 
     const prevSegment = allSegments[index - 1];
 
     if (prevSegment === "projects") {
-      const project = projects.find((p: any) => p.id === segment);
+      const project = projects?.find((p: any) => p.id === segment);
       return project ? project.name : "Project";
+    }
+
+    if (prevSegment === "deliverables") {
+      const deliverable = deliverables?.find((d: any) => d.id === segment);
+      return deliverable ? deliverable.title : "Deliverable";
+    }
+
+    if (prevSegment === "epics") {
+      const epic = epics?.find((e: any) => e.id === segment);
+      return epic ? epic.title : "Epic";
+    }
+
+    if (prevSegment === "tasks") {
+      const task = tasks?.find((t: any) => t.id === segment);
+      return task ? task.title : "Task";
     }
 
     if (prevSegment === "import") {
@@ -45,6 +71,16 @@ export function BreadcrumbNav() {
   return (
     <div className="h-12 border-b border-border bg-background flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-2 text-sm text-muted-foreground overflow-hidden">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-7 w-7 shrink-0" 
+          onClick={handleGoBack}
+          data-testid="button-back"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="w-px h-5 bg-border shrink-0" />
         <Link href="/" className="flex items-center hover:text-primary transition-colors">
           <HomeIcon className="h-4 w-4" />
         </Link>
