@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Flag, 
@@ -12,16 +12,32 @@ import {
   Target,
   User,
   Loader2,
-  Plus
+  Plus,
+  Search,
+  Filter,
+  SlidersHorizontal,
+  Layers,
+  Trash2,
+  Lock,
+  Unlock,
+  ArrowRight,
+  CheckSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
-import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useProject } from "@/hooks/use-nexus-data";
+import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useProject, useMilestoneScopeRules } from "@/hooks/use-nexus-data";
+import { useToast } from "@/hooks/use-toast";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -42,30 +58,78 @@ const PRIORITY_CONFIG: Record<string, string> = {
   "Critical": "bg-red-50 text-red-700 border-red-200",
 };
 
+const TASK_STAGES = [
+  { id: "st_plan", label: "Plan", color: "bg-purple-100 text-purple-800" },
+  { id: "st_validate", label: "Validate", color: "bg-blue-100 text-blue-800" },
+  { id: "st_develop", label: "Develop", color: "bg-indigo-100 text-indigo-800" },
+  { id: "st_enable", label: "Enable", color: "bg-green-100 text-green-800" },
+];
+
+interface MilestoneTaskLink {
+  id: string;
+  milestoneId: string;
+  taskId: string;
+  projectId?: string;
+  source: string;
+  locked?: boolean;
+  createdAt?: string;
+}
+
+interface MilestoneScopeRules {
+  milestoneId: string;
+  rules: any[];
+}
+
 export default function MilestoneOverview() {
   const [, params] = useRoute("/projects/:projectId/milestones/:milestoneId");
   const projectId = params?.projectId || "";
   const milestoneId = params?.milestoneId || "";
+  const { toast } = useToast();
 
   const { data: project } = useProject(projectId);
   const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
-  const { data: allTaskLinks, isLoading: isLinksLoading } = useMilestoneTaskLinks();
+  const { data: allTaskLinks, isLoading: isLinksLoading, create: createLink, remove: removeLink, update: updateLink } = useMilestoneTaskLinks();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
 
   const milestone = useMemo(() => 
     (allMilestones || []).find((m: any) => m.id === milestoneId),
     [allMilestones, milestoneId]
   );
 
+  const links = useMemo(() => 
+    (allTaskLinks || []).filter((l: any) => l.milestoneId === milestoneId),
+    [allTaskLinks, milestoneId]
+  );
+
   const linkedTasks = useMemo(() => {
-    const links = (allTaskLinks || []).filter((l: any) => l.milestoneId === milestoneId);
     return links.map((link: any) => {
       const task = (allTasks || []).find((t: any) => t.id === link.taskId);
-      return task;
+      return task ? { ...task, link } : null;
     }).filter(Boolean);
-  }, [allTaskLinks, allTasks, milestoneId]);
+  }, [links, allTasks]);
+
+  const projectTasks = useMemo(() => 
+    (allTasks || []).filter((t: any) => t.projectId === projectId || t.project === projectId),
+    [allTasks, projectId]
+  );
+
+  const projectEpics = useMemo(() => 
+    (allEpics || []).filter((e: any) => e.projectId === projectId),
+    [allEpics, projectId]
+  );
+
+  const scopeRules = useMemo(() => 
+    (allScopeRules || []).filter((r: any) => r.milestoneId === milestoneId),
+    [allScopeRules, milestoneId]
+  );
+
+  const selectedRules: MilestoneScopeRules = useMemo(() => 
+    scopeRules[0] || { milestoneId, rules: [] },
+    [scopeRules, milestoneId]
+  );
 
   const progress = useMemo(() => {
     if (linkedTasks.length === 0) return { done: 0, total: 0, percent: 0 };
@@ -86,6 +150,42 @@ export default function MilestoneOverview() {
   const getAssignee = (assigneeId?: string) => {
     if (!assigneeId) return null;
     return (users || []).find((u: any) => u.id === assigneeId);
+  };
+
+  const handleUpdateLinks = (updatedLinks: MilestoneTaskLink[]) => {
+    const currentIds = links.map((l: any) => l.id);
+    const newIds = updatedLinks.map(l => l.id);
+    
+    // Find removed links
+    const removed = links.filter((l: any) => !newIds.includes(l.id));
+    removed.forEach((l: any) => removeLink(l.id));
+    
+    // Find added links
+    const added = updatedLinks.filter(l => !currentIds.includes(l.id));
+    added.forEach(l => createLink({ ...l, projectId }));
+    
+    // Find updated links
+    const updated = updatedLinks.filter(l => currentIds.includes(l.id));
+    updated.forEach(l => {
+      const existing = links.find((el: any) => el.id === l.id);
+      if (existing && existing.locked !== l.locked) {
+        updateLink({ id: l.id, updates: { locked: l.locked } });
+      }
+    });
+  };
+
+  const handleUpdateRules = (updatedRules: MilestoneScopeRules) => {
+    const existing = scopeRules.find((r: any) => r.milestoneId === updatedRules.milestoneId);
+    if (existing) {
+      updateScopeRule({ id: existing.id, updates: { rules: updatedRules.rules } });
+    } else {
+      createScopeRule({
+        milestoneId: updatedRules.milestoneId,
+        projectId,
+        rules: updatedRules.rules
+      });
+    }
+    toast({ title: "Scope Rules Updated", description: "Milestone scope has been recalculated." });
   };
 
   const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading;
@@ -202,99 +302,504 @@ export default function MilestoneOverview() {
           </div>
         </div>
 
-        {/* Linked Tasks */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <ListTodo className="h-5 w-5" />
-                Linked Tasks ({linkedTasks.length})
-              </CardTitle>
-              <Button size="sm" variant="outline" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Link Task
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {linkedTasks.length > 0 ? (
-              <div className="space-y-3">
-                {linkedTasks.map((task: any) => {
-                  const epic = getEpic(task.epicId);
-                  const assignee = getAssignee(task.assigneeId);
-                  const priorityClass = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
-                  
-                  return (
-                    <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
-                      <div 
-                        className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
-                        data-testid={`milestone-task-${task.id}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-2 h-2 rounded-full shrink-0",
-                            task.status === "Done" ? "bg-green-500" :
-                            task.status === "In Progress" ? "bg-blue-500" :
-                            task.status === "Review" ? "bg-amber-500" :
-                            "bg-slate-400"
-                          )} />
-                          <div>
-                            <h4 className="font-medium group-hover:text-primary transition-colors">{task.title}</h4>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              {epic && <span>{epic.title}</span>}
-                              {task.stageId && (
-                                <span className="px-1.5 py-0.5 rounded bg-muted">
-                                  {task.stageId}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <Badge variant="outline" className={cn("font-normal text-xs", priorityClass)}>
-                            {task.priority}
-                          </Badge>
-                          <Badge 
-                            variant="secondary" 
-                            className={cn(
-                              "font-normal text-xs",
-                              task.status === "Done" ? "bg-green-100 text-green-700" :
-                              task.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                              "bg-slate-100 text-slate-700"
-                            )}
-                          >
-                            {task.status}
-                          </Badge>
-                          {assignee && (
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-[9px]">
-                                {assignee.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-8 border border-dashed rounded-md text-center bg-muted/20">
-                <ListTodo className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-                <h3 className="font-medium mb-1">No tasks linked</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Link tasks to this milestone to track progress.
-                </p>
-                <Button size="sm" variant="outline" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Link Task
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Tabs: Tasks & Scope Definition */}
+        <Tabs defaultValue="tasks" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="tasks" className="gap-2" data-testid="tab-tasks">
+              <ListTodo className="h-4 w-4" />
+              Tasks
+            </TabsTrigger>
+            <TabsTrigger value="scope" className="gap-2" data-testid="tab-scope">
+              <SlidersHorizontal className="h-4 w-4" />
+              Scope Definition
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tasks" className="mt-6">
+            <TasksTab 
+              linkedTasks={linkedTasks}
+              projectId={projectId}
+              getEpic={getEpic}
+              getAssignee={getAssignee}
+            />
+          </TabsContent>
+
+          <TabsContent value="scope" className="mt-6">
+            <ScopeDefinitionTab
+              milestone={milestone}
+              tasks={projectTasks}
+              epics={projectEpics}
+              links={links}
+              rules={selectedRules}
+              onUpdateLinks={handleUpdateLinks}
+              onUpdateRules={handleUpdateRules}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </Shell>
+  );
+}
+
+function TasksTab({ 
+  linkedTasks, 
+  projectId, 
+  getEpic, 
+  getAssignee 
+}: { 
+  linkedTasks: any[], 
+  projectId: string, 
+  getEpic: (id?: string) => any,
+  getAssignee: (id?: string) => any
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <ListTodo className="h-5 w-5" />
+            Linked Tasks ({linkedTasks.length})
+          </CardTitle>
+          <Button size="sm" variant="outline" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Link Task
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {linkedTasks.length > 0 ? (
+          <div className="space-y-3">
+            {linkedTasks.map((task: any) => {
+              const epic = getEpic(task.epicId);
+              const assignee = getAssignee(task.assigneeId);
+              const priorityClass = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
+              
+              return (
+                <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
+                  <div 
+                    className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
+                    data-testid={`milestone-task-${task.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-2 h-2 rounded-full shrink-0",
+                        task.status === "Done" ? "bg-green-500" :
+                        task.status === "In Progress" ? "bg-blue-500" :
+                        task.status === "Review" ? "bg-amber-500" :
+                        "bg-slate-400"
+                      )} />
+                      <div>
+                        <h4 className="font-medium group-hover:text-primary transition-colors">{task.title}</h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {epic && <span>{epic.title}</span>}
+                          {task.stageId && (
+                            <span className="px-1.5 py-0.5 rounded bg-muted">
+                              {task.stageId}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge variant="outline" className={cn("font-normal text-xs", priorityClass)}>
+                        {task.priority}
+                      </Badge>
+                      <Badge 
+                        variant="secondary" 
+                        className={cn(
+                          "font-normal text-xs",
+                          task.status === "Done" ? "bg-green-100 text-green-700" :
+                          task.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                          "bg-slate-100 text-slate-700"
+                        )}
+                      >
+                        {task.status}
+                      </Badge>
+                      {assignee && (
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-[9px]">
+                            {assignee.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-8 border border-dashed rounded-md text-center bg-muted/20">
+            <ListTodo className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+            <h3 className="font-medium mb-1">No tasks linked</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Link tasks to this milestone to track progress. Use the Scope Definition tab to define rules or manually add tasks.
+            </p>
+            <Button size="sm" variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Link Task
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ScopeDefinitionTab({ 
+  milestone, 
+  tasks, 
+  epics, 
+  links, 
+  rules, 
+  onUpdateLinks,
+  onUpdateRules 
+}: {
+  milestone: any,
+  tasks: any[],
+  epics: any[],
+  links: any[],
+  rules: MilestoneScopeRules,
+  onUpdateLinks: (links: MilestoneTaskLink[]) => void,
+  onUpdateRules: (rules: MilestoneScopeRules) => void
+}) {
+  const [manualSearch, setManualSearch] = useState("");
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(t => {
+      const matchesSearch = t.title?.toLowerCase().includes(manualSearch.toLowerCase()) || 
+                            t.project?.toLowerCase().includes(manualSearch.toLowerCase());
+      return matchesSearch;
+    });
+  }, [tasks, manualSearch]);
+
+  const handleToggleTask = (taskId: string) => {
+    const existingLink = links.find((l: any) => l.taskId === taskId && l.milestoneId === milestone.id);
+    
+    if (existingLink) {
+      if (existingLink.locked) return;
+      onUpdateLinks(links.filter((l: any) => l.id !== existingLink.id));
+    } else {
+      const newLink: MilestoneTaskLink = {
+        id: `l-${Date.now()}`,
+        milestoneId: milestone.id,
+        taskId,
+        source: "manual_add",
+        locked: true,
+        createdAt: new Date().toISOString()
+      };
+      onUpdateLinks([...links, newLink]);
+    }
+  };
+
+  const handleToggleLock = (link: any) => {
+    const updated = { ...link, locked: !link.locked };
+    onUpdateLinks(links.map((l: any) => l.id === link.id ? updated : l));
+  };
+
+  const handleAddRule = () => {
+    const newRule = {
+      id: `r-${Date.now()}`,
+      label: "New Scope Rule",
+      active: true,
+      filters: {}
+    };
+    onUpdateRules({
+      ...rules,
+      rules: [...(rules.rules || []), newRule]
+    });
+  };
+
+  const handleDeleteRule = (ruleId: string) => {
+    onUpdateRules({
+      ...rules,
+      rules: rules.rules.filter((r: any) => r.id !== ruleId)
+    });
+  };
+
+  const handleUpdateRule = (ruleId: string, updates: any) => {
+    onUpdateRules({
+      ...rules,
+      rules: rules.rules.map((r: any) => r.id === ruleId ? { ...r, ...updates } : r)
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue="rules" className="w-full">
+        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
+          <TabsTrigger 
+            value="rules" 
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+          >
+            <SlidersHorizontal className="w-4 h-4 mr-2" />
+            Rule-Based Scope
+          </TabsTrigger>
+          <TabsTrigger 
+            value="manual"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+          >
+            <ListTodo className="w-4 h-4 mr-2" />
+            Manual Adjustments
+          </TabsTrigger>
+          <TabsTrigger 
+            value="matrix"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+          >
+            <Layers className="w-4 h-4 mr-2" />
+            Coverage Matrix
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="mt-6">
+          <TabsContent value="rules" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-medium">Definition Rules</h3>
+              <Button size="sm" variant="outline" onClick={handleAddRule} className="gap-2">
+                <Plus className="h-4 w-4" /> Add Rule
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              {(rules.rules || []).length === 0 ? (
+                 <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground text-sm bg-muted/10">
+                   No rules defined. Add a rule to automatically include tasks in this milestone.
+                 </div>
+              ) : (
+                rules.rules.map((rule: any) => (
+                  <Card key={rule.id} className="relative overflow-hidden group">
+                    <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                      <div className="flex-1 mr-4">
+                         <Input 
+                           value={rule.label} 
+                           onChange={(e) => handleUpdateRule(rule.id, { label: e.target.value })}
+                           className="h-8 font-medium border-transparent hover:border-input focus:border-input px-0"
+                         />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={rule.active} onCheckedChange={(c) => handleUpdateRule(rule.id, { active: c })} />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteRule(rule.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-sm text-muted-foreground space-y-2">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                           <Label className="text-xs">Task Type</Label>
+                           <Select value={rule.taskTemplateKey || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}>
+                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Type" /></SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="all">Any Type</SelectItem>
+                               <SelectItem value="backend">Backend Task</SelectItem>
+                               <SelectItem value="frontend">Frontend Task</SelectItem>
+                               <SelectItem value="design">Design Task</SelectItem>
+                             </SelectContent>
+                           </Select>
+                        </div>
+                        <div className="space-y-1">
+                           <Label className="text-xs">Stage</Label>
+                           <Select value={rule.stage || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}>
+                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Stage" /></SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="all">Any Stage</SelectItem>
+                               <SelectItem value="st_develop">Develop Solution</SelectItem>
+                               <SelectItem value="st_validate">Validate Blueprints</SelectItem>
+                               <SelectItem value="st_plan">Plan Strategy</SelectItem>
+                               <SelectItem value="st_enable">Enable Users</SelectItem>
+                             </SelectContent>
+                           </Select>
+                        </div>
+                        <div className="space-y-1">
+                           <Label className="text-xs">Epic Type</Label>
+                           <Select value={rule.epicType || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}>
+                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Epic Type" /></SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="all">Any Epic Type</SelectItem>
+                               <SelectItem value="use_case">Use Case</SelectItem>
+                               <SelectItem value="technical">Technical</SelectItem>
+                             </SelectContent>
+                           </Select>
+                        </div>
+                      </div>
+                      <div className="bg-muted/30 p-2 rounded text-xs flex items-center gap-2 mt-2">
+                         <ArrowRight className="h-3 w-3" />
+                         <span>Matches roughly <strong>{Math.floor(Math.random() * 10)} tasks</strong> across <strong>{Math.floor(Math.random() * 3)} epics</strong></span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="manual" className="space-y-4">
+            <div className="flex gap-2">
+               <div className="relative flex-1">
+                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                 <Input 
+                   placeholder="Search tasks to add..." 
+                   className="pl-9"
+                   value={manualSearch}
+                   onChange={e => setManualSearch(e.target.value)}
+                 />
+               </div>
+               <Button variant="outline"><Filter className="h-4 w-4 mr-2" /> Filter</Button>
+            </div>
+
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead>Task</TableHead>
+                    <TableHead>Epic</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Included</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTasks.slice(0, 20).map((task: any) => {
+                    const link = links.find((l: any) => l.taskId === task.id && l.milestoneId === milestone.id);
+                    const isLinked = !!link;
+                    const epic = epics.find((e: any) => e.id === task.epicId);
+
+                    return (
+                      <TableRow key={task.id}>
+                        <TableCell>
+                          <CheckSquare 
+                            className={cn(
+                              "h-4 w-4 cursor-pointer transition-colors", 
+                              isLinked ? "text-primary" : "text-muted-foreground/30 hover:text-muted-foreground"
+                            )}
+                            onClick={() => handleToggleTask(task.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {task.title}
+                          <div className="text-xs text-muted-foreground">{task.id}</div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {epic?.title || "No Epic"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {task.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {isLinked ? (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
+                              {link?.source === 'rule' ? 'By Rule' : 'Manual'}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                           {isLinked && (
+                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToggleLock(link)}>
+                               {link.locked ? (
+                                 <Lock className="h-3 w-3 text-amber-500" />
+                               ) : (
+                                 <Unlock className="h-3 w-3 text-muted-foreground/30" />
+                               )}
+                             </Button>
+                           )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {filteredTasks.length > 20 && (
+                <div className="p-2 text-center text-xs text-muted-foreground border-t">
+                  Showing 20 of {filteredTasks.length} tasks. Use search to find more.
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="matrix" className="space-y-4">
+             <div className="border rounded-md overflow-hidden">
+               <div className="bg-muted/30 p-4 border-b">
+                 <h4 className="font-medium text-sm">Coverage Matrix</h4>
+                 <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion for that Epic & Stage.</p>
+               </div>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-sm">
+                   <thead>
+                     <tr className="border-b bg-muted/10">
+                       <th className="p-3 text-left font-medium min-w-[200px]">Epic</th>
+                       {TASK_STAGES.map(stage => (
+                         <th key={stage.id} className="p-3 text-center font-medium border-l min-w-[100px]">
+                           {stage.label}
+                         </th>
+                       ))}
+                     </tr>
+                   </thead>
+                   <tbody>
+                     {epics.length === 0 ? (
+                       <tr>
+                         <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                           No epics found in this project.
+                         </td>
+                       </tr>
+                     ) : (
+                       epics.map((epic: any) => (
+                         <tr key={epic.id} className="border-b last:border-0 hover:bg-muted/5">
+                           <td className="p-3 font-medium">
+                             {epic.title}
+                             <div className="text-xs text-muted-foreground font-normal line-clamp-1">{epic.description}</div>
+                           </td>
+                           {TASK_STAGES.map(stage => {
+                             const cellTasks = tasks.filter((t: any) => t.epicId === epic.id && t.stageId === stage.id);
+                             const hasTasks = cellTasks.length > 0;
+                             
+                             const linkedCount = cellTasks.filter((t: any) => 
+                               links.some((l: any) => l.taskId === t.id && l.milestoneId === milestone.id)
+                             ).length;
+                             
+                             const isFullyIncluded = hasTasks && linkedCount === cellTasks.length;
+                             const isPartiallyIncluded = hasTasks && linkedCount > 0 && linkedCount < cellTasks.length;
+
+                             return (
+                               <td 
+                                 key={stage.id} 
+                                 className={cn(
+                                   "p-3 text-center border-l transition-colors relative",
+                                   hasTasks ? "cursor-pointer hover:bg-muted/10" : "opacity-50"
+                                 )}
+                               >
+                                 {hasTasks ? (
+                                   <div className="flex flex-col items-center gap-1">
+                                     <div className={cn(
+                                       "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium",
+                                       isFullyIncluded ? "bg-green-100 text-green-700" :
+                                       isPartiallyIncluded ? "bg-amber-100 text-amber-700" :
+                                       "bg-slate-100 text-slate-500"
+                                     )}>
+                                       {linkedCount}/{cellTasks.length}
+                                     </div>
+                                   </div>
+                                 ) : (
+                                   <span className="text-muted-foreground/30">-</span>
+                                 )}
+                               </td>
+                             );
+                           })}
+                         </tr>
+                       ))
+                     )}
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
   );
 }
