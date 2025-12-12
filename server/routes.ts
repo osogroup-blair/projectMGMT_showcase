@@ -522,8 +522,16 @@ export async function registerRoutes(
   });
 
   app.delete("/api/frameworkTemplates/:id", async (req, res) => {
-    await storage.deleteFrameworkTemplate(req.params.id);
-    res.status(204).send();
+    try {
+      await storage.deleteFrameworkTemplate(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      if (error.code === '23503') {
+        res.status(400).json({ error: "Cannot delete this framework template because it is being used by one or more projects. Remove it from all projects first." });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
   });
 
   // Stage Templates
