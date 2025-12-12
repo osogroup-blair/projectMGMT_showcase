@@ -593,16 +593,6 @@ export default function AdminTemplates() {
               </Button>
             </div>
           </div>
-
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search templates..." 
-              className="pl-9 bg-background"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
         </div>
 
         <Tabs defaultValue="projects" className="w-full" onValueChange={setActiveTab}>
@@ -657,6 +647,19 @@ export default function AdminTemplates() {
               Roles
             </TabsTrigger>
           </TabsList>
+
+          <div className="mt-4 mb-6">
+            <div className="relative w-full sm:w-96">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search templates..." 
+                className="pl-9 bg-background"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search-templates"
+              />
+            </div>
+          </div>
 
           <div className="mt-6">
             <TabsContent value="projects" className="space-y-6">
