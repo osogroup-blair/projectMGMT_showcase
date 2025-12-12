@@ -304,12 +304,14 @@ export default function EpicDetail() {
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link href={`/projects/${projectId}?tab=deliverables`} className="hover:text-primary transition-colors flex items-center gap-1">
+            <Link href={`/projects/${projectId}?tab=deliverables`} className="hover:text-primary transition-colors flex items-center gap-1" data-testid="link-back-deliverables">
               <ArrowLeft className="h-4 w-4" />
               Deliverables
             </Link>
             <span className="text-border">/</span>
-            <span>{deliverable?.title}</span>
+            <Link href={`/projects/${projectId}/deliverables/${epic?.deliverableId}`} className="hover:text-primary transition-colors" data-testid="link-deliverable">
+              {deliverable?.title}
+            </Link>
             <span className="text-border">/</span>
             <span className="text-foreground font-medium">{epic.title}</span>
           </div>
