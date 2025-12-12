@@ -873,11 +873,54 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
 
+  // Reset selectedSection when groupBy changes
+  useEffect(() => {
+    setSelectedSection("all");
+  }, [groupBy]);
+
   const filteredTasks = projectTasks.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+    
+    // Filter by selected section
+    if (selectedSection !== "all") {
+      if (groupBy === "stage") return matchesSearch && t.stageId === selectedSection;
+      if (groupBy === "status") return matchesSearch && t.status === selectedSection;
+      if (groupBy === "epic") return matchesSearch && (selectedSection === "unassigned" ? !t.epicId : t.epicId === selectedSection);
+      if (groupBy === "assignee") return matchesSearch && (selectedSection === "unassigned" ? !t.assigneeId : t.assigneeId === selectedSection);
+      if (groupBy === "milestone") return matchesSearch && (selectedSection === "unassigned" ? !t.milestoneId : t.milestoneId === selectedSection);
+    }
     return matchesSearch;
   });
+
+  // Sidebar sections based on groupBy
+  const sidebarSections = useMemo(() => {
+    if (groupBy === "stage") {
+      return stages.map((s: any) => ({ id: s.id, name: s.name, count: projectTasks.filter(t => t.stageId === s.id).length }));
+    }
+    if (groupBy === "status") {
+      return ["Todo", "In Progress", "Review", "Done"].map(s => ({ id: s, name: s, count: projectTasks.filter(t => t.status === s).length }));
+    }
+    if (groupBy === "epic") {
+      const sections = projectEpics.map((e: any) => ({ id: e.id, name: e.title, count: projectTasks.filter(t => t.epicId === e.id).length }));
+      const unassigned = projectTasks.filter(t => !t.epicId).length;
+      if (unassigned > 0) sections.push({ id: "unassigned", name: "No Epic", count: unassigned });
+      return sections;
+    }
+    if (groupBy === "assignee") {
+      const sections = users.map((u: any) => ({ id: u.id, name: u.name, count: projectTasks.filter(t => t.assigneeId === u.id).length }));
+      const unassigned = projectTasks.filter(t => !t.assigneeId).length;
+      if (unassigned > 0) sections.push({ id: "unassigned", name: "Unassigned", count: unassigned });
+      return sections;
+    }
+    if (groupBy === "milestone") {
+      const sections = projectMilestones.map((m: any) => ({ id: m.id, name: m.name, count: projectTasks.filter(t => t.milestoneId === m.id).length }));
+      const unassigned = projectTasks.filter(t => !t.milestoneId).length;
+      if (unassigned > 0) sections.push({ id: "unassigned", name: "No Milestone", count: unassigned });
+      return sections;
+    }
+    return [];
+  }, [groupBy, stages, projectTasks, projectEpics, users, projectMilestones]);
 
   const groupedTasks = useMemo(() => {
     const groups: Record<string, { id: string; name: string; tasks: any[]; color?: string }> = {};
@@ -993,26 +1036,56 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
         })}
       </div>
 
-      {/* Search and New Task */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search tasks..." 
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            data-testid="input-search-tasks"
-          />
+      {/* Main content with sidebar */}
+      <div className="flex gap-6">
+        {/* Left Sidebar */}
+        <div className="w-56 shrink-0 space-y-1">
+          <Button 
+            variant={selectedSection === "all" ? "secondary" : "ghost"} 
+            className="w-full justify-between text-sm h-9"
+            onClick={() => setSelectedSection("all")}
+            data-testid="sidebar-all-tasks"
+          >
+            <span>All Tasks</span>
+            <Badge variant="outline" className="ml-2 font-mono text-xs">{projectTasks.length}</Badge>
+          </Button>
+          <div className="border-t my-2" />
+          {sidebarSections.map(section => (
+            <Button 
+              key={section.id}
+              variant={selectedSection === section.id ? "secondary" : "ghost"}
+              className="w-full justify-between text-sm h-9"
+              onClick={() => setSelectedSection(section.id)}
+              data-testid={`sidebar-section-${section.id}`}
+            >
+              <span className="truncate">{section.name}</span>
+              <Badge variant="outline" className="ml-2 font-mono text-xs shrink-0">{section.count}</Badge>
+            </Button>
+          ))}
         </div>
-        <Button onClick={() => handleOpenCreate()} className="gap-2" data-testid="button-new-task">
-          <Plus className="h-4 w-4" />
-          New Task
-        </Button>
-      </div>
 
-      {/* Grouped Card Views */}
-      <div className="space-y-6">
+        {/* Main Content */}
+        <div className="flex-1 space-y-4">
+          {/* Search and New Task */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search tasks..." 
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search-tasks"
+              />
+            </div>
+            <Button onClick={() => handleOpenCreate()} className="gap-2" data-testid="button-new-task">
+              <Plus className="h-4 w-4" />
+              New Task
+            </Button>
+          </div>
+
+          {/* Grouped Card Views */}
+          <div className="space-y-6">
         {groupedTasks.map(group => (
           <div key={group.id} className="space-y-3">
             <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border", group.color || "bg-muted/50")}>
@@ -1097,6 +1170,8 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
             <p>No tasks found matching your search.</p>
           </div>
         )}
+        </div>
+        </div>
       </div>
 
       {/* Task Dialog */}
