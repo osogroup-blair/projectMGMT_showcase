@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Users, 
@@ -9,13 +9,21 @@ import {
   AlertTriangle,
   HeartPulse,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  Rows3,
+  LayoutGrid,
+  Columns,
+  Search,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRoute, Link } from "wouter";
-import { useProject } from "@/hooks/use-nexus-data";
+import { useRoute, Link, useLocation } from "wouter";
+import { useProject, useTasks, useUsers, useMilestones, useEpics, useProjectStages, useDeliverables } from "@/hooks/use-nexus-data";
+import { TaskCard, LayoutVariant } from "@/components/task/task-card";
+import { cn } from "@/lib/utils";
 
 export default function ProjectManagement() {
   const [match, params] = useRoute("/projects/:projectId/management");
