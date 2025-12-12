@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import * as XLSX from "xlsx";
 import * as yaml from "js-yaml";
@@ -16,7 +16,12 @@ import {
   Users,
   LayoutTemplate,
   Settings,
-  Briefcase
+  Briefcase,
+  AlertCircle,
+  FileWarning,
+  Loader2,
+  X,
+  Filter
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -50,6 +55,7 @@ import {
 } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -58,67 +64,439 @@ import { Label } from "@/components/ui/label";
 // Import all mock data
 import { db } from "@/lib/storage";
 
-// Schema Definitions
+// Schema Definitions - uses camelCase to match API response format
 const SCHEMA_DEFINITIONS = {
   all: [
-    { sheet: "Projects", columns: ["id", "name", "client_id", "status", "start_date", "deadline", "progress", "framework_id", "default_mapping_template_id", "permissions"] },
-    { sheet: "Deliverables", columns: ["id", "project_id", "title", "description", "status", "owner_id", "due_date", "progress"] },
-    { sheet: "Epics", columns: ["id", "project_id", "deliverable_id", "title", "description", "status", "owner_id", "start_date", "end_date", "progress"] },
-    { sheet: "Tasks", columns: ["id", "project_id", "deliverable_id", "epic_id", "stage_id", "epic_stage_id", "title", "description", "status", "assignee_id", "deadline", "priority", "estimate_hours", "milestone_id", "tags"] },
-    { sheet: "Milestones", columns: ["id", "project_id", "stage_id", "name", "description", "phase", "target_date", "status", "owner_id", "scope_type", "completion_mode", "completion_target_percent", "tags", "progress_percent", "is_billing_gate"] },
-    { sheet: "ProjectTemplates", columns: ["id", "name", "description", "default_roles", "default_deliverables", "default_framework_id"] },
-    { sheet: "FrameworkTemplates", columns: ["id", "name", "description", "default_stages"] },
-    { sheet: "StageTemplates", columns: ["id", "name", "description", "default_tasks", "default_roles", "assigned_frameworks"] },
-    { sheet: "DeliverableTemplates", columns: ["id", "title", "description", "default_epics"] },
-    { sheet: "EpicTemplates", columns: ["id", "title", "description", "default_stages"] },
-    { sheet: "TaskTemplates", columns: ["id", "title", "description", "default_priority", "default_estimate_hours", "required_role"] },
-    { sheet: "RoleTemplates", columns: ["id", "name", "description", "default_role_type", "default_permissions"] },
-    { sheet: "ProjectStatuses", columns: ["id", "label", "color", "description"] },
-    { sheet: "TaskStatuses", columns: ["id", "label", "color", "description"] },
-    { sheet: "StageTypes", columns: ["id", "label", "description"] },
-    { sheet: "MappingTemplates", columns: ["id", "name", "data_type"] },
-    { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stage_id"] },
-    { sheet: "Users", columns: ["id", "name", "email", "role", "status"] },
-    { sheet: "ProjectRoles", columns: ["id", "name", "description", "role_type", "is_required", "max_assignees", "permissions"] },
-    { sheet: "RoleAssignments", columns: ["id", "role_id", "user_id", "is_primary", "allocation_percent"] }
+    { sheet: "Projects", columns: ["id", "name", "description", "status", "startDate", "deadline", "progress", "frameworkId", "defaultMappingTemplateId", "permissions"] },
+    { sheet: "Deliverables", columns: ["id", "projectId", "title", "description", "status", "ownerId", "dueDate", "progress"] },
+    { sheet: "Epics", columns: ["id", "deliverableId", "title", "description", "status", "ownerId", "startDate", "endDate", "progress", "stageIds"] },
+    { sheet: "ProjectStages", columns: ["id", "projectId", "name", "description", "order", "type", "status"] },
+    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "estimateHours", "effort", "tags"] },
+    { sheet: "Milestones", columns: ["id", "projectId", "name", "description", "phase", "stageId", "targetDate", "status", "ownerId", "scopeType", "completionMode", "completionTargetPercent", "tags", "createdAt", "updatedAt", "progressTotalTasks", "progressCompletedTasks", "progressPercentComplete", "progressLastCalculatedAt", "progressPercent", "isBillingGate", "requiredCompletionRatio"] },
+    { sheet: "MilestoneScopeRules", columns: ["id", "milestoneId", "rules", "lastEvaluatedAt"] },
+    { sheet: "MilestoneTaskLinks", columns: ["id", "milestoneId", "taskId", "projectId", "source", "ruleId", "locked", "createdAt", "updatedAt"] },
+    { sheet: "Activity", columns: ["id", "user", "action", "target", "time", "details", "avatar"] },
+    { sheet: "Comments", columns: ["id", "taskId", "authorId", "authorName", "body", "createdAt"] },
+    { sheet: "Attachments", columns: ["id", "taskId", "fileName", "url", "fileType", "size", "uploadedAt", "uploadedBy"] },
+    { sheet: "History", columns: ["id", "taskId", "field", "oldValue", "newValue", "changedAt", "changedBy"] },
+    { sheet: "SavedViews", columns: ["id", "name", "description", "stageIds", "viewType", "visibility", "isDefault", "config"] },
+    { sheet: "ProjectTemplates", columns: ["id", "name", "description", "defaultFrameworkId", "defaultRoles", "defaultDeliverables", "thumbnail"] },
+    { sheet: "FrameworkTemplates", columns: ["id", "name", "description", "defaultStages"] },
+    { sheet: "StageTemplates", columns: ["id", "name", "description", "defaultTasks", "defaultRoles", "entryCriteria", "exitCriteria", "allowedTaskStatuses"] },
+    { sheet: "DeliverableTemplates", columns: ["id", "title", "description", "defaultEpics"] },
+    { sheet: "EpicTemplates", columns: ["id", "title", "description", "defaultStages"] },
+    { sheet: "TaskTemplates", columns: ["id", "title", "description", "defaultPriority", "defaultEstimateHours", "requiredRole", "assignedRoleId"] },
+    { sheet: "RoleTemplates", columns: ["id", "name", "description", "defaultRoleType", "defaultPermissions"] },
+    { sheet: "StatusOptions", columns: ["id", "label", "color", "isDefault", "type"] },
+    { sheet: "RoleTypes", columns: ["id", "label", "description", "isDefault"] },
+    { sheet: "MappingTemplates", columns: ["id", "name", "dataType"] },
+    { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stageId"] },
+    { sheet: "Users", columns: ["id", "name", "role", "email", "status", "avatar"] },
+    { sheet: "ProjectRoles", columns: ["id", "name", "description", "roleType", "isRequired", "maxAssignees", "permissions"] },
+    { sheet: "RoleAssignments", columns: ["id", "roleId", "userId", "isPrimary", "allocationPercent"] }
   ],
   projects: [
-    { sheet: "Projects", columns: ["id", "name", "client_id", "status", "start_date", "deadline", "progress", "framework_id", "default_mapping_template_id", "permissions"] },
-    { sheet: "Deliverables", columns: ["id", "project_id", "title", "description", "status", "owner_id", "due_date", "progress"] },
-    { sheet: "Epics", columns: ["id", "project_id", "deliverable_id", "title", "description", "status", "owner_id", "start_date", "end_date", "progress"] },
-    { sheet: "Tasks", columns: ["id", "project_id", "deliverable_id", "epic_id", "stage_id", "epic_stage_id", "title", "description", "status", "assignee_id", "deadline", "priority", "estimate_hours", "milestone_id", "tags"] },
-    { sheet: "Milestones", columns: ["id", "project_id", "stage_id", "name", "description", "phase", "target_date", "status", "owner_id", "scope_type", "completion_mode", "completion_target_percent", "tags", "progress_percent", "is_billing_gate"] }
+    { sheet: "Projects", columns: ["id", "name", "description", "status", "startDate", "deadline", "progress", "frameworkId", "defaultMappingTemplateId", "permissions"] },
+    { sheet: "Deliverables", columns: ["id", "projectId", "title", "description", "status", "ownerId", "dueDate", "progress"] },
+    { sheet: "Epics", columns: ["id", "deliverableId", "title", "description", "status", "ownerId", "startDate", "endDate", "progress", "stageIds"] },
+    { sheet: "ProjectStages", columns: ["id", "projectId", "name", "description", "order", "type", "status"] },
+    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "estimateHours", "effort", "tags"] },
+    { sheet: "Milestones", columns: ["id", "projectId", "name", "description", "phase", "stageId", "targetDate", "status", "ownerId", "scopeType", "completionMode", "completionTargetPercent", "tags", "createdAt", "updatedAt", "progressTotalTasks", "progressCompletedTasks", "progressPercentComplete", "progressLastCalculatedAt", "progressPercent", "isBillingGate", "requiredCompletionRatio"] },
+    { sheet: "MilestoneScopeRules", columns: ["id", "milestoneId", "rules", "lastEvaluatedAt"] },
+    { sheet: "MilestoneTaskLinks", columns: ["id", "milestoneId", "taskId", "projectId", "source", "ruleId", "locked", "createdAt", "updatedAt"] },
+    { sheet: "Activity", columns: ["id", "user", "action", "target", "time", "details", "avatar"] },
+    { sheet: "Comments", columns: ["id", "taskId", "authorId", "authorName", "body", "createdAt"] },
+    { sheet: "Attachments", columns: ["id", "taskId", "fileName", "url", "fileType", "size", "uploadedAt", "uploadedBy"] },
+    { sheet: "History", columns: ["id", "taskId", "field", "oldValue", "newValue", "changedAt", "changedBy"] }
   ],
   templates: [
-    { sheet: "ProjectTemplates", columns: ["id", "name", "description", "default_roles", "default_deliverables", "default_framework_id"] },
-    { sheet: "FrameworkTemplates", columns: ["id", "name", "description", "default_stages"] },
-    { sheet: "StageTemplates", columns: ["id", "name", "description", "default_tasks", "default_roles", "assigned_frameworks"] },
-    { sheet: "DeliverableTemplates", columns: ["id", "title", "description", "default_epics"] },
-    { sheet: "EpicTemplates", columns: ["id", "title", "description", "default_stages"] },
-    { sheet: "TaskTemplates", columns: ["id", "title", "description", "default_priority", "default_estimate_hours", "required_role"] },
-    { sheet: "RoleTemplates", columns: ["id", "name", "description", "default_role_type", "default_permissions"] }
+    { sheet: "ProjectTemplates", columns: ["id", "name", "description", "defaultFrameworkId", "defaultRoles", "defaultDeliverables", "thumbnail"] },
+    { sheet: "FrameworkTemplates", columns: ["id", "name", "description", "defaultStages"] },
+    { sheet: "StageTemplates", columns: ["id", "name", "description", "defaultTasks", "defaultRoles", "entryCriteria", "exitCriteria", "allowedTaskStatuses"] },
+    { sheet: "DeliverableTemplates", columns: ["id", "title", "description", "defaultEpics"] },
+    { sheet: "EpicTemplates", columns: ["id", "title", "description", "defaultStages"] },
+    { sheet: "TaskTemplates", columns: ["id", "title", "description", "defaultPriority", "defaultEstimateHours", "requiredRole", "assignedRoleId"] },
+    { sheet: "RoleTemplates", columns: ["id", "name", "description", "defaultRoleType", "defaultPermissions"] }
   ],
   defaults: [
-    { sheet: "ProjectStatuses", columns: ["id", "label", "color", "description"] },
-    { sheet: "TaskStatuses", columns: ["id", "label", "color", "description"] },
-    { sheet: "StageTypes", columns: ["id", "label", "description"] },
-    { sheet: "MappingTemplates", columns: ["id", "name", "data_type"] },
-    { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stage_id"] }
+    { sheet: "StatusOptions", columns: ["id", "label", "color", "isDefault", "type"] },
+    { sheet: "RoleTypes", columns: ["id", "label", "description", "isDefault"] },
+    { sheet: "MappingTemplates", columns: ["id", "name", "dataType"] },
+    { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stageId"] },
+    { sheet: "SavedViews", columns: ["id", "name", "description", "stageIds", "viewType", "visibility", "isDefault", "config"] }
   ],
   users: [
-    { sheet: "Users", columns: ["id", "name", "email", "role", "status"] },
-    { sheet: "ProjectRoles", columns: ["id", "name", "description", "role_type", "is_required", "max_assignees", "permissions"] },
-    { sheet: "RoleAssignments", columns: ["id", "role_id", "user_id", "is_primary", "allocation_percent"] }
+    { sheet: "Users", columns: ["id", "name", "role", "email", "status", "avatar"] },
+    { sheet: "ProjectRoles", columns: ["id", "name", "description", "roleType", "isRequired", "maxAssignees", "permissions"] },
+    { sheet: "RoleAssignments", columns: ["id", "roleId", "userId", "isPrimary", "allocationPercent"] }
   ]
+};
+
+type ImportPreviewData = {
+  entityName: string;
+  count: number;
+  sample: any[];
+  errors: string[];
+};
+
+type ImportState = {
+  file: File | null;
+  data: Record<string, any[]> | null;
+  preview: ImportPreviewData[];
+  isProcessing: boolean;
+  isImporting: boolean;
+  importProgress: number;
+  errors: string[];
+};
+
+const ENTITY_TO_COLLECTION: Record<string, string> = {
+  Projects: "projects",
+  Deliverables: "deliverables",
+  Epics: "epics",
+  ProjectStages: "projectStages",
+  Tasks: "tasks",
+  Milestones: "milestones",
+  MilestoneScopeRules: "milestoneScopeRules",
+  MilestoneTaskLinks: "milestoneTaskLinks",
+  Activity: "activity",
+  Comments: "comments",
+  Attachments: "attachments",
+  History: "history",
+  SavedViews: "savedViews",
+  ProjectTemplates: "projectTemplates",
+  FrameworkTemplates: "frameworkTemplates",
+  StageTemplates: "stageTemplates",
+  DeliverableTemplates: "deliverableTemplates",
+  EpicTemplates: "epicTemplates",
+  TaskTemplates: "taskTemplates",
+  RoleTemplates: "roleTemplates",
+  StatusOptions: "statusOptions",
+  RoleTypes: "roleTypes",
+  MappingTemplates: "mappingTemplates",
+  GuidanceItems: "guidanceItems",
+  Users: "users",
+  ProjectRoles: "projectRoles",
+  RoleAssignments: "roleAssignments"
 };
 
 export default function AdminImportExport() {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [exportFormat, setExportFormat] = useState<"xlsx" | "json" | "yaml">("xlsx");
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showSchema, setShowSchema] = useState(false);
+  const [useNestedExport, setUseNestedExport] = useState(false);
+  const [importState, setImportState] = useState<ImportState>({
+    file: null,
+    data: null,
+    preview: [],
+    isProcessing: false,
+    isImporting: false,
+    importProgress: 0,
+    errors: []
+  });
+  const [availableProjects, setAvailableProjects] = useState<any[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
+  const [selectiveExportEnabled, setSelectiveExportEnabled] = useState(false);
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      const projects = await db.getAll("projects");
+      setAvailableProjects(projects);
+      setSelectedProjectIds(new Set(projects.map((p: any) => p.id)));
+    };
+    if (activeTab === "projects" || activeTab === "all") {
+      loadProjects();
+    }
+  }, [activeTab]);
+
+  const parseJsonValue = (value: any): any => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (typeof parsed === 'object') return parsed;
+      } catch {
+        return value;
+      }
+    }
+    return value;
+  };
+
+  const deserialize = (data: any[]): any[] => {
+    return data.map(item => {
+      const newItem: any = {};
+      Object.keys(item).forEach(key => {
+        newItem[key] = parseJsonValue(item[key]);
+      });
+      return newItem;
+    });
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportState(prev => ({ ...prev, file, isProcessing: true, errors: [], preview: [], data: null }));
+
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      let parsedData: Record<string, any[]> = {};
+
+      if (ext === 'xlsx' || ext === 'xls') {
+        const buffer = await file.arrayBuffer();
+        const wb = XLSX.read(buffer, { type: 'array' });
+        wb.SheetNames.forEach(sheetName => {
+          const ws = wb.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(ws);
+          if (jsonData.length > 0) {
+            parsedData[sheetName] = deserialize(jsonData);
+          }
+        });
+      } else if (ext === 'json') {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        if (json.projects && Array.isArray(json.projects)) {
+          parsedData = flattenNestedImport(json);
+        } else {
+          parsedData = json;
+        }
+      } else if (ext === 'yaml' || ext === 'yml') {
+        const text = await file.text();
+        const parsed = yaml.load(text) as any;
+        if (parsed.projects && Array.isArray(parsed.projects)) {
+          parsedData = flattenNestedImport(parsed);
+        } else {
+          parsedData = parsed;
+        }
+      } else {
+        throw new Error('Unsupported file format');
+      }
+
+      const preview: ImportPreviewData[] = [];
+      const globalErrors: string[] = [];
+
+      Object.entries(parsedData).forEach(([entityName, records]) => {
+        if (!Array.isArray(records)) return;
+        
+        const entityErrors: string[] = [];
+        const collection = ENTITY_TO_COLLECTION[entityName];
+        
+        if (!collection) {
+          entityErrors.push(`Unknown entity: ${entityName}`);
+        }
+
+        preview.push({
+          entityName,
+          count: records.length,
+          sample: records.slice(0, 3),
+          errors: entityErrors
+        });
+
+        if (entityErrors.length > 0) {
+          globalErrors.push(...entityErrors);
+        }
+      });
+
+      setImportState(prev => ({
+        ...prev,
+        data: parsedData,
+        preview,
+        errors: globalErrors,
+        isProcessing: false
+      }));
+
+    } catch (error: any) {
+      setImportState(prev => ({
+        ...prev,
+        isProcessing: false,
+        errors: [error.message || 'Failed to parse file']
+      }));
+      toast({
+        title: "Parse Error",
+        description: error.message || "Failed to parse the import file.",
+        variant: "destructive"
+      });
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const flattenNestedImport = (nested: any): Record<string, any[]> => {
+    const flat: Record<string, any[]> = {
+      Projects: [],
+      Deliverables: [],
+      Epics: [],
+      Tasks: [],
+      Milestones: [],
+      MilestoneScopeRules: [],
+      MilestoneTaskLinks: [],
+      ProjectStages: [],
+      Comments: [],
+      Attachments: [],
+      History: []
+    };
+
+    if (nested.projects && Array.isArray(nested.projects)) {
+      nested.projects.forEach((project: any) => {
+        const { deliverables, milestones, stages, ...projectData } = project;
+        flat.Projects.push(projectData);
+
+        if (Array.isArray(stages)) {
+          flat.ProjectStages.push(...stages);
+        }
+
+        if (Array.isArray(milestones)) {
+          milestones.forEach((milestone: any) => {
+            const { scopeRules, scope_rules, taskLinks, task_links, ...milestoneData } = milestone;
+            flat.Milestones.push(milestoneData);
+            const rules = scopeRules || scope_rules;
+            const links = taskLinks || task_links;
+            if (Array.isArray(rules)) {
+              flat.MilestoneScopeRules.push(...rules);
+            }
+            if (Array.isArray(links)) {
+              flat.MilestoneTaskLinks.push(...links);
+            }
+          });
+        }
+
+        if (Array.isArray(deliverables)) {
+          deliverables.forEach((deliverable: any) => {
+            const { epics, ...deliverableData } = deliverable;
+            flat.Deliverables.push(deliverableData);
+
+            if (Array.isArray(epics)) {
+              epics.forEach((epic: any) => {
+                const { tasks, ...epicData } = epic;
+                flat.Epics.push(epicData);
+
+                if (Array.isArray(tasks)) {
+                  tasks.forEach((task: any) => {
+                    const { comments, attachments, history, ...taskData } = task;
+                    flat.Tasks.push(taskData);
+                    if (Array.isArray(comments)) {
+                      flat.Comments.push(...comments);
+                    }
+                    if (Array.isArray(attachments)) {
+                      flat.Attachments.push(...attachments);
+                    }
+                    if (Array.isArray(history)) {
+                      flat.History.push(...history);
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+
+    if (nested.templates) {
+      Object.entries(nested.templates).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          const entityName = key.charAt(0).toUpperCase() + key.slice(1);
+          flat[entityName] = value;
+        }
+      });
+    }
+
+    if (nested.defaults) {
+      Object.entries(nested.defaults).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          const entityName = key.charAt(0).toUpperCase() + key.slice(1);
+          flat[entityName] = value;
+        }
+      });
+    }
+
+    if (nested.users) {
+      if (Array.isArray(nested.users.users)) flat.Users = nested.users.users;
+      if (Array.isArray(nested.users.projectRoles)) flat.ProjectRoles = nested.users.projectRoles;
+      if (Array.isArray(nested.users.roleAssignments)) flat.RoleAssignments = nested.users.roleAssignments;
+    }
+
+    return flat;
+  };
+
+  const handleImport = async () => {
+    if (!importState.data) return;
+
+    setImportState(prev => ({ ...prev, isImporting: true, importProgress: 0 }));
+
+    const entities = Object.entries(importState.data);
+    const totalEntities = entities.length;
+    let processed = 0;
+    const importErrors: string[] = [];
+
+    for (const [entityName, records] of entities) {
+      const collection = ENTITY_TO_COLLECTION[entityName];
+      if (!collection || !Array.isArray(records)) {
+        processed++;
+        continue;
+      }
+
+      for (const record of records) {
+        try {
+          if (record.id) {
+            const existing = await db.getById(collection as any, record.id);
+            if (existing) {
+              await db.update(collection as any, record.id, record);
+            } else {
+              await db.create(collection as any, record);
+            }
+          } else {
+            await db.create(collection as any, record);
+          }
+        } catch (error: any) {
+          importErrors.push(`${entityName}: ${error.message}`);
+        }
+      }
+
+      processed++;
+      setImportState(prev => ({
+        ...prev,
+        importProgress: Math.round((processed / totalEntities) * 100)
+      }));
+    }
+
+    setImportState(prev => ({
+      ...prev,
+      isImporting: false,
+      importProgress: 100,
+      errors: importErrors
+    }));
+
+    if (importErrors.length === 0) {
+      toast({
+        title: "Import Complete",
+        description: `Successfully imported data from ${importState.file?.name}.`,
+      });
+      clearImport();
+    } else {
+      toast({
+        title: "Import Completed with Errors",
+        description: `${importErrors.length} errors occurred during import.`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const clearImport = () => {
+    setImportState({
+      file: null,
+      data: null,
+      preview: [],
+      isProcessing: false,
+      isImporting: false,
+      importProgress: 0,
+      errors: []
+    });
+  };
 
   // Helper to flatten/serialize data
   const serialize = (data: any[]) => {
@@ -135,6 +513,59 @@ export default function AdminImportExport() {
     });
   };
 
+  const filterBySelectedProjects = async () => {
+    const allProjects = await db.getAll("projects");
+    const allDeliverables = await db.getAll("deliverables");
+    const allEpics = await db.getAll("epics");
+    const allTasks = await db.getAll("tasks");
+    const allMilestones = await db.getAll("milestones");
+    const allMilestoneScopeRules = await db.getAll("milestoneScopeRules");
+    const allMilestoneTaskLinks = await db.getAll("milestoneTaskLinks");
+    const allProjectStages = await db.getAll("projectStages");
+    const allComments = await db.getAll("comments");
+    const allAttachments = await db.getAll("attachments");
+    const allHistory = await db.getAll("history");
+    const allActivity = await db.getAll("activity");
+
+    const filteredProjects = allProjects.filter((p: any) => selectedProjectIds.has(p.id));
+    const projectIdSet = selectedProjectIds;
+    
+    const filteredDeliverables = allDeliverables.filter((d: any) => projectIdSet.has(d.projectId || d.project_id));
+    const deliverableIds = new Set(filteredDeliverables.map((d: any) => d.id));
+    
+    const filteredEpics = allEpics.filter((e: any) => deliverableIds.has(e.deliverableId || e.deliverable_id));
+    const epicIds = new Set(filteredEpics.map((e: any) => e.id));
+    
+    const filteredTasks = allTasks.filter((t: any) => epicIds.has(t.epicId || t.epic_id) || projectIdSet.has(t.projectId || t.project_id));
+    const taskIds = new Set(filteredTasks.map((t: any) => t.id));
+    
+    const filteredMilestones = allMilestones.filter((m: any) => projectIdSet.has(m.projectId || m.project_id));
+    const milestoneIds = new Set(filteredMilestones.map((m: any) => m.id));
+    
+    const filteredMilestoneScopeRules = allMilestoneScopeRules.filter((r: any) => milestoneIds.has(r.milestoneId || r.milestone_id));
+    const filteredMilestoneTaskLinks = allMilestoneTaskLinks.filter((l: any) => milestoneIds.has(l.milestoneId || l.milestone_id));
+    const filteredProjectStages = allProjectStages.filter((s: any) => projectIdSet.has(s.projectId || s.project_id));
+    
+    const filteredComments = allComments.filter((c: any) => taskIds.has(c.taskId || c.task_id));
+    const filteredAttachments = allAttachments.filter((a: any) => taskIds.has(a.taskId || a.task_id));
+    const filteredHistory = allHistory.filter((h: any) => taskIds.has(h.taskId || h.task_id));
+
+    return {
+      projects: filteredProjects,
+      deliverables: filteredDeliverables,
+      epics: filteredEpics,
+      tasks: filteredTasks,
+      milestones: filteredMilestones,
+      milestoneScopeRules: filteredMilestoneScopeRules,
+      milestoneTaskLinks: filteredMilestoneTaskLinks,
+      projectStages: filteredProjectStages,
+      comments: filteredComments,
+      attachments: filteredAttachments,
+      history: filteredHistory,
+      activity: allActivity
+    };
+  };
+
   const generateExportData = async () => {
     let data: any = {};
 
@@ -143,10 +574,16 @@ export default function AdminImportExport() {
          Projects: serialize(await db.getAll("projects")),
          Deliverables: serialize(await db.getAll("deliverables")),
          Epics: serialize(await db.getAll("epics")),
+         ProjectStages: serialize(await db.getAll("projectStages")),
          Tasks: serialize(await db.getAll("tasks")),
          Milestones: serialize(await db.getAll("milestones")),
          MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
          MilestoneTaskLinks: serialize(await db.getAll("milestoneTaskLinks")),
+         Activity: serialize(await db.getAll("activity")),
+         Comments: serialize(await db.getAll("comments")),
+         Attachments: serialize(await db.getAll("attachments")),
+         History: serialize(await db.getAll("history")),
+         SavedViews: serialize(await db.getAll("savedViews")),
          ProjectTemplates: serialize(await db.getAll("projectTemplates")),
          FrameworkTemplates: serialize(await db.getAll("frameworkTemplates")),
          StageTemplates: serialize(await db.getAll("stageTemplates")),
@@ -154,8 +591,8 @@ export default function AdminImportExport() {
          EpicTemplates: serialize(await db.getAll("epicTemplates")),
          TaskTemplates: serialize(await db.getAll("taskTemplates")),
          RoleTemplates: serialize(await db.getAll("roleTemplates")),
-         ProjectStatuses: serialize(await db.getAll("projectStatuses" as any) || []), // Assuming we add this to DB or handle defaults differently
-         TaskStatuses: serialize(await db.getAll("taskStatuses" as any) || []),
+         StatusOptions: serialize(await db.getAll("statusOptions")),
+         RoleTypes: serialize(await db.getAll("roleTypes")),
          MappingTemplates: serialize(await db.getAll("mappingTemplates")),
          GuidanceItems: serialize(await db.getAll("guidanceItems")),
          Users: serialize(await db.getAll("users")),
@@ -163,15 +600,38 @@ export default function AdminImportExport() {
          RoleAssignments: serialize(await db.getAll("roleAssignments"))
        };
     } else if (activeTab === "projects") {
-      data = {
-        Projects: serialize(await db.getAll("projects")),
-        Deliverables: serialize(await db.getAll("deliverables")),
-        Epics: serialize(await db.getAll("epics")),
-        Tasks: serialize(await db.getAll("tasks")),
-        Milestones: serialize(await db.getAll("milestones")),
-        MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
-        MilestoneTaskLinks: serialize(await db.getAll("milestoneTaskLinks"))
-      };
+      if (selectiveExportEnabled && selectedProjectIds.size > 0) {
+        const filtered = await filterBySelectedProjects();
+        data = {
+          Projects: serialize(filtered.projects),
+          Deliverables: serialize(filtered.deliverables),
+          Epics: serialize(filtered.epics),
+          ProjectStages: serialize(filtered.projectStages),
+          Tasks: serialize(filtered.tasks),
+          Milestones: serialize(filtered.milestones),
+          MilestoneScopeRules: serialize(filtered.milestoneScopeRules),
+          MilestoneTaskLinks: serialize(filtered.milestoneTaskLinks),
+          Activity: serialize(filtered.activity),
+          Comments: serialize(filtered.comments),
+          Attachments: serialize(filtered.attachments),
+          History: serialize(filtered.history)
+        };
+      } else {
+        data = {
+          Projects: serialize(await db.getAll("projects")),
+          Deliverables: serialize(await db.getAll("deliverables")),
+          Epics: serialize(await db.getAll("epics")),
+          ProjectStages: serialize(await db.getAll("projectStages")),
+          Tasks: serialize(await db.getAll("tasks")),
+          Milestones: serialize(await db.getAll("milestones")),
+          MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
+          MilestoneTaskLinks: serialize(await db.getAll("milestoneTaskLinks")),
+          Activity: serialize(await db.getAll("activity")),
+          Comments: serialize(await db.getAll("comments")),
+          Attachments: serialize(await db.getAll("attachments")),
+          History: serialize(await db.getAll("history"))
+        };
+      }
     } else if (activeTab === "templates") {
       data = {
         ProjectTemplates: serialize(await db.getAll("projectTemplates")),
@@ -184,13 +644,11 @@ export default function AdminImportExport() {
       };
     } else if (activeTab === "defaults") {
       data = {
-        // These might be static for now if not in DB, but DB wrapper handles it if we seeded it? 
-        // We didn't seed statuses in storage.ts explicitly as collections, let's fix that or use mock imports for now for strictly static things
-        // Actually, we didn't add projectStatuses to DB interface.
-        // For now, I will keep using the imports for things NOT in DB, but mixing async/sync is messy.
-        // Let's assume we ONLY export what's in DB.
+        StatusOptions: serialize(await db.getAll("statusOptions")),
+        RoleTypes: serialize(await db.getAll("roleTypes")),
         MappingTemplates: serialize(await db.getAll("mappingTemplates")),
-        GuidanceItems: serialize(await db.getAll("guidanceItems"))
+        GuidanceItems: serialize(await db.getAll("guidanceItems")),
+        SavedViews: serialize(await db.getAll("savedViews"))
       };
     } else if (activeTab === "users") {
       data = {
@@ -203,6 +661,98 @@ export default function AdminImportExport() {
     return data;
   };
 
+  const generateNestedExportData = async () => {
+    const allProjects = await db.getAll("projects");
+    const deliverables = await db.getAll("deliverables");
+    const epics = await db.getAll("epics");
+    const tasks = await db.getAll("tasks");
+    const milestones = await db.getAll("milestones");
+    const milestoneScopeRules = await db.getAll("milestoneScopeRules");
+    const milestoneTaskLinks = await db.getAll("milestoneTaskLinks");
+    const projectStages = await db.getAll("projectStages");
+    const comments = await db.getAll("comments");
+    const attachments = await db.getAll("attachments");
+    const history = await db.getAll("history");
+
+    const projects = (selectiveExportEnabled && activeTab === "projects" && selectedProjectIds.size > 0)
+      ? allProjects.filter((p: any) => selectedProjectIds.has(p.id))
+      : allProjects;
+
+    const nestedProjects = projects.map((project: any) => {
+      const projectDeliverables = deliverables
+        .filter((d: any) => d.projectId === project.id || d.project_id === project.id)
+        .map((deliverable: any) => {
+          const deliverableEpics = epics
+            .filter((e: any) => e.deliverableId === deliverable.id || e.deliverable_id === deliverable.id)
+            .map((epic: any) => {
+              const epicTasks = tasks
+                .filter((t: any) => t.epicId === epic.id || t.epic_id === epic.id)
+                .map((task: any) => {
+                  const taskComments = comments.filter((c: any) => c.taskId === task.id || c.task_id === task.id);
+                  const taskAttachments = attachments.filter((a: any) => a.taskId === task.id || a.task_id === task.id);
+                  const taskHistory = history.filter((h: any) => h.taskId === task.id || h.task_id === task.id);
+                  return { 
+                    ...task, 
+                    comments: taskComments,
+                    attachments: taskAttachments,
+                    history: taskHistory
+                  };
+                });
+              return { ...epic, tasks: epicTasks };
+            });
+          return { ...deliverable, epics: deliverableEpics };
+        });
+
+      const projectMilestones = milestones
+        .filter((m: any) => m.projectId === project.id || m.project_id === project.id)
+        .map((milestone: any) => {
+          const rules = milestoneScopeRules.filter((r: any) => r.milestoneId === milestone.id || r.milestone_id === milestone.id);
+          const taskLinks = milestoneTaskLinks.filter((l: any) => l.milestoneId === milestone.id || l.milestone_id === milestone.id);
+          return { ...milestone, scopeRules: rules, taskLinks: taskLinks };
+        });
+
+      const projectStagesData = projectStages.filter((s: any) => s.projectId === project.id || s.project_id === project.id);
+
+      return {
+        ...project,
+        deliverables: projectDeliverables,
+        milestones: projectMilestones,
+        stages: projectStagesData
+      };
+    });
+
+    if (activeTab === "all") {
+      return {
+        projects: nestedProjects,
+        templates: {
+          projectTemplates: await db.getAll("projectTemplates"),
+          frameworkTemplates: await db.getAll("frameworkTemplates"),
+          stageTemplates: await db.getAll("stageTemplates"),
+          deliverableTemplates: await db.getAll("deliverableTemplates"),
+          epicTemplates: await db.getAll("epicTemplates"),
+          taskTemplates: await db.getAll("taskTemplates"),
+          roleTemplates: await db.getAll("roleTemplates")
+        },
+        defaults: {
+          statusOptions: await db.getAll("statusOptions"),
+          roleTypes: await db.getAll("roleTypes"),
+          mappingTemplates: await db.getAll("mappingTemplates"),
+          guidanceItems: await db.getAll("guidanceItems"),
+          savedViews: await db.getAll("savedViews")
+        },
+        users: {
+          users: await db.getAll("users"),
+          projectRoles: await db.getAll("projectRoles"),
+          roleAssignments: await db.getAll("roleAssignments")
+        }
+      };
+    } else if (activeTab === "projects") {
+      return { projects: nestedProjects };
+    } else {
+      return await generateExportData();
+    }
+  };
+
   const handleExport = async () => {
     setIsExporting(true);
     setProgress(10);
@@ -211,7 +761,8 @@ export default function AdminImportExport() {
     setTimeout(async () => {
       setProgress(20);
       try {
-        const data = await generateExportData();
+        const shouldUseNested = useNestedExport && exportFormat !== "xlsx" && (activeTab === "all" || activeTab === "projects");
+        const data = shouldUseNested ? await generateNestedExportData() : await generateExportData();
         setProgress(80);
         
         const baseFilename = `Nexus_${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}_Export_${new Date().toISOString().split('T')[0]}`;
@@ -341,6 +892,108 @@ export default function AdminImportExport() {
                   </div>
                 </div>
 
+                {exportFormat !== "xlsx" && (activeTab === "all" || activeTab === "projects") && (
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/20">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="nested-export" className="text-sm font-medium">Hierarchical Structure</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Nest deliverables, epics, and tasks within projects
+                      </p>
+                    </div>
+                    <Switch 
+                      id="nested-export"
+                      checked={useNestedExport}
+                      onCheckedChange={setUseNestedExport}
+                      data-testid="switch-nested-export"
+                    />
+                  </div>
+                )}
+
+                {activeTab === "projects" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/20">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="selective-export" className="text-sm font-medium flex items-center gap-2">
+                          <Filter className="h-4 w-4" />
+                          Selective Export
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Export only selected projects with their children
+                        </p>
+                      </div>
+                      <Switch 
+                        id="selective-export"
+                        checked={selectiveExportEnabled}
+                        onCheckedChange={setSelectiveExportEnabled}
+                        data-testid="switch-selective-export"
+                      />
+                    </div>
+                    
+                    {selectiveExportEnabled && availableProjects.length > 0 && (
+                      <div className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">Select Projects</Label>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-xs h-7"
+                              onClick={() => setSelectedProjectIds(new Set(availableProjects.map((p: any) => p.id)))}
+                              data-testid="button-select-all-projects"
+                            >
+                              Select All
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-xs h-7"
+                              onClick={() => setSelectedProjectIds(new Set())}
+                              data-testid="button-deselect-all-projects"
+                            >
+                              Deselect All
+                            </Button>
+                          </div>
+                        </div>
+                        <ScrollArea className="h-[120px]">
+                          <div className="space-y-2">
+                            {availableProjects.map((project: any) => (
+                              <div 
+                                key={project.id} 
+                                className="flex items-center space-x-3 p-2 rounded hover:bg-muted/50"
+                              >
+                                <Checkbox
+                                  id={`project-${project.id}`}
+                                  checked={selectedProjectIds.has(project.id)}
+                                  onCheckedChange={(checked) => {
+                                    const newSet = new Set(selectedProjectIds);
+                                    if (checked) {
+                                      newSet.add(project.id);
+                                    } else {
+                                      newSet.delete(project.id);
+                                    }
+                                    setSelectedProjectIds(newSet);
+                                  }}
+                                  data-testid={`checkbox-project-${project.id}`}
+                                />
+                                <label 
+                                  htmlFor={`project-${project.id}`}
+                                  className="text-sm font-medium leading-none cursor-pointer flex-1"
+                                >
+                                  {project.name}
+                                </label>
+                                <span className="text-xs text-muted-foreground">{project.status}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedProjectIds.size} of {availableProjects.length} projects selected
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 flex gap-3">
                     <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                     <div className="text-sm text-blue-900">
@@ -415,14 +1068,121 @@ export default function AdminImportExport() {
                 <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium">Import Data</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <div className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer group">
+                <CardContent className="space-y-4">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls,.json,.yaml,.yml"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      data-testid="input-import-file"
+                    />
+                    
+                    {!importState.file && !importState.isProcessing && (
+                      <div 
+                        className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer group"
+                        onClick={() => fileInputRef.current?.click()}
+                        data-testid="dropzone-import"
+                      >
                         <div className="h-10 w-10 bg-muted rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-background transition-colors">
                             <Upload className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                         <p className="text-sm font-medium">Upload File</p>
                         <p className="text-xs text-muted-foreground mt-1">Supports .xlsx, .json, .yaml</p>
-                    </div>
+                      </div>
+                    )}
+
+                    {importState.isProcessing && (
+                      <div className="flex items-center justify-center p-6 gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        <span className="text-sm">Processing file...</span>
+                      </div>
+                    )}
+
+                    {importState.file && importState.preview.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FileSpreadsheet className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium truncate max-w-[150px]">{importState.file.name}</span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearImport} data-testid="button-clear-import">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <ScrollArea className="h-[150px] border rounded-lg">
+                          <div className="divide-y">
+                            {importState.preview.map((item, i) => (
+                              <div key={i} className="p-2 text-sm flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {item.errors.length > 0 ? (
+                                    <AlertCircle className="h-3 w-3 text-destructive" />
+                                  ) : (
+                                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                  )}
+                                  <span>{item.entityName}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">{item.count} records</span>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+
+                        {importState.errors.length > 0 && (
+                          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex gap-2">
+                            <FileWarning className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                            <div className="text-xs text-destructive">
+                              {importState.errors.slice(0, 3).map((err, i) => (
+                                <p key={i}>{err}</p>
+                              ))}
+                              {importState.errors.length > 3 && (
+                                <p>+{importState.errors.length - 3} more errors</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {importState.isImporting && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span>Importing...</span>
+                              <span>{importState.importProgress}%</span>
+                            </div>
+                            <Progress value={importState.importProgress} />
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={clearImport}
+                            disabled={importState.isImporting}
+                            data-testid="button-cancel-import"
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={handleImport}
+                            disabled={importState.isImporting || importState.errors.length > 0}
+                            data-testid="button-confirm-import"
+                          >
+                            {importState.isImporting ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                Importing...
+                              </>
+                            ) : (
+                              "Import"
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                 </CardContent>
             </Card>
           </div>

@@ -351,6 +351,109 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Comments
+  app.get("/api/comments", async (req, res) => {
+    const comments = await storage.getComments();
+    res.json(comments);
+  });
+
+  app.get("/api/comments/:id", async (req, res) => {
+    const comment = await storage.getCommentById(req.params.id);
+    if (!comment) return res.status(404).json({ error: "Comment not found" });
+    res.json(comment);
+  });
+
+  app.post("/api/comments", async (req, res) => {
+    try {
+      const validated = insertCommentSchema.parse(req.body);
+      const comment = await storage.createComment(validated);
+      res.status(201).json(comment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/comments/:id", async (req, res) => {
+    try {
+      const comment = await storage.updateComment(req.params.id, req.body);
+      res.json(comment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/comments/:id", async (req, res) => {
+    await storage.deleteComment(req.params.id);
+    res.status(204).send();
+  });
+
+  // Attachments
+  app.get("/api/attachments", async (req, res) => {
+    const attachments = await storage.getAttachments();
+    res.json(attachments);
+  });
+
+  app.get("/api/attachments/:id", async (req, res) => {
+    const attachment = await storage.getAttachmentById(req.params.id);
+    if (!attachment) return res.status(404).json({ error: "Attachment not found" });
+    res.json(attachment);
+  });
+
+  app.post("/api/attachments", async (req, res) => {
+    try {
+      const validated = insertAttachmentSchema.parse(req.body);
+      const attachment = await storage.createAttachment(validated);
+      res.status(201).json(attachment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/attachments/:id", async (req, res) => {
+    try {
+      const attachment = await storage.updateAttachment(req.params.id, req.body);
+      res.json(attachment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/attachments/:id", async (req, res) => {
+    await storage.deleteAttachment(req.params.id);
+    res.status(204).send();
+  });
+
+  // History
+  app.get("/api/history", async (req, res) => {
+    const history = await storage.getHistory();
+    res.json(history);
+  });
+
+  app.get("/api/history/:id", async (req, res) => {
+    const historyItem = await storage.getHistoryById(req.params.id);
+    if (!historyItem) return res.status(404).json({ error: "History item not found" });
+    res.json(historyItem);
+  });
+
+  app.post("/api/history", async (req, res) => {
+    try {
+      const validated = insertHistorySchema.parse(req.body);
+      const historyItem = await storage.createHistory(validated);
+      res.status(201).json(historyItem);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/history/:id", async (req, res) => {
+    try {
+      const historyItem = await storage.updateHistory(req.params.id, req.body);
+      res.json(historyItem);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Project Roles
   app.get("/api/projectRoles", async (req, res) => {
     const roles = await storage.getProjectRoles();

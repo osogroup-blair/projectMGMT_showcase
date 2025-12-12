@@ -100,18 +100,27 @@ export interface IStorage {
   deleteActivity(id: string): Promise<void>;
 
   // Comments
+  getComments(): Promise<Comment[]>;
+  getCommentById(id: string): Promise<Comment | undefined>;
   getCommentsByTaskId(taskId: string): Promise<Comment[]>;
   createComment(comment: InsertComment): Promise<Comment>;
+  updateComment(id: string, comment: Partial<Comment>): Promise<Comment>;
   deleteComment(id: string): Promise<void>;
 
   // Attachments
+  getAttachments(): Promise<Attachment[]>;
+  getAttachmentById(id: string): Promise<Attachment | undefined>;
   getAttachmentsByTaskId(taskId: string): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
+  updateAttachment(id: string, attachment: Partial<Attachment>): Promise<Attachment>;
   deleteAttachment(id: string): Promise<void>;
 
   // History
+  getHistory(): Promise<History[]>;
+  getHistoryById(id: string): Promise<History | undefined>;
   getHistoryByTaskId(taskId: string): Promise<History[]>;
   createHistory(history: InsertHistory): Promise<History>;
+  updateHistory(id: string, history: Partial<History>): Promise<History>;
 
   // Project Roles
   getProjectRoles(): Promise<ProjectRole[]>;
@@ -452,6 +461,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Comments
+  async getComments(): Promise<Comment[]> {
+    return await db.select().from(schema.comments);
+  }
+  async getCommentById(id: string): Promise<Comment | undefined> {
+    const [comment] = await db.select().from(schema.comments).where(eq(schema.comments.id, id));
+    return comment;
+  }
   async getCommentsByTaskId(taskId: string): Promise<Comment[]> {
     return await db.select().from(schema.comments).where(eq(schema.comments.taskId, taskId));
   }
@@ -460,11 +476,22 @@ export class DatabaseStorage implements IStorage {
     const [created] = await db.insert(schema.comments).values({ ...comment, id }).returning();
     return created;
   }
+  async updateComment(id: string, comment: Partial<Comment>): Promise<Comment> {
+    const [updated] = await db.update(schema.comments).set(comment).where(eq(schema.comments.id, id)).returning();
+    return updated;
+  }
   async deleteComment(id: string): Promise<void> {
     await db.delete(schema.comments).where(eq(schema.comments.id, id));
   }
 
   // Attachments
+  async getAttachments(): Promise<Attachment[]> {
+    return await db.select().from(schema.attachments);
+  }
+  async getAttachmentById(id: string): Promise<Attachment | undefined> {
+    const [attachment] = await db.select().from(schema.attachments).where(eq(schema.attachments.id, id));
+    return attachment;
+  }
   async getAttachmentsByTaskId(taskId: string): Promise<Attachment[]> {
     return await db.select().from(schema.attachments).where(eq(schema.attachments.taskId, taskId));
   }
@@ -473,11 +500,22 @@ export class DatabaseStorage implements IStorage {
     const [created] = await db.insert(schema.attachments).values({ ...attachment, id }).returning();
     return created;
   }
+  async updateAttachment(id: string, attachment: Partial<Attachment>): Promise<Attachment> {
+    const [updated] = await db.update(schema.attachments).set(attachment).where(eq(schema.attachments.id, id)).returning();
+    return updated;
+  }
   async deleteAttachment(id: string): Promise<void> {
     await db.delete(schema.attachments).where(eq(schema.attachments.id, id));
   }
 
   // History
+  async getHistory(): Promise<History[]> {
+    return await db.select().from(schema.history);
+  }
+  async getHistoryById(id: string): Promise<History | undefined> {
+    const [historyItem] = await db.select().from(schema.history).where(eq(schema.history.id, id));
+    return historyItem;
+  }
   async getHistoryByTaskId(taskId: string): Promise<History[]> {
     return await db.select().from(schema.history).where(eq(schema.history.taskId, taskId));
   }
@@ -485,6 +523,10 @@ export class DatabaseStorage implements IStorage {
     const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.history).values({ ...history, id }).returning();
     return created;
+  }
+  async updateHistory(id: string, history: Partial<History>): Promise<History> {
+    const [updated] = await db.update(schema.history).set(history).where(eq(schema.history.id, id)).returning();
+    return updated;
   }
 
   // Project Roles

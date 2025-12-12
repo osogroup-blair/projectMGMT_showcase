@@ -9,6 +9,9 @@ export interface NexusDB {
   milestoneTaskLinks: any[];
   users: any[];
   activity: any[];
+  comments: any[];
+  attachments: any[];
+  history: any[];
   projectRoles: any[];
   roleAssignments: any[];
   savedViews: any[];
