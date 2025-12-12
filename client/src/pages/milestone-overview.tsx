@@ -541,6 +541,36 @@ function ScopeDefinitionTab({
     });
   };
 
+  const handleToggleCellTasks = (epicId: string, stageId: string) => {
+    const cellTasks = tasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
+    if (cellTasks.length === 0) return;
+
+    const linkedTaskIds = links
+      .filter((l: any) => l.milestoneId === milestone.id)
+      .map((l: any) => l.taskId);
+    
+    const allLinked = cellTasks.every((t: any) => linkedTaskIds.includes(t.id));
+    
+    if (allLinked) {
+      const cellTaskIds = cellTasks.map((t: any) => t.id);
+      const updatedLinks = links.filter((l: any) => 
+        !(l.milestoneId === milestone.id && cellTaskIds.includes(l.taskId) && !l.locked)
+      );
+      onUpdateLinks(updatedLinks);
+    } else {
+      const newLinks = cellTasks
+        .filter((t: any) => !linkedTaskIds.includes(t.id))
+        .map((t: any) => ({
+          id: `l-${Date.now()}-${t.id}`,
+          milestoneId: milestone.id,
+          taskId: t.id,
+          source: "manual_add",
+          locked: false
+        }));
+      onUpdateLinks([...links, ...newLinks]);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="rules" className="w-full">
@@ -786,8 +816,9 @@ function ScopeDefinitionTab({
                                  key={stage.id} 
                                  className={cn(
                                    "p-3 text-center border-l transition-colors relative",
-                                   hasTasks ? "cursor-pointer hover:bg-muted/10" : "opacity-50"
+                                   hasTasks ? "cursor-pointer hover:bg-muted/20 active:bg-muted/30" : "opacity-50 cursor-default"
                                  )}
+                                 onClick={() => hasTasks && handleToggleCellTasks(epic.id, stage.id)}
                                >
                                  {hasTasks ? (
                                    <div className="flex flex-col items-center gap-1">
