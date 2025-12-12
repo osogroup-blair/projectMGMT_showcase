@@ -16,7 +16,8 @@ import {
   ChevronRight,
   Package,
   Check,
-  Workflow
+  Workflow,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,13 +73,6 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
-  PROJECT_TEMPLATES,
-  DELIVERABLE_TEMPLATES,
-  EPIC_TEMPLATES,
-  TASK_TEMPLATES,
-  STAGE_TEMPLATES,
-  FRAMEWORK_TEMPLATES,
-  ROLE_TEMPLATES,
   ProjectTemplate,
   DeliverableTemplate,
   EpicTemplate,
@@ -87,6 +81,15 @@ import {
   FrameworkTemplate,
   RoleTemplate
 } from "@/lib/mock-data";
+import { 
+  useFrameworkTemplates, 
+  useProjectTemplates, 
+  useStageTemplates, 
+  useDeliverableTemplates, 
+  useEpicTemplates, 
+  useTaskTemplates, 
+  useRoleTemplates 
+} from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
@@ -97,14 +100,65 @@ export default function AdminTemplates() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("projects");
 
-  // State for all template types
-  const [projectTemplates, setProjectTemplates] = useState<ProjectTemplate[]>(PROJECT_TEMPLATES);
-  const [frameworkTemplates, setFrameworkTemplates] = useState<FrameworkTemplate[]>(FRAMEWORK_TEMPLATES);
-  const [stageTemplates, setStageTemplates] = useState<StageTemplate[]>(STAGE_TEMPLATES);
-  const [deliverableTemplates, setDeliverableTemplates] = useState<DeliverableTemplate[]>(DELIVERABLE_TEMPLATES);
-  const [epicTemplates, setEpicTemplates] = useState<EpicTemplate[]>(EPIC_TEMPLATES);
-  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>(TASK_TEMPLATES);
-  const [roleTemplates, setRoleTemplates] = useState<RoleTemplate[]>(ROLE_TEMPLATES);
+  // Database hooks for all template types
+  const { 
+    data: projectTemplates, 
+    createAsync: createProject, 
+    updateAsync: updateProject, 
+    removeAsync: removeProject,
+    isLoading: projectsLoading 
+  } = useProjectTemplates();
+  
+  const { 
+    data: frameworkTemplates, 
+    createAsync: createFramework, 
+    updateAsync: updateFramework, 
+    removeAsync: removeFramework,
+    isLoading: frameworksLoading 
+  } = useFrameworkTemplates();
+  
+  const { 
+    data: stageTemplates, 
+    createAsync: createStage, 
+    updateAsync: updateStage, 
+    removeAsync: removeStage,
+    isLoading: stagesLoading 
+  } = useStageTemplates();
+  
+  const { 
+    data: deliverableTemplates, 
+    createAsync: createDeliverable, 
+    updateAsync: updateDeliverable, 
+    removeAsync: removeDeliverable,
+    isLoading: deliverablesLoading 
+  } = useDeliverableTemplates();
+  
+  const { 
+    data: epicTemplates, 
+    createAsync: createEpic, 
+    updateAsync: updateEpic, 
+    removeAsync: removeEpic,
+    isLoading: epicsLoading 
+  } = useEpicTemplates();
+  
+  const { 
+    data: taskTemplates, 
+    createAsync: createTask, 
+    updateAsync: updateTask, 
+    removeAsync: removeTask,
+    isLoading: tasksLoading 
+  } = useTaskTemplates();
+  
+  const { 
+    data: roleTemplates, 
+    createAsync: createRole, 
+    updateAsync: updateRole, 
+    removeAsync: removeRole,
+    isLoading: rolesLoading 
+  } = useRoleTemplates();
+
+  const isLoading = projectsLoading || frameworksLoading || stagesLoading || 
+                    deliverablesLoading || epicsLoading || tasksLoading || rolesLoading;
 
   // Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -122,16 +176,16 @@ export default function AdminTemplates() {
   const [formData, setFormData] = useState<any>({});
 
   const filterTemplates = (templates: any[]) => {
-    let filtered = templates.filter(t => 
+    let filtered = (templates || []).filter(t => 
       t.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
       t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (activeTab === 'stages' && selectedFrameworkFilter !== 'all') {
-      const framework = frameworkTemplates.find(f => f.id === selectedFrameworkFilter);
+      const framework = (frameworkTemplates || []).find(f => f.id === selectedFrameworkFilter);
       if (framework) {
-        filtered = filtered.filter(t => framework.defaultStages.includes(t.id));
+        filtered = filtered.filter(t => (framework.defaultStages || []).includes(t.id));
       }
     }
 
@@ -207,82 +261,108 @@ export default function AdminTemplates() {
   };
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const isNew = !currentTemplate;
     const newId = isNew ? `${currentType.charAt(0)}t${Date.now()}` : currentTemplate.id;
     const newItem = { ...formData, id: newId };
 
-    if (currentType === "project") {
-        const list = isNew ? [...projectTemplates, newItem] : projectTemplates.map(t => t.id === newItem.id ? newItem : t);
-        setProjectTemplates(list);
-    } else if (currentType === "framework") {
-        const list = isNew ? [...frameworkTemplates, newItem] : frameworkTemplates.map(t => t.id === newItem.id ? newItem : t);
-        setFrameworkTemplates(list);
-    } else if (currentType === "stage") {
-        const list = isNew ? [...stageTemplates, newItem] : stageTemplates.map(t => t.id === newItem.id ? newItem : t);
-        setStageTemplates(list);
+    try {
+      if (currentType === "project") {
+        if (isNew) {
+          await createProject(newItem);
+        } else {
+          await updateProject({ id: newItem.id, updates: newItem });
+        }
+      } else if (currentType === "framework") {
+        if (isNew) {
+          await createFramework(newItem);
+        } else {
+          await updateFramework({ id: newItem.id, updates: newItem });
+        }
+      } else if (currentType === "stage") {
+        if (isNew) {
+          await createStage(newItem);
+        } else {
+          await updateStage({ id: newItem.id, updates: newItem });
+        }
         
         // Update Framework Assignments
         if (formData.assignedFrameworks) {
-          const updatedFrameworks = frameworkTemplates.map(fw => {
+          for (const fw of (frameworkTemplates || [])) {
             const shouldHaveStage = formData.assignedFrameworks.includes(fw.id);
-            const hasStage = fw.defaultStages.includes(newItem.id);
+            const hasStage = (fw.defaultStages || []).includes(newItem.id);
             
             if (shouldHaveStage && !hasStage) {
-              return { ...fw, defaultStages: [...fw.defaultStages, newItem.id] };
+              await updateFramework({ id: fw.id, updates: { ...fw, defaultStages: [...(fw.defaultStages || []), newItem.id] } });
             } else if (!shouldHaveStage && hasStage) {
-              return { ...fw, defaultStages: fw.defaultStages.filter(id => id !== newItem.id) };
+              await updateFramework({ id: fw.id, updates: { ...fw, defaultStages: (fw.defaultStages || []).filter((id: string) => id !== newItem.id) } });
             }
-            return fw;
-          });
-          setFrameworkTemplates(updatedFrameworks);
+          }
         }
-    } else if (currentType === "deliverable") {
-        const list = isNew ? [...deliverableTemplates, newItem] : deliverableTemplates.map(t => t.id === newItem.id ? newItem : t);
-        setDeliverableTemplates(list);
-    } else if (currentType === "epic") {
-        const list = isNew ? [...epicTemplates, newItem] : epicTemplates.map(t => t.id === newItem.id ? newItem : t);
-        setEpicTemplates(list);
-    } else if (currentType === "task") {
-        const list = isNew ? [...taskTemplates, newItem] : taskTemplates.map(t => t.id === newItem.id ? newItem : t);
-        setTaskTemplates(list);
-    } else if (currentType === "role") {
-        const list = isNew ? [...roleTemplates, newItem] : roleTemplates.map(t => t.id === newItem.id ? newItem : t);
-        setRoleTemplates(list);
-    }
+      } else if (currentType === "deliverable") {
+        if (isNew) {
+          await createDeliverable(newItem);
+        } else {
+          await updateDeliverable({ id: newItem.id, updates: newItem });
+        }
+      } else if (currentType === "epic") {
+        if (isNew) {
+          await createEpic(newItem);
+        } else {
+          await updateEpic({ id: newItem.id, updates: newItem });
+        }
+      } else if (currentType === "task") {
+        if (isNew) {
+          await createTask(newItem);
+        } else {
+          await updateTask({ id: newItem.id, updates: newItem });
+        }
+      } else if (currentType === "role") {
+        if (isNew) {
+          await createRole(newItem);
+        } else {
+          await updateRole({ id: newItem.id, updates: newItem });
+        }
+      }
 
-    setIsEditOpen(false);
-    toast({
-      title: isNew ? "Template Created" : "Template Updated",
-      description: `${newItem.name || newItem.title} has been successfully saved.`,
-    });
+      setIsEditOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to save template: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!currentTemplate) return;
 
-    if (currentType === "project") {
-        setProjectTemplates(projectTemplates.filter(t => t.id !== currentTemplate.id));
-    } else if (currentType === "framework") {
-        setFrameworkTemplates(frameworkTemplates.filter(t => t.id !== currentTemplate.id));
-    } else if (currentType === "stage") {
-        setStageTemplates(stageTemplates.filter(t => t.id !== currentTemplate.id));
-    } else if (currentType === "deliverable") {
-        setDeliverableTemplates(deliverableTemplates.filter(t => t.id !== currentTemplate.id));
-    } else if (currentType === "epic") {
-        setEpicTemplates(epicTemplates.filter(t => t.id !== currentTemplate.id));
-    } else if (currentType === "task") {
-        setTaskTemplates(taskTemplates.filter(t => t.id !== currentTemplate.id));
-    } else if (currentType === "role") {
-        setRoleTemplates(roleTemplates.filter(t => t.id !== currentTemplate.id));
-    }
+    try {
+      if (currentType === "project") {
+        await removeProject(currentTemplate.id);
+      } else if (currentType === "framework") {
+        await removeFramework(currentTemplate.id);
+      } else if (currentType === "stage") {
+        await removeStage(currentTemplate.id);
+      } else if (currentType === "deliverable") {
+        await removeDeliverable(currentTemplate.id);
+      } else if (currentType === "epic") {
+        await removeEpic(currentTemplate.id);
+      } else if (currentType === "task") {
+        await removeTask(currentTemplate.id);
+      } else if (currentType === "role") {
+        await removeRole(currentTemplate.id);
+      }
 
-    setIsDeleteOpen(false);
-    toast({
-      title: "Template Deleted",
-      description: "The template has been permanently removed.",
-      variant: "destructive"
-    });
+      setIsDeleteOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to delete template: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive"
+      });
+    }
   };
 
   const toggleSelection = (list: string[], item: string, field: string) => {
@@ -343,6 +423,16 @@ export default function AdminTemplates() {
       </CardContent>
     </Card>
   );
+
+  if (isLoading) {
+    return (
+      <Shell>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Shell>
+    );
+  }
 
   return (
     <Shell>
@@ -836,25 +926,29 @@ export default function AdminTemplates() {
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                             <Button variant="ghost" size="sm" onClick={() => setIsTaskFormOpen(false)}>Cancel</Button>
-                            <Button size="sm" onClick={() => {
+                            <Button size="sm" onClick={async () => {
                                 if (!currentTask.title) return;
                                 
-                                let newTask = { ...currentTask };
-                                if (!newTask.id) {
-                                    newTask.id = `tt${Date.now()}`;
-                                    // Add to taskTemplates state
-                                    setTaskTemplates([...taskTemplates, newTask]);
-                                    // Add to formData
-                                    setFormData({
-                                        ...formData, 
-                                        defaultTasks: [...(formData.defaultTasks || []), newTask.id]
+                                try {
+                                    let newTask = { ...currentTask };
+                                    if (!newTask.id) {
+                                        newTask.id = `tt${Date.now()}`;
+                                        await createTask(newTask);
+                                        setFormData({
+                                            ...formData, 
+                                            defaultTasks: [...(formData.defaultTasks || []), newTask.id]
+                                        });
+                                    } else {
+                                        await updateTask({ id: newTask.id, updates: newTask });
+                                    }
+                                    setIsTaskFormOpen(false);
+                                } catch (error) {
+                                    toast({
+                                        title: "Error",
+                                        description: `Failed to save task template: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                                        variant: "destructive"
                                     });
-                                } else {
-                                    // Update taskTemplates state
-                                    setTaskTemplates(taskTemplates.map(t => t.id === newTask.id ? newTask : t));
-                                    // formData.defaultTasks likely already has the ID, no change needed there
                                 }
-                                setIsTaskFormOpen(false);
                             }}>
                                 {currentTask.id ? 'Update Task' : 'Add Task'}
                             </Button>
