@@ -177,12 +177,29 @@ export default function StageWorkspace() {
   const [editDescription, setEditDescription] = useState("");
   const [editStatus, setEditStatus] = useState<"pending" | "active" | "completed">("pending");
 
-  // Create milestone modal state
+  // Add/Link Milestone modal state
   const [, setLocation] = useLocation();
-  const [showCreateMilestoneModal, setShowCreateMilestoneModal] = useState(false);
+  const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+  const [milestoneModalMode, setMilestoneModalMode] = useState<"link" | "create">("link");
   const [newMilestoneName, setNewMilestoneName] = useState("");
   const [newMilestoneStageId, setNewMilestoneStageId] = useState(stageId);
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
+  const [milestoneSearchQuery, setMilestoneSearchQuery] = useState("");
+  
+  // All project milestones that aren't already linked to this stage
+  const availableMilestones = useMemo(() => {
+    const stageMilestoneIds = new Set(milestones.map((m: any) => m.id));
+    return (allMilestones || [])
+      .filter((m: any) => m.projectId === projectId && !stageMilestoneIds.has(m.id));
+  }, [allMilestones, projectId, milestones]);
+  
+  const filteredAvailableMilestones = useMemo(() => {
+    if (!milestoneSearchQuery.trim()) return availableMilestones;
+    const q = milestoneSearchQuery.toLowerCase();
+    return availableMilestones.filter((m: any) => m.name?.toLowerCase().includes(q));
+  }, [availableMilestones, milestoneSearchQuery]);
+  
+  const { update: updateMilestone } = useMilestones();
 
   // Create task modal state
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
@@ -258,7 +275,7 @@ export default function StageWorkspace() {
         name: newMilestoneName.trim(),
         description: "",
         phase: "plan_strategy",
-        stageId: newMilestoneStageId,
+        stageId: stageId, // Always use current stage
         targetDate: new Date().toISOString().split('T')[0],
         status: "planned",
         ownerId: "1",
@@ -268,20 +285,32 @@ export default function StageWorkspace() {
         tags: [],
       };
       
-      const createdMilestone = await createMilestone(newMilestone);
-      setShowCreateMilestoneModal(false);
+      await createMilestone(newMilestone);
+      setShowMilestoneModal(false);
       setNewMilestoneName("");
-      setNewMilestoneStageId(stageId);
-      toast({ title: "Success", description: "Milestone created successfully." });
-      // Use the ID from the server response
-      if (createdMilestone?.id) {
-        setLocation(`/projects/${projectId}/milestones/${createdMilestone.id}`);
-      }
+      toast({ title: "Success", description: "Milestone created and added to this stage." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to create milestone.", variant: "destructive" });
     } finally {
       setIsCreatingMilestone(false);
     }
+  };
+  
+  const handleLinkMilestone = async (milestoneId: string) => {
+    try {
+      await updateMilestone({ id: milestoneId, updates: { stageId } });
+      toast({ title: "Success", description: "Milestone linked to this stage." });
+      setShowMilestoneModal(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to link milestone.", variant: "destructive" });
+    }
+  };
+  
+  const openMilestoneModal = (mode: "link" | "create") => {
+    setMilestoneModalMode(mode);
+    setMilestoneSearchQuery("");
+    setNewMilestoneName("");
+    setShowMilestoneModal(true);
   };
 
   // Sync edit values when stage changes
@@ -607,7 +636,7 @@ export default function StageWorkspace() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Stage Milestones</h2>
-                <Button size="sm" className="gap-2" onClick={() => setShowCreateMilestoneModal(true)} data-testid="button-add-milestone">
+                <Button size="sm" className="gap-2" onClick={() => openMilestoneModal("link")} data-testid="button-add-milestone">
                   <Plus className="h-4 w-4" />
                   Add Milestone
                 </Button>
@@ -730,7 +759,7 @@ export default function StageWorkspace() {
                     <Target className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                     <h3 className="font-medium mb-1">No milestones yet</h3>
                     <p className="text-sm text-muted-foreground mb-4">Create your first milestone to track progress</p>
-                    <Button size="sm" className="gap-2" onClick={() => setShowCreateMilestoneModal(true)}>
+                    <Button size="sm" className="gap-2" onClick={() => openMilestoneModal("link")}>
                       <Plus className="h-4 w-4" />
                       Add Milestone
                     </Button>
@@ -903,58 +932,136 @@ export default function StageWorkspace() {
         </Tabs>
       </div>
 
-      {/* Create Milestone Modal */}
-      <Dialog open={showCreateMilestoneModal} onOpenChange={setShowCreateMilestoneModal}>
-        <DialogContent className="sm:max-w-[425px]">
+      {/* Add/Link Milestone Modal */}
+      <Dialog open={showMilestoneModal} onOpenChange={setShowMilestoneModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Create New Milestone</DialogTitle>
+            <DialogTitle>Add Milestone to Stage</DialogTitle>
             <DialogDescription>
-              Add a new milestone to track progress. You can add more details after creation.
+              Link an existing milestone or create a new one for this stage.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="milestone-name">Name</Label>
-              <Input
-                id="milestone-name"
-                placeholder="Enter milestone name..."
-                value={newMilestoneName}
-                onChange={(e) => setNewMilestoneName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !isCreatingMilestone) handleCreateMilestone();
-                }}
-                data-testid="input-new-milestone-name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="milestone-stage">Stage</Label>
-              <Select value={newMilestoneStageId} onValueChange={setNewMilestoneStageId}>
-                <SelectTrigger id="milestone-stage" data-testid="select-new-milestone-stage">
-                  <SelectValue placeholder="Select stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projectStages.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateMilestoneModal(false)} disabled={isCreatingMilestone}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateMilestone} disabled={isCreatingMilestone || !newMilestoneName.trim()} data-testid="button-create-milestone">
-              {isCreatingMilestone ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                "Create Milestone"
-              )}
-            </Button>
-          </DialogFooter>
+
+          <Tabs value={milestoneModalMode} onValueChange={(v) => setMilestoneModalMode(v as "link" | "create")} className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="link" data-testid="tab-link-milestone">
+                <Search className="h-4 w-4 mr-2" />
+                Link Existing
+              </TabsTrigger>
+              <TabsTrigger value="create" data-testid="tab-create-milestone">
+                <Plus className="h-4 w-4 mr-2" />
+                Create New
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Link Existing Tab */}
+            <TabsContent value="link" className="flex-1 overflow-hidden flex flex-col mt-4">
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search milestones by name..."
+                    className="pl-9"
+                    value={milestoneSearchQuery}
+                    onChange={e => setMilestoneSearchQuery(e.target.value)}
+                    data-testid="input-search-milestone"
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto mt-3 border rounded-md">
+                {filteredAvailableMilestones.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No available milestones found.</p>
+                    <p className="text-xs mt-1">Create a new one or check other projects.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredAvailableMilestones.map((m: any) => {
+                      const currentStage = projectStages.find((s: any) => s.id === m.stageId);
+                      return (
+                        <div 
+                          key={m.id} 
+                          className="p-3 flex items-center justify-between hover:bg-muted/50 cursor-pointer"
+                          onClick={() => handleLinkMilestone(m.id)}
+                          data-testid={`milestone-link-${m.id}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Target className={cn(
+                              "h-5 w-5 shrink-0",
+                              m.status === 'Completed' || m.status === 'achieved' ? "text-green-600" :
+                              m.status === 'In Progress' || m.status === 'in_progress' ? "text-blue-600" :
+                              "text-muted-foreground"
+                            )} />
+                            <div>
+                              <h4 className="font-medium text-sm">{m.name}</h4>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                {m.targetDate && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {m.targetDate}
+                                  </span>
+                                )}
+                                {currentStage && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {currentStage.name}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <Button size="sm" variant="ghost" className="shrink-0">
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Create New Tab */}
+            <TabsContent value="create" className="flex-1 overflow-y-auto mt-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="milestone-name">Name <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="milestone-name"
+                    placeholder="Enter milestone name..."
+                    value={newMilestoneName}
+                    onChange={(e) => setNewMilestoneName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !isCreatingMilestone && newMilestoneName.trim()) handleCreateMilestone();
+                    }}
+                    data-testid="input-new-milestone-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Stage</Label>
+                  <Input value={stage?.name || stageId} disabled className="bg-muted" />
+                </div>
+              </div>
+              <DialogFooter className="mt-6">
+                <Button variant="outline" onClick={() => setShowMilestoneModal(false)} disabled={isCreatingMilestone}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateMilestone} disabled={isCreatingMilestone || !newMilestoneName.trim()} data-testid="button-create-milestone">
+                  {isCreatingMilestone ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Milestone
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
