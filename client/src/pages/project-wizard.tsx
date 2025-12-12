@@ -492,8 +492,9 @@ export default function ProjectWizard() {
         }
       }
       
-      // Get the first created stage ID for default epic assignment
-      const firstStageId = createdStages.length > 0 ? createdStages[0].createdStageId : null;
+      // Get ALL created stage IDs for epic assignment (epics need access to all project stages)
+      // Filter to ensure only valid IDs are included
+      const allStageIds = createdStages.map(s => s.createdStageId).filter(Boolean);
       
       // 3. Create deliverables with epics and collect created epic IDs
       const createdEpics: { id: string; title: string }[] = [];
@@ -521,7 +522,7 @@ export default function ProjectWizard() {
               startDate: projectData.startDate || new Date().toISOString().split('T')[0],
               endDate: projectData.dueDate || new Date().toISOString().split('T')[0],
               progress: 0,
-              stageIds: firstStageId ? [firstStageId] : []
+              stageIds: allStageIds
             });
             
             if (newEpic?.id) {
