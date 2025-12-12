@@ -36,23 +36,29 @@ import {
   Trash2,
   Settings,
   Save,
-  Upload
+  Upload,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 
-// Import mock data
+// Import database hooks
 import { 
-  PROJECT_TEMPLATES, 
-  FRAMEWORK_TEMPLATES, 
-  STAGE_TEMPLATES, 
-  ROLE_TEMPLATES,
-  TEAM,
-  DELIVERABLE_TEMPLATES,
-  EPIC_TEMPLATES,
-  TASK_TEMPLATES,
-} from "@/lib/mock-data";
+  useProjects,
+  useDeliverables,
+  useEpics,
+  useTasks,
+  useUsers,
+  useProjectStages,
+  useFrameworkTemplates,
+  useStageTemplates,
+  useProjectTemplates,
+  useDeliverableTemplates,
+  useEpicTemplates,
+  useTaskTemplates,
+  useRoleTemplates
+} from "@/hooks/use-nexus-data";
 
 const STEPS = [
   { id: 1, title: "Project Basics", description: "Name, framework, and templates", icon: Settings },
@@ -66,6 +72,28 @@ export default function ProjectWizard() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isCreating, setIsCreating] = useState(false);
+  
+  // Database hooks for templates
+  const { data: frameworkTemplates = [], isLoading: loadingFrameworks } = useFrameworkTemplates();
+  const { data: stageTemplates = [], isLoading: loadingStages } = useStageTemplates();
+  const { data: projectTemplatesData = [], isLoading: loadingProjects } = useProjectTemplates();
+  const { data: deliverableTemplates = [], isLoading: loadingDeliverables } = useDeliverableTemplates();
+  const { data: epicTemplates = [], isLoading: loadingEpics } = useEpicTemplates();
+  const { data: taskTemplates = [], isLoading: loadingTasks } = useTaskTemplates();
+  const { data: roleTemplates = [], isLoading: loadingRoles } = useRoleTemplates();
+  const { data: users = [], isLoading: loadingUsers } = useUsers();
+  
+  // Database hooks for creating entities
+  const { createAsync: createProject } = useProjects();
+  const { createAsync: createDeliverable } = useDeliverables();
+  const { createAsync: createEpic } = useEpics();
+  const { createAsync: createTask } = useTasks();
+  const { createAsync: createProjectStage } = useProjectStages();
+  
+  const isLoading = loadingFrameworks || loadingStages || loadingProjects || 
+                    loadingDeliverables || loadingEpics || loadingTasks || 
+                    loadingRoles || loadingUsers;
   
   // Wizard State
   const [projectData, setProjectData] = useState({
@@ -261,21 +289,21 @@ export default function ProjectWizard() {
   };
 
   const handleTemplateSelect = (templateId: string) => {
-    const template = PROJECT_TEMPLATES.find(t => t.id === templateId);
+    const template = projectTemplatesData.find(t => t.id === templateId);
     if (template) {
       setProjectData(prev => ({
         ...prev,
         templateId,
         name: prev.name || template.name,
         description: prev.description || template.description,
-        frameworkId: template.defaultFrameworkId
+        frameworkId: template.defaultFrameworkId || ""
       }));
 
       // Populate Stages from Framework
-      const framework = FRAMEWORK_TEMPLATES.find(f => f.id === template.defaultFrameworkId);
+      const framework = frameworkTemplates.find(f => f.id === template.defaultFrameworkId);
       if (framework) {
-        const frameworkStages = framework.defaultStages
-            .map(sid => STAGE_TEMPLATES.find(st => st.id === sid))
+        const frameworkStages = (framework.defaultStages || [])
+            .map(sid => stageTemplates.find(st => st.id === sid))
             .filter(Boolean)
             .map(st => ({...st, includeTasks: true}));
         setStages(frameworkStages);
@@ -284,15 +312,15 @@ export default function ProjectWizard() {
       // Populate Deliverables
       if (template.defaultDeliverables) {
         const templateDeliverables = template.defaultDeliverables.map(did => {
-          const dTemplate = DELIVERABLE_TEMPLATES.find(dt => dt.id === did);
+          const dTemplate = deliverableTemplates.find(dt => dt.id === did);
           if (!dTemplate) return null;
           
           return {
             id: `d-${Date.now()}-${Math.random()}`,
             title: dTemplate.title,
             description: dTemplate.description,
-            epics: dTemplate.defaultEpics.map(eid => {
-                const eTemplate = EPIC_TEMPLATES.find(et => et.id === eid);
+            epics: (dTemplate.defaultEpics || []).map(eid => {
+                const eTemplate = epicTemplates.find(et => et.id === eid);
                 if (!eTemplate) return null;
                 return {
                     id: `e-${Date.now()}-${Math.random()}`,
@@ -316,15 +344,15 @@ export default function ProjectWizard() {
 
       // 2. From Framework Stages & Tasks
       if (framework) {
-        framework.defaultStages.forEach(sid => {
-            const stage = STAGE_TEMPLATES.find(st => st.id === sid);
+        (framework.defaultStages || []).forEach(sid => {
+            const stage = stageTemplates.find(st => st.id === sid);
             if (stage) {
                 // Stage required roles
-                stage.defaultRoles?.forEach(rid => uniqueRoleIds.add(rid));
+                (stage.defaultRoles || []).forEach(rid => uniqueRoleIds.add(rid));
                 
                 // Task required roles
-                stage.defaultTasks?.forEach(tid => {
-                    const task = TASK_TEMPLATES.find(t => t.id === tid);
+                (stage.defaultTasks || []).forEach(tid => {
+                    const task = taskTemplates.find(t => t.id === tid);
                     if (task?.assignedRoleId) {
                         uniqueRoleIds.add(task.assignedRoleId);
                     }
@@ -334,7 +362,7 @@ export default function ProjectWizard() {
       }
 
       const aggregatedRoles = Array.from(uniqueRoleIds).map(rid => {
-          const rTemplate = ROLE_TEMPLATES.find(rt => rt.id === rid);
+          const rTemplate = roleTemplates.find(rt => rt.id === rid);
           if (!rTemplate) return null;
           return {
               id: `r-${Date.now()}-${Math.random()}`,
@@ -351,34 +379,30 @@ export default function ProjectWizard() {
 
   const handleFrameworkSelect = (frameworkId: string) => {
     setProjectData(prev => ({ ...prev, frameworkId }));
-    const framework = FRAMEWORK_TEMPLATES.find(f => f.id === frameworkId);
+    const framework = frameworkTemplates.find(f => f.id === frameworkId);
     if (framework) {
-      const frameworkStages = framework.defaultStages
-        .map(sid => STAGE_TEMPLATES.find(st => st.id === sid))
+      const frameworkStages = (framework.defaultStages || [])
+        .map(sid => stageTemplates.find(st => st.id === sid))
         .filter(Boolean)
         .map(st => ({...st, includeTasks: true}));
       setStages(frameworkStages);
 
-      // Re-calculate roles based on new framework (preserving project template roles if possible, but simpler to rebuild)
-      // Note: We might lose project-level roles if we just rebuild from stages.
-      // Better strategy: Keep roles that came from Project Template, replace Stage-derived roles.
-      // For prototype simplicity, let's rebuild, assuming Project Template is the source of truth for Project Roles.
-      
+      // Re-calculate roles based on new framework
       const uniqueRoleIds = new Set<string>();
       
       // 1. From Project Template (if selected)
       if (projectData.templateId) {
-          const template = PROJECT_TEMPLATES.find(t => t.id === projectData.templateId);
+          const template = projectTemplatesData.find(t => t.id === projectData.templateId);
           template?.defaultRoles?.forEach(rid => uniqueRoleIds.add(rid));
       }
 
       // 2. From New Framework Stages
-      framework.defaultStages.forEach(sid => {
-          const stage = STAGE_TEMPLATES.find(st => st.id === sid);
+      (framework.defaultStages || []).forEach(sid => {
+          const stage = stageTemplates.find(st => st.id === sid);
           if (stage) {
-              stage.defaultRoles?.forEach(rid => uniqueRoleIds.add(rid));
-              stage.defaultTasks?.forEach(tid => {
-                  const task = TASK_TEMPLATES.find(t => t.id === tid);
+              (stage.defaultRoles || []).forEach(rid => uniqueRoleIds.add(rid));
+              (stage.defaultTasks || []).forEach(tid => {
+                  const task = taskTemplates.find(t => t.id === tid);
                   if (task?.assignedRoleId) {
                       uniqueRoleIds.add(task.assignedRoleId);
                   }
@@ -387,7 +411,7 @@ export default function ProjectWizard() {
       });
 
       const aggregatedRoles = Array.from(uniqueRoleIds).map(rid => {
-          const rTemplate = ROLE_TEMPLATES.find(rt => rt.id === rid);
+          const rTemplate = roleTemplates.find(rt => rt.id === rid);
           if (!rTemplate) return null;
           return {
               id: `r-${Date.now()}-${Math.random()}`,
@@ -402,12 +426,124 @@ export default function ProjectWizard() {
     }
   };
 
-  const handleCreateProject = () => {
-    toast({
-      title: "Project Created",
-      description: `${projectData.name} has been successfully created.`,
-    });
-    setLocation("/projects");
+  const handleCreateProject = async () => {
+    if (!projectData.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a project name.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsCreating(true);
+    
+    try {
+      // 1. Create the project
+      const newProject = await createProject({
+        name: projectData.name,
+        description: projectData.description,
+        status: "Active",
+        startDate: projectData.startDate || null,
+        dueDate: projectData.dueDate || null,
+        frameworkId: projectData.frameworkId || null,
+        health: "on-track"
+      });
+      
+      if (!newProject?.id) {
+        throw new Error("Failed to create project");
+      }
+      
+      // 2. Create project stages from templates and build mapping
+      const templateIdToStageId = new Map<string, string>();
+      let stageOrder = 0;
+      
+      for (const stageTemplate of stages) {
+        const newStage = await createProjectStage({
+          name: stageTemplate.name,
+          description: stageTemplate.description || "",
+          order: stageOrder++,
+          type: stageTemplate.type || "standard",
+          status: "pending"
+        });
+        
+        if (newStage?.id && stageTemplate.id) {
+          templateIdToStageId.set(stageTemplate.id, newStage.id);
+        }
+      }
+      
+      // Get the first created stage ID for default assignment
+      const firstStageId = stages.length > 0 && stages[0]?.id 
+        ? templateIdToStageId.get(stages[0].id) || null
+        : null;
+      
+      // 3. Create deliverables with epics
+      for (const deliverable of deliverables) {
+        const newDeliverable = await createDeliverable({
+          projectId: newProject.id,
+          title: deliverable.title,
+          description: deliverable.description || "",
+          status: "Active",
+          order: 0
+        });
+        
+        if (newDeliverable?.id && deliverable.epics?.length > 0) {
+          // Create epics for this deliverable
+          for (const epic of deliverable.epics) {
+            await createEpic({
+              projectId: newProject.id,
+              deliverableId: newDeliverable.id,
+              title: epic.title,
+              description: epic.description || "",
+              status: "Active",
+              stageId: firstStageId,
+              order: 0
+            });
+          }
+        }
+      }
+      
+      // 4. Create stage-based tasks if user opted in
+      for (const stageTemplate of stages) {
+        if (stageTemplate.includeTasks && stageTemplate.defaultTasks?.length > 0) {
+          const actualStageId = templateIdToStageId.get(stageTemplate.id) || null;
+          
+          for (const taskId of stageTemplate.defaultTasks) {
+            const taskTemplate = taskTemplates.find(t => t.id === taskId);
+            if (taskTemplate) {
+              await createTask({
+                projectId: newProject.id,
+                title: taskTemplate.title,
+                description: taskTemplate.description || "",
+                status: "Active",
+                priority: taskTemplate.defaultPriority || "Medium",
+                stageId: actualStageId,
+                epicId: null,
+                effort: taskTemplate.effort || null,
+                dueDate: null
+              });
+            }
+          }
+        }
+      }
+      
+      toast({
+        title: "Project Created",
+        description: `${projectData.name} has been successfully created with ${deliverables.length} deliverables and ${stages.length} stages.`,
+      });
+      
+      setLocation(`/projects/${newProject.id}`);
+      
+    } catch (error) {
+      console.error("Error creating project:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create project. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -454,7 +590,12 @@ export default function ProjectWizard() {
                 <CardDescription>{STEPS[currentStep - 1].description}</CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
-                {currentStep === 1 && (
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-64">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                        <p className="text-muted-foreground">Loading templates...</p>
+                    </div>
+                ) : currentStep === 1 && (
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
@@ -501,24 +642,30 @@ export default function ProjectWizard() {
                           <div className="space-y-3">
                             <Label>Project Template (Optional)</Label>
                             <div className="grid grid-cols-1 gap-2">
-                              {PROJECT_TEMPLATES.map(template => (
-                                <div 
-                                  key={template.id}
-                                  className={cn(
-                                    "border rounded-lg p-3 cursor-pointer transition-all hover:border-primary",
-                                    projectData.templateId === template.id ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-card"
-                                  )}
-                                  onClick={() => handleTemplateSelect(template.id)}
-                                >
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <div className="font-medium text-sm">{template.name}</div>
-                                      <div className="text-xs text-muted-foreground line-clamp-1">{template.description}</div>
-                                    </div>
-                                    {projectData.templateId === template.id && <Check className="h-4 w-4 text-primary" />}
-                                  </div>
+                              {projectTemplatesData.length === 0 ? (
+                                <div className="text-sm text-muted-foreground p-3 border rounded-lg bg-muted/20">
+                                  No project templates available. Create templates in Admin → Templates.
                                 </div>
-                              ))}
+                              ) : (
+                                projectTemplatesData.map(template => (
+                                  <div 
+                                    key={template.id}
+                                    className={cn(
+                                      "border rounded-lg p-3 cursor-pointer transition-all hover:border-primary",
+                                      projectData.templateId === template.id ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-card"
+                                    )}
+                                    onClick={() => handleTemplateSelect(template.id)}
+                                  >
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <div className="font-medium text-sm">{template.name}</div>
+                                        <div className="text-xs text-muted-foreground line-clamp-1">{template.description}</div>
+                                      </div>
+                                      {projectData.templateId === template.id && <Check className="h-4 w-4 text-primary" />}
+                                    </div>
+                                  </div>
+                                ))
+                              )}
                             </div>
                           </div>
 
@@ -529,7 +676,7 @@ export default function ProjectWizard() {
                                 <SelectValue placeholder="Select a framework..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {FRAMEWORK_TEMPLATES.map(fw => (
+                                {frameworkTemplates.map(fw => (
                                   <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -663,7 +810,7 @@ export default function ProjectWizard() {
                     <div className="space-y-6">
                         <div>
                             <h3 className="text-lg font-medium">Stage Configuration</h3>
-                            <p className="text-sm text-muted-foreground">Review the stages defined by the {FRAMEWORK_TEMPLATES.find(f => f.id === projectData.frameworkId)?.name} framework.</p>
+                            <p className="text-sm text-muted-foreground">Review the stages defined by the {frameworkTemplates.find(f => f.id === projectData.frameworkId)?.name} framework.</p>
                         </div>
 
                         <div className="grid gap-4">
@@ -771,7 +918,7 @@ export default function ProjectWizard() {
                                                 <SelectValue placeholder="Unassigned" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {TEAM.map(member => (
+                                                {users.map(member => (
                                                     <SelectItem key={member.id} value={member.id}>
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px]">
@@ -800,7 +947,7 @@ export default function ProjectWizard() {
                                 </div>
                                 <div>
                                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Framework</h4>
-                                    <p className="font-medium">{FRAMEWORK_TEMPLATES.find(f => f.id === projectData.frameworkId)?.name || "None"}</p>
+                                    <p className="font-medium">{frameworkTemplates.find(f => f.id === projectData.frameworkId)?.name || "None"}</p>
                                 </div>
                                 <div>
                                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Start Date</h4>
@@ -858,13 +1005,18 @@ export default function ProjectWizard() {
                 <Button 
                     variant="outline" 
                     onClick={handleBack} 
-                    disabled={currentStep === 1}
+                    disabled={currentStep === 1 || isCreating}
                 >
                     <ChevronLeft className="h-4 w-4 mr-2" /> Back
                 </Button>
                 
-                <Button onClick={handleNext}>
-                    {currentStep === STEPS.length ? (
+                <Button onClick={handleNext} disabled={isCreating}>
+                    {isCreating ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Creating Project...
+                        </>
+                    ) : currentStep === STEPS.length ? (
                         <>Create Project <Save className="h-4 w-4 ml-2" /></>
                     ) : (
                         <>Next Step <ChevronRight className="h-4 w-4 ml-2" /></>
