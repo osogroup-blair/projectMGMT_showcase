@@ -89,7 +89,7 @@ export default function StageWorkspace() {
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
-  const { data: allMilestones, isLoading: isMilestonesLoading, create: createMilestone } = useMilestones();
+  const { data: allMilestones, isLoading: isMilestonesLoading, createAsync: createMilestone } = useMilestones();
   const { data: allMilestoneLinks, isLoading: isMilestoneLinksLoading } = useMilestoneTaskLinks();
   const { data: allGuidance, isLoading: isGuidanceLoading } = useGuidanceItems();
   const { data: allSavedViews, isLoading: isSavedViewsLoading } = useSavedViews();
@@ -176,9 +176,7 @@ export default function StageWorkspace() {
     
     setIsCreatingMilestone(true);
     try {
-      const newId = `m-${Date.now()}`;
       const newMilestone = {
-        id: newId,
         projectId,
         name: newMilestoneName.trim(),
         description: "",
@@ -193,12 +191,15 @@ export default function StageWorkspace() {
         tags: [],
       };
       
-      await createMilestone(newMilestone);
+      const createdMilestone = await createMilestone(newMilestone);
       setShowCreateMilestoneModal(false);
       setNewMilestoneName("");
       setNewMilestoneStageId(stageId);
       toast({ title: "Success", description: "Milestone created successfully." });
-      setLocation(`/projects/${projectId}/milestones/${newId}`);
+      // Use the ID from the server response
+      if (createdMilestone?.id) {
+        setLocation(`/projects/${projectId}/milestones/${createdMilestone.id}`);
+      }
     } catch (error) {
       toast({ title: "Error", description: "Failed to create milestone.", variant: "destructive" });
     } finally {
