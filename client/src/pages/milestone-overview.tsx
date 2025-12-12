@@ -40,7 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
-import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules } from "@/hooks/use-nexus-data";
+import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules, useProjectStages } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
@@ -98,6 +98,7 @@ export default function MilestoneOverview() {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
+  const { data: allStages, isLoading: isStagesLoading } = useProjectStages();
 
   const milestone = useMemo(() => 
     (allMilestones || []).find((m: any) => m.id === milestoneId),
@@ -135,6 +136,15 @@ export default function MilestoneOverview() {
     (allEpics || []).filter((e: any) => projectDeliverableIds.includes(e.deliverableId)),
     [allEpics, projectDeliverableIds]
   );
+
+  // Get unique stage IDs from project tasks and map to stage objects
+  const projectStages = useMemo(() => {
+    const stageIds = [...new Set(projectTasks.map((t: any) => t.stageId).filter(Boolean))];
+    return stageIds.map(id => {
+      const stage = (allStages || []).find((s: any) => s.id === id);
+      return stage ? { id: stage.id, label: stage.name, order: stage.order } : null;
+    }).filter(Boolean).sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+  }, [projectTasks, allStages]);
 
   const scopeRules = useMemo(() => 
     (allScopeRules || []).filter((r: any) => r.milestoneId === milestoneId),
@@ -273,7 +283,7 @@ export default function MilestoneOverview() {
     setIsEditingDate(false);
   };
 
-  const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading;
+  const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isStagesLoading;
 
   if (isLoading) {
     return (
@@ -540,6 +550,7 @@ export default function MilestoneOverview() {
               milestone={milestone}
               tasks={projectTasks}
               epics={projectEpics}
+              stages={projectStages}
               links={links}
               rules={selectedRules}
               onUpdateLinks={handleUpdateLinks}
@@ -662,6 +673,7 @@ function ScopeDefinitionTab({
   milestone, 
   tasks, 
   epics, 
+  stages,
   links, 
   rules, 
   onUpdateLinks,
@@ -670,6 +682,7 @@ function ScopeDefinitionTab({
   milestone: any,
   tasks: any[],
   epics: any[],
+  stages: any[],
   links: any[],
   rules: MilestoneScopeRules,
   onUpdateLinks: (links: MilestoneTaskLink[]) => void,
@@ -717,7 +730,7 @@ function ScopeDefinitionTab({
         milestoneId: milestone.id,
         taskId,
         source: "manual_add",
-        locked: true,
+        locked: false,
         createdAt: new Date().toISOString()
       };
       onUpdateLinks([...links, newLink]);
@@ -918,12 +931,12 @@ function ScopeDefinitionTab({
                  <div className="flex items-center gap-2">
                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Stage:</Label>
                    <Select value={stageFilter} onValueChange={setStageFilter}>
-                     <SelectTrigger className="h-8 w-[140px]" data-testid="select-stage-filter">
+                     <SelectTrigger className="h-8 w-[180px]" data-testid="select-stage-filter">
                        <SelectValue placeholder="All Stages" />
                      </SelectTrigger>
                      <SelectContent>
                        <SelectItem value="all">All Stages</SelectItem>
-                       {TASK_STAGES.map(stage => (
+                       {stages.map((stage: any) => (
                          <SelectItem key={stage.id} value={stage.id}>{stage.label}</SelectItem>
                        ))}
                      </SelectContent>
@@ -1060,7 +1073,7 @@ function ScopeDefinitionTab({
                    <thead>
                      <tr className="border-b bg-muted/10">
                        <th className="p-3 text-left font-medium min-w-[200px]">Epic</th>
-                       {TASK_STAGES.map(stage => (
+                       {stages.map((stage: any) => (
                          <th key={stage.id} className="p-3 text-center font-medium border-l min-w-[100px]">
                            {stage.label}
                          </th>
@@ -1070,8 +1083,14 @@ function ScopeDefinitionTab({
                    <tbody>
                      {epics.length === 0 ? (
                        <tr>
-                         <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                         <td colSpan={stages.length + 1} className="p-8 text-center text-muted-foreground">
                            No epics found in this project.
+                         </td>
+                       </tr>
+                     ) : stages.length === 0 ? (
+                       <tr>
+                         <td colSpan={2} className="p-8 text-center text-muted-foreground">
+                           No stages found. Tasks must have stages assigned.
                          </td>
                        </tr>
                      ) : (
@@ -1081,7 +1100,7 @@ function ScopeDefinitionTab({
                              {epic.title}
                              <div className="text-xs text-muted-foreground font-normal line-clamp-1">{epic.description}</div>
                            </td>
-                           {TASK_STAGES.map(stage => {
+                           {stages.map((stage: any) => {
                              const cellTasks = tasks.filter((t: any) => t.epicId === epic.id && t.stageId === stage.id);
                              const hasTasks = cellTasks.length > 0;
                              
