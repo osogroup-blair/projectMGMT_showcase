@@ -598,15 +598,8 @@ function ScopeDefinitionTab({
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="rules" className="w-full">
+      <Tabs defaultValue="manual" className="w-full">
         <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
-          <TabsTrigger 
-            value="rules" 
-            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
-          >
-            <SlidersHorizontal className="w-4 h-4 mr-2" />
-            Rule-Based Scope
-          </TabsTrigger>
           <TabsTrigger 
             value="manual"
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
@@ -620,6 +613,13 @@ function ScopeDefinitionTab({
           >
             <Layers className="w-4 h-4 mr-2" />
             Coverage Matrix
+          </TabsTrigger>
+          <TabsTrigger 
+            value="rules" 
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+          >
+            <SlidersHorizontal className="w-4 h-4 mr-2" />
+            Rule-Based Scope
           </TabsTrigger>
         </TabsList>
 
