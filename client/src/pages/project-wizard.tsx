@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Check, 
+  CheckSquare,
   ChevronRight, 
   ChevronLeft, 
   Package, 
@@ -39,6 +40,14 @@ import {
   Upload,
   Loader2
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
@@ -997,6 +1006,77 @@ export default function ProjectWizard() {
                                 </div>
                             </div>
                             
+{/* Tasks Preview Section */}
+                            {(() => {
+                                const tasksToCreate = stages
+                                    .filter(stage => stage.includeTasks && stage.defaultTasks?.length > 0)
+                                    .flatMap(stage => 
+                                        (stage.defaultTasks || []).map(taskId => {
+                                            const task = taskTemplates.find(t => t.id === taskId);
+                                            return task ? { ...task, stageName: stage.name } : null;
+                                        }).filter(Boolean)
+                                    );
+                                
+                                return tasksToCreate.length > 0 ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-primary">
+                                                <CheckSquare className="h-5 w-5" />
+                                                <span className="font-semibold">Tasks to be Created</span>
+                                            </div>
+                                            <Badge variant="secondary">{tasksToCreate.length} tasks</Badge>
+                                        </div>
+                                        <div className="bg-card border rounded-lg overflow-hidden">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow className="bg-muted/50">
+                                                        <TableHead className="font-semibold">Task Title</TableHead>
+                                                        <TableHead className="font-semibold">Stage</TableHead>
+                                                        <TableHead className="font-semibold">Priority</TableHead>
+                                                        <TableHead className="font-semibold text-right">Est. Hours</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {tasksToCreate.map((task: any, idx: number) => (
+                                                        <TableRow key={idx} data-testid={`review-task-row-${idx}`}>
+                                                            <TableCell className="font-medium">{task.title}</TableCell>
+                                                            <TableCell>
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {task.stageName}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Badge 
+                                                                    variant="outline" 
+                                                                    className={cn(
+                                                                        "text-xs",
+                                                                        task.defaultPriority === "High" && "bg-red-50 text-red-700 border-red-200",
+                                                                        task.defaultPriority === "Medium" && "bg-amber-50 text-amber-700 border-amber-200",
+                                                                        task.defaultPriority === "Low" && "bg-green-50 text-green-700 border-green-200"
+                                                                    )}
+                                                                >
+                                                                    {task.defaultPriority || "Medium"}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-muted-foreground">
+                                                                {task.defaultEstimateHours || 0}h
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg border border-dashed">
+                                        <CheckSquare className="h-5 w-5 text-muted-foreground" />
+                                        <div className="text-sm text-muted-foreground">
+                                            No default tasks selected. You can add tasks after creating the project.
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             <div className="bg-blue-50 text-blue-900 p-4 rounded-md text-sm border border-blue-100 flex gap-3">
                                 <Settings className="h-5 w-5 shrink-0" />
                                 <div>
