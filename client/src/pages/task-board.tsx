@@ -297,14 +297,18 @@ export default function TaskBoard() {
                 return (
                   <div key={stage.id} className="w-[320px] flex flex-col h-full rounded-xl bg-muted/30 border border-border/50">
                     {/* Column Header */}
-                    <div className={cn("p-4 border-b flex items-center justify-between shrink-0 rounded-t-xl", stage.color)}>
+                    <div 
+                      className={cn("p-4 border-b flex items-center justify-between shrink-0 rounded-t-xl cursor-pointer hover:opacity-80 transition-opacity", stage.color)}
+                      onClick={() => setLocation(`/projects/${projectId}?tab=stage-${stage.id}`)}
+                      title={`View ${stage.name} stage details`}
+                    >
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{stage.name}</h3>
                         <Badge variant="secondary" className="bg-background/50 text-foreground font-mono text-xs">
                           {stageTasks.length}
                         </Badge>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleOpenCreate(stage.id)}>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenCreate(stage.id); }}>
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>
@@ -595,6 +599,12 @@ export default function TaskBoard() {
 // Embeddable Task Board Content (without Shell wrapper)
 export function TaskBoardContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  // Navigate to stage tab in project overview
+  const navigateToStage = (stageId: string) => {
+    setLocation(`/projects/${projectId}?tab=stage-${stageId}`);
+  };
 
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask, remove: deleteTask } = useTasks();
@@ -779,7 +789,11 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
               
               return (
                 <div key={stage.id} className="w-[320px] flex flex-col h-full rounded-xl bg-muted/30 border border-border/50">
-                  <div className={cn("p-4 rounded-t-xl border-b", stage.color)}>
+                  <div 
+                    className={cn("p-4 rounded-t-xl border-b cursor-pointer hover:opacity-80 transition-opacity", stage.color)}
+                    onClick={() => navigateToStage(stage.id)}
+                    title={`View ${stage.name} stage details`}
+                  >
                     <div className="flex justify-between items-center">
                       <h3 className="font-semibold">{stage.name}</h3>
                       <Badge variant="secondary" className="text-xs">{stageTasks.length}</Badge>

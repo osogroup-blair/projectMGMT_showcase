@@ -36,13 +36,13 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useSearch, useLocation } from "wouter";
 import { PROJECT_STAGES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
 import { useProject, useTasks, useMilestones, useUsers, useDeliverables, useEpics } from "@/hooks/use-nexus-data";
 import { cn } from "@/lib/utils";
 import { StageTabContent } from "@/components/project/stage-tab-content";
 import { TimelineView } from "@/components/project/timeline-view";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ProjectDashboard } from "@/types/dashboard";
 import { differenceInDays, parseISO } from "date-fns";
 
@@ -61,6 +61,38 @@ import { TaskBoardContent } from "@/pages/task-board";
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
   const projectId = params?.projectId || "1";
+  const searchString = useSearch();
+  const [, setLocation] = useLocation();
+  
+  // Parse tab from URL search params - always ensure we have a valid default
+  const tabFromUrl = useMemo(() => {
+    const params = new URLSearchParams(searchString);
+    return params.get("tab") || "overview";
+  }, [searchString]);
+  
+  // Initialize state from URL
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const params = new URLSearchParams(searchString);
+    return params.get("tab") || "overview";
+  });
+  
+  // Sync tab state when URL changes externally (e.g., navigation from task board)
+  useEffect(() => {
+    if (tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl, activeTab]);
+  
+  // Handle tab changes and sync URL
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    // Update URL to reflect the tab change for deep linking
+    if (newTab === "overview") {
+      setLocation(`/projects/${projectId}`);
+    } else {
+      setLocation(`/projects/${projectId}?tab=${newTab}`);
+    }
+  };
 
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
@@ -304,7 +336,7 @@ export default function ProjectOverview() {
 
 
         {/* Tabs Navigation */}
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto">
             <TabsTrigger 
               value="overview" 
