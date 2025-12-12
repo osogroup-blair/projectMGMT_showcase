@@ -723,7 +723,13 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
   const handleOpenEdit = (task: Task) => {
     setEditingTask(task);
-    setFormData({ ...task });
+    // Ensure required fields have values when editing - fall back to defaults if missing
+    setFormData({ 
+      ...task,
+      stageId: task.stageId || stages[0]?.id || "st_plan",
+      epicId: task.epicId || projectEpics[0]?.id || "",
+      effort: task.effort || 5
+    });
     setIsDialogOpen(true);
   };
 
