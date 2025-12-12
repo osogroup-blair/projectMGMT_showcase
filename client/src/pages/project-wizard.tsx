@@ -38,7 +38,9 @@ import {
   Settings,
   Save,
   Upload,
-  Loader2
+  Loader2,
+  Flag,
+  Calendar
 } from "lucide-react";
 import {
   Table,
@@ -60,6 +62,7 @@ import {
   useTasks,
   useUsers,
   useProjectStages,
+  useMilestones,
   useFrameworkTemplates,
   useStageTemplates,
   useProjectTemplates,
@@ -73,8 +76,9 @@ const STEPS = [
   { id: 1, title: "Project Basics", description: "Name, framework, and templates", icon: Settings },
   { id: 2, title: "Work Breakdown", description: "Deliverables, epics, and tasks", icon: Package },
   { id: 3, title: "Stage Configuration", description: "Review and customize stages", icon: Layers },
-  { id: 4, title: "Team & Roles", description: "Assign team members", icon: Users },
-  { id: 5, title: "Review", description: "Verify and create", icon: Check },
+  { id: 4, title: "Set Milestones", description: "Define key dates and gates", icon: Flag },
+  { id: 5, title: "Team & Roles", description: "Assign team members", icon: Users },
+  { id: 6, title: "Review", description: "Verify and create", icon: Check },
 ];
 
 export default function ProjectWizard() {
@@ -99,6 +103,7 @@ export default function ProjectWizard() {
   const { createAsync: createEpic } = useEpics();
   const { createAsync: createTask } = useTasks();
   const { createAsync: createProjectStage } = useProjectStages();
+  const { createAsync: createMilestone } = useMilestones();
   
   const isLoading = loadingFrameworks || loadingStages || loadingProjects || 
                     loadingDeliverables || loadingEpics || loadingTasks || 
@@ -117,6 +122,7 @@ export default function ProjectWizard() {
   const [deliverables, setDeliverables] = useState<any[]>([]);
   const [stages, setStages] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<any[]>([]);
 
   // Handlers
   const handleNext = () => {
@@ -564,9 +570,30 @@ export default function ProjectWizard() {
         }
       }
       
+      // 5. Create milestones
+      let totalMilestonesCreated = 0;
+      for (const milestone of milestones) {
+        await createMilestone({
+          id: crypto.randomUUID(),
+          projectId: newProject.id,
+          name: milestone.name,
+          description: milestone.description || "",
+          phase: milestone.phase,
+          targetDate: milestone.targetDate,
+          status: "planned",
+          ownerId: milestone.ownerId,
+          scopeType: milestone.scopeType,
+          completionMode: milestone.completionMode,
+          completionTargetPercent: milestone.completionTargetPercent,
+          isBillingGate: milestone.isBillingGate,
+          tags: []
+        });
+        totalMilestonesCreated++;
+      }
+      
       toast({
         title: "Project Created",
-        description: `${projectData.name} has been successfully created with ${createdEpics.length} epics and ${totalTasksCreated} tasks.`,
+        description: `${projectData.name} has been successfully created with ${createdEpics.length} epics, ${totalTasksCreated} tasks, and ${totalMilestonesCreated} milestones.`,
       });
       
       setLocation(`/projects/${newProject.id}`);
@@ -902,6 +929,172 @@ export default function ProjectWizard() {
                     <div className="space-y-6">
                         <div className="flex justify-between items-center">
                             <div>
+                                <h3 className="text-lg font-medium">Set Milestones</h3>
+                                <p className="text-sm text-muted-foreground">Define key milestones and billing gates for your project.</p>
+                            </div>
+                            <Button size="sm" data-testid="button-add-milestone" onClick={() => {
+                                setMilestones([...milestones, {
+                                    id: `ms-${Date.now()}`,
+                                    name: "New Milestone",
+                                    description: "",
+                                    phase: "plan_strategy",
+                                    targetDate: new Date().toISOString().split('T')[0],
+                                    ownerId: users[0]?.id || "1",
+                                    scopeType: "manual",
+                                    completionMode: "all_tasks",
+                                    completionTargetPercent: 100,
+                                    isBillingGate: false
+                                }]);
+                            }}>
+                                <Plus className="h-4 w-4 mr-2" /> Add Milestone
+                            </Button>
+                        </div>
+
+                        <div className="space-y-4">
+                            {milestones.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-lg text-muted-foreground">
+                                    <Flag className="h-8 w-8 mb-2 opacity-50" />
+                                    <p>No milestones defined yet.</p>
+                                    <Button variant="link" onClick={() => setMilestones([{
+                                        id: `ms-${Date.now()}`,
+                                        name: "Project Kickoff",
+                                        description: "",
+                                        phase: "plan_strategy",
+                                        targetDate: new Date().toISOString().split('T')[0],
+                                        ownerId: users[0]?.id || "1",
+                                        scopeType: "manual",
+                                        completionMode: "all_tasks",
+                                        completionTargetPercent: 100,
+                                        isBillingGate: false
+                                    }])}>Add your first milestone</Button>
+                                </div>
+                            ) : (
+                                milestones.map((milestone, index) => (
+                                    <Card key={milestone.id}>
+                                        <CardContent className="p-4">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex items-start gap-3 flex-1">
+                                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm mt-1">
+                                                        <Flag className="h-4 w-4" />
+                                                    </div>
+                                                    <div className="flex-1 space-y-3">
+                                                        <Input 
+                                                            value={milestone.name}
+                                                            onChange={(e) => {
+                                                                const newMs = [...milestones];
+                                                                newMs[index].name = e.target.value;
+                                                                setMilestones(newMs);
+                                                            }}
+                                                            className="h-9 font-medium"
+                                                            placeholder="Milestone Name"
+                                                            data-testid={`input-milestone-name-${index}`}
+                                                        />
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                            <div className="space-y-1">
+                                                                <Label className="text-xs">Target Date</Label>
+                                                                <Input 
+                                                                    type="date"
+                                                                    value={milestone.targetDate}
+                                                                    onChange={(e) => {
+                                                                        const newMs = [...milestones];
+                                                                        newMs[index].targetDate = e.target.value;
+                                                                        setMilestones(newMs);
+                                                                    }}
+                                                                    className="h-9"
+                                                                    data-testid={`input-milestone-date-${index}`}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <Label className="text-xs">Owner</Label>
+                                                                <Select 
+                                                                    value={milestone.ownerId}
+                                                                    onValueChange={(val) => {
+                                                                        const newMs = [...milestones];
+                                                                        newMs[index].ownerId = val;
+                                                                        setMilestones(newMs);
+                                                                    }}
+                                                                >
+                                                                    <SelectTrigger className="h-9" data-testid={`select-milestone-owner-${index}`}>
+                                                                        <SelectValue placeholder="Select owner" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {users.map(user => (
+                                                                            <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <Label className="text-xs">Phase</Label>
+                                                                <Select 
+                                                                    value={milestone.phase}
+                                                                    onValueChange={(val) => {
+                                                                        const newMs = [...milestones];
+                                                                        newMs[index].phase = val;
+                                                                        setMilestones(newMs);
+                                                                    }}
+                                                                >
+                                                                    <SelectTrigger className="h-9" data-testid={`select-milestone-phase-${index}`}>
+                                                                        <SelectValue placeholder="Select phase" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="plan_strategy">Plan Strategy</SelectItem>
+                                                                        <SelectItem value="validate_blueprints">Validate Blueprints</SelectItem>
+                                                                        <SelectItem value="develop_solution">Develop Solution</SelectItem>
+                                                                        <SelectItem value="enable_users">Enable Users</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-4 pt-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <Checkbox 
+                                                                    id={`billing-gate-${milestone.id}`}
+                                                                    checked={milestone.isBillingGate}
+                                                                    onCheckedChange={(checked) => {
+                                                                        const newMs = [...milestones];
+                                                                        newMs[index].isBillingGate = !!checked;
+                                                                        setMilestones(newMs);
+                                                                    }}
+                                                                />
+                                                                <Label htmlFor={`billing-gate-${milestone.id}`} className="text-sm cursor-pointer">
+                                                                    Billing Gate
+                                                                </Label>
+                                                            </div>
+                                                            {milestone.isBillingGate && (
+                                                                <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                                                    💰 Invoice Trigger
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                    onClick={() => {
+                                                        const newMs = [...milestones];
+                                                        newMs.splice(index, 1);
+                                                        setMilestones(newMs);
+                                                    }}
+                                                    data-testid={`button-delete-milestone-${index}`}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+                
+                {currentStep === 5 && (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <div>
                                 <h3 className="text-lg font-medium">Team & Roles</h3>
                                 <p className="text-sm text-muted-foreground">Assign team members to project roles.</p>
                             </div>
@@ -974,7 +1167,7 @@ export default function ProjectWizard() {
                     </div>
                 )}
                 
-                {currentStep === 5 && (
+                {currentStep === 6 && (
                     <div className="space-y-6">
                         <div className="bg-muted/30 p-6 rounded-lg border space-y-6">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -998,7 +1191,7 @@ export default function ProjectWizard() {
 
                             <Separator />
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div className="bg-card p-4 rounded border">
                                     <div className="flex items-center gap-2 mb-2 text-primary">
                                         <Package className="h-5 w-5" />
@@ -1016,6 +1209,16 @@ export default function ProjectWizard() {
                                     </div>
                                     <div className="text-3xl font-bold">{stages.length}</div>
                                     <p className="text-xs text-muted-foreground mt-1">Standard workflow</p>
+                                </div>
+                                <div className="bg-card p-4 rounded border">
+                                    <div className="flex items-center gap-2 mb-2 text-primary">
+                                        <Flag className="h-5 w-5" />
+                                        <span className="font-semibold">Milestones</span>
+                                    </div>
+                                    <div className="text-3xl font-bold">{milestones.length}</div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {milestones.filter(m => m.isBillingGate).length} billing gates
+                                    </p>
                                 </div>
                                 <div className="bg-card p-4 rounded border">
                                     <div className="flex items-center gap-2 mb-2 text-primary">
