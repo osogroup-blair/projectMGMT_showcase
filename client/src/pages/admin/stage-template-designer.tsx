@@ -14,7 +14,8 @@ import {
   X,
   Layout,
   ListTodo,
-  Users
+  Users,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,14 +36,12 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useStageTemplates, useTaskTemplates, useRoleTemplates } from "@/hooks/use-nexus-data";
 import { 
   StageTemplate, 
   TaskTemplate, 
   RoleTemplate, 
-  TASK_STATUS_OPTIONS, 
-  STAGE_TEMPLATES,
-  TASK_TEMPLATES,
-  ROLE_TEMPLATES
+  TASK_STATUS_OPTIONS
 } from "@/lib/mock-data";
 
 export default function StageTemplateDesigner() {
@@ -51,6 +50,11 @@ export default function StageTemplateDesigner() {
   const { toast } = useToast();
   const templateId = params?.templateId;
   const isNew = templateId === "new";
+
+  const { data: stageTemplates, createAsync: createStage, updateAsync: updateStage, isLoading: stagesLoading } = useStageTemplates();
+  const { data: taskTemplates, createAsync: createTask, updateAsync: updateTask, removeAsync: removeTaskAsync, isLoading: tasksLoading } = useTaskTemplates();
+  const { data: roleTemplates, isLoading: rolesLoading } = useRoleTemplates();
+  const isLoading = stagesLoading || tasksLoading || rolesLoading;
 
   // State
   const [formData, setFormData] = useState<Partial<StageTemplate>>({
@@ -62,6 +66,7 @@ export default function StageTemplateDesigner() {
     exitCriteria: "",
     allowedTaskStatuses: ["ts1", "ts2", "ts4"]
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   // Local state for managing statuses within the stage
   const [localStatuses, setLocalStatuses] = useState(TASK_STATUS_OPTIONS);
@@ -79,19 +84,26 @@ export default function StageTemplateDesigner() {
   });
 
   // Local task templates state
-  const [localTaskTemplates, setLocalTaskTemplates] = useState<TaskTemplate[]>(TASK_TEMPLATES);
+  const [localTaskTemplates, setLocalTaskTemplates] = useState<TaskTemplate[]>([]);
+
+  // Sync taskTemplates from database
+  useEffect(() => {
+    if (taskTemplates && taskTemplates.length > 0) {
+      setLocalTaskTemplates(taskTemplates as TaskTemplate[]);
+    }
+  }, [taskTemplates]);
 
   // Load Data
   useEffect(() => {
-    if (!isNew && templateId) {
-      const template = STAGE_TEMPLATES.find(t => t.id === templateId);
+    if (!isNew && templateId && stageTemplates) {
+      const template = (stageTemplates as StageTemplate[]).find(t => t.id === templateId);
       if (template) {
         setFormData({ ...template });
       }
     }
-  }, [templateId, isNew]);
+  }, [templateId, isNew, stageTemplates]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name) {
       toast({
         title: "Validation Error",
@@ -101,43 +113,68 @@ export default function StageTemplateDesigner() {
       return;
     }
     
-    // In a real app, this would save to backend
-    toast({
-      title: isNew ? "Stage Template Created" : "Stage Template Updated",
-      description: `${formData.name} has been successfully saved.`,
-    });
-    
-    setLocation("/admin/templates");
+    setIsSaving(true);
+    try {
+      if (isNew) {
+        await createStage({ ...formData, id: `st_${Date.now()}` } as StageTemplate);
+      } else if (templateId) {
+        await updateStage({ id: templateId, updates: formData });
+      }
+      
+      toast({
+        title: isNew ? "Stage Template Created" : "Stage Template Updated",
+        description: `${formData.name} has been successfully saved.`,
+      });
+      
+      setLocation("/admin/templates");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save stage template. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSaveTask = () => {
+  const handleSaveTask = async () => {
     if (!currentTask.title) return;
 
-    const newTask = {
+    const newTaskData = {
       ...currentTask,
       id: currentTask.id || `tt${Date.now()}`
     } as TaskTemplate;
 
-    // Update local task list
-    const exists = localTaskTemplates.find(t => t.id === newTask.id);
-    if (exists) {
-      setLocalTaskTemplates(prev => prev.map(t => t.id === newTask.id ? newTask : t));
-    } else {
-      setLocalTaskTemplates(prev => [...prev, newTask]);
-      setFormData(prev => ({
-        ...prev,
-        defaultTasks: [...(prev.defaultTasks || []), newTask.id]
-      }));
-    }
+    try {
+      const exists = localTaskTemplates.find(t => t.id === newTaskData.id);
+      if (exists) {
+        await updateTask({ id: newTaskData.id, updates: newTaskData });
+        setLocalTaskTemplates(prev => prev.map(t => t.id === newTaskData.id ? newTaskData : t));
+      } else {
+        await createTask(newTaskData);
+        setLocalTaskTemplates(prev => [...prev, newTaskData]);
+        setFormData(prev => ({
+          ...prev,
+          defaultTasks: [...(prev.defaultTasks || []), newTaskData.id]
+        }));
+      }
 
-    setIsTaskFormOpen(false);
-    setCurrentTask({
-      title: "",
-      description: "",
-      defaultPriority: "Medium",
-      defaultEstimateHours: 1,
-      requiredRole: "Development"
-    });
+      setIsTaskFormOpen(false);
+      setCurrentTask({
+        title: "",
+        description: "",
+        defaultPriority: "Medium",
+        defaultEstimateHours: 1,
+        requiredRole: "Development"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save task template. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const removeTask = (taskId: string) => {
@@ -192,6 +229,16 @@ export default function StageTemplateDesigner() {
     { label: "Purple", value: "bg-purple-50 text-purple-700" },
   ];
 
+  if (isLoading) {
+    return (
+      <Shell>
+        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </Shell>
+    );
+  }
+
   return (
     <Shell>
       <div className="flex flex-col h-[calc(100vh-4rem)] max-w-7xl mx-auto w-full">
@@ -217,9 +264,9 @@ export default function StageTemplateDesigner() {
             <Link href="/admin/templates">
               <Button variant="outline">Cancel</Button>
             </Link>
-            <Button onClick={handleSave} className="gap-2">
-              <Save className="h-4 w-4" />
-              Save Template
+            <Button onClick={handleSave} className="gap-2" disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {isSaving ? "Saving..." : "Save Template"}
             </Button>
           </div>
         </div>
@@ -350,7 +397,7 @@ export default function StageTemplateDesigner() {
                 <div className="space-y-3">
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Default Roles</Label>
                   <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto">
-                    {ROLE_TEMPLATES.map(role => (
+                    {((roleTemplates || []) as RoleTemplate[]).map(role => (
                       <div key={role.id} className="flex items-center space-x-2 p-2 rounded hover:bg-muted/50 transition-colors">
                         <Checkbox 
                           id={`role-${role.id}`}
@@ -450,7 +497,7 @@ export default function StageTemplateDesigner() {
                             <SelectTrigger><SelectValue placeholder="Select Role" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="unassigned">Unassigned</SelectItem>
-                              {ROLE_TEMPLATES.map(role => (
+                              {((roleTemplates || []) as RoleTemplate[]).map(role => (
                                 <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
                               ))}
                             </SelectContent>
@@ -469,7 +516,7 @@ export default function StageTemplateDesigner() {
                       const task = localTaskTemplates.find(t => t.id === taskId);
                       if (!task) return null;
                       const roleName = task.assignedRoleId 
-                        ? ROLE_TEMPLATES.find(r => r.id === task.assignedRoleId)?.name 
+                        ? ((roleTemplates || []) as RoleTemplate[]).find(r => r.id === task.assignedRoleId)?.name 
                         : "Unassigned";
 
                       return (
