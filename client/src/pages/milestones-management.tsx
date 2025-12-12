@@ -1336,8 +1336,7 @@ export default function MilestonesManagementPage() {
           taskId: link.taskId,
           projectId: projectId,
           source: link.source,
-          locked: link.locked || false,
-          createdAt: link.createdAt || new Date().toISOString()
+          locked: link.locked || false
         });
       }
     });
@@ -1375,7 +1374,7 @@ export default function MilestonesManagementPage() {
       stageId: taskData.stageId,
       epicId: taskData.epicId,
       status: taskData.status || "Todo",
-      assigneeId: taskData.assigneeId,
+      assigneeId: taskData.assigneeId || null,
       deadline: new Date().toISOString().split('T')[0],
       priority: "Medium",
       estimateHours: 0,
@@ -1384,22 +1383,14 @@ export default function MilestonesManagementPage() {
     });
 
     if (selectedId) {
-      const newLink: MilestoneTaskLink = {
-        id: `l-${Date.now()}`,
+      const newLinkId = `l-${Date.now()}`;
+      createTaskLink({
+        id: newLinkId,
         milestoneId: selectedId,
         taskId: newTaskId,
-        source: "manual_add",
-        locked: true,
-        createdAt: new Date().toISOString()
-      };
-      createTaskLink({
-        id: newLink.id,
-        milestoneId: newLink.milestoneId,
-        taskId: newLink.taskId,
         projectId: projectId,
-        source: newLink.source,
-        locked: true,
-        createdAt: newLink.createdAt
+        source: "manual_add",
+        locked: true
       });
     }
     toast({ title: "Task Created", description: "Task added to project and milestone." });
