@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   ArrowLeft, 
@@ -11,7 +11,8 @@ import {
   Layers,
   Package,
   User as UserIcon,
-  Workflow
+  Workflow,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -26,36 +27,74 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
-import { 
-  PROJECTS, 
-  DELIVERABLES, 
-  EPICS, 
-  TASKS, 
-  FRAMEWORK_TEMPLATES,
-  STAGE_TEMPLATES,
-  TEAM,
-  StageTemplate,
-  Task
-} from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages } from "@/hooks/use-nexus-data";
 
 export default function EpicDetail() {
   const [match, params] = useRoute("/projects/:projectId/epics/:epicId");
   const projectId = params?.projectId || "1";
   const epicId = params?.epicId || "e1";
 
-  const project = PROJECTS.find(p => p.id === projectId) || PROJECTS[0];
-  const epic = EPICS.find(e => e.id === epicId) || EPICS[0];
-  const deliverable = DELIVERABLES.find(d => d.id === epic.deliverableId);
-  const tasks = TASKS.filter(t => t.epicId === epicId);
-  const owner = TEAM.find(t => t.id === epic.ownerId);
+  // Fetch data from database
+  const { data: project, isLoading: isProjectLoading } = useProject(projectId);
+  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
+  const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
+
+  // Derive epic and related data
+  const epic = useMemo(() => allEpics?.find((e: any) => e.id === epicId), [allEpics, epicId]);
+  const deliverable = useMemo(() => allDeliverables?.find((d: any) => d.id === epic?.deliverableId), [allDeliverables, epic]);
+  const tasks = useMemo(() => allTasks?.filter((t: any) => t.epicId === epicId) || [], [allTasks, epicId]);
+  const owner = useMemo(() => users?.find((u: any) => u.id === epic?.ownerId), [users, epic]);
 
   // Get Assigned Stages directly from the Epic
-  const epicStages = epic.stageIds
-    ? STAGE_TEMPLATES.filter(s => epic.stageIds.includes(s.id))
-    : [];
+  const epicStages = useMemo(() => {
+    if (!epic?.stageIds || !projectStages) return [];
+    return projectStages.filter((s: any) => epic.stageIds.includes(s.id));
+  }, [epic, projectStages]);
 
-  const getAssignee = (id?: string) => TEAM.find(u => u.id === id);
+  // Calculate progress from task completion
+  const progress = useMemo(() => {
+    if (tasks.length === 0) return 0;
+    const doneTasks = tasks.filter((t: any) => t.status === "Done").length;
+    return Math.round((doneTasks / tasks.length) * 100);
+  }, [tasks]);
+
+  // Task counts
+  const taskCounts = useMemo(() => {
+    const done = tasks.filter((t: any) => t.status === "Done").length;
+    return { done, total: tasks.length };
+  }, [tasks]);
+
+  const getAssignee = (id?: string) => users?.find((u: any) => u.id === id);
+
+  // Loading state
+  const isLoading = isProjectLoading || isEpicsLoading || isDeliverablesLoading || isTasksLoading || isUsersLoading || isStagesLoading;
+
+  if (isLoading) {
+    return (
+      <Shell>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (!epic) {
+    return (
+      <Shell>
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold">Epic not found</h2>
+            <p className="text-muted-foreground">The epic you're looking for doesn't exist.</p>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
 
   return (
     <Shell>
@@ -124,21 +163,21 @@ export default function EpicDetail() {
             <Card className="bg-muted/20 border-none shadow-none">
               <CardContent className="p-3 flex items-center gap-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback>{owner?.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{owner?.name?.charAt(0) || "?"}</AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="text-xs text-muted-foreground">Owner</div>
-                  <div className="text-sm font-medium">{owner?.name}</div>
+                  <div className="text-sm font-medium">{owner?.name || "Unassigned"}</div>
                 </div>
               </CardContent>
             </Card>
             <Card className="bg-muted/20 border-none shadow-none">
               <CardContent className="p-3">
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className="font-medium">{epic.progress}%</span>
+                  <span className="text-muted-foreground">Progress ({taskCounts.done}/{taskCounts.total} tasks)</span>
+                  <span className="font-medium">{progress}%</span>
                 </div>
-                <Progress value={epic.progress} className="h-2" />
+                <Progress value={progress} className="h-2" />
               </CardContent>
             </Card>
             <Card className="bg-muted/20 border-none shadow-none">
@@ -218,7 +257,7 @@ export default function EpicDetail() {
                                       </Badge>
                                     </div>
                                     <div className="flex flex-wrap gap-1">
-                                      {task.tags?.map(tag => (
+                                      {task.tags?.map((tag: string) => (
                                         <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
                                           {tag}
                                         </span>
