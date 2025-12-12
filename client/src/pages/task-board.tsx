@@ -61,7 +61,7 @@ import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Task } from "@/lib/mock-data";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables } from "@/hooks/use-nexus-data";
 import { EFFORT_VALUES } from "@shared/schema";
 
 // Stage color mapping based on stage type/order
@@ -96,26 +96,56 @@ export default function TaskBoard() {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   
-  // Filter epics for the current project
+  // Filter deliverables for this project
+  const projectDeliverables = useMemo(() => {
+    if (!allDeliverables || !project) return [];
+    return allDeliverables.filter((d: any) => d.projectId === project.id);
+  }, [allDeliverables, project]);
+  
+  // Filter epics for the current project (via deliverables)
   const projectEpics = useMemo(() => {
-    if (!allEpics || !project) return [];
-    return allEpics.filter((e: any) => {
-      // Match epics that belong to this project's deliverables
-      return true; // For now show all epics, we can filter by deliverable.projectId if needed
-    });
-  }, [allEpics, project]);
+    if (!allEpics || !project || projectDeliverables.length === 0) return [];
+    const deliverableIds = new Set(projectDeliverables.map((d: any) => d.id));
+    return allEpics.filter((e: any) => deliverableIds.has(e.deliverableId));
+  }, [allEpics, project, projectDeliverables]);
 
-  // Map stages with colors, sorted by order
+  // Get project-specific tasks first (needed to determine which stages belong to this project)
+  const projectTasks = useMemo(() => {
+    if (!project || !allTasks) return [];
+    return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
+  }, [project, allTasks]);
+
+  // Extract unique stage IDs from project tasks AND project epics to scope stages to this project
+  // This ensures stages show even if they have no tasks yet (from epic configuration)
+  const projectStageIds = useMemo(() => {
+    const stageIds = new Set<string>();
+    // Add stage IDs from tasks
+    projectTasks.forEach((t: any) => {
+      if (t.stageId) stageIds.add(t.stageId);
+    });
+    // Add stage IDs from epics (epics define which stages belong to the project)
+    projectEpics.forEach((e: any) => {
+      if (e.stageIds && Array.isArray(e.stageIds)) {
+        e.stageIds.forEach((sid: string) => stageIds.add(sid));
+      }
+    });
+    return stageIds;
+  }, [projectTasks, projectEpics]);
+
+  // Map stages with colors, sorted by order - FILTERED to only stages used by this project
   const stages = useMemo(() => {
     if (!projectStages || projectStages.length === 0) return [];
+    // Filter to only stages configured for this project (via tasks or epics)
     return [...projectStages]
+      .filter((stage: any) => projectStageIds.has(stage.id))
       .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
       .map((stage: any) => ({
         ...stage,
         color: getStageColor(stage.id, stage.order)
       }));
-  }, [projectStages]);
+  }, [projectStages, projectStageIds]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState<"board" | "list">("board");
@@ -129,11 +159,8 @@ export default function TaskBoard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
 
-  // Derived Tasks
-  const tasks = useMemo(() => {
-    if (!project || !allTasks) return [];
-    return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
-  }, [project, allTasks]);
+  // Use the already filtered project tasks
+  const tasks = projectTasks;
 
   const filteredTasks = tasks.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -203,7 +230,7 @@ export default function TaskBoard() {
   const getMilestone = (id?: string) => milestones.find((m: any) => m.id === id);
   const getEpic = (id?: string) => projectEpics.find((e: any) => e.id === id);
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading || isEpicsLoading) {
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading || isEpicsLoading || isDeliverablesLoading) {
     return (
       <Shell>
         <div className="flex h-[50vh] items-center justify-center">
@@ -662,12 +689,20 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   
-  // Filter epics for the current project
+  // Filter deliverables for this project
+  const projectDeliverables = useMemo(() => {
+    if (!allDeliverables || !project) return [];
+    return allDeliverables.filter((d: any) => d.projectId === project.id);
+  }, [allDeliverables, project]);
+  
+  // Filter epics for the current project (via deliverables)
   const projectEpics = useMemo(() => {
-    if (!allEpics || !project) return [];
-    return allEpics.filter((e: any) => true); // Show all epics for now
-  }, [allEpics, project]);
+    if (!allEpics || !project || projectDeliverables.length === 0) return [];
+    const deliverableIds = new Set(projectDeliverables.map((d: any) => d.id));
+    return allEpics.filter((e: any) => deliverableIds.has(e.deliverableId));
+  }, [allEpics, project, projectDeliverables]);
 
   // Get project tasks
   const projectTasks = useMemo(() => {
@@ -675,16 +710,34 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
     return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
   }, [project, allTasks]);
 
-  // Show all stages (for board view and dropdowns)
+  // Extract unique stage IDs from project tasks AND project epics to scope stages to this project
+  // This ensures stages show even if they have no tasks yet (from epic configuration)
+  const projectStageIds = useMemo(() => {
+    const stageIds = new Set<string>();
+    // Add stage IDs from tasks
+    projectTasks.forEach((t: any) => {
+      if (t.stageId) stageIds.add(t.stageId);
+    });
+    // Add stage IDs from epics (epics define which stages belong to the project)
+    projectEpics.forEach((e: any) => {
+      if (e.stageIds && Array.isArray(e.stageIds)) {
+        e.stageIds.forEach((sid: string) => stageIds.add(sid));
+      }
+    });
+    return stageIds;
+  }, [projectTasks, projectEpics]);
+
+  // Filter stages to only those used by this project's tasks or epics
   const stages = useMemo(() => {
     if (!projectStages || projectStages.length === 0) return [];
     return [...projectStages]
+      .filter((stage: any) => projectStageIds.has(stage.id))
       .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
       .map((stage: any) => ({
         ...stage,
         color: getStageColor(stage.id, stage.order)
       }));
-  }, [projectStages]);
+  }, [projectStages, projectStageIds]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState<"board" | "list">("list");
@@ -766,7 +819,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const getMilestone = (id?: string) => milestones.find((m: any) => m.id === id);
   const getEpic = (id?: string) => projectEpics.find((e: any) => e.id === id);
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading || isEpicsLoading) {
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading || isEpicsLoading || isDeliverablesLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
