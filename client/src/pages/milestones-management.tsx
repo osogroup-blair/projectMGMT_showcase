@@ -429,6 +429,7 @@ function ActiveTasksList({
   links,
   epics,
   team,
+  projectId,
   onCreateTask,
   onUpdateTask
 }: {
@@ -437,6 +438,7 @@ function ActiveTasksList({
   links: MilestoneTaskLink[],
   epics: Epic[],
   team: any[],
+  projectId: string,
   onCreateTask: (task: Partial<Task>) => void,
   onUpdateTask: (taskId: string, updates: Partial<Task>) => void
 }) {
@@ -522,7 +524,9 @@ function ActiveTasksList({
                 return (
                   <TableRow key={task.id} className="group">
                     <TableCell className="font-medium">
-                      {task.title}
+                      <Link href={`/projects/${projectId}/tasks/${task.id}`} className="hover:text-primary hover:underline">
+                        {task.title}
+                      </Link>
                       <div className="text-xs text-muted-foreground">{task.id}</div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
@@ -963,6 +967,7 @@ function MilestoneDetailPanel({
   tasks,
   epics,
   team,
+  projectId,
   scopeRules,
   taskLinks,
   onUpdateScopeRules,
@@ -975,6 +980,7 @@ function MilestoneDetailPanel({
   tasks: Task[],
   epics: Epic[],
   team: any[],
+  projectId: string,
   scopeRules: MilestoneScopeRules,
   taskLinks: MilestoneTaskLink[],
   onUpdateScopeRules: (rules: MilestoneScopeRules) => void,
@@ -1130,6 +1136,7 @@ function MilestoneDetailPanel({
                   links={taskLinks}
                   epics={epics}
                   team={team}
+                  projectId={projectId}
                   onCreateTask={onCreateTask}
                   onUpdateTask={onUpdateTask}
                 />
@@ -1420,6 +1427,7 @@ export default function MilestonesManagementPage() {
               tasks={tasks}
               epics={epics}
               team={team}
+              projectId={projectId}
               scopeRules={selectedRules}
               taskLinks={taskLinks}
               onUpdateScopeRules={handleUpdateRules}

@@ -525,10 +525,10 @@ export default function EpicDetail() {
                           stageTasks.map(task => {
                             const assignee = getAssignee(task.assigneeId);
                             return (
+                              <Link href={`/projects/${projectId}/tasks/${task.id}`}>
                               <Card 
                                 key={task.id} 
                                 className="shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
-                                onClick={() => handleOpenEdit(task)}
                                 data-testid={`card-task-${task.id}`}
                               >
                                 <CardContent className="p-3 space-y-3">
@@ -581,6 +581,7 @@ export default function EpicDetail() {
                                   </div>
                                 </CardContent>
                               </Card>
+                              </Link>
                             );
                           })
                         ) : (
