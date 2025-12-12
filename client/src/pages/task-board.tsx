@@ -746,6 +746,8 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [groupBy, setGroupBy] = useState<GroupByType>("status");
+  const [selectedSection, setSelectedSection] = useState<string>("all");
+  const [viewType, setViewType] = useState<"card" | "list">("card");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
