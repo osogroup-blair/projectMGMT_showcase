@@ -181,7 +181,6 @@ export default function MilestoneOverview() {
     } else {
       createScopeRule({
         milestoneId: updatedRules.milestoneId,
-        projectId,
         rules: updatedRules.rules
       });
     }
