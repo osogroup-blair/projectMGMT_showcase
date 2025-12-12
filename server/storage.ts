@@ -261,7 +261,37 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
   async deleteProject(id: string): Promise<void> {
-    await db.delete(schema.projects).where(eq(schema.projects.id, id));
+    // Cascade delete all related entities in a transaction for atomicity
+    // Order: milestone_task_links → tasks (which cascade to comments, attachments) → 
+    //        milestones (which cascade to scope_rules) → epics → deliverables → project
+    
+    await db.transaction(async (tx) => {
+      // 1. Delete milestone task links for this project
+      await tx.delete(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.projectId, id));
+      
+      // 2. Delete tasks for this project (comments, attachments, history cascade automatically)
+      await tx.delete(schema.tasks).where(eq(schema.tasks.projectId, id));
+      
+      // 3. Delete milestones for this project (scope rules cascade automatically)
+      await tx.delete(schema.milestones).where(eq(schema.milestones.projectId, id));
+      
+      // 4. Get deliverables for this project to find epics
+      const deliverables = await tx.select().from(schema.deliverables).where(eq(schema.deliverables.projectId, id));
+      const deliverableIds = deliverables.map(d => d.id);
+      
+      // 5. Delete epics belonging to these deliverables
+      if (deliverableIds.length > 0) {
+        for (const deliverableId of deliverableIds) {
+          await tx.delete(schema.epics).where(eq(schema.epics.deliverableId, deliverableId));
+        }
+      }
+      
+      // 6. Delete deliverables for this project
+      await tx.delete(schema.deliverables).where(eq(schema.deliverables.projectId, id));
+      
+      // 7. Finally delete the project itself
+      await tx.delete(schema.projects).where(eq(schema.projects.id, id));
+    });
   }
 
   // Deliverables

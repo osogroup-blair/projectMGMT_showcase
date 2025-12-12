@@ -85,11 +85,8 @@ export async function registerRoutes(
       await storage.deleteProject(req.params.id);
       res.status(204).send();
     } catch (error: any) {
-      if (error.code === '23503') {
-        res.status(400).json({ error: "Cannot delete project with linked milestone tasks. Please unlink the tasks first." });
-      } else {
-        res.status(500).json({ error: error.message });
-      }
+      console.error("Error deleting project:", error);
+      res.status(500).json({ error: "Failed to delete project. " + error.message });
     }
   });
 
