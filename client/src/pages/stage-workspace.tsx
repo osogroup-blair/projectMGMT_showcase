@@ -56,7 +56,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useRoute, Link } from "wouter";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useRoute, Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
   useProject,
@@ -80,7 +89,7 @@ export default function StageWorkspace() {
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
-  const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: allMilestones, isLoading: isMilestonesLoading, create: createMilestone } = useMilestones();
   const { data: allMilestoneLinks, isLoading: isMilestoneLinksLoading } = useMilestoneTaskLinks();
   const { data: allGuidance, isLoading: isGuidanceLoading } = useGuidanceItems();
   const { data: allSavedViews, isLoading: isSavedViewsLoading } = useSavedViews();
@@ -151,6 +160,51 @@ export default function StageWorkspace() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editStatus, setEditStatus] = useState<"pending" | "active" | "completed">("pending");
+
+  // Create milestone modal state
+  const [, setLocation] = useLocation();
+  const [showCreateMilestoneModal, setShowCreateMilestoneModal] = useState(false);
+  const [newMilestoneName, setNewMilestoneName] = useState("");
+  const [newMilestoneStageId, setNewMilestoneStageId] = useState(stageId);
+  const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
+
+  const handleCreateMilestone = async () => {
+    if (!newMilestoneName.trim()) {
+      toast({ title: "Error", description: "Milestone name is required.", variant: "destructive" });
+      return;
+    }
+    
+    setIsCreatingMilestone(true);
+    try {
+      const newId = `m-${Date.now()}`;
+      const newMilestone = {
+        id: newId,
+        projectId,
+        name: newMilestoneName.trim(),
+        description: "",
+        phase: "plan_strategy",
+        stageId: newMilestoneStageId,
+        targetDate: new Date().toISOString().split('T')[0],
+        status: "planned",
+        ownerId: "1",
+        scopeType: "manual",
+        completionMode: "all_tasks",
+        completionTargetPercent: 100,
+        tags: [],
+      };
+      
+      await createMilestone(newMilestone);
+      setShowCreateMilestoneModal(false);
+      setNewMilestoneName("");
+      setNewMilestoneStageId(stageId);
+      toast({ title: "Success", description: "Milestone created successfully." });
+      setLocation(`/projects/${projectId}/milestones/${newId}`);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create milestone.", variant: "destructive" });
+    } finally {
+      setIsCreatingMilestone(false);
+    }
+  };
 
   // Sync edit values when stage changes
   useEffect(() => {
@@ -475,7 +529,7 @@ export default function StageWorkspace() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Stage Milestones</h2>
-                <Button size="sm" className="gap-2">
+                <Button size="sm" className="gap-2" onClick={() => setShowCreateMilestoneModal(true)} data-testid="button-add-milestone">
                   <Plus className="h-4 w-4" />
                   Add Milestone
                 </Button>
@@ -579,17 +633,12 @@ export default function StageWorkspace() {
                             }) : (
                               <div className="text-center py-6 text-muted-foreground">
                                 <p className="text-sm">No tasks linked to this milestone</p>
-                                <Button variant="outline" size="sm" className="mt-2 gap-2">
-                                  <Plus className="h-3 w-3" />
-                                  Add Task
-                                </Button>
+                                <Link href={`/projects/${projectId}/milestones/${m.id}`}>
+                                  <Button variant="outline" size="sm" className="mt-2 gap-2">
+                                    View Milestone
+                                  </Button>
+                                </Link>
                               </div>
-                            )}
-                            {milestoneTasks.length > 0 && (
-                              <Button variant="ghost" size="sm" className="w-full mt-2 text-muted-foreground gap-2">
-                                <Plus className="h-3 w-3" />
-                                Add Task to Milestone
-                              </Button>
                             )}
                           </div>
                         </AccordionContent>
@@ -603,7 +652,7 @@ export default function StageWorkspace() {
                     <Target className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                     <h3 className="font-medium mb-1">No milestones yet</h3>
                     <p className="text-sm text-muted-foreground mb-4">Create your first milestone to track progress</p>
-                    <Button size="sm" className="gap-2">
+                    <Button size="sm" className="gap-2" onClick={() => setShowCreateMilestoneModal(true)}>
                       <Plus className="h-4 w-4" />
                       Add Milestone
                     </Button>
@@ -775,6 +824,61 @@ export default function StageWorkspace() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Create Milestone Modal */}
+      <Dialog open={showCreateMilestoneModal} onOpenChange={setShowCreateMilestoneModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Milestone</DialogTitle>
+            <DialogDescription>
+              Add a new milestone to track progress. You can add more details after creation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="milestone-name">Name</Label>
+              <Input
+                id="milestone-name"
+                placeholder="Enter milestone name..."
+                value={newMilestoneName}
+                onChange={(e) => setNewMilestoneName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isCreatingMilestone) handleCreateMilestone();
+                }}
+                data-testid="input-new-milestone-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="milestone-stage">Stage</Label>
+              <Select value={newMilestoneStageId} onValueChange={setNewMilestoneStageId}>
+                <SelectTrigger id="milestone-stage" data-testid="select-new-milestone-stage">
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectStages.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateMilestoneModal(false)} disabled={isCreatingMilestone}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateMilestone} disabled={isCreatingMilestone || !newMilestoneName.trim()} data-testid="button-create-milestone">
+              {isCreatingMilestone ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Milestone"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Shell>
   );
 }
