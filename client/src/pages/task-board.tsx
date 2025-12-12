@@ -669,6 +669,13 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
     return allEpics.filter((e: any) => true); // Show all epics for now
   }, [allEpics, project]);
 
+  // Get project tasks
+  const projectTasks = useMemo(() => {
+    if (!project || !allTasks) return [];
+    return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
+  }, [project, allTasks]);
+
+  // Show all stages (for board view and dropdowns)
   const stages = useMemo(() => {
     if (!projectStages || projectStages.length === 0) return [];
     return [...projectStages]
@@ -680,19 +687,14 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   }, [projectStages]);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewType, setViewType] = useState<"board" | "list">("board");
+  const [viewType, setViewType] = useState<"board" | "list">("list");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
 
-  const tasks = useMemo(() => {
-    if (!project || !allTasks) return [];
-    return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
-  }, [project, allTasks]);
-
-  const filteredTasks = tasks.filter(t => {
+  const filteredTasks = projectTasks.filter(t => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
     const matchesAssignee = assigneeFilter === "all" || t.assigneeId === assigneeFilter;
