@@ -46,7 +46,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { StageTabContent } from "@/components/project/stage-tab-content";
 import { TimelineView } from "@/components/project/timeline-view";
 import { useMemo, useState, useEffect } from "react";
 import { ProjectDashboard } from "@/types/dashboard";
@@ -64,6 +63,7 @@ import { DeliverablesContent } from "@/pages/deliverables";
 import ProjectDashboardPage from "@/components/project/project-dashboard-page";
 import { TaskBoardContent } from "@/pages/task-board";
 import { MilestonesContent } from "@/components/project/milestones-content";
+import { StagesContent } from "@/components/project/stages-content";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -526,39 +526,13 @@ export default function ProjectOverview() {
             >
               Milestones
             </TabsTrigger>
-            
-            {stages.map(stage => {
-              const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
-              // Extract base color from config or default to muted
-              // Assuming config.color follows "bg-X-50 text-X-700 border-X-200" pattern
-              const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
-              
-              // For the tab text/border, we need to adapt slightly or use the config directly
-              // We'll extract the text color part for the tab label
-              const textClass = statusConfig ? statusConfig.color.split(' ').find(c => c.startsWith('text-')) : 'text-muted-foreground';
-              // For the active border, we'll try to match the text color but as a border
-              const borderClass = textClass?.replace('text-', 'data-[state=active]:border-');
 
-              return (
-                <TabsTrigger 
-                  key={stage.id}
-                  value={`stage-${stage.id}`}
-                  className={cn(
-                    "rounded-none border-b-2 border-transparent data-[state=active]:bg-transparent px-0 py-2 font-medium",
-                    textClass,
-                    borderClass
-                  )}
-                >
-                  <span className={cn(
-                    "mr-2 flex h-5 w-5 items-center justify-center rounded-full border text-[10px]",
-                    statusColorClass
-                  )}>
-                    {stage.order}
-                  </span>
-                  {stage.name}
-                </TabsTrigger>
-              );
-            })}
+            <TabsTrigger 
+              value="stages" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+            >
+              Stages
+            </TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
@@ -583,18 +557,12 @@ export default function ProjectOverview() {
                <TimelineView stages={stages} milestones={milestones} project={project} tasks={tasks} />
             </TabsContent>
 
-            {/* Dynamic Stage Tabs */}
-            {stages.map(stage => (
-              <TabsContent key={stage.id} value={`stage-${stage.id}`} className="mt-6">
-                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                    <div>
-                      <h2 className="text-xl font-semibold tracking-tight">{stage.name}</h2>
-                      <p className="text-sm text-muted-foreground">{stage.description || "Manage tasks, milestones, and configuration for this stage."}</p>
-                    </div>
-                  </div>
-                 <StageTabContent stage={stage} projectId={projectId} />
-              </TabsContent>
-            ))}
+            {/* Stages Tab */}
+            <TabsContent value="stages">
+              <div className="mt-6">
+                <StagesContent projectId={projectId} />
+              </div>
+            </TabsContent>
 
             {/* Deliverables Tab */}
             <TabsContent value="deliverables">
