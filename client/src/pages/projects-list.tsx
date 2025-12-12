@@ -103,6 +103,11 @@ export default function ProjectsList() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState<ExtendedProject | null>(null);
   
+  // Inline editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string | number>("");
+  
   const [formData, setFormData] = useState<Partial<ExtendedProject>>({
     name: "",
     client: "",
@@ -214,6 +219,41 @@ export default function ProjectsList() {
     setIsDeleteOpen(true);
   };
 
+  // Inline editing handlers
+  const startInlineEdit = (projectId: string, field: string, currentValue: string | number) => {
+    setEditingId(projectId);
+    setEditingField(field);
+    setEditingValue(currentValue);
+  };
+
+  const cancelInlineEdit = () => {
+    setEditingId(null);
+    setEditingField(null);
+    setEditingValue("");
+  };
+
+  const saveInlineEdit = (projectId: string) => {
+    if (editingField) {
+      updateProject({
+        id: projectId,
+        updates: { [editingField]: editingValue }
+      });
+      toast({
+        title: "Updated",
+        description: `Project ${editingField} has been updated.`,
+      });
+    }
+    cancelInlineEdit();
+  };
+
+  const handleInlineKeyDown = (e: React.KeyboardEvent, projectId: string) => {
+    if (e.key === "Enter") {
+      saveInlineEdit(projectId);
+    } else if (e.key === "Escape") {
+      cancelInlineEdit();
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -321,29 +361,86 @@ export default function ProjectsList() {
                 <TableHead>Timeline</TableHead>
                 <TableHead>Risk</TableHead>
                 <TableHead className="w-[100px]">Progress</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProjects.map((project) => (
-                <TableRow key={project.id} className="group cursor-pointer hover:bg-muted/20">
+                <TableRow key={project.id} className="group hover:bg-muted/20">
+                  {/* Inline Editable Name */}
                   <TableCell className="font-medium">
-                    <Link href={`/projects/${project.id}`} className="hover:underline text-primary">
-                      {project.name}
-                    </Link>
+                    {editingId === project.id && editingField === "name" ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          value={editingValue as string}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={(e) => handleInlineKeyDown(e, project.id)}
+                          onBlur={() => saveInlineEdit(project.id)}
+                          className="h-7 text-sm"
+                          autoFocus
+                          data-testid={`input-inline-name-${project.id}`}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Link href={`/projects/${project.id}`} className="hover:underline text-primary">
+                          {project.name}
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            startInlineEdit(project.id, "name", project.name);
+                          }}
+                          data-testid={`button-inline-edit-name-${project.id}`}
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{project.client}</TableCell>
+                  {/* Inline Editable Status */}
                   <TableCell>
-                    <Badge variant="outline" className={cn(
-                      "font-normal border-0 px-2 py-0.5 rounded-full text-xs",
-                      project.status === 'In Progress' && "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300",
-                      project.status === 'Upcoming' && "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300",
-                      project.status === 'Overdue' && "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300",
-                      project.status === 'Completed' && "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300",
-                      project.status === 'On Hold' && "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                    )}>
-                      {project.status}
-                    </Badge>
+                    {editingId === project.id && editingField === "status" ? (
+                      <Select 
+                        value={editingValue as string} 
+                        onValueChange={(val) => {
+                          setEditingValue(val);
+                          updateProject({ id: project.id, updates: { status: val } });
+                          toast({ title: "Updated", description: "Project status has been updated." });
+                          cancelInlineEdit();
+                        }}
+                      >
+                        <SelectTrigger className="h-7 w-[120px] text-xs" autoFocus data-testid={`select-inline-status-${project.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Upcoming">Upcoming</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="On Hold">On Hold</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "font-normal border-0 px-2 py-0.5 rounded-full text-xs cursor-pointer hover:ring-2 hover:ring-primary/20",
+                          project.status === 'In Progress' && "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300",
+                          project.status === 'Upcoming' && "bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300",
+                          project.status === 'Overdue' && "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300",
+                          project.status === 'Completed' && "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300",
+                          project.status === 'On Hold' && "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        )}
+                        onClick={() => startInlineEdit(project.id, "status", project.status)}
+                        data-testid={`badge-status-${project.id}`}
+                      >
+                        {project.status}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-inset ring-gray-500/10">
@@ -382,38 +479,57 @@ export default function ProjectsList() {
                       {project.riskLevel}
                     </div>
                   </TableCell>
+                  {/* Inline Editable Progress */}
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={project.progress || 0} className="h-1.5 w-16" />
-                      <span className="text-xs text-muted-foreground">{project.progress}%</span>
-                    </div>
+                    {editingId === project.id && editingField === "progress" ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(parseInt(e.target.value) || 0)}
+                          onKeyDown={(e) => handleInlineKeyDown(e, project.id)}
+                          onBlur={() => saveInlineEdit(project.id)}
+                          className="h-7 w-16 text-xs"
+                          autoFocus
+                          data-testid={`input-inline-progress-${project.id}`}
+                        />
+                        <span className="text-xs text-muted-foreground">%</span>
+                      </div>
+                    ) : (
+                      <div 
+                        className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1"
+                        onClick={() => startInlineEdit(project.id, "progress", project.progress || 0)}
+                        data-testid={`progress-${project.id}`}
+                      >
+                        <Progress value={project.progress || 0} className="h-1.5 w-16" />
+                        <span className="text-xs text-muted-foreground">{project.progress || 0}%</span>
+                      </div>
+                    )}
                   </TableCell>
+                  {/* Visible Action Buttons */}
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/projects/${project.id}`}>
-                            View Details
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEditDialog(project)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Edit Project
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-red-600"
-                          onClick={() => openDeleteDialog(project)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete Project
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => openEditDialog(project)}
+                        data-testid={`button-edit-${project.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                        onClick={() => openDeleteDialog(project)}
+                        data-testid={`button-delete-${project.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
