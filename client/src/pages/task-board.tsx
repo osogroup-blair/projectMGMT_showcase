@@ -909,6 +909,8 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
     };
   }, [stages, projectTasks, projectEpics, users, projectMilestones]);
 
+  const sidebarSections = accordionSections[activeAccordion as keyof typeof accordionSections] || [];
+
   const filteredTasks = useMemo(() => {
     return projectTasks.filter(t => {
       const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -995,7 +997,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
         {(Object.keys(GROUP_BY_CONFIG) as GroupByType[]).map(key => {
           const config = GROUP_BY_CONFIG[key];
           const Icon = config.icon;
-          const isActive = groupBy === key;
+          const isActive = activeAccordion === key;
           return (
             <Button
               key={key}
@@ -1004,7 +1006,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                 "h-16 flex flex-col items-center justify-center gap-1.5 transition-all border-2",
                 isActive ? config.color : "hover:bg-muted/50"
               )}
-              onClick={() => setGroupBy(key)}
+              onClick={() => setActiveAccordion(key)}
               data-testid={`filter-${key}`}
             >
               <Icon className="h-5 w-5" />
