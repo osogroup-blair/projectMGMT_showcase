@@ -486,7 +486,9 @@ export default function ProjectWizard() {
         ? templateIdToStageId.get(stages[0].id) || null
         : null;
       
-      // 3. Create deliverables with epics
+      // 3. Create deliverables with epics and collect created epic IDs
+      const createdEpics: { id: string; title: string }[] = [];
+      
       for (const deliverable of deliverables) {
         const newDeliverable = await createDeliverable({
           projectId: newProject.id,
@@ -501,7 +503,7 @@ export default function ProjectWizard() {
         if (newDeliverable?.id && deliverable.epics?.length > 0) {
           // Create epics for this deliverable
           for (const epic of deliverable.epics) {
-            await createEpic({
+            const newEpic = await createEpic({
               deliverableId: newDeliverable.id,
               title: epic.title,
               description: epic.description || "",
@@ -512,32 +514,41 @@ export default function ProjectWizard() {
               progress: 0,
               stageIds: firstStageId ? [firstStageId] : []
             });
+            
+            if (newEpic?.id) {
+              createdEpics.push({ id: newEpic.id, title: epic.title });
+            }
           }
         }
       }
       
-      // 4. Create stage-based tasks if user opted in
-      for (const stageTemplate of stages) {
-        if (stageTemplate.includeTasks && stageTemplate.defaultTasks?.length > 0) {
-          const actualStageId = templateIdToStageId.get(stageTemplate.id) || null;
-          
-          for (const taskId of stageTemplate.defaultTasks) {
-            const taskTemplate = taskTemplates.find(t => t.id === taskId);
-            if (taskTemplate) {
-              await createTask({
-                project: projectData.name,
-                projectId: newProject.id,
-                title: taskTemplate.title,
-                description: taskTemplate.description || "",
-                status: "Todo",
-                priority: taskTemplate.defaultPriority || "Medium",
-                stageId: actualStageId,
-                epicId: null,
-                effort: 1,
-                deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-                estimateHours: taskTemplate.defaultEstimateHours || 0,
-                tags: []
-              });
+      // 4. Create tasks per epic - each epic gets tasks from all stages with includeTasks enabled
+      let totalTasksCreated = 0;
+      
+      for (const createdEpic of createdEpics) {
+        for (const stageTemplate of stages) {
+          if (stageTemplate.includeTasks && stageTemplate.defaultTasks?.length > 0) {
+            const actualStageId = templateIdToStageId.get(stageTemplate.id) || null;
+            
+            for (const taskId of stageTemplate.defaultTasks) {
+              const taskTemplate = taskTemplates.find(t => t.id === taskId);
+              if (taskTemplate) {
+                await createTask({
+                  project: projectData.name,
+                  projectId: newProject.id,
+                  title: taskTemplate.title,
+                  description: taskTemplate.description || "",
+                  status: "Todo",
+                  priority: taskTemplate.defaultPriority || "Medium",
+                  stageId: actualStageId,
+                  epicId: createdEpic.id,
+                  effort: 1,
+                  deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
+                  estimateHours: taskTemplate.defaultEstimateHours || 0,
+                  tags: []
+                });
+                totalTasksCreated++;
+              }
             }
           }
         }
@@ -545,7 +556,7 @@ export default function ProjectWizard() {
       
       toast({
         title: "Project Created",
-        description: `${projectData.name} has been successfully created with ${deliverables.length} deliverables and ${stages.length} stages.`,
+        description: `${projectData.name} has been successfully created with ${createdEpics.length} epics and ${totalTasksCreated} tasks.`,
       });
       
       setLocation(`/projects/${newProject.id}`);
@@ -1006,30 +1017,45 @@ export default function ProjectWizard() {
                                 </div>
                             </div>
                             
-{/* Tasks Preview Section */}
+{/* Tasks Preview Section - Tasks per Epic */}
                             {(() => {
-                                const tasksToCreate = stages
+                                // Get all epics from deliverables
+                                const allEpics = deliverables.flatMap(d => 
+                                    d.epics.map(e => ({ ...e, deliverableTitle: d.title }))
+                                );
+                                
+                                // Get tasks that will be created per epic (from stages with includeTasks)
+                                const tasksPerEpic = stages
                                     .filter(stage => stage.includeTasks && stage.defaultTasks?.length > 0)
                                     .flatMap(stage => 
                                         (stage.defaultTasks || []).map(taskId => {
                                             const task = taskTemplates.find(t => t.id === taskId);
-                                            return task ? { ...task, stageName: stage.name } : null;
+                                            return task ? { ...task, stageName: stage.name, stageId: stage.id } : null;
                                         }).filter(Boolean)
                                     );
                                 
-                                return tasksToCreate.length > 0 ? (
+                                const totalTasks = allEpics.length * tasksPerEpic.length;
+                                
+                                return allEpics.length > 0 && tasksPerEpic.length > 0 ? (
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2 text-primary">
                                                 <CheckSquare className="h-5 w-5" />
                                                 <span className="font-semibold">Tasks to be Created</span>
                                             </div>
-                                            <Badge variant="secondary">{tasksToCreate.length} tasks</Badge>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className="text-xs">
+                                                    {allEpics.length} epics × {tasksPerEpic.length} tasks
+                                                </Badge>
+                                                <Badge variant="secondary">{totalTasks} total tasks</Badge>
+                                            </div>
                                         </div>
-                                        <div className="bg-card border rounded-lg overflow-hidden">
+                                        
+                                        <div className="bg-card border rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
                                             <Table>
-                                                <TableHeader>
+                                                <TableHeader className="sticky top-0 bg-card z-10">
                                                     <TableRow className="bg-muted/50">
+                                                        <TableHead className="font-semibold">Epic</TableHead>
                                                         <TableHead className="font-semibold">Task Title</TableHead>
                                                         <TableHead className="font-semibold">Stage</TableHead>
                                                         <TableHead className="font-semibold">Priority</TableHead>
@@ -1037,41 +1063,61 @@ export default function ProjectWizard() {
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {tasksToCreate.map((task: any, idx: number) => (
-                                                        <TableRow key={idx} data-testid={`review-task-row-${idx}`}>
-                                                            <TableCell className="font-medium">{task.title}</TableCell>
-                                                            <TableCell>
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {task.stageName}
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                <Badge 
-                                                                    variant="outline" 
-                                                                    className={cn(
-                                                                        "text-xs",
-                                                                        task.defaultPriority === "High" && "bg-red-50 text-red-700 border-red-200",
-                                                                        task.defaultPriority === "Medium" && "bg-amber-50 text-amber-700 border-amber-200",
-                                                                        task.defaultPriority === "Low" && "bg-green-50 text-green-700 border-green-200"
+                                                    {allEpics.flatMap((epic: any, epicIdx: number) => 
+                                                        tasksPerEpic.map((task: any, taskIdx: number) => (
+                                                            <TableRow key={`${epicIdx}-${taskIdx}`} data-testid={`review-task-row-${epicIdx}-${taskIdx}`}>
+                                                                <TableCell>
+                                                                    {taskIdx === 0 ? (
+                                                                        <div className="font-medium text-primary">{epic.title}</div>
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground text-xs">↳</span>
                                                                     )}
-                                                                >
-                                                                    {task.defaultPriority || "Medium"}
-                                                                </Badge>
-                                                            </TableCell>
-                                                            <TableCell className="text-right text-muted-foreground">
-                                                                {task.defaultEstimateHours || 0}h
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
+                                                                </TableCell>
+                                                                <TableCell className="font-medium">{task.title}</TableCell>
+                                                                <TableCell>
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {task.stageName}
+                                                                    </Badge>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Badge 
+                                                                        variant="outline" 
+                                                                        className={cn(
+                                                                            "text-xs",
+                                                                            task.defaultPriority === "High" && "bg-red-50 text-red-700 border-red-200",
+                                                                            task.defaultPriority === "Medium" && "bg-amber-50 text-amber-700 border-amber-200",
+                                                                            task.defaultPriority === "Low" && "bg-green-50 text-green-700 border-green-200"
+                                                                        )}
+                                                                    >
+                                                                        {task.defaultPriority || "Medium"}
+                                                                    </Badge>
+                                                                </TableCell>
+                                                                <TableCell className="text-right text-muted-foreground">
+                                                                    {task.defaultEstimateHours || 0}h
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    )}
                                                 </TableBody>
                                             </Table>
+                                        </div>
+                                        
+                                        <p className="text-xs text-muted-foreground">
+                                            Each epic will receive {tasksPerEpic.length} tasks distributed across {stages.filter(s => s.includeTasks).length} stages.
+                                        </p>
+                                    </div>
+                                ) : allEpics.length === 0 ? (
+                                    <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg border border-dashed">
+                                        <CheckSquare className="h-5 w-5 text-muted-foreground" />
+                                        <div className="text-sm text-muted-foreground">
+                                            No epics defined. Add epics in the Work Breakdown step to create tasks.
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg border border-dashed">
                                         <CheckSquare className="h-5 w-5 text-muted-foreground" />
                                         <div className="text-sm text-muted-foreground">
-                                            No default tasks selected. You can add tasks after creating the project.
+                                            No default tasks selected. Enable "Create default tasks" in Stage Configuration.
                                         </div>
                                     </div>
                                 );
