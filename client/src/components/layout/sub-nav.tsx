@@ -12,7 +12,7 @@ export function SubNav() {
   const [location] = useLocation();
 
   return (
-    <div className="w-48 border-r border-border bg-card flex flex-col justify-between">
+    <div className="w-48 h-full border-r border-border bg-card flex flex-col justify-between">
       <div className="space-y-1 p-4">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
