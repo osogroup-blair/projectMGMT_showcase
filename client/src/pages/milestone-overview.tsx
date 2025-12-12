@@ -36,7 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
-import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useProject, useMilestoneScopeRules } from "@/hooks/use-nexus-data";
+import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
@@ -92,6 +92,7 @@ export default function MilestoneOverview() {
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
 
   const milestone = useMemo(() => 
@@ -116,9 +117,19 @@ export default function MilestoneOverview() {
     [allTasks, projectId]
   );
 
+  const projectDeliverables = useMemo(() => 
+    (allDeliverables || []).filter((d: any) => d.projectId === projectId),
+    [allDeliverables, projectId]
+  );
+
+  const projectDeliverableIds = useMemo(() => 
+    projectDeliverables.map((d: any) => d.id),
+    [projectDeliverables]
+  );
+
   const projectEpics = useMemo(() => 
-    (allEpics || []).filter((e: any) => e.projectId === projectId),
-    [allEpics, projectId]
+    (allEpics || []).filter((e: any) => projectDeliverableIds.includes(e.deliverableId)),
+    [allEpics, projectDeliverableIds]
   );
 
   const scopeRules = useMemo(() => 
@@ -187,7 +198,7 @@ export default function MilestoneOverview() {
     toast({ title: "Scope Rules Updated", description: "Milestone scope has been recalculated." });
   };
 
-  const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading;
+  const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading;
 
   if (isLoading) {
     return (
