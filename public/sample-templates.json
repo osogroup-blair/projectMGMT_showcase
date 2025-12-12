@@ -1,159 +1,557 @@
 {
   "version": "1.0",
   "exportedAt": "2025-01-01T00:00:00.000Z",
+  "description": "Sample template file showing all attributes for each template type. Use this as a reference when creating your own templates.",
   "templates": {
     "framework": [
       {
-        "id": "fw_sample_1",
-        "name": "Standard Implementation Framework",
-        "description": "A complete framework for standard implementation projects with 4 delivery stages",
-        "defaultStages": ["st_plan", "st_validate", "st_develop", "st_enable"]
+        "id": "fw_implementation",
+        "name": "Implementation Framework",
+        "description": "Standard 4-phase implementation delivery framework for enterprise projects",
+        "defaultStages": [
+          "st_discovery",
+          "st_design", 
+          "st_build",
+          "st_deploy"
+        ]
       },
       {
-        "id": "fw_sample_2",
+        "id": "fw_agile",
         "name": "Agile Delivery Framework",
-        "description": "Lightweight framework for agile projects",
-        "defaultStages": ["st_discovery", "st_sprint", "st_release"]
+        "description": "Lightweight iterative framework for agile projects with sprint-based delivery",
+        "defaultStages": [
+          "st_backlog",
+          "st_sprint",
+          "st_review"
+        ]
       }
     ],
     "stage": [
       {
-        "id": "st_sample_1",
+        "id": "st_discovery",
         "name": "Discovery & Planning",
-        "description": "Initial discovery phase for requirements gathering and project planning",
-        "defaultTasks": ["tt_requirements", "tt_planning"],
-        "defaultRoles": ["rt_pm", "rt_ba"],
-        "entryCriteria": "Project kickoff completed, stakeholders identified",
-        "exitCriteria": "Requirements document approved, project plan finalized",
-        "allowedTaskStatuses": ["Todo", "In Progress", "Review", "Done"]
+        "description": "Initial discovery phase for requirements gathering, stakeholder alignment, and project planning",
+        "defaultTasks": [
+          "tt_kickoff",
+          "tt_requirements",
+          "tt_stakeholder_map"
+        ],
+        "defaultRoles": [
+          "rt_pm",
+          "rt_ba"
+        ],
+        "entryCriteria": "Project charter signed, budget approved, core team assigned",
+        "exitCriteria": "Requirements document approved, project plan finalized, risks identified",
+        "allowedTaskStatuses": [
+          "Todo",
+          "In Progress", 
+          "Review",
+          "Done"
+        ]
       },
       {
-        "id": "st_sample_2",
-        "name": "Development",
-        "description": "Core development and implementation phase",
-        "defaultTasks": ["tt_dev_setup", "tt_implementation"],
-        "defaultRoles": ["rt_dev", "rt_lead"],
-        "entryCriteria": "Technical design approved",
-        "exitCriteria": "All features implemented and unit tested",
-        "allowedTaskStatuses": ["Todo", "In Progress", "Code Review", "Done"]
+        "id": "st_design",
+        "name": "Design & Architecture",
+        "description": "Solution design phase including technical architecture and UX design",
+        "defaultTasks": [
+          "tt_wireframes",
+          "tt_architecture",
+          "tt_design_review"
+        ],
+        "defaultRoles": [
+          "rt_designer",
+          "rt_architect"
+        ],
+        "entryCriteria": "Requirements approved, design team onboarded",
+        "exitCriteria": "Design specifications approved, technical architecture signed off",
+        "allowedTaskStatuses": [
+          "Todo",
+          "In Progress",
+          "Design Review",
+          "Approved"
+        ]
+      },
+      {
+        "id": "st_build",
+        "name": "Build & Development",
+        "description": "Core development and implementation phase with iterative delivery",
+        "defaultTasks": [
+          "tt_env_setup",
+          "tt_development",
+          "tt_unit_tests",
+          "tt_code_review"
+        ],
+        "defaultRoles": [
+          "rt_dev_lead",
+          "rt_developer"
+        ],
+        "entryCriteria": "Design approved, development environment ready",
+        "exitCriteria": "All features implemented, unit tests passing, code reviewed",
+        "allowedTaskStatuses": [
+          "Backlog",
+          "In Progress",
+          "Code Review",
+          "Done"
+        ]
+      },
+      {
+        "id": "st_deploy",
+        "name": "Deploy & Enable",
+        "description": "Deployment, testing, training, and go-live activities",
+        "defaultTasks": [
+          "tt_uat",
+          "tt_training",
+          "tt_deployment",
+          "tt_hypercare"
+        ],
+        "defaultRoles": [
+          "rt_qa",
+          "rt_trainer"
+        ],
+        "entryCriteria": "Development complete, test environment ready",
+        "exitCriteria": "UAT signed off, users trained, system live",
+        "allowedTaskStatuses": [
+          "Planned",
+          "In Progress",
+          "Testing",
+          "Complete"
+        ]
       }
     ],
     "project": [
       {
-        "id": "pt_sample_1",
+        "id": "pt_enterprise",
         "name": "Enterprise Implementation",
-        "description": "Full-scale enterprise implementation project template with all standard phases",
-        "defaultFrameworkId": "fw_sample_1",
-        "defaultRoles": ["rt_pm", "rt_ba", "rt_dev", "rt_qa"],
-        "defaultDeliverables": ["dt_discovery", "dt_implementation", "dt_training"],
+        "description": "Full-scale enterprise implementation project template with comprehensive phases, roles, and deliverables for large organizations",
+        "defaultFrameworkId": "fw_implementation",
+        "defaultRoles": [
+          "rt_pm",
+          "rt_ba",
+          "rt_architect",
+          "rt_dev_lead",
+          "rt_developer",
+          "rt_designer",
+          "rt_qa"
+        ],
+        "defaultDeliverables": [
+          "dt_discovery_docs",
+          "dt_design_package",
+          "dt_implementation",
+          "dt_training_materials"
+        ],
         "thumbnail": "enterprise"
       },
       {
-        "id": "pt_sample_2",
+        "id": "pt_quickstart",
         "name": "Quick Start Project",
-        "description": "Lightweight project template for small implementations",
-        "defaultFrameworkId": "fw_sample_2",
-        "defaultRoles": ["rt_pm", "rt_dev"],
-        "defaultDeliverables": ["dt_mvp"],
+        "description": "Lightweight project template for small to medium implementations with streamlined phases",
+        "defaultFrameworkId": "fw_agile",
+        "defaultRoles": [
+          "rt_pm",
+          "rt_developer"
+        ],
+        "defaultDeliverables": [
+          "dt_mvp"
+        ],
         "thumbnail": "quick-start"
       }
     ],
     "deliverable": [
       {
-        "id": "dt_sample_1",
+        "id": "dt_discovery_docs",
         "title": "Discovery Documentation",
-        "description": "Complete discovery phase documentation including requirements, stakeholder analysis, and project charter",
-        "defaultEpics": ["et_requirements", "et_stakeholder_analysis"]
+        "description": "Complete discovery phase documentation including business requirements, stakeholder analysis, current state assessment, and project charter",
+        "defaultEpics": [
+          "et_requirements",
+          "et_stakeholder_analysis",
+          "et_current_state"
+        ]
       },
       {
-        "id": "dt_sample_2",
+        "id": "dt_design_package",
+        "title": "Design Package",
+        "description": "Complete design deliverables including wireframes, mockups, technical architecture, and design specifications",
+        "defaultEpics": [
+          "et_ux_design",
+          "et_technical_architecture",
+          "et_integration_design"
+        ]
+      },
+      {
+        "id": "dt_implementation",
+        "title": "Implementation Package",
+        "description": "Core implementation deliverables including developed features, integrations, and tested components",
+        "defaultEpics": [
+          "et_core_features",
+          "et_integrations",
+          "et_testing"
+        ]
+      },
+      {
+        "id": "dt_training_materials",
+        "title": "Training & Enablement",
+        "description": "User training materials, admin guides, and ongoing support documentation",
+        "defaultEpics": [
+          "et_user_training",
+          "et_admin_documentation"
+        ]
+      },
+      {
+        "id": "dt_mvp",
         "title": "MVP Release",
-        "description": "Minimum viable product delivery with core functionality",
-        "defaultEpics": ["et_core_features", "et_basic_ui"]
+        "description": "Minimum viable product with core functionality ready for initial user testing",
+        "defaultEpics": [
+          "et_core_features",
+          "et_basic_ui"
+        ]
       }
     ],
     "epic": [
       {
-        "id": "et_sample_1",
-        "title": "User Authentication System",
-        "description": "Complete user authentication including login, registration, password reset, and session management",
-        "defaultStages": ["st_design", "st_develop", "st_test"]
+        "id": "et_requirements",
+        "title": "Requirements Gathering",
+        "description": "Complete business and functional requirements documentation through workshops, interviews, and analysis",
+        "defaultStages": [
+          "st_discovery"
+        ]
       },
       {
-        "id": "et_sample_2",
-        "title": "Dashboard & Analytics",
-        "description": "Main dashboard with key metrics, charts, and reporting capabilities",
-        "defaultStages": ["st_design", "st_develop"]
+        "id": "et_stakeholder_analysis",
+        "title": "Stakeholder Analysis",
+        "description": "Identify and map all stakeholders, their interests, influence, and communication needs",
+        "defaultStages": [
+          "st_discovery"
+        ]
+      },
+      {
+        "id": "et_current_state",
+        "title": "Current State Assessment",
+        "description": "Document existing systems, processes, and pain points to inform solution design",
+        "defaultStages": [
+          "st_discovery"
+        ]
+      },
+      {
+        "id": "et_ux_design",
+        "title": "UX/UI Design",
+        "description": "User experience design including wireframes, prototypes, and visual design",
+        "defaultStages": [
+          "st_design"
+        ]
+      },
+      {
+        "id": "et_technical_architecture",
+        "title": "Technical Architecture",
+        "description": "System architecture, data models, and technical specifications",
+        "defaultStages": [
+          "st_design"
+        ]
+      },
+      {
+        "id": "et_integration_design",
+        "title": "Integration Design",
+        "description": "Design specifications for all system integrations and data flows",
+        "defaultStages": [
+          "st_design"
+        ]
+      },
+      {
+        "id": "et_core_features",
+        "title": "Core Feature Development",
+        "description": "Implementation of primary application features and functionality",
+        "defaultStages": [
+          "st_build"
+        ]
+      },
+      {
+        "id": "et_integrations",
+        "title": "System Integrations",
+        "description": "Build and test all required system integrations and APIs",
+        "defaultStages": [
+          "st_build"
+        ]
+      },
+      {
+        "id": "et_testing",
+        "title": "Testing & QA",
+        "description": "Comprehensive testing including unit, integration, and user acceptance testing",
+        "defaultStages": [
+          "st_build",
+          "st_deploy"
+        ]
+      },
+      {
+        "id": "et_user_training",
+        "title": "User Training",
+        "description": "End-user training program development and delivery",
+        "defaultStages": [
+          "st_deploy"
+        ]
+      },
+      {
+        "id": "et_admin_documentation",
+        "title": "Admin Documentation",
+        "description": "System administration guides and technical documentation",
+        "defaultStages": [
+          "st_deploy"
+        ]
+      },
+      {
+        "id": "et_basic_ui",
+        "title": "Basic UI Implementation",
+        "description": "Core user interface components and layouts",
+        "defaultStages": [
+          "st_build"
+        ]
       }
     ],
     "task": [
       {
-        "id": "tt_sample_1",
-        "title": "Setup Development Environment",
-        "description": "Configure local development environment with all necessary tools, dependencies, and access credentials",
+        "id": "tt_kickoff",
+        "title": "Project Kickoff Meeting",
+        "description": "Conduct project kickoff meeting with all stakeholders to align on objectives, scope, timeline, and team responsibilities",
         "defaultPriority": "High",
         "defaultEstimateHours": 4,
-        "requiredRole": "Development",
-        "assignedRoleId": "rt_dev"
+        "requiredRole": "Management",
+        "assignedRoleId": "rt_pm"
       },
       {
-        "id": "tt_sample_2",
+        "id": "tt_requirements",
         "title": "Requirements Workshop",
-        "description": "Conduct stakeholder workshop to gather and document detailed requirements",
+        "description": "Facilitate requirements gathering workshops with business stakeholders to document functional and non-functional requirements",
         "defaultPriority": "High",
-        "defaultEstimateHours": 8,
+        "defaultEstimateHours": 16,
         "requiredRole": "Business Analysis",
         "assignedRoleId": "rt_ba"
       },
       {
-        "id": "tt_sample_3",
-        "title": "Code Review",
-        "description": "Review pull requests and ensure code quality standards are met",
+        "id": "tt_stakeholder_map",
+        "title": "Stakeholder Mapping",
+        "description": "Create stakeholder map identifying all stakeholders, their roles, influence levels, and communication preferences",
         "defaultPriority": "Medium",
-        "defaultEstimateHours": 2,
+        "defaultEstimateHours": 4,
+        "requiredRole": "Business Analysis",
+        "assignedRoleId": "rt_ba"
+      },
+      {
+        "id": "tt_wireframes",
+        "title": "Create Wireframes",
+        "description": "Design low-fidelity wireframes for all major screens and user flows",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 24,
+        "requiredRole": "Design",
+        "assignedRoleId": "rt_designer"
+      },
+      {
+        "id": "tt_architecture",
+        "title": "Technical Architecture Design",
+        "description": "Design system architecture including component diagrams, data models, and integration patterns",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 20,
+        "requiredRole": "Architecture",
+        "assignedRoleId": "rt_architect"
+      },
+      {
+        "id": "tt_design_review",
+        "title": "Design Review Session",
+        "description": "Conduct formal design review with stakeholders to approve designs before development",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 4,
+        "requiredRole": "Design",
+        "assignedRoleId": "rt_designer"
+      },
+      {
+        "id": "tt_env_setup",
+        "title": "Environment Setup",
+        "description": "Configure development, testing, and staging environments with all required tools and dependencies",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 8,
         "requiredRole": "Development",
+        "assignedRoleId": "rt_dev_lead"
+      },
+      {
+        "id": "tt_development",
+        "title": "Feature Development",
+        "description": "Implement assigned features according to specifications and coding standards",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 40,
+        "requiredRole": "Development",
+        "assignedRoleId": "rt_developer"
+      },
+      {
+        "id": "tt_unit_tests",
+        "title": "Write Unit Tests",
+        "description": "Create comprehensive unit tests for all new code with minimum 80% coverage",
+        "defaultPriority": "Medium",
+        "defaultEstimateHours": 12,
+        "requiredRole": "Development",
+        "assignedRoleId": "rt_developer"
+      },
+      {
+        "id": "tt_code_review",
+        "title": "Code Review",
+        "description": "Review pull requests for code quality, standards compliance, and potential issues",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 4,
+        "requiredRole": "Development",
+        "assignedRoleId": "rt_dev_lead"
+      },
+      {
+        "id": "tt_uat",
+        "title": "User Acceptance Testing",
+        "description": "Conduct UAT sessions with business users and document sign-off",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 20,
+        "requiredRole": "Quality Assurance",
+        "assignedRoleId": "rt_qa"
+      },
+      {
+        "id": "tt_training",
+        "title": "User Training Sessions",
+        "description": "Deliver training sessions to end users on system functionality and processes",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 16,
+        "requiredRole": "Training",
+        "assignedRoleId": "rt_trainer"
+      },
+      {
+        "id": "tt_deployment",
+        "title": "Production Deployment",
+        "description": "Deploy application to production environment following deployment checklist",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 8,
+        "requiredRole": "Development",
+        "assignedRoleId": "rt_dev_lead"
+      },
+      {
+        "id": "tt_hypercare",
+        "title": "Hypercare Support",
+        "description": "Provide intensive post-go-live support to address issues and questions",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 40,
+        "requiredRole": "Support",
         "assignedRoleId": null
       }
     ],
     "role": [
       {
-        "id": "rt_sample_1",
+        "id": "rt_pm",
         "name": "Project Manager",
-        "description": "Responsible for overall project delivery, timeline management, budget control, and stakeholder communication",
+        "description": "Responsible for overall project delivery, timeline management, budget control, risk management, and stakeholder communication",
         "defaultRoleType": "Management",
-        "defaultPermissions": ["manage_project", "manage_budget", "assign_tasks", "view_reports"]
+        "defaultPermissions": [
+          "manage_project",
+          "manage_budget",
+          "assign_tasks",
+          "view_reports",
+          "manage_team",
+          "approve_milestones"
+        ]
       },
       {
-        "id": "rt_sample_2",
-        "name": "Lead Developer",
-        "description": "Technical lead responsible for architecture decisions, code reviews, and mentoring team members",
-        "defaultRoleType": "Development",
-        "defaultPermissions": ["manage_code", "approve_pr", "deploy", "assign_tasks"]
-      },
-      {
-        "id": "rt_sample_3",
+        "id": "rt_ba",
         "name": "Business Analyst",
-        "description": "Gathers and documents requirements, creates user stories, and manages stakeholder expectations",
+        "description": "Gathers and documents business requirements, creates user stories, manages backlog, and facilitates stakeholder communication",
         "defaultRoleType": "Analysis",
-        "defaultPermissions": ["manage_requirements", "create_stories", "view_reports"]
+        "defaultPermissions": [
+          "manage_requirements",
+          "create_stories",
+          "view_reports",
+          "edit_documentation"
+        ]
       },
       {
-        "id": "rt_sample_4",
+        "id": "rt_architect",
+        "name": "Solution Architect",
+        "description": "Designs technical architecture, makes technology decisions, ensures system scalability and maintainability",
+        "defaultRoleType": "Architecture",
+        "defaultPermissions": [
+          "manage_architecture",
+          "approve_technical_design",
+          "view_all_code",
+          "manage_integrations"
+        ]
+      },
+      {
+        "id": "rt_dev_lead",
+        "name": "Development Lead",
+        "description": "Technical lead responsible for development team, code reviews, technical decisions, and mentoring developers",
+        "defaultRoleType": "Development",
+        "defaultPermissions": [
+          "manage_code",
+          "approve_pr",
+          "deploy",
+          "assign_tasks",
+          "manage_environments"
+        ]
+      },
+      {
+        "id": "rt_developer",
+        "name": "Software Developer",
+        "description": "Implements features according to specifications, writes tests, fixes bugs, and participates in code reviews",
+        "defaultRoleType": "Development",
+        "defaultPermissions": [
+          "write_code",
+          "create_pr",
+          "view_tasks",
+          "update_task_status"
+        ]
+      },
+      {
+        "id": "rt_designer",
+        "name": "UX/UI Designer",
+        "description": "Creates user experience designs, wireframes, mockups, and maintains design system consistency",
+        "defaultRoleType": "Design",
+        "defaultPermissions": [
+          "manage_design",
+          "create_prototypes",
+          "view_requirements",
+          "update_design_system"
+        ]
+      },
+      {
+        "id": "rt_qa",
         "name": "QA Engineer",
-        "description": "Responsible for test planning, test execution, and quality assurance activities",
+        "description": "Plans and executes testing, manages test cases, reports bugs, and validates fixes",
         "defaultRoleType": "Quality",
-        "defaultPermissions": ["manage_tests", "report_bugs", "approve_release"]
+        "defaultPermissions": [
+          "manage_tests",
+          "report_bugs",
+          "approve_release",
+          "view_all_tasks"
+        ]
+      },
+      {
+        "id": "rt_trainer",
+        "name": "Training Specialist",
+        "description": "Develops training materials, delivers training sessions, and ensures user adoption",
+        "defaultRoleType": "Enablement",
+        "defaultPermissions": [
+          "create_training",
+          "view_documentation",
+          "track_completion"
+        ]
       }
     ],
     "mapping": [
       {
-        "id": "mt_sample_1",
+        "id": "mt_jira",
         "name": "Jira Import Mapping",
         "dataType": "Tasks"
       },
       {
-        "id": "mt_sample_2",
+        "id": "mt_trello",
+        "name": "Trello Import Mapping",
+        "dataType": "Tasks"
+      },
+      {
+        "id": "mt_csv",
         "name": "CSV Standard Mapping",
+        "dataType": "Mixed"
+      },
+      {
+        "id": "mt_excel",
+        "name": "Excel Import Mapping",
         "dataType": "Mixed"
       }
     ]
