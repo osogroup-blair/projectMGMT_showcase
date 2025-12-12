@@ -1225,26 +1225,40 @@ export default function AdminTemplates() {
           
           <div className="space-y-4 py-4">
             {!importData ? (
-              <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
-                <Label 
-                  htmlFor="import-file" 
-                  className="block text-sm font-medium mb-2 cursor-pointer"
-                >
-                  Click to upload or drag and drop
-                </Label>
-                <p className="text-xs text-muted-foreground mb-4">JSON files only</p>
-                <Input
-                  id="import-file"
-                  type="file"
-                  accept=".json"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                  data-testid="input-import-file"
-                />
-                <Button variant="outline" onClick={() => document.getElementById('import-file')?.click()}>
-                  Select File
-                </Button>
+              <div className="space-y-4">
+                <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                  <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+                  <Label 
+                    htmlFor="import-file" 
+                    className="block text-sm font-medium mb-2 cursor-pointer"
+                  >
+                    Click to upload or drag and drop
+                  </Label>
+                  <p className="text-xs text-muted-foreground mb-4">JSON files only</p>
+                  <Input
+                    id="import-file"
+                    type="file"
+                    accept=".json"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    data-testid="input-import-file"
+                  />
+                  <Button variant="outline" onClick={() => document.getElementById('import-file')?.click()}>
+                    Select File
+                  </Button>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <span>Need a reference?</span>
+                  <a 
+                    href="/sample-templates.json" 
+                    download="sample-templates.json"
+                    className="text-primary hover:underline flex items-center gap-1"
+                    data-testid="link-download-sample"
+                  >
+                    <Download className="h-3 w-3" />
+                    Download Sample Template
+                  </a>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">

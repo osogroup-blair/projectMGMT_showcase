@@ -1,0 +1,161 @@
+{
+  "version": "1.0",
+  "exportedAt": "2025-01-01T00:00:00.000Z",
+  "templates": {
+    "framework": [
+      {
+        "id": "fw_sample_1",
+        "name": "Standard Implementation Framework",
+        "description": "A complete framework for standard implementation projects with 4 delivery stages",
+        "defaultStages": ["st_plan", "st_validate", "st_develop", "st_enable"]
+      },
+      {
+        "id": "fw_sample_2",
+        "name": "Agile Delivery Framework",
+        "description": "Lightweight framework for agile projects",
+        "defaultStages": ["st_discovery", "st_sprint", "st_release"]
+      }
+    ],
+    "stage": [
+      {
+        "id": "st_sample_1",
+        "name": "Discovery & Planning",
+        "description": "Initial discovery phase for requirements gathering and project planning",
+        "defaultTasks": ["tt_requirements", "tt_planning"],
+        "defaultRoles": ["rt_pm", "rt_ba"],
+        "entryCriteria": "Project kickoff completed, stakeholders identified",
+        "exitCriteria": "Requirements document approved, project plan finalized",
+        "allowedTaskStatuses": ["Todo", "In Progress", "Review", "Done"]
+      },
+      {
+        "id": "st_sample_2",
+        "name": "Development",
+        "description": "Core development and implementation phase",
+        "defaultTasks": ["tt_dev_setup", "tt_implementation"],
+        "defaultRoles": ["rt_dev", "rt_lead"],
+        "entryCriteria": "Technical design approved",
+        "exitCriteria": "All features implemented and unit tested",
+        "allowedTaskStatuses": ["Todo", "In Progress", "Code Review", "Done"]
+      }
+    ],
+    "project": [
+      {
+        "id": "pt_sample_1",
+        "name": "Enterprise Implementation",
+        "description": "Full-scale enterprise implementation project template with all standard phases",
+        "defaultFrameworkId": "fw_sample_1",
+        "defaultRoles": ["rt_pm", "rt_ba", "rt_dev", "rt_qa"],
+        "defaultDeliverables": ["dt_discovery", "dt_implementation", "dt_training"],
+        "thumbnail": "enterprise"
+      },
+      {
+        "id": "pt_sample_2",
+        "name": "Quick Start Project",
+        "description": "Lightweight project template for small implementations",
+        "defaultFrameworkId": "fw_sample_2",
+        "defaultRoles": ["rt_pm", "rt_dev"],
+        "defaultDeliverables": ["dt_mvp"],
+        "thumbnail": "quick-start"
+      }
+    ],
+    "deliverable": [
+      {
+        "id": "dt_sample_1",
+        "title": "Discovery Documentation",
+        "description": "Complete discovery phase documentation including requirements, stakeholder analysis, and project charter",
+        "defaultEpics": ["et_requirements", "et_stakeholder_analysis"]
+      },
+      {
+        "id": "dt_sample_2",
+        "title": "MVP Release",
+        "description": "Minimum viable product delivery with core functionality",
+        "defaultEpics": ["et_core_features", "et_basic_ui"]
+      }
+    ],
+    "epic": [
+      {
+        "id": "et_sample_1",
+        "title": "User Authentication System",
+        "description": "Complete user authentication including login, registration, password reset, and session management",
+        "defaultStages": ["st_design", "st_develop", "st_test"]
+      },
+      {
+        "id": "et_sample_2",
+        "title": "Dashboard & Analytics",
+        "description": "Main dashboard with key metrics, charts, and reporting capabilities",
+        "defaultStages": ["st_design", "st_develop"]
+      }
+    ],
+    "task": [
+      {
+        "id": "tt_sample_1",
+        "title": "Setup Development Environment",
+        "description": "Configure local development environment with all necessary tools, dependencies, and access credentials",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 4,
+        "requiredRole": "Development",
+        "assignedRoleId": "rt_dev"
+      },
+      {
+        "id": "tt_sample_2",
+        "title": "Requirements Workshop",
+        "description": "Conduct stakeholder workshop to gather and document detailed requirements",
+        "defaultPriority": "High",
+        "defaultEstimateHours": 8,
+        "requiredRole": "Business Analysis",
+        "assignedRoleId": "rt_ba"
+      },
+      {
+        "id": "tt_sample_3",
+        "title": "Code Review",
+        "description": "Review pull requests and ensure code quality standards are met",
+        "defaultPriority": "Medium",
+        "defaultEstimateHours": 2,
+        "requiredRole": "Development",
+        "assignedRoleId": null
+      }
+    ],
+    "role": [
+      {
+        "id": "rt_sample_1",
+        "name": "Project Manager",
+        "description": "Responsible for overall project delivery, timeline management, budget control, and stakeholder communication",
+        "defaultRoleType": "Management",
+        "defaultPermissions": ["manage_project", "manage_budget", "assign_tasks", "view_reports"]
+      },
+      {
+        "id": "rt_sample_2",
+        "name": "Lead Developer",
+        "description": "Technical lead responsible for architecture decisions, code reviews, and mentoring team members",
+        "defaultRoleType": "Development",
+        "defaultPermissions": ["manage_code", "approve_pr", "deploy", "assign_tasks"]
+      },
+      {
+        "id": "rt_sample_3",
+        "name": "Business Analyst",
+        "description": "Gathers and documents requirements, creates user stories, and manages stakeholder expectations",
+        "defaultRoleType": "Analysis",
+        "defaultPermissions": ["manage_requirements", "create_stories", "view_reports"]
+      },
+      {
+        "id": "rt_sample_4",
+        "name": "QA Engineer",
+        "description": "Responsible for test planning, test execution, and quality assurance activities",
+        "defaultRoleType": "Quality",
+        "defaultPermissions": ["manage_tests", "report_bugs", "approve_release"]
+      }
+    ],
+    "mapping": [
+      {
+        "id": "mt_sample_1",
+        "name": "Jira Import Mapping",
+        "dataType": "Tasks"
+      },
+      {
+        "id": "mt_sample_2",
+        "name": "CSV Standard Mapping",
+        "dataType": "Mixed"
+      }
+    ]
+  }
+}
