@@ -991,78 +991,128 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   if (!project) return null;
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* 5 Large Filter Buttons */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {(Object.keys(GROUP_BY_CONFIG) as GroupByType[]).map(key => {
-          const config = GROUP_BY_CONFIG[key];
-          const Icon = config.icon;
-          const isActive = activeAccordion === key;
-          return (
-            <Button
-              key={key}
-              variant="outline"
-              className={cn(
-                "h-16 flex flex-col items-center justify-center gap-1.5 transition-all border-2",
-                isActive ? config.color : "hover:bg-muted/50"
-              )}
-              onClick={() => setActiveAccordion(key)}
-              data-testid={`filter-${key}`}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="text-sm font-medium">{config.label}</span>
-            </Button>
-          );
-        })}
+    <>
+    <div className="flex gap-6">
+      {/* Left Accordion Sidebar */}
+      <div className="w-60 shrink-0 space-y-2">
+        <Button 
+          variant={selectedSection === "all" && activeAccordion === "" ? "secondary" : "ghost"} 
+          className="w-full justify-between text-sm h-9"
+          onClick={() => { setSelectedSection("all"); setActiveAccordion(""); }}
+          data-testid="sidebar-all-tasks"
+        >
+          <span>All Tasks</span>
+          <Badge variant="outline" className="ml-2 font-mono text-xs">{projectTasks.length}</Badge>
+        </Button>
+        
+        <Accordion 
+          type="single" 
+          value={activeAccordion} 
+          onValueChange={(val) => { setActiveAccordion(val); setSelectedSection("all"); }}
+          className="w-full"
+        >
+          {(Object.keys(GROUP_BY_CONFIG) as GroupByType[]).map(key => {
+            const config = GROUP_BY_CONFIG[key];
+            const Icon = config.icon;
+            const sections = accordionSections[key] || [];
+            const totalCount = sections.reduce((sum: number, s: any) => sum + s.count, 0);
+            
+            return (
+              <AccordionItem key={key} value={key} className="border rounded-lg mb-1 px-1">
+                <AccordionTrigger className="py-2 px-2 hover:no-underline" data-testid={`accordion-${key}`}>
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{config.label.replace("By ", "")}</span>
+                    <Badge variant="secondary" className="ml-1 font-mono text-xs">{totalCount}</Badge>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-2 pt-0">
+                  <div className="space-y-0.5 pl-6">
+                    <Button 
+                      variant={activeAccordion === key && selectedSection === "all" ? "secondary" : "ghost"} 
+                      className="w-full justify-between text-xs h-7"
+                      onClick={() => setSelectedSection("all")}
+                      data-testid={`sidebar-${key}-all`}
+                    >
+                      <span>All</span>
+                      <span className="text-muted-foreground font-mono">{totalCount}</span>
+                    </Button>
+                    {sections.map((section: any) => (
+                      <Button 
+                        key={section.id}
+                        variant={selectedSection === section.id ? "secondary" : "ghost"}
+                        className="w-full justify-between text-xs h-7"
+                        onClick={() => setSelectedSection(section.id)}
+                        data-testid={`sidebar-section-${section.id}`}
+                      >
+                        <span className="truncate">{section.name}</span>
+                        <span className="text-muted-foreground font-mono shrink-0">{section.count}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
       </div>
 
-      {/* Main content with sidebar */}
-      <div className="flex gap-6">
-        {/* Left Sidebar */}
-        <div className="w-56 shrink-0 space-y-1">
-          <Button 
-            variant={selectedSection === "all" ? "secondary" : "ghost"} 
-            className="w-full justify-between text-sm h-9"
-            onClick={() => setSelectedSection("all")}
-            data-testid="sidebar-all-tasks"
-          >
-            <span>All Tasks</span>
-            <Badge variant="outline" className="ml-2 font-mono text-xs">{projectTasks.length}</Badge>
+      {/* Main Content */}
+      <div className="flex-1 space-y-4">
+        {/* Search and New Task */}
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search tasks..." 
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="input-search-tasks"
+            />
+          </div>
+          <Button onClick={() => handleOpenCreate()} className="gap-2" data-testid="button-new-task">
+            <Plus className="h-4 w-4" />
+            New Task
           </Button>
-          <div className="border-t my-2" />
-          {sidebarSections.map(section => (
-            <Button 
-              key={section.id}
-              variant={selectedSection === section.id ? "secondary" : "ghost"}
-              className="w-full justify-between text-sm h-9"
-              onClick={() => setSelectedSection(section.id)}
-              data-testid={`sidebar-section-${section.id}`}
-            >
-              <span className="truncate">{section.name}</span>
-              <Badge variant="outline" className="ml-2 font-mono text-xs shrink-0">{section.count}</Badge>
-            </Button>
-          ))}
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 space-y-4">
-          {/* Search and New Task */}
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search tasks..." 
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                data-testid="input-search-tasks"
-              />
-            </div>
-            <Button onClick={() => handleOpenCreate()} className="gap-2" data-testid="button-new-task">
-              <Plus className="h-4 w-4" />
-              New Task
+        {/* Filter Chips */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-muted-foreground font-medium">Priority:</span>
+          {["High", "Medium", "Low"].map(p => (
+            <Button
+              key={p}
+              variant={priorityFilters.includes(p) ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setPriorityFilters(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
+              data-testid={`filter-priority-${p.toLowerCase()}`}
+            >
+              {p}
             </Button>
-          </div>
+          ))}
+          <div className="w-px h-4 bg-border mx-1" />
+          <span className="text-xs text-muted-foreground font-medium">Due:</span>
+          {[{ id: "overdue", label: "Overdue" }, { id: "thisWeek", label: "This Week" }, { id: "later", label: "Later" }].map(d => (
+            <Button
+              key={d.id}
+              variant={dueFilters.includes(d.id) ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setDueFilters(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])}
+              data-testid={`filter-due-${d.id}`}
+            >
+              {d.label}
+            </Button>
+          ))}
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={clearAllFilters} data-testid="clear-filters">
+              <X className="h-3 w-3" />
+              Clear
+            </Button>
+          )}
+        </div>
 
           {/* Flat Task List */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -1321,6 +1371,6 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
