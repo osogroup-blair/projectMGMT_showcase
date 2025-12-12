@@ -61,7 +61,8 @@ import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Task } from "@/lib/mock-data";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics } from "@/hooks/use-nexus-data";
+import { EFFORT_VALUES } from "@shared/schema";
 
 // Stage color mapping based on stage type/order
 const STAGE_COLORS: Record<string, string> = {
@@ -94,6 +95,16 @@ export default function TaskBoard() {
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
+  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  
+  // Filter epics for the current project
+  const projectEpics = useMemo(() => {
+    if (!allEpics || !project) return [];
+    return allEpics.filter((e: any) => {
+      // Match epics that belong to this project's deliverables
+      return true; // For now show all epics, we can filter by deliverable.projectId if needed
+    });
+  }, [allEpics, project]);
 
   // Map stages with colors, sorted by order
   const stages = useMemo(() => {
@@ -133,7 +144,7 @@ export default function TaskBoard() {
     return matchesSearch && matchesAssignee && matchesMilestone;
   });
 
-  const handleOpenCreate = (stageId?: string) => {
+  const handleOpenCreate = (stageId?: string, epicId?: string) => {
     if (!project) return;
     setEditingTask(null);
     setFormData({
@@ -142,11 +153,13 @@ export default function TaskBoard() {
       project: project.name, // Legacy field
       projectId: project.id, // New field
       stageId: stageId || (stages[0]?.id || "st_plan"),
+      epicId: epicId || (projectEpics[0]?.id || ""),
       status: "Todo",
       assigneeId: users[0]?.id || "",
       deadline: new Date().toISOString().split('T')[0],
       priority: "Medium",
       estimateHours: 0,
+      effort: 5, // Default to Fibonacci value 5
       tags: []
     });
     setIsDialogOpen(true);
@@ -160,10 +173,10 @@ export default function TaskBoard() {
   };
 
   const handleSave = () => {
-    if (!formData.title || !formData.stageId) {
+    if (!formData.title || !formData.stageId || !formData.epicId) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields (Title, Stage, and Epic are required).",
         variant: "destructive"
       });
       return;
@@ -188,8 +201,9 @@ export default function TaskBoard() {
 
   const getAssignee = (id?: string) => users.find((t: any) => t.id === id);
   const getMilestone = (id?: string) => milestones.find((m: any) => m.id === id);
+  const getEpic = (id?: string) => projectEpics.find((e: any) => e.id === id);
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading) {
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading || isEpicsLoading) {
     return (
       <Shell>
         <div className="flex h-[50vh] items-center justify-center">
@@ -475,7 +489,7 @@ export default function TaskBoard() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="stage">Stage</Label>
+                  <Label htmlFor="stage">Stage <span className="text-destructive">*</span></Label>
                   <Select 
                     value={formData.stageId} 
                     onValueChange={(v) => setFormData({ ...formData, stageId: v })}
@@ -492,6 +506,25 @@ export default function TaskBoard() {
                 </div>
 
                 <div className="grid gap-2">
+                  <Label htmlFor="epic">Epic <span className="text-destructive">*</span></Label>
+                  <Select 
+                    value={formData.epicId || ""} 
+                    onValueChange={(v) => setFormData({ ...formData, epicId: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select epic" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projectEpics.map((epic: any) => (
+                        <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
                   <Label htmlFor="assignee">Assignee</Label>
                   <Select 
                     value={formData.assigneeId} 
@@ -503,6 +536,23 @@ export default function TaskBoard() {
                     <SelectContent>
                       {users.map((member: any) => (
                         <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="effort">Effort</Label>
+                  <Select 
+                    value={formData.effort?.toString() || "5"} 
+                    onValueChange={(v) => setFormData({ ...formData, effort: parseInt(v) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select effort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EFFORT_VALUES.map((value) => (
+                        <SelectItem key={value} value={value.toString()}>{value}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -611,6 +661,13 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
+  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  
+  // Filter epics for the current project
+  const projectEpics = useMemo(() => {
+    if (!allEpics || !project) return [];
+    return allEpics.filter((e: any) => true); // Show all epics for now
+  }, [allEpics, project]);
 
   const stages = useMemo(() => {
     if (!projectStages || projectStages.length === 0) return [];
@@ -643,7 +700,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
     return matchesSearch && matchesAssignee && matchesMilestone;
   });
 
-  const handleOpenCreate = (stageId?: string) => {
+  const handleOpenCreate = (stageId?: string, epicId?: string) => {
     if (!project) return;
     setEditingTask(null);
     setFormData({
@@ -652,11 +709,13 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
       project: project.name,
       projectId: project.id,
       stageId: stageId || (stages[0]?.id || "st_plan"),
+      epicId: epicId || (projectEpics[0]?.id || ""),
       status: "Todo",
       assigneeId: users[0]?.id || "",
       deadline: new Date().toISOString().split('T')[0],
       priority: "Medium",
       estimateHours: 0,
+      effort: 5,
       tags: []
     });
     setIsDialogOpen(true);
@@ -669,10 +728,10 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   };
 
   const handleSave = () => {
-    if (!formData.title || !formData.stageId) {
+    if (!formData.title || !formData.stageId || !formData.epicId) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields.",
+        description: "Please fill in all required fields (Title, Stage, and Epic are required).",
         variant: "destructive"
       });
       return;
@@ -697,8 +756,9 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
   const getAssignee = (id?: string) => users.find((t: any) => t.id === id);
   const getMilestone = (id?: string) => milestones.find((m: any) => m.id === id);
+  const getEpic = (id?: string) => projectEpics.find((e: any) => e.id === id);
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading) {
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading || isEpicsLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -948,7 +1008,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="stage">Stage</Label>
+                <Label htmlFor="stage">Stage <span className="text-destructive">*</span></Label>
                 <Select 
                   value={formData.stageId} 
                   onValueChange={(v) => setFormData({ ...formData, stageId: v })}
@@ -965,6 +1025,25 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
               </div>
 
               <div className="grid gap-2">
+                <Label htmlFor="epic">Epic <span className="text-destructive">*</span></Label>
+                <Select 
+                  value={formData.epicId || ""} 
+                  onValueChange={(v) => setFormData({ ...formData, epicId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select epic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectEpics.map((epic: any) => (
+                      <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
                 <Label htmlFor="assignee">Assignee</Label>
                 <Select 
                   value={formData.assigneeId} 
@@ -976,6 +1055,23 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                   <SelectContent>
                     {users.map((member: any) => (
                       <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="effort">Effort</Label>
+                <Select 
+                  value={formData.effort?.toString() || "5"} 
+                  onValueChange={(v) => setFormData({ ...formData, effort: parseInt(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select effort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EFFORT_VALUES.map((value) => (
+                      <SelectItem key={value} value={value.toString()}>{value}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
