@@ -15,7 +15,11 @@ import {
   Image as ImageIcon,
   Loader2,
   Layers,
-  Target
+  Target,
+  ChevronRight,
+  Package,
+  Zap,
+  ListTodo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,6 +160,32 @@ export default function TaskDetail() {
   return (
     <Shell>
       <div className="mx-auto max-w-5xl space-y-6">
+        {/* Breadcrumb Navigation: Deliverable → Epic → Task */}
+        <nav className="flex items-center gap-1 text-sm text-muted-foreground" data-testid="breadcrumb-nav">
+          <Link href={`/projects/${projectId}?tab=deliverables`}>
+            <span className="hover:text-primary cursor-pointer flex items-center gap-1">
+              <Package className="h-3.5 w-3.5" />
+              {deliverable?.title || "Deliverable"}
+            </span>
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          {epic && (
+            <>
+              <Link href={`/projects/${projectId}/epics/${epic.id}`}>
+                <span className="hover:text-primary cursor-pointer flex items-center gap-1">
+                  <Zap className="h-3.5 w-3.5" />
+                  {epic.title}
+                </span>
+              </Link>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </>
+          )}
+          <span className="text-foreground font-medium flex items-center gap-1">
+            <ListTodo className="h-3.5 w-3.5" />
+            {task.title}
+          </span>
+        </nav>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
