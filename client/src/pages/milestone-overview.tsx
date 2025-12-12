@@ -481,14 +481,34 @@ function ScopeDefinitionTab({
   onUpdateRules: (rules: MilestoneScopeRules) => void
 }) {
   const [manualSearch, setManualSearch] = useState("");
+  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [epicFilter, setEpicFilter] = useState<string>("all");
+  const [showLinkedOnly, setShowLinkedOnly] = useState<boolean | null>(null);
+
+  const getEpicName = (epicId: string) => {
+    const epic = epics.find((e: any) => e.id === epicId);
+    return epic?.title || "";
+  };
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
-      const matchesSearch = t.title?.toLowerCase().includes(manualSearch.toLowerCase()) || 
-                            t.project?.toLowerCase().includes(manualSearch.toLowerCase());
-      return matchesSearch;
+      const epicName = getEpicName(t.epicId);
+      const searchLower = manualSearch.toLowerCase();
+      const matchesSearch = !manualSearch || 
+        t.title?.toLowerCase().includes(searchLower) || 
+        epicName.toLowerCase().includes(searchLower);
+      
+      const matchesStage = stageFilter === "all" || t.stageId === stageFilter;
+      const matchesEpic = epicFilter === "all" || t.epicId === epicFilter;
+      
+      const isLinked = links.some((l: any) => l.taskId === t.id && l.milestoneId === milestone.id);
+      const matchesLinkedFilter = showLinkedOnly === null || 
+        (showLinkedOnly === true && isLinked) || 
+        (showLinkedOnly === false && !isLinked);
+      
+      return matchesSearch && matchesStage && matchesEpic && matchesLinkedFilter;
     });
-  }, [tasks, manualSearch]);
+  }, [tasks, manualSearch, stageFilter, epicFilter, showLinkedOnly, links, milestone.id, epics]);
 
   const handleToggleTask = (taskId: string) => {
     const existingLink = links.find((l: any) => l.taskId === taskId && l.milestoneId === milestone.id);
@@ -686,17 +706,78 @@ function ScopeDefinitionTab({
           </TabsContent>
 
           <TabsContent value="manual" className="space-y-4">
-            <div className="flex gap-2">
-               <div className="relative flex-1">
-                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                 <Input 
-                   placeholder="Search tasks to add..." 
-                   className="pl-9"
-                   value={manualSearch}
-                   onChange={e => setManualSearch(e.target.value)}
-                 />
+            <div className="flex flex-col gap-3">
+               <div className="flex gap-2">
+                 <div className="relative flex-1">
+                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                   <Input 
+                     placeholder="Search by task or epic name..." 
+                     className="pl-9"
+                     value={manualSearch}
+                     onChange={e => setManualSearch(e.target.value)}
+                     data-testid="input-manual-search"
+                   />
+                 </div>
                </div>
-               <Button variant="outline"><Filter className="h-4 w-4 mr-2" /> Filter</Button>
+               <div className="flex flex-wrap gap-2 items-center">
+                 <div className="flex items-center gap-2">
+                   <Label className="text-xs text-muted-foreground whitespace-nowrap">Stage:</Label>
+                   <Select value={stageFilter} onValueChange={setStageFilter}>
+                     <SelectTrigger className="h-8 w-[140px]" data-testid="select-stage-filter">
+                       <SelectValue placeholder="All Stages" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="all">All Stages</SelectItem>
+                       {TASK_STAGES.map(stage => (
+                         <SelectItem key={stage.id} value={stage.id}>{stage.label}</SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <Label className="text-xs text-muted-foreground whitespace-nowrap">Epic:</Label>
+                   <Select value={epicFilter} onValueChange={setEpicFilter}>
+                     <SelectTrigger className="h-8 w-[180px]" data-testid="select-epic-filter">
+                       <SelectValue placeholder="All Epics" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="all">All Epics</SelectItem>
+                       {epics.map((epic: any) => (
+                         <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <Label className="text-xs text-muted-foreground whitespace-nowrap">Show:</Label>
+                   <Select value={showLinkedOnly === null ? "all" : showLinkedOnly ? "linked" : "unlinked"} onValueChange={(v) => setShowLinkedOnly(v === "all" ? null : v === "linked")}>
+                     <SelectTrigger className="h-8 w-[130px]" data-testid="select-linked-filter">
+                       <SelectValue placeholder="All Tasks" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="all">All Tasks</SelectItem>
+                       <SelectItem value="linked">Included</SelectItem>
+                       <SelectItem value="unlinked">Not Included</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 {(stageFilter !== "all" || epicFilter !== "all" || showLinkedOnly !== null || manualSearch) && (
+                   <Button 
+                     variant="ghost" 
+                     size="sm" 
+                     className="h-8 text-xs"
+                     onClick={() => {
+                       setStageFilter("all");
+                       setEpicFilter("all");
+                       setShowLinkedOnly(null);
+                       setManualSearch("");
+                     }}
+                     data-testid="button-clear-filters"
+                   >
+                     Clear Filters
+                   </Button>
+                 )}
+               </div>
             </div>
 
             <div className="border rounded-md">
