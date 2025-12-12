@@ -493,13 +493,15 @@ export default function ProjectWizard() {
           // Create epics for this deliverable
           for (const epic of deliverable.epics) {
             await createEpic({
-              projectId: newProject.id,
               deliverableId: newDeliverable.id,
               title: epic.title,
               description: epic.description || "",
               status: "Active",
-              stageId: firstStageId,
-              order: 0
+              ownerId: projectData.ownerId || "1",
+              startDate: projectData.startDate || new Date().toISOString().split('T')[0],
+              endDate: projectData.dueDate || new Date().toISOString().split('T')[0],
+              progress: 0,
+              stageIds: firstStageId ? [firstStageId] : []
             });
           }
         }
