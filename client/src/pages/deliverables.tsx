@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   ArrowLeft, 
@@ -8,7 +8,8 @@ import {
   Package,
   Layers,
   Calendar as CalendarIcon,
-  ChevronRight
+  ChevronRight,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +54,7 @@ import { useRoute, Link } from "wouter";
 import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useDeliverables, useEpics, useUsers } from "@/hooks/use-nexus-data";
+import { useDeliverables, useEpics, useUsers, useTasks } from "@/hooks/use-nexus-data";
 import { Loader2 } from "lucide-react";
 
 // Export content component separately for reuse
@@ -63,10 +64,52 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { data: allDeliverables, isLoading: isDeliverablesLoading, create: createDeliverable } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
+  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
 
   const deliverables = allDeliverables.filter((d: any) => d.projectId === projectId);
   const getEpicsForDeliverable = (deliverableId: string) => allEpics.filter((e: any) => e.deliverableId === deliverableId);
   const getOwner = (ownerId: string) => users.find((t: any) => t.id === ownerId);
+
+  // Get tasks for a specific epic
+  const getTasksForEpic = (epicId: string) => {
+    if (!allTasks) return [];
+    return allTasks.filter((t: any) => t.epicId === epicId);
+  };
+
+  // Calculate epic progress from task completion
+  const getEpicProgress = (epicId: string) => {
+    const epicTasks = getTasksForEpic(epicId);
+    if (epicTasks.length === 0) return 0;
+    const doneTasks = epicTasks.filter((t: any) => t.status === "Done").length;
+    return Math.round((doneTasks / epicTasks.length) * 100);
+  };
+
+  // Get task counts for an epic
+  const getEpicTaskCounts = (epicId: string) => {
+    const epicTasks = getTasksForEpic(epicId);
+    const doneTasks = epicTasks.filter((t: any) => t.status === "Done").length;
+    return { done: doneTasks, total: epicTasks.length };
+  };
+
+  // Calculate deliverable progress from aggregate task counts (not averaging epic percentages)
+  const getDeliverableProgress = (deliverableId: string) => {
+    const taskCounts = getDeliverableTaskCounts(deliverableId);
+    if (taskCounts.total === 0) return 0;
+    return Math.round((taskCounts.done / taskCounts.total) * 100);
+  };
+
+  // Get total task counts for a deliverable
+  const getDeliverableTaskCounts = (deliverableId: string) => {
+    const epics = getEpicsForDeliverable(deliverableId);
+    let done = 0;
+    let total = 0;
+    epics.forEach((epic: any) => {
+      const counts = getEpicTaskCounts(epic.id);
+      done += counts.done;
+      total += counts.total;
+    });
+    return { done, total };
+  };
 
   // Epic Creation State
   const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
@@ -124,7 +167,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     setIsCreateEpicOpen(false);
   };
 
-  if (isDeliverablesLoading || isEpicsLoading || isUsersLoading) {
+  if (isDeliverablesLoading || isEpicsLoading || isUsersLoading || isTasksLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -163,6 +206,8 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
             {deliverables.map(deliverable => {
               const epics = getEpicsForDeliverable(deliverable.id);
               const owner = getOwner(deliverable.ownerId);
+              const progress = getDeliverableProgress(deliverable.id);
+              const taskCounts = getDeliverableTaskCounts(deliverable.id);
 
               return (
                 <AccordionItem key={deliverable.id} value={deliverable.id} className="border rounded-lg bg-card px-4">
@@ -201,9 +246,13 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                               <CalendarIcon className="h-3.5 w-3.5" />
                               <span>Due: {deliverable.dueDate}</span>
                             </div>
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>{taskCounts.done}/{taskCounts.total} Tasks</span>
+                            </div>
                             <div className="flex items-center gap-2 min-w-[100px]">
-                              <Progress value={deliverable.progress} className="h-1.5 w-16" />
-                              <span>{deliverable.progress}%</span>
+                              <Progress value={progress} className="h-1.5 w-16" />
+                              <span>{progress}%</span>
                             </div>
                           </div>
                         </div>
@@ -229,38 +278,46 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                       </div>
                       {epics.length > 0 ? (
                         <div className="grid gap-3">
-                          {epics.map(epic => (
-                            <Link key={epic.id} href={`/projects/${projectId}/epics/${epic.id}`}>
-                              <div className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-1.5 bg-primary/10 text-primary rounded">
-                                    <Layers className="h-4 w-4" />
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium group-hover:text-primary transition-colors">{epic.title}</h4>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      <span>{epic.startDate} - {epic.endDate}</span>
-                                      {epic.stageIds && (
-                                          <span className="flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded bg-muted">
-                                              {epic.stageIds.length} Stages
-                                          </span>
-                                      )}
+                          {epics.map(epic => {
+                            const epicProgress = getEpicProgress(epic.id);
+                            const epicTaskCounts = getEpicTaskCounts(epic.id);
+                            return (
+                              <Link key={epic.id} href={`/projects/${projectId}/epics/${epic.id}`}>
+                                <div className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer">
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-1.5 bg-primary/10 text-primary rounded">
+                                      <Layers className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                      <h4 className="font-medium group-hover:text-primary transition-colors">{epic.title}</h4>
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <span>{epic.startDate} - {epic.endDate}</span>
+                                        {epic.stageIds && (
+                                            <span className="flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded bg-muted">
+                                                {epic.stageIds.length} Stages
+                                            </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-6">
-                                  <Badge variant="secondary" className="font-normal text-xs">
-                                    {epic.status}
-                                  </Badge>
-                                  <div className="flex items-center gap-2 w-24">
-                                    <Progress value={epic.progress} className="h-1.5" />
-                                    <span className="text-xs text-muted-foreground w-8 text-right">{epic.progress}%</span>
+                                  <div className="flex items-center gap-6">
+                                    <Badge variant="secondary" className="font-normal text-xs">
+                                      {epic.status}
+                                    </Badge>
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      <span>{epicTaskCounts.done}/{epicTaskCounts.total}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 w-24">
+                                      <Progress value={epicProgress} className="h-1.5" />
+                                      <span className="text-xs text-muted-foreground w-8 text-right">{epicProgress}%</span>
+                                    </div>
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
                                   </div>
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
                                 </div>
-                              </div>
-                            </Link>
-                          ))}
+                              </Link>
+                            );
+                          })}
                         </div>
                       ) : (
                         <div className="p-4 border border-dashed rounded-md text-center text-sm text-muted-foreground bg-muted/30">
