@@ -91,15 +91,6 @@ export default function StageWorkspace() {
       <div className="mx-auto max-w-7xl h-[calc(100vh-8rem)] flex flex-col">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link href={`/projects/${projectId}`} className="hover:text-primary transition-colors flex items-center gap-1">
-              <ArrowLeft className="h-4 w-4" />
-              {project.name}
-            </Link>
-            <span className="text-border">/</span>
-            <span className="text-foreground font-medium">{stage.name} Workspace</span>
-          </div>
-
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold tracking-tight text-primary flex items-center gap-3">
