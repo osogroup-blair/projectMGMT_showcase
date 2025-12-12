@@ -32,6 +32,7 @@ import DeliverableDetail from "@/pages/deliverable-detail";
 import EpicDetail from "@/pages/epic-detail";
 import ProjectExport from "@/pages/project-export";
 import ProjectWizard from "@/pages/project-wizard";
+import ProjectManagement from "@/pages/project-management";
 import AdminTemplates from "@/pages/admin/templates";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import AdminAppDefaults from "@/pages/admin/app-defaults";
@@ -49,6 +50,7 @@ function Router() {
       <Route path="/projects/:projectId" component={ProjectOverview} />
       <Route path="/projects/:projectId/export" component={ProjectExport} />
       <Route path="/projects/:projectId/settings" component={ProjectSettings} />
+      <Route path="/projects/:projectId/management" component={ProjectManagement} />
       <Route path="/projects/:projectId/deliverables" component={DeliverablesList} />
       <Route path="/projects/:projectId/deliverables/:deliverableId" component={DeliverableDetail} />
       <Route path="/projects/:projectId/epics/:epicId" component={EpicDetail} />
