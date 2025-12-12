@@ -22,7 +22,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       
       {/* Scrollable Content Area - mt-28 = 16 (header) + 12 (breadcrumb) = 112px */}
       <main className="ml-48 pt-28 h-screen overflow-auto">
-        <div className="p-6 mx-auto max-w-7xl space-y-8">
+        <div className="p-6 space-y-8">
           {children}
         </div>
       </main>
