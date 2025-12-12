@@ -445,9 +445,9 @@ export default function ProjectWizard() {
         description: projectData.description,
         status: "Active",
         startDate: projectData.startDate || null,
-        dueDate: projectData.dueDate || null,
+        deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
         frameworkId: projectData.frameworkId || null,
-        health: "on-track"
+        progress: 0
       });
       
       if (!newProject?.id) {
