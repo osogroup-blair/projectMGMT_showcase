@@ -545,30 +545,35 @@ function ScopeDefinitionTab({
     const cellTasks = tasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
     if (cellTasks.length === 0) return;
 
-    const linkedTaskIds = links
-      .filter((l: any) => l.milestoneId === milestone.id)
-      .map((l: any) => l.taskId);
+    const milestoneLinks = links.filter((l: any) => l.milestoneId === milestone.id);
+    const linkedTaskIds = milestoneLinks.map((l: any) => l.taskId);
     
-    const allLinked = cellTasks.every((t: any) => linkedTaskIds.includes(t.id));
+    // Find tasks that are unlinked
+    const unlinkedTasks = cellTasks.filter((t: any) => !linkedTaskIds.includes(t.id));
     
-    if (allLinked) {
-      const cellTaskIds = cellTasks.map((t: any) => t.id);
-      const updatedLinks = links.filter((l: any) => 
-        !(l.milestoneId === milestone.id && cellTaskIds.includes(l.taskId) && !l.locked)
-      );
-      onUpdateLinks(updatedLinks);
-    } else {
-      const newLinks = cellTasks
-        .filter((t: any) => !linkedTaskIds.includes(t.id))
-        .map((t: any) => ({
-          id: `l-${Date.now()}-${t.id}`,
-          milestoneId: milestone.id,
-          taskId: t.id,
-          source: "manual_add",
-          locked: false
-        }));
+    // Find links that are unlocked (can be removed)
+    const cellTaskIds = cellTasks.map((t: any) => t.id);
+    const removableLinks = milestoneLinks.filter((l: any) => 
+      cellTaskIds.includes(l.taskId) && !l.locked
+    );
+    
+    if (unlinkedTasks.length > 0) {
+      // Add all unlinked tasks
+      const newLinks = unlinkedTasks.map((t: any) => ({
+        id: `l-${Date.now()}-${t.id}`,
+        milestoneId: milestone.id,
+        taskId: t.id,
+        source: "manual_add",
+        locked: false
+      }));
       onUpdateLinks([...links, ...newLinks]);
+    } else if (removableLinks.length > 0) {
+      // Remove all unlocked links for this cell
+      const removableIds = removableLinks.map(l => l.id);
+      const updatedLinks = links.filter((l: any) => !removableIds.includes(l.id));
+      onUpdateLinks(updatedLinks);
     }
+    // If all tasks are linked AND all are locked, do nothing (can't remove locked tasks)
   };
 
   return (
