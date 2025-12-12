@@ -735,6 +735,130 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Sample Template Download
+  app.get("/api/templates/sample", (req, res) => {
+    const sampleData = {
+      version: "1.0",
+      exportedAt: "2025-01-01T00:00:00.000Z",
+      description: "Sample template file showing all attributes for each template type. Use this as a reference when creating your own templates.",
+      templates: {
+        framework: [
+          {
+            id: "fw_implementation",
+            name: "Implementation Framework",
+            description: "Standard 4-phase implementation delivery framework for enterprise projects",
+            defaultStages: ["st_discovery", "st_design", "st_build", "st_deploy"]
+          }
+        ],
+        stage: [
+          {
+            id: "st_discovery",
+            name: "Discovery & Planning",
+            description: "Initial discovery phase for requirements gathering and project planning",
+            defaultTasks: ["tt_kickoff", "tt_requirements"],
+            defaultRoles: ["rt_pm", "rt_ba"],
+            entryCriteria: "Project charter signed, budget approved",
+            exitCriteria: "Requirements document approved, project plan finalized",
+            allowedTaskStatuses: ["Todo", "In Progress", "Review", "Done"]
+          }
+        ],
+        project: [
+          {
+            id: "pt_enterprise",
+            name: "Enterprise Implementation",
+            description: "Full-scale enterprise implementation project template",
+            defaultFrameworkId: "fw_implementation",
+            defaultRoles: ["rt_pm", "rt_ba", "rt_dev_lead", "rt_developer"],
+            defaultDeliverables: ["dt_discovery_docs", "dt_implementation"],
+            thumbnail: "enterprise"
+          }
+        ],
+        deliverable: [
+          {
+            id: "dt_discovery_docs",
+            title: "Discovery Documentation",
+            description: "Complete discovery phase documentation including requirements and stakeholder analysis",
+            defaultEpics: ["et_requirements", "et_stakeholder_analysis"]
+          }
+        ],
+        epic: [
+          {
+            id: "et_requirements",
+            title: "Requirements Gathering",
+            description: "Complete business and functional requirements documentation",
+            defaultStages: ["st_discovery"]
+          }
+        ],
+        task: [
+          {
+            id: "tt_kickoff",
+            title: "Project Kickoff Meeting",
+            description: "Conduct project kickoff meeting with all stakeholders",
+            defaultPriority: "High",
+            defaultEstimateHours: 4,
+            requiredRole: "Management",
+            assignedRoleId: "rt_pm"
+          },
+          {
+            id: "tt_requirements",
+            title: "Requirements Workshop",
+            description: "Facilitate requirements gathering workshops with business stakeholders",
+            defaultPriority: "High",
+            defaultEstimateHours: 16,
+            requiredRole: "Business Analysis",
+            assignedRoleId: "rt_ba"
+          }
+        ],
+        role: [
+          {
+            id: "rt_pm",
+            name: "Project Manager",
+            description: "Responsible for overall project delivery, timeline, and budget",
+            defaultRoleType: "Management",
+            defaultPermissions: ["manage_project", "manage_budget", "assign_tasks", "view_reports"]
+          },
+          {
+            id: "rt_ba",
+            name: "Business Analyst",
+            description: "Gathers requirements, creates user stories, manages backlog",
+            defaultRoleType: "Analysis",
+            defaultPermissions: ["manage_requirements", "create_stories", "view_reports"]
+          },
+          {
+            id: "rt_dev_lead",
+            name: "Development Lead",
+            description: "Technical lead for code reviews and architecture decisions",
+            defaultRoleType: "Development",
+            defaultPermissions: ["manage_code", "approve_pr", "deploy", "assign_tasks"]
+          },
+          {
+            id: "rt_developer",
+            name: "Software Developer",
+            description: "Implements features, writes tests, fixes bugs",
+            defaultRoleType: "Development",
+            defaultPermissions: ["write_code", "create_pr", "update_task_status"]
+          }
+        ],
+        mapping: [
+          {
+            id: "mt_jira",
+            name: "Jira Import Mapping",
+            dataType: "Tasks"
+          },
+          {
+            id: "mt_csv",
+            name: "CSV Standard Mapping",
+            dataType: "Mixed"
+          }
+        ]
+      }
+    };
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="sample-templates.json"');
+    res.json(sampleData);
+  });
+
   // Template Export/Import
   app.get("/api/templates/export", async (req, res) => {
     try {

@@ -1250,7 +1250,7 @@ export default function AdminTemplates() {
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <span>Need a reference?</span>
                   <a 
-                    href="/sample-templates.json" 
+                    href="/api/templates/sample" 
                     download="sample-templates.json"
                     className="text-primary hover:underline flex items-center gap-1"
                     data-testid="link-download-sample"
