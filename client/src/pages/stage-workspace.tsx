@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   ArrowLeft, 
@@ -17,7 +17,8 @@ import {
   Pencil,
   Check,
   X,
-  Target
+  Target,
+  Loader2
 } from "lucide-react";
 import {
   Accordion,
@@ -58,25 +59,51 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
-  PROJECTS, 
-  PROJECT_STAGES, 
-  TASKS, 
-  MILESTONES, 
-  SAVED_VIEWS, 
-  GUIDANCE_ITEMS,
-  TEAM,
-  Task
-} from "@/lib/mock-data";
+  useProject,
+  useProjectStages,
+  useTasks,
+  useMilestones,
+  useGuidanceItems,
+  useSavedViews,
+  useUsers
+} from "@/hooks/use-nexus-data";
 
 export default function StageWorkspace() {
   const [match, params] = useRoute("/projects/:projectId/stages/:stageId");
   const projectId = params?.projectId || "1";
-  const stageId = params?.stageId || "s1";
+  const stageId = params?.stageId || "st_plan";
 
-  const project = PROJECTS.find(p => p.id === projectId) || PROJECTS[0];
-  const stage = PROJECT_STAGES.find(s => s.id === stageId) || PROJECT_STAGES[0];
-  const nextStage = PROJECT_STAGES.find(s => s.order === stage.order + 1);
-  const prevStage = PROJECT_STAGES.find(s => s.order === stage.order - 1);
+  const { toast } = useToast();
+
+  // Database hooks
+  const { data: project, isLoading: isProjectLoading } = useProject(projectId);
+  const { data: allStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
+  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: allGuidance, isLoading: isGuidanceLoading } = useGuidanceItems();
+  const { data: allSavedViews, isLoading: isSavedViewsLoading } = useSavedViews();
+  const { data: allUsers, isLoading: isUsersLoading } = useUsers();
+
+  // Memoized filtered data
+  const projectStages = useMemo(() => 
+    (allStages || []).filter((s: any) => s.projectId === projectId).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)),
+    [allStages, projectId]
+  );
+
+  const stage = useMemo(() => 
+    projectStages.find((s: any) => s.id === stageId) || projectStages[0],
+    [projectStages, stageId]
+  );
+
+  const nextStage = useMemo(() => 
+    stage ? projectStages.find((s: any) => s.order === (stage.order || 0) + 1) : null,
+    [projectStages, stage]
+  );
+
+  const prevStage = useMemo(() => 
+    stage ? projectStages.find((s: any) => s.order === (stage.order || 0) - 1) : null,
+    [projectStages, stage]
+  );
 
   // Filter Data
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,54 +112,80 @@ export default function StageWorkspace() {
   const [currentViewId, setCurrentViewId] = useState<string>("default");
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const tasks = TASKS.filter(t => {
-    const matchStage = t.stageId === stageId;
-    const matchSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchStatus = statusFilter === "all" || t.status === statusFilter;
-    const matchAssignee = assigneeFilter === "all" || t.assigneeId === assigneeFilter;
-    return matchStage && matchSearch && matchStatus && matchAssignee;
-  });
+  const tasks = useMemo(() => {
+    return (allTasks || []).filter((t: any) => {
+      const matchStage = t.stageId === stageId;
+      const matchProject = t.projectId === projectId || t.project === projectId;
+      const matchSearch = t.title?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchStatus = statusFilter === "all" || t.status === statusFilter;
+      const matchAssignee = assigneeFilter === "all" || t.assigneeId === assigneeFilter;
+      return matchStage && matchProject && matchSearch && matchStatus && matchAssignee;
+    });
+  }, [allTasks, stageId, projectId, searchQuery, statusFilter, assigneeFilter]);
 
-  const milestones = MILESTONES.filter(m => m.stageId === stageId);
-  const guidance = GUIDANCE_ITEMS.filter(g => g.stageId === stageId);
-  const savedViews = SAVED_VIEWS.filter(v => v.stageIds.includes(stageId) || v.stageIds.length === 0);
+  const milestones = useMemo(() => 
+    (allMilestones || []).filter((m: any) => m.stageId === stageId && m.projectId === projectId),
+    [allMilestones, stageId, projectId]
+  );
 
-  const getAssignee = (id?: string) => TEAM.find(u => u.id === id);
-  const { toast } = useToast();
+  const guidance = useMemo(() => 
+    (allGuidance || []).filter((g: any) => g.stageId === stageId),
+    [allGuidance, stageId]
+  );
+
+  const savedViews = useMemo(() => 
+    (allSavedViews || []).filter((v: any) => v.stageIds?.includes(stageId) || v.stageIds?.length === 0),
+    [allSavedViews, stageId]
+  );
+
+  const team = allUsers || [];
+
+  const getAssignee = (id?: string) => team.find((u: any) => u.id === id);
 
   // Inline editing state
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingStatus, setIsEditingStatus] = useState(false);
-  const [editName, setEditName] = useState(stage.name);
-  const [editDescription, setEditDescription] = useState(stage.description || "");
-  const [editStatus, setEditStatus] = useState<"pending" | "active" | "completed">(stage.status as "pending" | "active" | "completed");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState<"pending" | "active" | "completed">("pending");
 
   // Sync edit values when stage changes
   useEffect(() => {
-    setEditName(stage.name);
-    setEditDescription(stage.description || "");
-    setEditStatus(stage.status);
+    if (stage) {
+      setEditName(stage.name || "");
+      setEditDescription(stage.description || "");
+      setEditStatus(stage.status || "pending");
+    }
   }, [stage]);
 
-  const handleSaveName = () => {
+  const handleSaveName = async () => {
     if (!editName.trim()) {
       toast({ title: "Error", description: "Stage name cannot be empty.", variant: "destructive" });
       return;
     }
-    setIsEditingName(false);
-    toast({ title: "Updated", description: "Stage name has been updated." });
+    if (stage) {
+      await updateStage({ id: stage.id, updates: { name: editName.trim() } });
+      setIsEditingName(false);
+      toast({ title: "Updated", description: "Stage name has been updated." });
+    }
   };
 
-  const handleSaveDescription = () => {
-    setIsEditingDescription(false);
-    toast({ title: "Updated", description: "Stage description has been updated." });
+  const handleSaveDescription = async () => {
+    if (stage) {
+      await updateStage({ id: stage.id, updates: { description: editDescription } });
+      setIsEditingDescription(false);
+      toast({ title: "Updated", description: "Stage description has been updated." });
+    }
   };
 
-  const handleSaveStatus = (newStatus: "pending" | "active" | "completed") => {
-    setEditStatus(newStatus);
-    setIsEditingStatus(false);
-    toast({ title: "Updated", description: "Stage status has been updated." });
+  const handleSaveStatus = async (newStatus: "pending" | "active" | "completed") => {
+    if (stage) {
+      await updateStage({ id: stage.id, updates: { status: newStatus } });
+      setEditStatus(newStatus);
+      setIsEditingStatus(false);
+      toast({ title: "Updated", description: "Stage status has been updated." });
+    }
   };
 
   const STATUS_OPTIONS = [
@@ -140,6 +193,33 @@ export default function StageWorkspace() {
     { value: "active", label: "Active", color: "bg-blue-50 text-blue-700 border-blue-200" },
     { value: "completed", label: "Completed", color: "bg-green-50 text-green-700 border-green-200" },
   ];
+
+  const isLoading = isProjectLoading || isStagesLoading || isTasksLoading || isMilestonesLoading || isGuidanceLoading || isUsersLoading;
+
+  if (isLoading) {
+    return (
+      <Shell>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (!stage) {
+    return (
+      <Shell>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Target className="h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-xl font-semibold">Stage not found</h2>
+          <p className="text-muted-foreground mt-2">The stage you're looking for doesn't exist.</p>
+          <Link href={`/projects/${projectId}?tab=stages`}>
+            <Button className="mt-4">Back to Project</Button>
+          </Link>
+        </div>
+      </Shell>
+    );
+  }
 
   return (
     <Shell>
@@ -158,14 +238,14 @@ export default function StageWorkspace() {
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleSaveName();
-                        if (e.key === "Escape") { setIsEditingName(false); setEditName(stage.name); }
+                        if (e.key === "Escape") { setIsEditingName(false); setEditName(stage.name || ""); }
                       }}
                       data-testid="input-edit-stage-name"
                     />
                     <Button size="icon" variant="ghost" onClick={handleSaveName} data-testid="button-save-stage-name">
                       <Check className="h-4 w-4 text-green-600" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => { setIsEditingName(false); setEditName(stage.name); }} data-testid="button-cancel-stage-name">
+                    <Button size="icon" variant="ghost" onClick={() => { setIsEditingName(false); setEditName(stage.name || ""); }} data-testid="button-cancel-stage-name">
                       <X className="h-4 w-4 text-red-600" />
                     </Button>
                   </div>
@@ -238,7 +318,7 @@ export default function StageWorkspace() {
                   </Link>
                 )}
                 <span className="px-3 text-xs font-medium text-muted-foreground">
-                  Stage {stage.order} of {PROJECT_STAGES.length}
+                  Stage {stage.order || 1} of {projectStages.length}
                 </span>
                 {nextStage && (
                   <Link href={`/projects/${projectId}/stages/${nextStage.id}`}>
@@ -311,7 +391,7 @@ export default function StageWorkspace() {
                 <CardContent>
                   <div className="text-3xl font-bold">{tasks.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {tasks.filter(t => t.status === "Done").length} completed
+                    {tasks.filter((t: any) => t.status === "Done").length} completed
                   </p>
                 </CardContent>
               </Card>
@@ -321,7 +401,7 @@ export default function StageWorkspace() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">In Progress</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-blue-600">{tasks.filter(t => t.status === "In Progress").length}</div>
+                  <div className="text-3xl font-bold text-blue-600">{tasks.filter((t: any) => t.status === "In Progress").length}</div>
                   <p className="text-xs text-muted-foreground mt-1">Active tasks</p>
                 </CardContent>
               </Card>
@@ -333,7 +413,7 @@ export default function StageWorkspace() {
                 <CardContent>
                   <div className="text-3xl font-bold">{milestones.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {milestones.filter(m => m.status === "Completed").length} completed
+                    {milestones.filter((m: any) => m.status === "Completed" || m.status === "achieved").length} completed
                   </p>
                 </CardContent>
               </Card>
@@ -347,14 +427,14 @@ export default function StageWorkspace() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {guidance.length > 0 ? guidance.map(item => (
+                  {guidance.length > 0 ? guidance.map((item: any) => (
                     <div key={item.id} className="bg-white p-3 rounded-md border border-amber-100 shadow-sm">
                       <h4 className="text-sm font-medium text-amber-900 mb-1 flex items-center gap-2">
                         {item.title}
                         {item.priority === 'High' && <span className="w-1.5 h-1.5 rounded-full bg-red-500" />}
                       </h4>
                       <p className="text-xs text-amber-800/80 leading-relaxed">
-                        {item.body}
+                        {item.body || item.description}
                       </p>
                     </div>
                   )) : (
@@ -374,13 +454,13 @@ export default function StageWorkspace() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {milestones.filter(m => m.status !== 'Completed').slice(0, 3).map(m => (
+                  {milestones.filter((m: any) => m.status !== 'Completed' && m.status !== 'achieved').slice(0, 3).map((m: any) => (
                     <div key={m.id} className="flex justify-between items-center">
                       <span className="text-sm truncate">{m.name}</span>
                       <span className="text-xs text-muted-foreground">{m.targetDate}</span>
                     </div>
                   ))}
-                  {milestones.filter(m => m.status !== 'Completed').length === 0 && (
+                  {milestones.filter((m: any) => m.status !== 'Completed' && m.status !== 'achieved').length === 0 && (
                     <p className="text-sm text-muted-foreground italic">All milestones completed!</p>
                   )}
                 </CardContent>
@@ -400,10 +480,11 @@ export default function StageWorkspace() {
               </div>
               
               {milestones.length > 0 ? (
-                <Accordion type="multiple" defaultValue={milestones.map(m => m.id)} className="space-y-3">
-                  {milestones.map(m => {
-                    const milestoneTasks = tasks.filter(t => t.milestoneId === m.id);
-                    const completedTasks = milestoneTasks.filter(t => t.status === "Done").length;
+                <Accordion type="multiple" defaultValue={milestones.map((m: any) => m.id)} className="space-y-3">
+                  {milestones.map((m: any) => {
+                    const milestoneTasks = tasks.filter((t: any) => t.milestoneId === m.id);
+                    const completedTasks = milestoneTasks.filter((t: any) => t.status === "Done").length;
+                    const progressPercent = milestoneTasks.length > 0 ? Math.round((completedTasks / milestoneTasks.length) * 100) : 0;
                     
                     return (
                       <AccordionItem key={m.id} value={m.id} className="border rounded-lg bg-background shadow-sm">
@@ -412,8 +493,8 @@ export default function StageWorkspace() {
                             <div className="flex items-center gap-3">
                               <Target className={cn(
                                 "h-5 w-5",
-                                m.status === 'Completed' ? "text-green-600" :
-                                m.status === 'In Progress' ? "text-blue-600" :
+                                m.status === 'Completed' || m.status === 'achieved' ? "text-green-600" :
+                                m.status === 'In Progress' || m.status === 'in_progress' ? "text-blue-600" :
                                 "text-muted-foreground"
                               )} />
                               <div className="text-left">
@@ -430,24 +511,24 @@ export default function StageWorkspace() {
                             <div className="flex items-center gap-3">
                               <Badge variant="outline" className={cn(
                                 "text-xs",
-                                m.status === 'Completed' ? "bg-green-50 text-green-700 border-green-200" :
-                                m.status === 'In Progress' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                m.status === 'Completed' || m.status === 'achieved' ? "bg-green-50 text-green-700 border-green-200" :
+                                m.status === 'In Progress' || m.status === 'in_progress' ? "bg-blue-50 text-blue-700 border-blue-200" :
                                 "bg-slate-50 text-slate-700 border-slate-200"
                               )}>
                                 {m.status}
                               </Badge>
                               <div className="flex items-center gap-2 min-w-[100px]">
                                 <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                  <div className="h-full bg-primary transition-all" style={{ width: `${m.progressPercent}%` }} />
+                                  <div className="h-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
                                 </div>
-                                <span className="text-xs font-medium text-muted-foreground w-8">{m.progressPercent}%</span>
+                                <span className="text-xs font-medium text-muted-foreground w-8">{progressPercent}%</span>
                               </div>
                             </div>
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="px-4 pb-4">
                           <div className="space-y-2 pt-2">
-                            {milestoneTasks.length > 0 ? milestoneTasks.map(task => {
+                            {milestoneTasks.length > 0 ? milestoneTasks.map((task: any) => {
                               const assignee = getAssignee(task.assigneeId);
                               return (
                                 <div 
@@ -472,7 +553,7 @@ export default function StageWorkspace() {
                                   {assignee && (
                                     <Avatar className="h-6 w-6 shrink-0">
                                       <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                        {assignee.name.substring(0, 2).toUpperCase()}
+                                        {assignee.name?.substring(0, 2).toUpperCase()}
                                       </AvatarFallback>
                                     </Avatar>
                                   )}
@@ -577,7 +658,7 @@ export default function StageWorkspace() {
                         All Assignees
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuSeparator />
-                      {TEAM.map(member => (
+                      {team.map((member: any) => (
                         <DropdownMenuCheckboxItem 
                           key={member.id} 
                           checked={assigneeFilter === member.id}
@@ -626,12 +707,12 @@ export default function StageWorkspace() {
                           {columnStatus}
                         </h3>
                         <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground font-medium">
-                          {tasks.filter(t => t.status === columnStatus).length}
+                          {tasks.filter((t: any) => t.status === columnStatus).length}
                         </span>
                       </div>
                       
                       <div className="flex flex-col gap-3">
-                        {tasks.filter(t => t.status === columnStatus).map(task => {
+                        {tasks.filter((t: any) => t.status === columnStatus).map((task: any) => {
                           const assignee = getAssignee(task.assigneeId);
                           return (
                             <Card key={task.id} className="shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4" style={{ borderLeftColor: task.priority === 'High' ? '#ef4444' : task.priority === 'Medium' ? '#f59e0b' : '#3b82f6' }}>
@@ -643,7 +724,7 @@ export default function StageWorkspace() {
                                     </h4>
                                   </Link>
                                   <div className="flex flex-wrap gap-1">
-                                    {task.tags?.map(tag => (
+                                    {task.tags?.map((tag: string) => (
                                       <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
                                         {tag}
                                       </span>
@@ -656,7 +737,7 @@ export default function StageWorkspace() {
                                     {assignee ? (
                                       <Avatar className="h-6 w-6 border border-background">
                                         <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                          {assignee.name.substring(0, 2).toUpperCase()}
+                                          {assignee.name?.substring(0, 2).toUpperCase()}
                                         </AvatarFallback>
                                       </Avatar>
                                     ) : (
