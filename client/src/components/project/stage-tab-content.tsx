@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   Calendar, 
   CheckCircle2, 
@@ -15,7 +15,8 @@ import {
   X,
   Check,
   ChevronsUpDown,
-  Flag
+  Flag,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,12 +42,10 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { 
-  TASKS, 
-  TEAM, 
-  MILESTONES, 
   ProjectStage,
   Task
 } from "@/lib/mock-data";
+import { useTasks, useUsers, useMilestones } from "@/hooks/use-nexus-data";
 import { 
   Tabs, 
   TabsContent, 
@@ -61,6 +60,11 @@ interface StageTabContentProps {
 }
 
 export function StageTabContent({ stage, projectId }: StageTabContentProps) {
+  // Fetch data from database
+  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
+  
   // Stage Attributes State
   const [startDate, setStartDate] = useState<Date | undefined>(
     stage.id === 'st_plan' ? new Date(2023, 10, 1) : undefined
@@ -69,12 +73,8 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
     stage.id === 'st_plan' ? new Date(2023, 11, 15) : undefined
   );
   
-  const [entryMilestones, setEntryMilestones] = useState<string[]>(
-    stage.id === 'st_validate' ? ['m1'] : []
-  );
-  const [exitMilestones, setExitMilestones] = useState<string[]>(
-    stage.id === 'st_plan' ? ['m1'] : []
-  );
+  const [entryMilestones, setEntryMilestones] = useState<string[]>([]);
+  const [exitMilestones, setExitMilestones] = useState<string[]>([]);
 
   const [openEntry, setOpenEntry] = useState(false);
   const [openExit, setOpenExit] = useState(false);
@@ -83,14 +83,30 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
   const [viewType, setViewType] = useState<"board" | "list">("board");
   const [searchQuery, setSearchQuery] = useState("");
   
-  const stageTasks = TASKS.filter(t => t.stageId === stage.id && 
-    (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-     (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase()))
-  );
+  // Filter tasks by project and stage
+  const stageTasks = useMemo(() => {
+    if (!allTasks) return [];
+    return allTasks.filter((t: any) => 
+      t.stageId === stage.id && 
+      t.projectId === projectId &&
+      (t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase()))
+    );
+  }, [allTasks, stage.id, projectId, searchQuery]);
 
-  const stageMilestones = MILESTONES.filter(m => m.stageId === stage.id);
+  // Filter milestones by project and stage (for display)
+  const stageMilestones = useMemo(() => {
+    if (!allMilestones) return [];
+    return allMilestones.filter((m: any) => m.stageId === stage.id && m.projectId === projectId);
+  }, [allMilestones, stage.id, projectId]);
+  
+  // All milestones for the current project (for selector dropdowns)
+  const projectMilestones = useMemo(() => {
+    if (!allMilestones) return [];
+    return allMilestones.filter((m: any) => m.projectId === projectId);
+  }, [allMilestones, projectId]);
 
-  const getAssignee = (id?: string) => TEAM.find(u => u.id === id);
+  const getAssignee = (id?: string) => users?.find((u: any) => u.id === id);
 
   const toggleMilestone = (id: string, current: string[], setFn: (val: string[]) => void) => {
     if (current.includes(id)) {
@@ -105,11 +121,22 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
   };
 
   const getMilestoneProgress = (milestoneId: string) => {
-    const assignedTasks = TASKS.filter(t => t.milestoneId === milestoneId);
+    if (!allTasks) return 0;
+    // Filter by both milestoneId AND projectId to avoid cross-project contamination
+    const assignedTasks = allTasks.filter((t: any) => t.milestoneId === milestoneId && t.projectId === projectId);
     if (assignedTasks.length === 0) return 0;
-    const doneTasks = assignedTasks.filter(t => t.status === 'Done');
+    const doneTasks = assignedTasks.filter((t: any) => t.status === 'Done');
     return Math.round((doneTasks.length / assignedTasks.length) * 100);
   };
+  
+  // Show loading state
+  if (isTasksLoading || isMilestonesLoading || isUsersLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -155,7 +182,8 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
           ) : (
             <div className="grid gap-6">
               {stageMilestones.map(milestone => {
-                const milestoneTasks = TASKS.filter(t => t.milestoneId === milestone.id);
+                // Filter milestone tasks by both milestoneId AND projectId
+                const milestoneTasks = allTasks?.filter((t: any) => t.milestoneId === milestone.id && t.projectId === projectId) || [];
                 const progress = getMilestoneProgress(milestone.id);
                 
                 return (
@@ -478,7 +506,7 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
                               {entryMilestones.length === 0 && <span className="text-muted-foreground font-normal">Select Milestones...</span>}
                               {entryMilestones.map((id) => (
                                 <Badge key={id} variant="secondary" className="mr-1 font-normal">
-                                  {MILESTONES.find((m) => m.id === id)?.name}
+                                  {projectMilestones?.find((m: any) => m.id === id)?.name}
                                   <div
                                     className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
                                     onMouseDown={(e) => {
@@ -504,7 +532,7 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
                             <CommandInput placeholder="Search milestones..." />
                             <CommandEmpty>No milestone found.</CommandEmpty>
                             <CommandGroup className="max-h-64 overflow-auto">
-                              {MILESTONES.map((milestone) => (
+                              {(projectMilestones || []).map((milestone: any) => (
                                 <CommandItem
                                   key={milestone.id}
                                   value={milestone.name}
@@ -542,7 +570,7 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
                               {exitMilestones.length === 0 && <span className="text-muted-foreground font-normal">Select Milestones...</span>}
                               {exitMilestones.map((id) => (
                                 <Badge key={id} variant="secondary" className="mr-1 font-normal">
-                                  {MILESTONES.find((m) => m.id === id)?.name}
+                                  {projectMilestones?.find((m: any) => m.id === id)?.name}
                                   <div
                                     className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
                                     onMouseDown={(e) => {
@@ -568,7 +596,7 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
                             <CommandInput placeholder="Search milestones..." />
                             <CommandEmpty>No milestone found.</CommandEmpty>
                             <CommandGroup className="max-h-64 overflow-auto">
-                              {MILESTONES.map((milestone) => (
+                              {(projectMilestones || []).map((milestone: any) => (
                                 <CommandItem
                                   key={milestone.id}
                                   value={milestone.name}
