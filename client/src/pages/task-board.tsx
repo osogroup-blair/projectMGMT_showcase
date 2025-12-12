@@ -922,54 +922,6 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
     return [];
   }, [groupBy, stages, projectTasks, projectEpics, users, projectMilestones]);
 
-  const groupedTasks = useMemo(() => {
-    const groups: Record<string, { id: string; name: string; tasks: any[]; color?: string }> = {};
-    
-    if (groupBy === "status") {
-      ["Todo", "In Progress", "Review", "Done"].forEach(status => {
-        groups[status] = { id: status, name: status, tasks: [], color: STATUS_COLORS[status] };
-      });
-      filteredTasks.forEach(t => {
-        const status = t.status || "Todo";
-        if (groups[status]) groups[status].tasks.push(t);
-      });
-    } else if (groupBy === "epic") {
-      groups["unassigned"] = { id: "unassigned", name: "No Epic", tasks: [] };
-      projectEpics.forEach((e: any) => { groups[e.id] = { id: e.id, name: e.title, tasks: [] }; });
-      filteredTasks.forEach(t => {
-        const epicId = t.epicId || "unassigned";
-        if (groups[epicId]) groups[epicId].tasks.push(t);
-        else groups["unassigned"].tasks.push(t);
-      });
-    } else if (groupBy === "stage") {
-      groups["unassigned"] = { id: "unassigned", name: "No Stage", tasks: [] };
-      stages.forEach((s: any) => { groups[s.id] = { id: s.id, name: s.name, tasks: [], color: s.color }; });
-      filteredTasks.forEach(t => {
-        const stageId = t.stageId || "unassigned";
-        if (groups[stageId]) groups[stageId].tasks.push(t);
-        else groups["unassigned"].tasks.push(t);
-      });
-    } else if (groupBy === "milestone") {
-      groups["unassigned"] = { id: "unassigned", name: "No Milestone", tasks: [] };
-      projectMilestones.forEach((m: any) => { groups[m.id] = { id: m.id, name: m.name, tasks: [] }; });
-      filteredTasks.forEach(t => {
-        const milestoneId = t.milestoneId || "unassigned";
-        if (groups[milestoneId]) groups[milestoneId].tasks.push(t);
-        else groups["unassigned"].tasks.push(t);
-      });
-    } else if (groupBy === "assignee") {
-      groups["unassigned"] = { id: "unassigned", name: "Unassigned", tasks: [] };
-      users.forEach((u: any) => { groups[u.id] = { id: u.id, name: u.name, tasks: [] }; });
-      filteredTasks.forEach(t => {
-        const assigneeId = t.assigneeId || "unassigned";
-        if (groups[assigneeId]) groups[assigneeId].tasks.push(t);
-        else groups["unassigned"].tasks.push(t);
-      });
-    }
-    
-    return Object.values(groups).filter(g => g.tasks.length > 0 || g.id !== "unassigned");
-  }, [filteredTasks, groupBy, projectEpics, stages, projectMilestones, users]);
-
   const handleOpenCreate = (stageId?: string, epicId?: string) => {
     if (!project) return;
     setEditingTask(null);
@@ -1084,93 +1036,76 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
             </Button>
           </div>
 
-          {/* Grouped Card Views */}
-          <div className="space-y-6">
-        {groupedTasks.map(group => (
-          <div key={group.id} className="space-y-3">
-            <div className={cn("flex items-center gap-2 px-3 py-2 rounded-lg border", group.color || "bg-muted/50")}>
-              <h3 className="font-semibold text-sm">{group.name}</h3>
-              <Badge variant="secondary" className="text-xs">{group.tasks.length}</Badge>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {group.tasks.map(task => {
-                const assignee = getAssignee(task.assigneeId);
-                const milestone = getMilestone(task.milestoneId);
-                const epic = getEpic(task.epicId);
-                const stage = stages.find((s: any) => s.id === task.stageId);
-                const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG["Medium"];
+          {/* Flat Task List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {filteredTasks.map(task => {
+              const assignee = getAssignee(task.assigneeId);
+              const milestone = getMilestone(task.milestoneId);
+              const epic = getEpic(task.epicId);
+              const stage = stages.find((s: any) => s.id === task.stageId);
+              const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG["Medium"];
 
-                return (
-                  <Card 
-                    key={task.id}
-                    className="cursor-pointer hover:border-primary/30 transition-all hover:shadow-md"
-                    onClick={() => handleOpenEdit(task)}
-                    data-testid={`task-card-${task.id}`}
-                  >
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-medium text-sm leading-tight line-clamp-2">{task.title}</h4>
-                        <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0", priority.color)}>
-                          {priority.label}
-                        </span>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-1.5">
-                        {groupBy !== "status" && (
-                          <Badge variant="outline" className={cn("text-[10px]", STATUS_COLORS[task.status] || "")}>
-                            {task.status}
-                          </Badge>
-                        )}
-                        {groupBy !== "stage" && stage && (
-                          <Badge variant="outline" className="text-[10px]">{stage.name}</Badge>
-                        )}
-                        {groupBy !== "epic" && epic && (
-                          <Badge variant="outline" className="text-[10px] text-purple-600">{epic.title}</Badge>
-                        )}
-                        {groupBy !== "milestone" && milestone && (
-                          <Badge variant="outline" className="text-[10px] text-amber-600">
-                            <Flag className="h-2.5 w-2.5 mr-1" />{milestone.name}
-                          </Badge>
-                        )}
-                      </div>
+              return (
+                <Card 
+                  key={task.id}
+                  className="cursor-pointer hover:border-primary/30 transition-all hover:shadow-md"
+                  onClick={() => handleOpenEdit(task)}
+                  data-testid={`task-card-${task.id}`}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-medium text-sm leading-tight line-clamp-2">{task.title}</h4>
+                      <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0", priority.color)}>
+                        {priority.label}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="outline" className={cn("text-[10px]", STATUS_COLORS[task.status] || "")}>
+                        {task.status}
+                      </Badge>
+                      {stage && (
+                        <Badge variant="outline" className="text-[10px]">{stage.name}</Badge>
+                      )}
+                      {epic && (
+                        <Badge variant="outline" className="text-[10px] text-purple-600">{epic.title}</Badge>
+                      )}
+                      {milestone && (
+                        <Badge variant="outline" className="text-[10px] text-amber-600">
+                          <Flag className="h-2.5 w-2.5 mr-1" />{milestone.name}
+                        </Badge>
+                      )}
+                    </div>
 
-                      <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs text-muted-foreground">
-                        {groupBy !== "assignee" ? (
-                          <div className="flex items-center gap-1.5">
-                            {assignee ? (
-                              <>
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-[9px]">{assignee.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <span className="truncate max-w-[80px]">{assignee.name.split(' ')[0]}</span>
-                              </>
-                            ) : (
-                              <span className="italic">Unassigned</span>
-                            )}
-                          </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        {assignee ? (
+                          <>
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[9px]">{assignee.name.substring(0,2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="truncate max-w-[80px]">{assignee.name.split(' ')[0]}</span>
+                          </>
                         ) : (
-                          <div />
+                          <span className="italic">Unassigned</span>
                         )}
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>{new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
-        ))}
 
-        {groupedTasks.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>No tasks found matching your search.</p>
-          </div>
-        )}
-        </div>
+          {filteredTasks.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No tasks found matching your search.</p>
+            </div>
+          )}
         </div>
       </div>
 
