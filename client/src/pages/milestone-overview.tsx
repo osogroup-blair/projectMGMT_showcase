@@ -47,6 +47,7 @@ import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules, useProjectStages } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -545,8 +546,14 @@ export default function MilestoneOverview() {
             <TasksTab 
               linkedTasks={linkedTasks}
               projectId={projectId}
+              milestone={milestone}
+              allTasks={projectTasks}
+              epics={projectEpics}
+              stages={projectStages}
+              links={links}
               getEpic={getEpic}
               getAssignee={getAssignee}
+              onUpdateLinks={handleUpdateLinks}
             />
           </TabsContent>
 
@@ -568,18 +575,164 @@ export default function MilestoneOverview() {
   );
 }
 
+const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21];
+
 function TasksTab({ 
   linkedTasks, 
-  projectId, 
+  projectId,
+  milestone,
+  allTasks,
+  epics,
+  stages,
+  links,
   getEpic, 
-  getAssignee 
+  getAssignee,
+  onUpdateLinks
 }: { 
   linkedTasks: any[], 
-  projectId: string, 
+  projectId: string,
+  milestone: any,
+  allTasks: any[],
+  epics: any[],
+  stages: any[],
+  links: any[],
   getEpic: (id?: string) => any,
-  getAssignee: (id?: string) => any
+  getAssignee: (id?: string) => any,
+  onUpdateLinks: (links: any[]) => void
 }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"search" | "create">("search");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedEpicId, setSelectedEpicId] = useState<string>("");
+  const [selectedStageId, setSelectedStageId] = useState<string>("");
+  const { toast } = useToast();
+  const { createAsync: createTaskAsync } = useTasks();
+  const [isCreating, setIsCreating] = useState(false);
+
+  // New task form state
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
+  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(null);
+
+  const currentLinkedTaskIds = useMemo(() => 
+    links.filter((l: any) => l.milestoneId === milestone?.id).map((l: any) => l.taskId),
+    [links, milestone?.id]
+  );
+
+  // Filter tasks for search - exclude already linked tasks
+  const searchableTasks = useMemo(() => {
+    return allTasks.filter(t => !currentLinkedTaskIds.includes(t.id));
+  }, [allTasks, currentLinkedTaskIds]);
+
+  const filteredSearchTasks = useMemo(() => {
+    let result = searchableTasks;
+    
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(t => 
+        t.title?.toLowerCase().includes(q) || 
+        t.description?.toLowerCase().includes(q)
+      );
+    }
+    
+    if (selectedEpicId) {
+      result = result.filter(t => t.epicId === selectedEpicId);
+    }
+    
+    if (selectedStageId) {
+      result = result.filter(t => t.stageId === selectedStageId);
+    }
+    
+    return result.slice(0, 20); // Limit results
+  }, [searchableTasks, searchQuery, selectedEpicId, selectedStageId]);
+
+  const handleLinkTask = (taskId: string) => {
+    const newLink: MilestoneTaskLink = {
+      id: `l-${Date.now()}`,
+      milestoneId: milestone.id,
+      taskId,
+      source: "manual_add",
+      locked: false,
+      createdAt: new Date().toISOString()
+    };
+    onUpdateLinks([...links, newLink]);
+    toast({ title: "Task linked", description: "Task has been added to the milestone." });
+    setDialogOpen(false);
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) {
+      toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
+      return;
+    }
+    if (!selectedEpicId) {
+      toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
+      return;
+    }
+    if (!selectedStageId) {
+      toast({ title: "Error", description: "Stage is required.", variant: "destructive" });
+      return;
+    }
+    if (!newTaskEffort) {
+      toast({ title: "Error", description: "Effort is required.", variant: "destructive" });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const newTask = await createTaskAsync({
+        title: newTaskTitle,
+        description: newTaskDescription || "",
+        project: projectId,
+        projectId: projectId,
+        epicId: selectedEpicId,
+        stageId: selectedStageId,
+        status: "Todo",
+        priority: newTaskPriority,
+        effort: newTaskEffort,
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        tags: []
+      });
+
+      // Link the new task to the milestone
+      const newLink: MilestoneTaskLink = {
+        id: `l-${Date.now()}`,
+        milestoneId: milestone.id,
+        taskId: newTask.id,
+        source: "manual_add",
+        locked: false,
+        createdAt: new Date().toISOString()
+      };
+      onUpdateLinks([...links, newLink]);
+      
+      toast({ title: "Task created and linked", description: "New task has been created and added to the milestone." });
+      
+      // Reset form
+      setNewTaskTitle("");
+      setNewTaskDescription("");
+      setSelectedEpicId("");
+      setSelectedStageId("");
+      setNewTaskPriority("Medium");
+      setNewTaskEffort(null);
+      setDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to create task.", variant: "destructive" });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const openDialog = (mode: "search" | "create") => {
+    setDialogMode(mode);
+    setSearchQuery("");
+    setSelectedEpicId("");
+    setSelectedStageId("");
+    setDialogOpen(true);
+  };
+
   return (
+    <>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -587,7 +740,13 @@ function TasksTab({
             <ListTodo className="h-5 w-5" />
             Linked Tasks ({linkedTasks.length})
           </CardTitle>
-          <Button size="sm" variant="outline" className="gap-2">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => openDialog("search")}
+            data-testid="button-link-task"
+          >
             <Plus className="h-4 w-4" />
             Link Task
           </Button>
@@ -663,7 +822,13 @@ function TasksTab({
             <p className="text-sm text-muted-foreground mb-4">
               Link tasks to this milestone to track progress. Use the Scope Definition tab to define rules or manually add tasks.
             </p>
-            <Button size="sm" variant="outline" className="gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => openDialog("search")}
+              data-testid="button-link-task-empty"
+            >
               <Plus className="h-4 w-4" />
               Link Task
             </Button>
@@ -671,6 +836,217 @@ function TasksTab({
         )}
       </CardContent>
     </Card>
+
+    {/* Link/Create Task Dialog */}
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Add Task to Milestone</DialogTitle>
+          <DialogDescription>
+            Search for an existing task or create a new one.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs value={dialogMode} onValueChange={(v) => setDialogMode(v as "search" | "create")} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="search" data-testid="tab-search-task">
+              <Search className="h-4 w-4 mr-2" />
+              Search Existing
+            </TabsTrigger>
+            <TabsTrigger value="create" data-testid="tab-create-task">
+              <Plus className="h-4 w-4 mr-2" />
+              Create New
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="search" className="flex-1 overflow-hidden flex flex-col mt-4">
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search tasks by title..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  data-testid="input-search-task"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select value={selectedEpicId || "all"} onValueChange={(v) => setSelectedEpicId(v === "all" ? "" : v)}>
+                  <SelectTrigger className="w-[200px]" data-testid="select-search-epic">
+                    <SelectValue placeholder="Filter by Epic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Epics</SelectItem>
+                    {epics.map((epic: any) => (
+                      <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedStageId || "all"} onValueChange={(v) => setSelectedStageId(v === "all" ? "" : v)}>
+                  <SelectTrigger className="w-[200px]" data-testid="select-search-stage">
+                    <SelectValue placeholder="Filter by Stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stages</SelectItem>
+                    {stages.map((stage: any) => (
+                      <SelectItem key={stage.id} value={stage.id}>{stage.label || stage.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto mt-3 border rounded-md">
+              {filteredSearchTasks.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No matching tasks found.</p>
+                  <p className="text-xs mt-1">Try adjusting your search or filters.</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {filteredSearchTasks.map((task: any) => {
+                    const epic = getEpic(task.epicId);
+                    const stage = stages.find((s: any) => s.id === task.stageId);
+                    return (
+                      <div 
+                        key={task.id} 
+                        className="p-3 hover:bg-muted/50 flex items-center justify-between cursor-pointer"
+                        onClick={() => handleLinkTask(task.id)}
+                        data-testid={`search-result-task-${task.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate">{task.title}</h4>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                            {epic && <span>{epic.title}</span>}
+                            {stage && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                {stage.label || stage.name}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button size="sm" variant="ghost" className="shrink-0">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="create" className="flex-1 overflow-y-auto mt-4">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-task-title">Title <span className="text-red-500">*</span></Label>
+                <Input 
+                  id="new-task-title"
+                  placeholder="Enter task title..."
+                  value={newTaskTitle}
+                  onChange={e => setNewTaskTitle(e.target.value)}
+                  data-testid="input-new-task-title"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-task-description">Description</Label>
+                <Textarea 
+                  id="new-task-description"
+                  placeholder="Enter task description..."
+                  value={newTaskDescription}
+                  onChange={e => setNewTaskDescription(e.target.value)}
+                  rows={2}
+                  data-testid="input-new-task-description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Epic <span className="text-red-500">*</span></Label>
+                  <Select value={selectedEpicId} onValueChange={(v) => { setSelectedEpicId(v); setSelectedStageId(""); }}>
+                    <SelectTrigger data-testid="select-new-task-epic">
+                      <SelectValue placeholder="Select Epic first" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {epics.map((epic: any) => (
+                        <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Stage <span className="text-red-500">*</span></Label>
+                  <Select 
+                    value={selectedStageId} 
+                    onValueChange={setSelectedStageId}
+                    disabled={!selectedEpicId}
+                  >
+                    <SelectTrigger data-testid="select-new-task-stage">
+                      <SelectValue placeholder={selectedEpicId ? "Select Stage" : "Select Epic first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stages.map((stage: any) => (
+                        <SelectItem key={stage.id} value={stage.id}>{stage.label || stage.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                    <SelectTrigger data-testid="select-new-task-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Low">Low</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Effort (Fibonacci) <span className="text-red-500">*</span></Label>
+                  <Select 
+                    value={newTaskEffort?.toString() || ""} 
+                    onValueChange={(v) => setNewTaskEffort(v ? parseInt(v) : null)}
+                  >
+                    <SelectTrigger data-testid="select-new-task-effort">
+                      <SelectValue placeholder="Select effort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EFFORT_VALUES.map((val) => (
+                        <SelectItem key={val} value={val.toString()}>{val}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button 
+                onClick={handleCreateTask}
+                disabled={!newTaskTitle.trim() || !selectedEpicId || !selectedStageId || !newTaskEffort || isCreating}
+                data-testid="button-create-task"
+              >
+                {isCreating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                Create & Link
+              </Button>
+            </DialogFooter>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
