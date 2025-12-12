@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Flag, 
@@ -21,7 +21,10 @@ import {
   Lock,
   Unlock,
   ArrowRight,
-  CheckSquare
+  CheckSquare,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules } from "@/hooks/use-nexus-data";
@@ -87,7 +91,7 @@ export default function MilestoneOverview() {
   const { toast } = useToast();
 
   const { data: project } = useProject(projectId);
-  const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: allMilestones, isLoading: isMilestonesLoading, update: updateMilestone } = useMilestones();
   const { data: allTaskLinks, isLoading: isLinksLoading, create: createLink, remove: removeLink, update: updateLink } = useMilestoneTaskLinks();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
@@ -191,6 +195,39 @@ export default function MilestoneOverview() {
     });
   };
 
+  // Inline editing state - must be before any early returns
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editDescription, setEditDescription] = useState("");
+  const [isEditingOwner, setIsEditingOwner] = useState(false);
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Sync edit state with milestone data when it changes
+  useEffect(() => {
+    if (milestone) {
+      setEditName(milestone.name || "");
+      setEditDescription(milestone.description || "");
+      setEditDate(milestone.targetDate || "");
+    }
+  }, [milestone?.name, milestone?.description, milestone?.targetDate]);
+
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  useEffect(() => {
+    if (isEditingDescription && descriptionInputRef.current) {
+      descriptionInputRef.current.focus();
+    }
+  }, [isEditingDescription]);
+
   const handleUpdateRules = (updatedRules: MilestoneScopeRules) => {
     const existing = scopeRules.find((r: any) => r.milestoneId === updatedRules.milestoneId);
     if (existing) {
@@ -202,6 +239,38 @@ export default function MilestoneOverview() {
       });
     }
     toast({ title: "Scope Rules Updated", description: "Milestone scope has been recalculated." });
+  };
+
+  const handleSaveName = () => {
+    if (milestone && editName.trim() && editName !== milestone.name) {
+      updateMilestone({ id: milestone.id, updates: { name: editName.trim() } });
+      toast({ title: "Name updated" });
+    }
+    setIsEditingName(false);
+  };
+
+  const handleSaveDescription = () => {
+    if (milestone && editDescription !== milestone.description) {
+      updateMilestone({ id: milestone.id, updates: { description: editDescription } });
+      toast({ title: "Description updated" });
+    }
+    setIsEditingDescription(false);
+  };
+
+  const handleSaveOwner = (newOwnerId: string) => {
+    if (milestone && newOwnerId !== milestone.ownerId) {
+      updateMilestone({ id: milestone.id, updates: { ownerId: newOwnerId } });
+      toast({ title: "Owner updated" });
+    }
+    setIsEditingOwner(false);
+  };
+
+  const handleSaveDate = () => {
+    if (milestone && editDate !== milestone.targetDate) {
+      updateMilestone({ id: milestone.id, updates: { targetDate: editDate } });
+      toast({ title: "Target date updated" });
+    }
+    setIsEditingDate(false);
   };
 
   const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading;
@@ -246,7 +315,42 @@ export default function MilestoneOverview() {
             </div>
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold tracking-tight">{milestone.name}</h1>
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      ref={nameInputRef}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveName();
+                        if (e.key === 'Escape') {
+                          setEditName(milestone.name);
+                          setIsEditingName(false);
+                        }
+                      }}
+                      className="text-2xl font-bold h-10 w-80"
+                      data-testid="input-milestone-name"
+                    />
+                    <Button size="icon" variant="ghost" onClick={handleSaveName} className="h-8 w-8">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      setEditName(milestone.name);
+                      setIsEditingName(false);
+                    }} className="h-8 w-8">
+                      <X className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ) : (
+                  <h1 
+                    className="text-2xl font-bold tracking-tight cursor-pointer hover:text-primary/80 transition-colors group flex items-center gap-2"
+                    onClick={() => setIsEditingName(true)}
+                    data-testid="text-milestone-name"
+                  >
+                    {milestone.name}
+                    <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
+                  </h1>
+                )}
                 <Badge variant="outline" className={cn(
                   "font-normal",
                   milestone.status === "achieved" || milestone.status === "Completed" 
@@ -260,33 +364,124 @@ export default function MilestoneOverview() {
                   {status.label}
                 </Badge>
               </div>
-              {milestone.description && (
-                <p className="text-muted-foreground">{milestone.description}</p>
+              
+              {/* Description - inline editable */}
+              {isEditingDescription ? (
+                <div className="space-y-2">
+                  <Textarea
+                    ref={descriptionInputRef}
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setEditDescription(milestone.description || "");
+                        setIsEditingDescription(false);
+                      }
+                    }}
+                    placeholder="Add a description..."
+                    className="min-h-[80px] resize-none"
+                    data-testid="input-milestone-description"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleSaveDescription}>Save</Button>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setEditDescription(milestone.description || "");
+                      setIsEditingDescription(false);
+                    }}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <p 
+                  className={cn(
+                    "cursor-pointer hover:bg-muted/50 rounded px-2 py-1 -mx-2 transition-colors group flex items-center gap-2",
+                    !milestone.description && "text-muted-foreground italic"
+                  )}
+                  onClick={() => setIsEditingDescription(true)}
+                  data-testid="text-milestone-description"
+                >
+                  {milestone.description || "Click to add description..."}
+                  <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                </p>
               )}
             </div>
           </div>
 
           {/* Info Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
+            {/* Target Date - inline editable */}
+            <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => !isEditingDate && setIsEditingDate(true)}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-xs text-muted-foreground">Target Date</p>
-                    <p className="font-medium">{milestone.targetDate || "Not set"}</p>
+                    {isEditingDate ? (
+                      <div className="flex items-center gap-2 mt-1" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveDate();
+                            if (e.key === 'Escape') {
+                              setEditDate(milestone.targetDate || "");
+                              setIsEditingDate(false);
+                            }
+                          }}
+                          className="h-7 text-sm"
+                          autoFocus
+                          data-testid="input-milestone-date"
+                        />
+                        <Button size="icon" variant="ghost" onClick={handleSaveDate} className="h-6 w-6">
+                          <Check className="h-3 w-3 text-green-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => {
+                          setEditDate(milestone.targetDate || "");
+                          setIsEditingDate(false);
+                        }} className="h-6 w-6">
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="font-medium group flex items-center gap-1">
+                        {milestone.targetDate || "Not set"}
+                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Owner - inline editable */}
+            <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => !isEditingOwner && setIsEditingOwner(true)}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <User className="h-5 w-5 text-muted-foreground" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-xs text-muted-foreground">Owner</p>
-                    <p className="font-medium">{owner?.name || "Unassigned"}</p>
+                    {isEditingOwner ? (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Select 
+                          value={milestone.ownerId || ""} 
+                          onValueChange={(value) => handleSaveOwner(value)}
+                        >
+                          <SelectTrigger className="h-7 text-sm mt-1" data-testid="select-milestone-owner">
+                            <SelectValue placeholder="Select owner" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(users || []).map((u: any) => (
+                              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <p className="font-medium group flex items-center gap-1">
+                        {owner?.name || "Unassigned"}
+                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
