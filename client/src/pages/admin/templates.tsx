@@ -178,6 +178,8 @@ export default function AdminTemplates() {
   const [currentTask, setCurrentTask] = useState<any>(null);
 
   const [selectedFrameworkFilter, setSelectedFrameworkFilter] = useState<string>("all");
+  const [selectedRoleTypeFilter, setSelectedRoleTypeFilter] = useState<string>("all");
+  const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("all");
 
   // Form State (Generic)
   const [formData, setFormData] = useState<any>({});
@@ -292,6 +294,23 @@ export default function AdminTemplates() {
       if (framework) {
         filtered = filtered.filter(t => (framework.defaultStages || []).includes(t.id));
       }
+    }
+
+    if (activeTab === 'roles' && selectedRoleTypeFilter !== 'all') {
+      filtered = filtered.filter(t => t.defaultRoleType === selectedRoleTypeFilter);
+    }
+
+    return filtered;
+  };
+
+  const filterTaskTemplates = (templates: any[]) => {
+    let filtered = (templates || []).filter(t => 
+      t.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (selectedPriorityFilter !== 'all') {
+      filtered = filtered.filter(t => t.defaultPriority === selectedPriorityFilter);
     }
 
     return filtered;
@@ -624,6 +643,13 @@ export default function AdminTemplates() {
               Stages
             </TabsTrigger>
             <TabsTrigger 
+              value="tasks" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
+            >
+              <ListTodo className="h-4 w-4" />
+              Tasks
+            </TabsTrigger>
+            <TabsTrigger 
               value="roles" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
             >
@@ -747,7 +773,102 @@ export default function AdminTemplates() {
               </div>
             </TabsContent>
 
+            <TabsContent value="tasks" className="space-y-6">
+              <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
+                <ListTodo className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filter by Priority:</span>
+                <Select 
+                  value={selectedPriorityFilter} 
+                  onValueChange={setSelectedPriorityFilter}
+                >
+                  <SelectTrigger className="w-[180px] h-8 text-xs" data-testid="select-priority-filter">
+                    <SelectValue placeholder="All Priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+                {selectedPriorityFilter !== 'all' && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 text-xs ml-auto text-muted-foreground hover:text-foreground"
+                    onClick={() => setSelectedPriorityFilter('all')}
+                    data-testid="button-clear-priority-filter"
+                  >
+                    Clear Filter
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filterTaskTemplates(taskTemplates).map(t => (
+                  <TemplateCard 
+                    key={t.id}
+                    item={t}
+                    type="task"
+                    icon={ListTodo}
+                    itemsCount={t.defaultEstimateHours || 0}
+                    itemLabel="Est. Hours"
+                    badge={t.defaultPriority}
+                  />
+                ))}
+                <Card 
+                  className="flex flex-col items-center justify-center border-dashed cursor-pointer hover:bg-muted/10 transition-colors min-h-[200px]"
+                  onClick={() => handleCreate('task')}
+                  data-testid="card-create-task-template"
+                >
+                  <div className="p-4 rounded-full bg-muted text-muted-foreground mb-4">
+                    <Plus className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold text-lg">Create New Task Template</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Define default task properties</p>
+                </Card>
+              </div>
+            </TabsContent>
+
             <TabsContent value="roles" className="space-y-6">
+              <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filter by Role Type:</span>
+                <Select 
+                  value={selectedRoleTypeFilter} 
+                  onValueChange={setSelectedRoleTypeFilter}
+                >
+                  <SelectTrigger className="w-[200px] h-8 text-xs" data-testid="select-role-type-filter">
+                    <SelectValue placeholder="All Role Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Role Types</SelectItem>
+                    {roleTypes.length > 0 ? (
+                      roleTypes.map((rt: any) => (
+                        <SelectItem key={rt.id} value={rt.label}>{rt.label}</SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="Development">Development</SelectItem>
+                        <SelectItem value="Design">Design</SelectItem>
+                        <SelectItem value="Management">Management</SelectItem>
+                        <SelectItem value="Consulting">Consulting</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+                {selectedRoleTypeFilter !== 'all' && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 text-xs ml-auto text-muted-foreground hover:text-foreground"
+                    onClick={() => setSelectedRoleTypeFilter('all')}
+                    data-testid="button-clear-role-type-filter"
+                  >
+                    Clear Filter
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filterTemplates(roleTemplates).map(t => (
                   <TemplateCard 
@@ -760,6 +881,17 @@ export default function AdminTemplates() {
                     badge={t.defaultRoleType}
                   />
                 ))}
+                <Card 
+                  className="flex flex-col items-center justify-center border-dashed cursor-pointer hover:bg-muted/10 transition-colors min-h-[200px]"
+                  onClick={() => handleCreate('role')}
+                  data-testid="card-create-role-template"
+                >
+                  <div className="p-4 rounded-full bg-muted text-muted-foreground mb-4">
+                    <Plus className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold text-lg">Create New Role Template</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Define default role properties</p>
+                </Card>
               </div>
             </TabsContent>
           </div>
