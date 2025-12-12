@@ -50,23 +50,23 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
-import { 
-  PROJECTS, 
-  DELIVERABLES, 
-  EPICS, 
-  TEAM,
-  STAGE_TEMPLATES
-} from "@/lib/mock-data";
+import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useDeliverables, useEpics, useUsers } from "@/hooks/use-nexus-data";
+import { Loader2 } from "lucide-react";
 
 // Export content component separately for reuse
 export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
 
-  const deliverables = DELIVERABLES.filter(d => d.projectId === projectId);
-  const getEpicsForDeliverable = (deliverableId: string) => EPICS.filter(e => e.deliverableId === deliverableId);
-  const getOwner = (ownerId: string) => TEAM.find(t => t.id === ownerId);
+  const { data: allDeliverables, isLoading: isDeliverablesLoading, create: createDeliverable } = useDeliverables();
+  const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
+
+  const deliverables = allDeliverables.filter((d: any) => d.projectId === projectId);
+  const getEpicsForDeliverable = (deliverableId: string) => allEpics.filter((e: any) => e.deliverableId === deliverableId);
+  const getOwner = (ownerId: string) => users.find((t: any) => t.id === ownerId);
 
   // Epic Creation State
   const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
@@ -97,13 +97,40 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   };
 
   const handleCreateEpic = () => {
-    // In a real app, this would dispatch a create action
+    if (!newEpicData.title || !selectedDeliverableId) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide an epic title.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    createEpic({
+      title: newEpicData.title,
+      description: newEpicData.description,
+      deliverableId: selectedDeliverableId,
+      stageIds: newEpicData.stageIds,
+      status: "Not Started",
+      progress: 0,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    });
+    
     toast({
       title: "Epic Created",
       description: `${newEpicData.title} has been created with ${newEpicData.stageIds.length} assigned stages.`,
     });
     setIsCreateEpicOpen(false);
   };
+
+  if (isDeliverablesLoading || isEpicsLoading || isUsersLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <>

@@ -38,11 +38,13 @@ import {
 } from "@/components/ui/tabs";
 import { useRoute, Link } from "wouter";
 import { PROJECT_STAGES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
-import { useProject, useTasks, useMilestones } from "@/hooks/use-nexus-data";
+import { useProject, useTasks, useMilestones, useUsers, useDeliverables, useEpics } from "@/hooks/use-nexus-data";
 import { cn } from "@/lib/utils";
 import { StageTabContent } from "@/components/project/stage-tab-content";
 import { TimelineView } from "@/components/project/timeline-view";
 import { useMemo } from "react";
+import { ProjectDashboard } from "@/types/dashboard";
+import { differenceInDays, parseISO } from "date-fns";
 
 // Mock Data Types
 interface TaskStats {
@@ -54,7 +56,6 @@ interface TaskStats {
 
 import { DeliverablesContent } from "@/pages/deliverables";
 import ProjectDashboardPage from "@/components/project/project-dashboard-page";
-import { MOCK_DASHBOARD_DATA } from "@/lib/mock-dashboard-data";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -63,13 +64,20 @@ export default function ProjectOverview() {
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
 
   // Derived Data
-  const { tasks, milestones, stats } = useMemo(() => {
-    if (!project) return { tasks: [], milestones: [], stats: { total: 0, completed: 0, inProgress: 0, atRisk: 0 } };
+  const { tasks, milestones, stats, dashboardData } = useMemo(() => {
+    if (!project) return { tasks: [], milestones: [], stats: { total: 0, completed: 0, inProgress: 0, atRisk: 0 }, dashboardData: null };
 
-    const projectTasks = allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id); // loose matching for legacy data
+    const projectTasks = allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
     const projectMilestones = allMilestones.filter((m: any) => m.projectId === project.id);
+    const projectDeliverables = allDeliverables.filter((d: any) => d.projectId === project.id);
+    const projectEpics = allEpics.filter((e: any) => 
+      projectDeliverables.some((d: any) => d.id === e.deliverableId)
+    );
     
     const stats = {
       total: projectTasks.length,
@@ -78,12 +86,126 @@ export default function ProjectOverview() {
       atRisk: projectTasks.filter((t: any) => t.priority === "High" && t.status !== "Done").length
     };
 
-    return { tasks: projectTasks, milestones: projectMilestones, stats };
-  }, [project, allTasks, allMilestones]);
+    const percentComplete = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+    const daysRemaining = project.deadline ? differenceInDays(parseISO(project.deadline), new Date()) : 0;
+    
+    const getAssigneeName = (id?: string) => {
+      const user = users.find((u: any) => u.id === id);
+      return user?.name || "Unassigned";
+    };
+
+    const upcomingItems = projectTasks
+      .filter((t: any) => t.deadline && t.status !== "Done")
+      .sort((a: any, b: any) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+      .slice(0, 5)
+      .map((t: any) => ({
+        id: t.id,
+        type: "task" as const,
+        title: t.title,
+        dueDate: t.deadline,
+        horizon: differenceInDays(parseISO(t.deadline), new Date()) <= 7 ? "short" as const : "long" as const,
+        status: (t.status === "In Progress" ? "in_progress" : "not_started") as "in_progress" | "not_started" | "blocked" | "complete",
+        owner: getAssigneeName(t.assigneeId),
+        priority: t.priority?.toLowerCase() || "medium",
+        progress: t.status === "Done" ? 100 : t.status === "In Progress" ? 50 : 0
+      }));
+
+    const milestoneItems = projectMilestones
+      .filter((m: any) => m.date && m.status !== "Completed")
+      .slice(0, 3)
+      .map((m: any) => ({
+        id: m.id,
+        type: "milestone" as const,
+        title: m.name,
+        dueDate: m.date,
+        horizon: differenceInDays(parseISO(m.date), new Date()) <= 7 ? "short" as const : "long" as const,
+        status: "not_started" as "in_progress" | "not_started" | "blocked" | "complete",
+        priority: "high" as "high" | "medium" | "low" | "critical",
+        progress: 0
+      }));
+
+    const recentActivityItems = projectTasks
+      .filter((t: any) => t.status === "Done")
+      .slice(0, 5)
+      .map((t: any) => ({
+        id: t.id,
+        type: "task_completed" as const,
+        title: t.title,
+        timestamp: new Date().toISOString(),
+        actor: getAssigneeName(t.assigneeId)
+      }));
+
+    const dashboardData: ProjectDashboard = {
+      projectId: project.id,
+      projectName: project.name,
+      lastUpdated: new Date().toISOString(),
+      statusSnapshot: {
+        health: stats.atRisk > 2 ? "red" : stats.atRisk > 0 ? "yellow" : "green",
+        phase: "develop_solution",
+        percentComplete,
+        originalEndDate: project.deadline || "",
+        projectedEndDate: project.deadline || "",
+        daysRemaining: Math.max(0, daysRemaining),
+        openRisksCount: 0,
+        openIssuesCount: stats.atRisk,
+        pendingDecisionsCount: 0,
+        upcomingMilestonesCount: projectMilestones.filter((m: any) => m.status !== "Completed").length
+      },
+      financialResourceSnapshot: {
+        currency: "USD",
+        budgetPlanned: project.budget || 0,
+        budgetUsed: Math.round((project.budget || 0) * (percentComplete / 100)),
+        budgetForecastFinal: project.budget || 0,
+        hoursPlanned: 0,
+        hoursUsed: 0,
+        hoursForecastFinal: 0,
+        spendByPhase: [],
+        resourceUtilization: users.slice(0, 4).map((u: any) => ({
+          entityId: u.id,
+          entityType: "person" as const,
+          name: u.name,
+          monthlyBudgetedHours: 160,
+          monthlyActualHours: 140,
+          totalBudgetedHours: 480,
+          totalActualHours: 400,
+          status: "healthy" as const
+        }))
+      },
+      upcomingWork: {
+        horizonDaysShort: 7,
+        horizonDaysLong: 21,
+        items: [...upcomingItems, ...milestoneItems]
+      },
+      riskIssuePanel: {
+        trend: "stable" as const,
+        risks: [],
+        issues: projectTasks
+          .filter((t: any) => t.priority === "High" && t.status !== "Done")
+          .slice(0, 3)
+          .map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            description: t.description || "",
+            severity: "high" as const,
+            owner: getAssigneeName(t.assigneeId),
+            status: "open" as const,
+            targetResolutionDate: t.deadline || ""
+          }))
+      },
+      recentActivity: {
+        windowDays: 7,
+        completedCount: stats.completed,
+        completedChangePercentVsPrevWindow: 0,
+        items: recentActivityItems
+      }
+    };
+
+    return { tasks: projectTasks, milestones: projectMilestones, stats, dashboardData };
+  }, [project, allTasks, allMilestones, users, allDeliverables, allEpics]);
 
   const stages = PROJECT_STAGES; // Keep using static stages for now as they are structural
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading) {
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isDeliverablesLoading || isEpicsLoading) {
     return (
       <Shell>
         <div className="flex h-[50vh] items-center justify-center">
@@ -241,7 +363,7 @@ export default function ProjectOverview() {
           <div className="mt-6">
             {/* Project Overview Tab Content */}
             <TabsContent value="overview" className="space-y-8">
-               <ProjectDashboardPage dashboard={MOCK_DASHBOARD_DATA} />
+               {dashboardData && <ProjectDashboardPage dashboard={dashboardData} />}
             </TabsContent>
             
             {/* Timeline Tab Content */}
