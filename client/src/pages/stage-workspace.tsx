@@ -63,6 +63,7 @@ import {
   useProjectStages,
   useTasks,
   useMilestones,
+  useMilestoneTaskLinks,
   useGuidanceItems,
   useSavedViews,
   useUsers
@@ -80,6 +81,7 @@ export default function StageWorkspace() {
   const { data: allStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: allMilestoneLinks, isLoading: isMilestoneLinksLoading } = useMilestoneTaskLinks();
   const { data: allGuidance, isLoading: isGuidanceLoading } = useGuidanceItems();
   const { data: allSavedViews, isLoading: isSavedViewsLoading } = useSavedViews();
   const { data: allUsers, isLoading: isUsersLoading } = useUsers();
@@ -194,7 +196,7 @@ export default function StageWorkspace() {
     { value: "completed", label: "Completed", color: "bg-green-50 text-green-700 border-green-200" },
   ];
 
-  const isLoading = isProjectLoading || isStagesLoading || isTasksLoading || isMilestonesLoading || isGuidanceLoading || isUsersLoading;
+  const isLoading = isProjectLoading || isStagesLoading || isTasksLoading || isMilestonesLoading || isMilestoneLinksLoading || isGuidanceLoading || isUsersLoading;
 
   if (isLoading) {
     return (
@@ -482,7 +484,11 @@ export default function StageWorkspace() {
               {milestones.length > 0 ? (
                 <Accordion type="multiple" defaultValue={milestones.map((m: any) => m.id)} className="space-y-3">
                   {milestones.map((m: any) => {
-                    const milestoneTasks = tasks.filter((t: any) => t.milestoneId === m.id);
+                    // Get task IDs linked to this milestone via milestoneTaskLinks
+                    const linkedTaskIds = (allMilestoneLinks || [])
+                      .filter((link: any) => link.milestoneId === m.id)
+                      .map((link: any) => link.taskId);
+                    const milestoneTasks = (allTasks || []).filter((t: any) => linkedTaskIds.includes(t.id));
                     const completedTasks = milestoneTasks.filter((t: any) => t.status === "Done").length;
                     const progressPercent = milestoneTasks.length > 0 ? Math.round((completedTasks / milestoneTasks.length) * 100) : 0;
                     
