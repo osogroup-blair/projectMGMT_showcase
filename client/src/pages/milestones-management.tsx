@@ -1371,10 +1371,8 @@ export default function MilestonesManagementPage() {
   };
 
   const handleCreateTask = async (taskData: Partial<Task>) => {
-    const newTaskId = `${Date.now()}`;
     try {
-      await createTaskAsync({
-        id: newTaskId,
+      const createdTask = await createTaskAsync({
         title: taskData.title || "New Task",
         description: taskData.description || "",
         project: project?.name || "Project",
@@ -1390,12 +1388,12 @@ export default function MilestonesManagementPage() {
         tags: []
       });
 
-      if (selectedId) {
+      if (selectedId && createdTask?.id) {
         const newLinkId = `l-${Date.now()}`;
         await createTaskLinkAsync({
           id: newLinkId,
           milestoneId: selectedId,
-          taskId: newTaskId,
+          taskId: createdTask.id,
           projectId: projectId,
           source: "manual_add",
           locked: true
