@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Plus, 
@@ -153,11 +153,76 @@ export default function TaskBoard() {
   // Filters
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
+  
+  // Sidebar grouping
+  const [groupBy, setGroupBy] = useState<"stage" | "status" | "epic" | "assignee" | "milestone">("stage");
+  const [selectedSection, setSelectedSection] = useState<string>("all");
+
+  // Group tasks by the selected groupBy criteria
+  const groupedSections = useMemo(() => {
+    if (groupBy === "stage") {
+      return stages.map(stage => ({
+        id: stage.id,
+        name: stage.name,
+        count: projectTasks.filter(t => t.stageId === stage.id).length
+      }));
+    }
+    if (groupBy === "status") {
+      const statuses = ["Todo", "In Progress", "Done"];
+      return statuses.map(status => ({
+        id: status,
+        name: status,
+        count: projectTasks.filter(t => t.status === status).length
+      }));
+    }
+    if (groupBy === "epic") {
+      const sections = projectEpics.map(epic => ({
+        id: epic.id,
+        name: epic.title || epic.name,
+        count: projectTasks.filter(t => t.epicId === epic.id).length
+      }));
+      const unassigned = projectTasks.filter(t => !t.epicId).length;
+      if (unassigned > 0) {
+        sections.push({ id: "unassigned", name: "No Epic", count: unassigned });
+      }
+      return sections;
+    }
+    if (groupBy === "assignee") {
+      const sections = users.map((user: any) => ({
+        id: user.id,
+        name: user.name,
+        count: projectTasks.filter(t => t.assigneeId === user.id).length
+      }));
+      const unassigned = projectTasks.filter(t => !t.assigneeId).length;
+      if (unassigned > 0) {
+        sections.push({ id: "unassigned", name: "Unassigned", count: unassigned });
+      }
+      return sections;
+    }
+    if (groupBy === "milestone") {
+      const sections = milestones.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        count: projectTasks.filter(t => t.milestoneId === m.id).length
+      }));
+      const unassigned = projectTasks.filter(t => !t.milestoneId).length;
+      if (unassigned > 0) {
+        sections.push({ id: "unassigned", name: "No Milestone", count: unassigned });
+      }
+      return sections;
+    }
+    return [];
+  }, [groupBy, stages, projectTasks, projectEpics, users, milestones]);
 
   // Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
+
+  // Reset selectedSection when groupBy changes
+  useEffect(() => {
+    setSelectedSection("all");
+  }, [groupBy]);
 
   // Use the already filtered project tasks
   const tasks = projectTasks;
@@ -168,7 +233,17 @@ export default function TaskBoard() {
     const matchesAssignee = assigneeFilter === "all" || t.assigneeId === assigneeFilter;
     const matchesMilestone = milestoneFilter === "all" || t.milestoneId === milestoneFilter;
     
-    return matchesSearch && matchesAssignee && matchesMilestone;
+    // Filter by selected section in sidebar
+    let matchesSection = true;
+    if (selectedSection !== "all") {
+      if (groupBy === "stage") matchesSection = t.stageId === selectedSection;
+      else if (groupBy === "status") matchesSection = t.status === selectedSection;
+      else if (groupBy === "epic") matchesSection = selectedSection === "unassigned" ? !t.epicId : t.epicId === selectedSection;
+      else if (groupBy === "assignee") matchesSection = selectedSection === "unassigned" ? !t.assigneeId : t.assigneeId === selectedSection;
+      else if (groupBy === "milestone") matchesSection = selectedSection === "unassigned" ? !t.milestoneId : t.milestoneId === selectedSection;
+    }
+    
+    return matchesSearch && matchesAssignee && matchesMilestone && matchesSection;
   });
 
   const handleOpenCreate = (stageId?: string, epicId?: string) => {
@@ -193,10 +268,8 @@ export default function TaskBoard() {
   };
 
   const handleOpenEdit = (task: Task) => {
-    // For now, we open the dialog instead of navigating, to keep it simple
-    setEditingTask(task);
-    setFormData({ ...task });
-    setIsDialogOpen(true);
+    // Navigate to task detail page
+    setLocation(`/projects/${projectId}/tasks/${task.id}`);
   };
 
   const handleSave = () => {
@@ -291,6 +364,22 @@ export default function TaskBoard() {
               />
             </div>
             <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+              <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
+                <SelectTrigger className="w-[140px]">
+                  <div className="flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Group By" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="stage">Stage</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="epic">Epic</SelectItem>
+                  <SelectItem value="assignee">Assignee</SelectItem>
+                  <SelectItem value="milestone">Milestone</SelectItem>
+                </SelectContent>
+              </Select>
+
               <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
                 <SelectTrigger className="w-[160px]">
                   <div className="flex items-center gap-2">
@@ -328,6 +417,36 @@ export default function TaskBoard() {
           </div>
         </div>
 
+        {/* Main content with sidebar */}
+        <div className="flex gap-6 flex-1 min-h-0">
+          {/* Left Sidebar */}
+          <div className="w-56 shrink-0 space-y-1 overflow-y-auto">
+            <Button 
+              variant={selectedSection === "all" ? "secondary" : "ghost"} 
+              className="w-full justify-between text-sm h-9"
+              onClick={() => setSelectedSection("all")}
+              data-testid="sidebar-all-tasks"
+            >
+              <span>All Tasks</span>
+              <Badge variant="outline" className="ml-2 font-mono text-xs">{projectTasks.length}</Badge>
+            </Button>
+            <div className="border-t my-2" />
+            {groupedSections.map(section => (
+              <Button 
+                key={section.id}
+                variant={selectedSection === section.id ? "secondary" : "ghost"}
+                className="w-full justify-between text-sm h-9"
+                onClick={() => setSelectedSection(section.id)}
+                data-testid={`sidebar-section-${section.id}`}
+              >
+                <span className="truncate">{section.name}</span>
+                <Badge variant="outline" className="ml-2 font-mono text-xs shrink-0">{section.count}</Badge>
+              </Button>
+            ))}
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
         {/* Board View */}
         {viewType === "board" ? (
           <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
@@ -483,6 +602,8 @@ export default function TaskBoard() {
             </div>
           </div>
         )}
+          </div>
+        </div>
 
         {/* Create/Edit Task Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
