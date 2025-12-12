@@ -18,8 +18,10 @@ import {
   List,
   Columns,
   Trash2,
-  Loader2
+  Loader2,
+  Rows3
 } from "lucide-react";
+import { TaskCard, LayoutVariant } from "@/components/task/task-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -877,6 +879,9 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   // Filter state for chips
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
   const [dueFilters, setDueFilters] = useState<string[]>([]);
+  
+  // Layout variant state
+  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("three-column");
 
   // Reset selectedSection when accordion changes
   useEffect(() => {
@@ -1112,69 +1117,87 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
               Clear
             </Button>
           )}
+          
+          {/* Layout Toggle */}
+          <div className="flex items-center gap-1 ml-auto border rounded-md p-0.5 bg-muted/30">
+            <Button 
+              variant={layoutVariant === "one-column" ? "secondary" : "ghost"} 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={() => setLayoutVariant("one-column")}
+              title="List view"
+              data-testid="layout-one-column"
+            >
+              <Rows3 className="h-3.5 w-3.5" />
+            </Button>
+            <Button 
+              variant={layoutVariant === "two-column" ? "secondary" : "ghost"} 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={() => setLayoutVariant("two-column")}
+              title="Two column grid"
+              data-testid="layout-two-column"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </Button>
+            <Button 
+              variant={layoutVariant === "three-column" ? "secondary" : "ghost"} 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={() => setLayoutVariant("three-column")}
+              title="Three column grid"
+              data-testid="layout-three-column"
+            >
+              <Columns className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
           {/* Flat Task List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className={cn(
+            "grid gap-3",
+            layoutVariant === "one-column" && "grid-cols-1",
+            layoutVariant === "two-column" && "grid-cols-1 md:grid-cols-2",
+            layoutVariant === "three-column" && "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+          )}>
             {filteredTasks.map(task => {
               const assignee = getAssignee(task.assigneeId);
               const milestone = getMilestone(task.milestoneId);
               const epic = getEpic(task.epicId);
               const stage = stages.find((s: any) => s.id === task.stageId);
-              const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG["Medium"];
 
               return (
-                <Card 
+                <TaskCard
                   key={task.id}
-                  className="cursor-pointer hover:border-primary/30 transition-all hover:shadow-md"
-                  onClick={() => handleOpenEdit(task)}
-                  data-testid={`task-card-${task.id}`}
-                >
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-medium text-sm leading-tight line-clamp-2">{task.title}</h4>
-                      <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0", priority.color)}>
-                        {priority.label}
-                      </span>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-1.5">
-                      <Badge variant="outline" className={cn("text-[10px]", STATUS_COLORS[task.status] || "")}>
-                        {task.status}
-                      </Badge>
-                      {stage && (
-                        <Badge variant="outline" className="text-[10px]">{stage.name}</Badge>
-                      )}
-                      {epic && (
-                        <Badge variant="outline" className="text-[10px] text-purple-600">{epic.title}</Badge>
-                      )}
-                      {milestone && (
-                        <Badge variant="outline" className="text-[10px] text-amber-600">
-                          <Flag className="h-2.5 w-2.5 mr-1" />{milestone.name}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        {assignee ? (
-                          <>
-                            <Avatar className="h-5 w-5">
-                              <AvatarFallback className="text-[9px]">{assignee.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <span className="truncate max-w-[80px]">{assignee.name.split(' ')[0]}</span>
-                          </>
-                        ) : (
-                          <span className="italic">Unassigned</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        <span>{new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                  task={{
+                    id: task.id,
+                    title: task.title,
+                    status: task.status,
+                    priority: task.priority,
+                    assigneeId: task.assigneeId,
+                    deadline: task.deadline,
+                    effort: task.effort,
+                    epicId: task.epicId,
+                    stageId: task.stageId,
+                    milestoneId: task.milestoneId
+                  }}
+                  epicName={epic?.title}
+                  stageName={stage?.name}
+                  milestoneName={milestone?.name}
+                  assigneeName={assignee?.name}
+                  users={users.map((u: any) => ({ id: u.id, name: u.name }))}
+                  stages={stages.map((s: any) => ({ id: s.id, name: s.name }))}
+                  layoutVariant={layoutVariant}
+                  onUpdateTask={(id, updates) => updateTask({ id, updates })}
+                  onOpenTask={(id) => setLocation(`/projects/${projectId}/tasks/${id}`)}
+                  onOpenEpic={(epicId) => {
+                    const epicData = getEpic(epicId);
+                    if (epicData?.deliverableId) {
+                      setLocation(`/projects/${projectId}?tab=deliverable-${epicData.deliverableId}&epic=${epicId}`);
+                    }
+                  }}
+                  onOpenMilestone={(milestoneId) => setLocation(`/projects/${projectId}?tab=milestones&milestone=${milestoneId}`)}
+                />
               );
             })}
           </div>

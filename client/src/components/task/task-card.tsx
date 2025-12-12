@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -16,8 +16,27 @@ import {
   ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { EFFORT_VALUES } from "@shared/schema";
+
+function safeParseDate(dateStr: string | undefined): Date | null {
+  if (!dateStr) return null;
+  try {
+    const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+    return isValid(date) ? date : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatDate(date: Date | null, formatStr: string): string {
+  if (!date) return "No date";
+  try {
+    return format(date, formatStr);
+  } catch {
+    return "Invalid";
+  }
+}
 
 export type LayoutVariant = "one-column" | "two-column" | "three-column";
 
@@ -83,6 +102,9 @@ export function TaskCard({
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  
+  const deadlineDate = useMemo(() => safeParseDate(task.deadline), [task.deadline]);
+  const isOverdue = deadlineDate && deadlineDate < new Date() && task.status !== "Done";
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -244,19 +266,19 @@ export function TaskCard({
                     size="sm"
                     className={cn(
                       "h-7 text-xs gap-1 px-2",
-                      new Date(task.deadline) < new Date() && task.status !== "Done" && "text-red-500"
+                      isOverdue && "text-red-500"
                     )}
                     onClick={(e) => e.stopPropagation()}
-                    aria-label={`Due date: ${format(new Date(task.deadline), "MMM d, yyyy")}`}
+                    aria-label={`Due date: ${formatDate(deadlineDate, "MMM d, yyyy")}`}
                   >
                     <Clock className="h-3 w-3" />
-                    {format(new Date(task.deadline), "MMM d")}
+                    {formatDate(deadlineDate, "MMM d")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
                     mode="single"
-                    selected={new Date(task.deadline)}
+                    selected={deadlineDate || undefined}
                     onSelect={handleDateChange}
                     initialFocus
                   />
@@ -475,20 +497,20 @@ export function TaskCard({
                     <button
                       className={cn(
                         "flex items-center gap-1 text-xs",
-                        new Date(task.deadline) < new Date() && task.status !== "Done" 
+                        isOverdue 
                           ? "text-red-500 font-medium" 
                           : "text-muted-foreground"
                       )}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Clock className="h-3 w-3" />
-                      {format(new Date(task.deadline), "MMM d")}
+                      {formatDate(deadlineDate, "MMM d")}
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="end">
                     <Calendar
                       mode="single"
-                      selected={new Date(task.deadline)}
+                      selected={deadlineDate || undefined}
                       onSelect={handleDateChange}
                       initialFocus
                     />
