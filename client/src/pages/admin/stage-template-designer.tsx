@@ -141,22 +141,33 @@ export default function StageTemplateDesigner() {
   const handleSaveTask = async () => {
     if (!currentTask.title) return;
 
-    const newTaskData = {
-      ...currentTask,
-      id: currentTask.id || `tt${Date.now()}`
-    } as TaskTemplate;
-
     try {
-      const exists = localTaskTemplates.find(t => t.id === newTaskData.id);
-      if (exists) {
-        await updateTask({ id: newTaskData.id, updates: newTaskData });
-        setLocalTaskTemplates(prev => prev.map(t => t.id === newTaskData.id ? newTaskData : t));
+      // Check if we're editing an existing task
+      const existingTask = currentTask.id ? localTaskTemplates.find(t => t.id === currentTask.id) : null;
+      
+      if (existingTask) {
+        // Update existing task
+        await updateTask({ id: existingTask.id, updates: currentTask });
+        setLocalTaskTemplates(prev => prev.map(t => t.id === existingTask.id ? { ...t, ...currentTask } as TaskTemplate : t));
       } else {
-        await createTask(newTaskData);
-        setLocalTaskTemplates(prev => [...prev, newTaskData]);
+        // Create new task - let the API generate the ID
+        const taskToCreate = {
+          title: currentTask.title,
+          description: currentTask.description || "",
+          defaultPriority: currentTask.defaultPriority || "Medium",
+          defaultEstimateHours: currentTask.defaultEstimateHours || 1,
+          requiredRole: currentTask.requiredRole || "Development",
+          assignedRoleId: currentTask.assignedRoleId || null,
+        };
+        
+        // createTask returns the created item with the actual database ID
+        const createdTask = await createTask(taskToCreate) as TaskTemplate;
+        
+        // Add to local state with the actual ID from the database
+        setLocalTaskTemplates(prev => [...prev, createdTask]);
         setFormData(prev => ({
           ...prev,
-          defaultTasks: [...(prev.defaultTasks || []), newTaskData.id]
+          defaultTasks: [...(prev.defaultTasks || []), createdTask.id]
         }));
       }
 
