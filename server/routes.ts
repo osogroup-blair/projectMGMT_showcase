@@ -920,28 +920,91 @@ export async function registerRoutes(
         mapping: { created: 0, updated: 0, skipped: 0 }
       };
 
+      // Sanitizers to add default values for missing required fields
+      const sanitizeTask = (item: any) => ({
+        id: item.id,
+        title: item.title || "Untitled Task",
+        description: item.description || "",
+        defaultPriority: item.defaultPriority || "Medium",
+        defaultEstimateHours: item.defaultEstimateHours || 0,
+        requiredRole: item.requiredRole || null,
+        assignedRoleId: item.assignedRoleId || null,
+      });
+
+      const sanitizeRole = (item: any) => ({
+        id: item.id,
+        name: item.name || "Untitled Role",
+        description: item.description || "",
+        defaultRoleType: item.defaultRoleType || "Development",
+        defaultPermissions: item.defaultPermissions || [],
+      });
+
+      const sanitizeStage = (item: any) => ({
+        id: item.id,
+        name: item.name || "Untitled Stage",
+        description: item.description || "",
+        defaultTasks: item.defaultTasks || [],
+        defaultRoles: item.defaultRoles || [],
+        entryCriteria: item.entryCriteria || "",
+        exitCriteria: item.exitCriteria || "",
+        allowedTaskStatuses: item.allowedTaskStatuses || [],
+      });
+
+      const sanitizeFramework = (item: any) => ({
+        id: item.id,
+        name: item.name || "Untitled Framework",
+        description: item.description || "",
+        defaultStages: item.defaultStages || [],
+      });
+
+      const sanitizeProject = (item: any) => ({
+        id: item.id,
+        name: item.name || "Untitled Project Template",
+        description: item.description || "",
+        defaultFrameworkId: item.defaultFrameworkId || null,
+        defaultDeliverables: item.defaultDeliverables || [],
+        defaultRoles: item.defaultRoles || [],
+      });
+
+      const sanitizeDeliverable = (item: any) => ({
+        id: item.id,
+        title: item.title || "Untitled Deliverable",
+        description: item.description || "",
+        defaultEpics: item.defaultEpics || [],
+      });
+
+      const sanitizeEpic = (item: any) => ({
+        id: item.id,
+        title: item.title || "Untitled Epic",
+        description: item.description || "",
+        defaultTasks: item.defaultTasks || [],
+        defaultStageIds: item.defaultStageIds || [],
+      });
+
       // Helper to import a template type
       async function importTemplates(
         items: any[],
         getAll: () => Promise<any[]>,
         create: (data: any) => Promise<any>,
         update: (id: string, data: any) => Promise<any>,
-        key: keyof typeof results
+        key: keyof typeof results,
+        sanitize?: (item: any) => any
       ) {
         if (!items?.length) return;
         const existing = await getAll();
         const existingIds = new Set(existing.map((e: any) => e.id));
 
         for (const item of items) {
-          if (existingIds.has(item.id)) {
+          const sanitized = sanitize ? sanitize(item) : item;
+          if (existingIds.has(sanitized.id)) {
             if (mode === "overwrite") {
-              await update(item.id, item);
+              await update(sanitized.id, sanitized);
               results[key].updated++;
             } else {
               results[key].skipped++;
             }
           } else {
-            await create(item);
+            await create(sanitized);
             results[key].created++;
           }
         }
@@ -952,49 +1015,56 @@ export async function registerRoutes(
         () => storage.getFrameworkTemplates(),
         (d) => storage.createFrameworkTemplate(d),
         (id, d) => storage.updateFrameworkTemplate(id, d),
-        "framework"
+        "framework",
+        sanitizeFramework
       );
       await importTemplates(
         templates.stage,
         () => storage.getStageTemplates(),
         (d) => storage.createStageTemplate(d),
         (id, d) => storage.updateStageTemplate(id, d),
-        "stage"
+        "stage",
+        sanitizeStage
       );
       await importTemplates(
         templates.project,
         () => storage.getProjectTemplates(),
         (d) => storage.createProjectTemplate(d),
         (id, d) => storage.updateProjectTemplate(id, d),
-        "project"
+        "project",
+        sanitizeProject
       );
       await importTemplates(
         templates.deliverable,
         () => storage.getDeliverableTemplates(),
         (d) => storage.createDeliverableTemplate(d),
         (id, d) => storage.updateDeliverableTemplate(id, d),
-        "deliverable"
+        "deliverable",
+        sanitizeDeliverable
       );
       await importTemplates(
         templates.epic,
         () => storage.getEpicTemplates(),
         (d) => storage.createEpicTemplate(d),
         (id, d) => storage.updateEpicTemplate(id, d),
-        "epic"
+        "epic",
+        sanitizeEpic
       );
       await importTemplates(
         templates.task,
         () => storage.getTaskTemplates(),
         (d) => storage.createTaskTemplate(d),
         (id, d) => storage.updateTaskTemplate(id, d),
-        "task"
+        "task",
+        sanitizeTask
       );
       await importTemplates(
         templates.role,
         () => storage.getRoleTemplates(),
         (d) => storage.createRoleTemplate(d),
         (id, d) => storage.updateRoleTemplate(id, d),
-        "role"
+        "role",
+        sanitizeRole
       );
       await importTemplates(
         templates.mapping,
