@@ -81,8 +81,16 @@ export async function registerRoutes(
   });
 
   app.delete("/api/projects/:id", async (req, res) => {
-    await storage.deleteProject(req.params.id);
-    res.status(204).send();
+    try {
+      await storage.deleteProject(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      if (error.code === '23503') {
+        res.status(400).json({ error: "Cannot delete project with linked milestone tasks. Please unlink the tasks first." });
+      } else {
+        res.status(500).json({ error: error.message });
+      }
+    }
   });
 
   // Deliverables
