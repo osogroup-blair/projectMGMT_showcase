@@ -154,9 +154,16 @@ export function BreadcrumbNav() {
         </Link>
         
         {pathSegments.map((segment, index) => {
-          const path = `/${pathSegments.slice(0, index + 1).join("/")}`;
+          let path = `/${pathSegments.slice(0, index + 1).join("/")}`;
           const isLast = index === pathSegments.length - 1;
           const label = getBreadcrumbLabel(segment, index, pathSegments);
+          const prevSegment = pathSegments[index - 1];
+
+          // Special case: "stages" segment should link to the stages tab in project overview
+          if (segment === "stages" && prevSegment && !isLast) {
+            const projectPath = pathSegments.slice(0, index).join("/");
+            path = `/${projectPath}?tab=stages`;
+          }
 
           // Skip rendering if this would be redundant
           const showTabAfter = isLast && isProjectOverviewPage && activeTab && activeTab !== "overview";

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   ArrowLeft, 
@@ -13,8 +13,13 @@ import {
   AlertCircle,
   Clock,
   Info,
-  ChevronDown
+  ChevronDown,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -85,27 +90,138 @@ export default function StageWorkspace() {
   const savedViews = SAVED_VIEWS.filter(v => v.stageIds.includes(stageId) || v.stageIds.length === 0);
 
   const getAssignee = (id?: string) => TEAM.find(u => u.id === id);
+  const { toast } = useToast();
+
+  // Inline editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [editName, setEditName] = useState(stage.name);
+  const [editDescription, setEditDescription] = useState(stage.description || "");
+  const [editStatus, setEditStatus] = useState<"pending" | "active" | "completed">(stage.status as "pending" | "active" | "completed");
+
+  // Sync edit values when stage changes
+  useEffect(() => {
+    setEditName(stage.name);
+    setEditDescription(stage.description || "");
+    setEditStatus(stage.status);
+  }, [stage]);
+
+  const handleSaveName = () => {
+    if (!editName.trim()) {
+      toast({ title: "Error", description: "Stage name cannot be empty.", variant: "destructive" });
+      return;
+    }
+    setIsEditingName(false);
+    toast({ title: "Updated", description: "Stage name has been updated." });
+  };
+
+  const handleSaveDescription = () => {
+    setIsEditingDescription(false);
+    toast({ title: "Updated", description: "Stage description has been updated." });
+  };
+
+  const handleSaveStatus = (newStatus: "pending" | "active" | "completed") => {
+    setEditStatus(newStatus);
+    setIsEditingStatus(false);
+    toast({ title: "Updated", description: "Stage status has been updated." });
+  };
+
+  const STATUS_OPTIONS = [
+    { value: "pending", label: "Pending", color: "text-muted-foreground" },
+    { value: "active", label: "Active", color: "bg-blue-50 text-blue-700 border-blue-200" },
+    { value: "completed", label: "Completed", color: "bg-green-50 text-green-700 border-green-200" },
+  ];
 
   return (
     <Shell>
       <div className="mx-auto max-w-7xl h-[calc(100vh-8rem)] flex flex-col">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold tracking-tight text-primary flex items-center gap-3">
-                {stage.name}
-                <Badge variant="outline" className={cn(
-                  "font-normal text-sm",
-                  stage.status === 'active' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                  stage.status === 'completed' ? "bg-green-50 text-green-700 border-green-200" :
-                  "text-muted-foreground"
-                )}>
-                  {stage.status}
-                </Badge>
-              </h1>
-              
-              <div className="flex items-center border rounded-md bg-background shadow-xs">
+          <div className="space-y-3">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-4">
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="text-2xl font-bold h-10 w-80"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveName();
+                        if (e.key === "Escape") { setIsEditingName(false); setEditName(stage.name); }
+                      }}
+                      data-testid="input-edit-stage-name"
+                    />
+                    <Button size="icon" variant="ghost" onClick={handleSaveName} data-testid="button-save-stage-name">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setIsEditingName(false); setEditName(stage.name); }} data-testid="button-cancel-stage-name">
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <h1 className="text-2xl font-bold tracking-tight text-primary" data-testid="text-stage-name">{editName}</h1>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" 
+                      onClick={() => setIsEditingName(true)}
+                      data-testid="button-edit-stage-name"
+                    >
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
+
+                {isEditingStatus ? (
+                  <div className="flex items-center gap-1">
+                    {STATUS_OPTIONS.map(opt => (
+                      <Button
+                        key={opt.value}
+                        variant="outline"
+                        size="sm"
+                        className={cn("text-xs", editStatus === opt.value && opt.color)}
+                        onClick={() => handleSaveStatus(opt.value as "pending" | "active" | "completed")}
+                        data-testid={`button-status-${opt.value}`}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setIsEditingStatus(false)}>
+                      <X className="h-3 w-3 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 group">
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "font-normal text-sm cursor-pointer",
+                        editStatus === 'active' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                        editStatus === 'completed' ? "bg-green-50 text-green-700 border-green-200" :
+                        "text-muted-foreground"
+                      )}
+                      onClick={() => setIsEditingStatus(true)}
+                      data-testid="badge-stage-status"
+                    >
+                      {editStatus}
+                    </Badge>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6" 
+                      onClick={() => setIsEditingStatus(true)}
+                      data-testid="button-edit-stage-status"
+                    >
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
+                
+                <div className="flex items-center border rounded-md bg-background shadow-xs ml-4">
                 {prevStage && (
                   <Link href={`/projects/${projectId}/stages/${prevStage.id}`}>
                     <Button variant="ghost" size="sm" className="h-8 px-2 rounded-r-none border-r">
@@ -124,7 +240,46 @@ export default function StageWorkspace() {
                   </Link>
                 )}
               </div>
+              </div>
             </div>
+
+            {/* Description */}
+            {isEditingDescription ? (
+              <div className="flex items-start gap-2 max-w-xl">
+                <Textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Add a stage description..."
+                  className="min-h-[60px] text-sm"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { setIsEditingDescription(false); setEditDescription(stage.description || ""); }
+                  }}
+                  data-testid="input-edit-stage-description"
+                />
+                <Button size="icon" variant="ghost" onClick={handleSaveDescription} data-testid="button-save-stage-description">
+                  <Check className="h-4 w-4 text-green-600" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditDescription(stage.description || ""); }} data-testid="button-cancel-stage-description">
+                  <X className="h-4 w-4 text-red-600" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 group">
+                <p className="text-sm text-muted-foreground max-w-xl" data-testid="text-stage-description">
+                  {editDescription || <span className="italic">Click to add description...</span>}
+                </p>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6" 
+                  onClick={() => setIsEditingDescription(true)}
+                  data-testid="button-edit-stage-description"
+                >
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                </Button>
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <Select value={currentViewId} onValueChange={setCurrentViewId}>
