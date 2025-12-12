@@ -1,22 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
-  ArrowLeft, 
+  ChevronRight, 
   MoreHorizontal, 
   Calendar,
   User,
   Flag,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   Paperclip,
   MessageSquare,
   History as HistoryIcon,
   Send,
   Download,
-  Trash2,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2,
+  Layers,
+  Package,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +26,7 @@ import {
   Card, 
   CardContent, 
   CardHeader, 
-  CardTitle, 
-  CardDescription
+  CardTitle
 } from "@/components/ui/card";
 import {
   Select,
@@ -37,33 +37,22 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { useRoute, Link, useLocation } from "wouter";
+import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { 
-  PROJECTS, 
-  TASKS, 
-  TEAM, 
-  MILESTONES, 
-  COMMENTS, 
-  ATTACHMENTS, 
-  HISTORY,
-  Task, 
-  Comment, 
-  Attachment 
-} from "@/lib/mock-data";
-
-// Reuse Mock Stages
-const MOCK_STAGES = [
-  { id: "s1", name: "Discovery", color: "border-purple-500/20 bg-purple-500/5" },
-  { id: "s2", name: "Design", color: "border-blue-500/20 bg-blue-500/5" },
-  { id: "s3", name: "Development", color: "border-indigo-500/20 bg-indigo-500/5" },
-  { id: "s4", name: "QA & Testing", color: "border-amber-500/20 bg-amber-500/5" },
-  { id: "s5", name: "Launch", color: "border-green-500/20 bg-green-500/5" }
-];
+  useProject, 
+  useTasks, 
+  useUsers, 
+  useEpics, 
+  useDeliverables,
+  useMilestones,
+  useProjectStages
+} from "@/hooks/use-nexus-data";
+import { EFFORT_VALUES } from "@shared/schema";
 
 const PRIORITY_CONFIG = {
   "High": { color: "text-red-600 bg-red-100", label: "High" },
@@ -71,23 +60,50 @@ const PRIORITY_CONFIG = {
   "Low": { color: "text-slate-600 bg-slate-100", label: "Low" }
 };
 
+const STATUS_OPTIONS = ["Todo", "In Progress", "Review", "Done"];
+
 export default function TaskDetail() {
   const [match, params] = useRoute("/projects/:projectId/tasks/:taskId");
-  const [, setLocation] = useLocation();
   const projectId = params?.projectId || "1";
   const taskId = params?.taskId || "1";
   const { toast } = useToast();
 
-  const project = PROJECTS.find(p => p.id === projectId) || PROJECTS[0];
-  const initialTask = TASKS.find(t => t.id === taskId) || TASKS[0];
+  // Fetch data from database
+  const { data: project, isLoading: isProjectLoading } = useProject(projectId);
+  const { data: allTasks, isLoading: isTasksLoading, update: updateTask } = useTasks();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
+  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
 
-  const [task, setTask] = useState<Task>(initialTask);
-  const [comments, setComments] = useState<Comment[]>(COMMENTS);
+  // Local state for comments
   const [newComment, setNewComment] = useState("");
-  const [attachments, setAttachments] = useState<Attachment[]>(ATTACHMENTS);
+  const [comments, setComments] = useState([
+    { id: "c1", authorName: "Joy Mason", body: "Initial task setup complete.", createdAt: new Date().toISOString() }
+  ]);
 
-  const handleUpdateTask = (field: keyof Task, value: any) => {
-    setTask(prev => ({ ...prev, [field]: value }));
+  // Derive task and related data
+  const task = useMemo(() => allTasks?.find((t: any) => t.id === taskId), [allTasks, taskId]);
+  const epic = useMemo(() => allEpics?.find((e: any) => e.id === task?.epicId), [allEpics, task]);
+  const deliverable = useMemo(() => allDeliverables?.find((d: any) => d.id === epic?.deliverableId), [allDeliverables, epic]);
+  
+  // Filter milestones and stages for this project
+  const milestones = useMemo(() => 
+    (allMilestones || []).filter((m: any) => m.projectId === projectId),
+    [allMilestones, projectId]
+  );
+  
+  const stages = useMemo(() => projectStages || [], [projectStages]);
+
+  const isLoading = isProjectLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isMilestonesLoading || isStagesLoading;
+
+  const handleUpdateTask = (field: string, value: any) => {
+    if (!task) return;
+    updateTask({ 
+      id: task.id, 
+      updates: { [field]: value === "" ? null : value } 
+    });
     toast({
       title: "Task Updated",
       description: "Changes saved successfully.",
@@ -97,11 +113,9 @@ export default function TaskDetail() {
   const handleAddComment = () => {
     if (!newComment.trim()) return;
     
-    const comment: Comment = {
+    const comment = {
       id: `c_${Date.now()}`,
-      taskId: task.id,
-      authorId: "1", // Mock current user
-      authorName: "Joy Mason",
+      authorName: "Current User",
       body: newComment,
       createdAt: new Date().toISOString()
     };
@@ -114,22 +128,78 @@ export default function TaskDetail() {
     });
   };
 
-  const getAssignee = (id?: string) => TEAM.find(t => t.id === id);
-  const getMilestone = (id?: string) => MILESTONES.find(m => m.id === id);
-  const getStage = (id?: string) => MOCK_STAGES.find(s => s.id === id);
+  const getAssignee = (id?: string | null) => users?.find((u: any) => u.id === id);
+  const getMilestone = (id?: string | null) => milestones.find((m: any) => m.id === id);
+  const getStage = (id?: string | null) => stages.find((s: any) => s.id === id);
+
+  if (isLoading) {
+    return (
+      <Shell>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </Shell>
+    );
+  }
+
+  if (!task) {
+    return (
+      <Shell>
+        <div className="flex flex-col items-center justify-center h-64 gap-4">
+          <p className="text-muted-foreground">Task not found</p>
+          <Link href={`/projects/${projectId}/tasks`}>
+            <Button variant="outline">Back to Tasks</Button>
+          </Link>
+        </div>
+      </Shell>
+    );
+  }
 
   return (
     <Shell>
       <div className="mx-auto max-w-5xl space-y-6">
-        {/* Header Navigation */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link href={`/projects/${projectId}/tasks`} className="hover:text-primary transition-colors flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Board
+        {/* Breadcrumb Navigation */}
+        <nav className="flex items-center gap-2 text-sm" data-testid="breadcrumb-nav">
+          <Link 
+            href={`/projects/${projectId}/deliverables`} 
+            className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+            data-testid="breadcrumb-deliverables"
+          >
+            <Package className="h-4 w-4" />
+            Deliverables
           </Link>
-          <span className="text-border">|</span>
-          <span className="font-mono text-xs text-muted-foreground">{task.id}</span>
-        </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          
+          {deliverable ? (
+            <>
+              <Link 
+                href={`/projects/${projectId}/deliverables/${deliverable.id}`}
+                className="text-muted-foreground hover:text-primary transition-colors"
+                data-testid="breadcrumb-deliverable"
+              >
+                {deliverable.title}
+              </Link>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </>
+          ) : null}
+          
+          {epic ? (
+            <>
+              <Link 
+                href={`/projects/${projectId}/epics/${epic.id}`}
+                className="text-muted-foreground hover:text-primary transition-colors"
+                data-testid="breadcrumb-epic"
+              >
+                {epic.title}
+              </Link>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </>
+          ) : null}
+          
+          <span className="font-medium text-foreground" data-testid="breadcrumb-task">
+            {task.title}
+          </span>
+        </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -141,20 +211,34 @@ export default function TaskDetail() {
                   className="text-2xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
                   value={task.title}
                   onChange={(e) => handleUpdateTask("title", e.target.value)}
+                  data-testid="input-task-title"
                 />
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" data-testid="button-task-menu">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </div>
               
               <div className="flex flex-wrap gap-3">
-                <Badge variant="outline" className={cn("font-medium", getStage(task.stageId)?.color)}>
-                  {getStage(task.stageId)?.name}
+                {getStage(task.stageId) && (
+                  <Badge variant="outline" className="font-medium" data-testid="badge-stage">
+                    <Layers className="h-3 w-3 mr-1" />
+                    {getStage(task.stageId)?.name}
+                  </Badge>
+                )}
+                <Badge 
+                  variant="outline" 
+                  className={cn("font-medium border-0", PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG]?.color)}
+                  data-testid="badge-priority"
+                >
+                  {task.priority} Priority
                 </Badge>
-                <Badge variant="outline" className={cn("font-medium border-0", PRIORITY_CONFIG[task.priority].color)}>
-                  {PRIORITY_CONFIG[task.priority].label} Priority
-                </Badge>
-                {task.tags?.map(tag => (
+                {task.effort && (
+                  <Badge variant="secondary" className="font-normal" data-testid="badge-effort">
+                    <Target className="h-3 w-3 mr-1" />
+                    Effort: {task.effort}
+                  </Badge>
+                )}
+                {task.tags?.map((tag: string) => (
                   <Badge key={tag} variant="secondary" className="font-normal text-muted-foreground">
                     {tag}
                   </Badge>
@@ -170,15 +254,17 @@ export default function TaskDetail() {
                 value={task.description || ""}
                 onChange={(e) => handleUpdateTask("description", e.target.value)}
                 placeholder="Add a more detailed description..."
+                data-testid="textarea-task-description"
               />
             </div>
 
-            {/* Tabs: Activity, Comments, Attachments */}
+            {/* Tabs: Comments, Attachments, History */}
             <Tabs defaultValue="comments" className="w-full">
               <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
                 <TabsTrigger 
                   value="comments" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 gap-2"
+                  data-testid="tab-comments"
                 >
                   <MessageSquare className="h-4 w-4" />
                   Comments ({comments.length})
@@ -186,13 +272,15 @@ export default function TaskDetail() {
                 <TabsTrigger 
                   value="attachments" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 gap-2"
+                  data-testid="tab-attachments"
                 >
                   <Paperclip className="h-4 w-4" />
-                  Attachments ({attachments.length})
+                  Attachments
                 </TabsTrigger>
                 <TabsTrigger 
                   value="history" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 gap-2"
+                  data-testid="tab-history"
                 >
                   <HistoryIcon className="h-4 w-4" />
                   History
@@ -203,16 +291,22 @@ export default function TaskDetail() {
                 {/* Comment Input */}
                 <div className="flex gap-4">
                   <Avatar>
-                    <AvatarFallback>JM</AvatarFallback>
+                    <AvatarFallback>CU</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-2">
                     <Textarea 
                       placeholder="Write a comment..." 
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
+                      data-testid="textarea-new-comment"
                     />
                     <div className="flex justify-end">
-                      <Button size="sm" onClick={handleAddComment} disabled={!newComment.trim()}>
+                      <Button 
+                        size="sm" 
+                        onClick={handleAddComment} 
+                        disabled={!newComment.trim()}
+                        data-testid="button-post-comment"
+                      >
                         <Send className="h-3 w-3 mr-2" />
                         Post Comment
                       </Button>
@@ -223,7 +317,7 @@ export default function TaskDetail() {
                 {/* Comments List */}
                 <div className="space-y-6">
                   {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-4 group">
+                    <div key={comment.id} className="flex gap-4 group" data-testid={`comment-${comment.id}`}>
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="text-xs">{comment.authorName.substring(0, 2).toUpperCase()}</AvatarFallback>
                       </Avatar>
@@ -246,48 +340,16 @@ export default function TaskDetail() {
               </TabsContent>
 
               <TabsContent value="attachments" className="pt-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {attachments.map((file) => (
-                    <Card key={file.id} className="overflow-hidden group">
-                      <div className="p-3 flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                          {file.fileType === "PDF" ? <FileText className="h-5 w-5 text-red-500" /> : <ImageIcon className="h-5 w-5 text-blue-500" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{file.fileName}</p>
-                          <p className="text-xs text-muted-foreground">{file.size} • {new Date(file.uploadedAt).toLocaleDateString()}</p>
-                        </div>
-                        <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                  <Card className="border-dashed flex items-center justify-center p-6 hover:bg-muted/50 transition-colors cursor-pointer">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Paperclip className="h-6 w-6" />
-                      <span className="text-sm font-medium">Upload File</span>
-                    </div>
-                  </Card>
-                </div>
+                <Card className="border-dashed flex items-center justify-center p-6 hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Paperclip className="h-6 w-6" />
+                    <span className="text-sm font-medium">Upload File</span>
+                  </div>
+                </Card>
               </TabsContent>
 
               <TabsContent value="history" className="pt-6">
-                <div className="space-y-6 relative pl-4 border-l">
-                  {HISTORY.map((event) => (
-                    <div key={event.id} className="relative">
-                      <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-muted-foreground/30 ring-4 ring-background" />
-                      <div className="space-y-1">
-                        <p className="text-sm">
-                          <span className="font-medium">{event.changedBy}</span> changed 
-                          <span className="font-medium"> {event.field} </span> 
-                          from <span className="line-through text-muted-foreground">{event.oldValue}</span> to <span className="text-primary font-medium">{event.newValue}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">{new Date(event.changedAt).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-sm text-muted-foreground">No history available.</p>
               </TabsContent>
             </Tabs>
           </div>
@@ -303,16 +365,15 @@ export default function TaskDetail() {
                   <Label className="text-xs text-muted-foreground">Status</Label>
                   <Select 
                     value={task.status} 
-                    onValueChange={(v: any) => handleUpdateTask("status", v)}
+                    onValueChange={(v) => handleUpdateTask("status", v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="select-status">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Todo">Todo</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Review">Review</SelectItem>
-                      <SelectItem value="Done">Done</SelectItem>
+                      {STATUS_OPTIONS.map(status => (
+                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -320,15 +381,32 @@ export default function TaskDetail() {
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Stage</Label>
                   <Select 
-                    value={task.stageId} 
-                    onValueChange={(v: any) => handleUpdateTask("stageId", v)}
+                    value={task.stageId || ""} 
+                    onValueChange={(v) => handleUpdateTask("stageId", v)}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger data-testid="select-stage">
+                      <SelectValue placeholder="Select stage" />
                     </SelectTrigger>
                     <SelectContent>
-                      {MOCK_STAGES.map(s => (
+                      {stages.map((s: any) => (
                         <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Epic</Label>
+                  <Select 
+                    value={task.epicId || ""} 
+                    onValueChange={(v) => handleUpdateTask("epicId", v)}
+                  >
+                    <SelectTrigger data-testid="select-epic">
+                      <SelectValue placeholder="Select epic" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(allEpics || []).map((e: any) => (
+                        <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -337,10 +415,10 @@ export default function TaskDetail() {
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Assignee</Label>
                   <Select 
-                    value={task.assigneeId} 
-                    onValueChange={(v: any) => handleUpdateTask("assigneeId", v)}
+                    value={task.assigneeId || "unassigned"} 
+                    onValueChange={(v) => handleUpdateTask("assigneeId", v === "unassigned" ? null : v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="select-assignee">
                       <div className="flex items-center gap-2">
                         {task.assigneeId && getAssignee(task.assigneeId) ? (
                           <Avatar className="h-5 w-5">
@@ -351,7 +429,8 @@ export default function TaskDetail() {
                       </div>
                     </SelectTrigger>
                     <SelectContent>
-                      {TEAM.map(member => (
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {(users || []).map((member: any) => (
                         <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -362,9 +441,9 @@ export default function TaskDetail() {
                   <Label className="text-xs text-muted-foreground">Priority</Label>
                   <Select 
                     value={task.priority} 
-                    onValueChange={(v: any) => handleUpdateTask("priority", v)}
+                    onValueChange={(v) => handleUpdateTask("priority", v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="select-priority">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -376,11 +455,29 @@ export default function TaskDetail() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Effort (Fibonacci)</Label>
+                  <Select 
+                    value={String(task.effort || "")} 
+                    onValueChange={(v) => handleUpdateTask("effort", parseInt(v))}
+                  >
+                    <SelectTrigger data-testid="select-effort">
+                      <SelectValue placeholder="Select effort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EFFORT_VALUES.map(val => (
+                        <SelectItem key={val} value={String(val)}>{val}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Due Date</Label>
                   <Input 
                     type="date" 
-                    value={task.deadline}
+                    value={task.deadline || ""}
                     onChange={(e) => handleUpdateTask("deadline", e.target.value)}
+                    data-testid="input-deadline"
                   />
                 </div>
 
@@ -390,9 +487,9 @@ export default function TaskDetail() {
                   <Label className="text-xs text-muted-foreground">Milestone</Label>
                   <Select 
                     value={task.milestoneId || "none"} 
-                    onValueChange={(v: any) => handleUpdateTask("milestoneId", v === "none" ? undefined : v)}
+                    onValueChange={(v) => handleUpdateTask("milestoneId", v === "none" ? null : v)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="select-milestone">
                       <div className="flex items-center gap-2">
                         <Flag className="h-4 w-4 text-muted-foreground" />
                         <span className="truncate">{getMilestone(task.milestoneId)?.name || "No Milestone"}</span>
@@ -400,7 +497,7 @@ export default function TaskDetail() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {MILESTONES.map(m => (
+                      {milestones.map((m: any) => (
                         <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -415,7 +512,8 @@ export default function TaskDetail() {
                       type="number" 
                       className="pl-9"
                       value={task.estimateHours || 0}
-                      onChange={(e) => handleUpdateTask("estimateHours", parseInt(e.target.value))}
+                      onChange={(e) => handleUpdateTask("estimateHours", parseInt(e.target.value) || 0)}
+                      data-testid="input-estimate-hours"
                     />
                   </div>
                 </div>
@@ -425,8 +523,8 @@ export default function TaskDetail() {
             <Card className="bg-muted/10 border-dashed">
               <CardContent className="p-4">
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <p>Created by <span className="font-medium text-foreground">Joy Mason</span> on Nov 15, 2023</p>
-                  <p>Last updated by <span className="font-medium text-foreground">Nigel Wong</span> 2 hours ago</p>
+                  <p>Project: <span className="font-medium text-foreground">{project?.name || task.project}</span></p>
+                  <p>Task ID: <span className="font-mono text-foreground">{task.id}</span></p>
                 </div>
               </CardContent>
             </Card>
