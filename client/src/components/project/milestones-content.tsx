@@ -139,7 +139,14 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                       </div>
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold">{milestone.name}</h3>
+                          <Link 
+                            href={`/projects/${projectId}/milestones/${milestone.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <h3 className="text-lg font-semibold hover:text-primary hover:underline decoration-primary/30 underline-offset-2 transition-colors">
+                              {milestone.name}
+                            </h3>
+                          </Link>
                           <Badge variant="outline" className={cn(
                             "font-normal",
                             milestone.status === "achieved" || milestone.status === "Completed" 

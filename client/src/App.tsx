@@ -17,6 +17,7 @@ import ProjectOverview from "@/pages/project-overview";
 import StageDesigner from "@/pages/stage-designer";
 import StageViewSettings from "@/pages/stage-view-settings";
 import MilestonesManagement from "@/pages/milestones-management";
+import MilestoneOverview from "@/pages/milestone-overview";
 import TaskBoard from "@/pages/task-board";
 import TaskDetail from "@/pages/task-detail";
 import ProjectTeam from "@/pages/project-team";
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/projects/:projectId/stages/:stageId" component={StageWorkspace} />
       <Route path="/projects/:projectId/stages/:stageId/view-settings" component={StageViewSettings} />
       <Route path="/projects/:projectId/milestones" component={MilestonesManagement} />
+      <Route path="/projects/:projectId/milestones/:milestoneId" component={MilestoneOverview} />
       <Route path="/projects/:projectId/tasks" component={TaskBoard} />
       <Route path="/projects/:projectId/tasks/:taskId" component={TaskDetail} />
       <Route path="/projects/:projectId/team" component={ProjectTeam} />
