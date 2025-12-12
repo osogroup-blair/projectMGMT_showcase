@@ -320,12 +320,6 @@ export default function ProjectOverview() {
       <div className="mx-auto max-w-7xl space-y-8">
         {/* Header Section */}
         <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link href="/projects" className="hover:text-primary transition-colors">Projects</Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="font-medium text-foreground">{project.name}</span>
-          </div>
-
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-3">
