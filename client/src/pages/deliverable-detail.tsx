@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   ArrowLeft, 
@@ -9,7 +9,8 @@ import {
   User as UserIcon,
   Loader2,
   ChevronRight,
-  Clock
+  Clock,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -21,7 +22,28 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useDeliverables, useEpics, useUsers, useTasks } from "@/hooks/use-nexus-data";
+import { useDeliverables, useEpics, useUsers, useTasks, useProjectStages } from "@/hooks/use-nexus-data";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DeliverableDetail() {
   const [match, params] = useRoute("/projects/:projectId/deliverables/:deliverableId");
@@ -29,9 +51,73 @@ export default function DeliverableDetail() {
   const deliverableId = params?.deliverableId || "d1";
 
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
-  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: projectStages } = useProjectStages();
+  const { toast } = useToast();
+
+  // Create Epic dialog state
+  const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
+  const [newEpicData, setNewEpicData] = useState({
+    title: "",
+    description: "",
+    status: "Not Started",
+    ownerId: "",
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    stageIds: [] as string[],
+  });
+
+  const handleCreateEpic = () => {
+    if (!newEpicData.title) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide an epic title.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const epicId = `e${Date.now()}`;
+    createEpic({
+      id: epicId,
+      deliverableId: deliverableId,
+      title: newEpicData.title,
+      description: newEpicData.description || "",
+      status: newEpicData.status,
+      ownerId: newEpicData.ownerId || "1",
+      startDate: newEpicData.startDate,
+      endDate: newEpicData.endDate,
+      progress: 0,
+      stageIds: newEpicData.stageIds,
+    });
+
+    toast({
+      title: "Epic Created",
+      description: `"${newEpicData.title}" has been added.`
+    });
+
+    setNewEpicData({
+      title: "",
+      description: "",
+      status: "Not Started",
+      ownerId: "",
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      stageIds: [],
+    });
+    setIsCreateEpicOpen(false);
+  };
+
+  const toggleStageSelection = (stageId: string) => {
+    setNewEpicData(prev => ({
+      ...prev,
+      stageIds: prev.stageIds.includes(stageId)
+        ? prev.stageIds.filter(id => id !== stageId)
+        : [...prev.stageIds, stageId]
+    }));
+  };
 
   const deliverable = useMemo(() => 
     allDeliverables?.find((d: any) => d.id === deliverableId), 
@@ -251,6 +337,10 @@ export default function DeliverableDetail() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Epics ({epics.length})</h2>
+            <Button onClick={() => setIsCreateEpicOpen(true)} className="gap-1.5" data-testid="button-add-epic">
+              <Plus className="h-4 w-4" />
+              Add Epic
+            </Button>
           </div>
 
           {epics.length > 0 ? (
@@ -331,11 +421,127 @@ export default function DeliverableDetail() {
                 <p className="text-sm text-muted-foreground max-w-sm mt-2">
                   This deliverable doesn't have any epics. Create an epic to start tracking work.
                 </p>
+                <Button onClick={() => setIsCreateEpicOpen(true)} className="mt-4 gap-1.5" data-testid="button-add-epic-empty">
+                  <Plus className="h-4 w-4" />
+                  Add Epic
+                </Button>
               </CardContent>
             </Card>
           )}
         </div>
       </div>
+
+      <Dialog open={isCreateEpicOpen} onOpenChange={setIsCreateEpicOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create New Epic</DialogTitle>
+            <DialogDescription>
+              Add a new epic to "{deliverable?.title}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="epic-title">Title *</Label>
+              <Input
+                id="epic-title"
+                placeholder="Epic title..."
+                value={newEpicData.title}
+                onChange={(e) => setNewEpicData(prev => ({ ...prev, title: e.target.value }))}
+                data-testid="input-epic-title"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="epic-description">Description</Label>
+              <Textarea
+                id="epic-description"
+                placeholder="Describe the epic..."
+                value={newEpicData.description}
+                onChange={(e) => setNewEpicData(prev => ({ ...prev, description: e.target.value }))}
+                data-testid="input-epic-description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="epic-owner">Owner</Label>
+                <Select
+                  value={newEpicData.ownerId}
+                  onValueChange={(value) => setNewEpicData(prev => ({ ...prev, ownerId: value }))}
+                >
+                  <SelectTrigger data-testid="select-epic-owner">
+                    <SelectValue placeholder="Select owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users?.map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="epic-status">Status</Label>
+                <Select
+                  value={newEpicData.status}
+                  onValueChange={(value) => setNewEpicData(prev => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger data-testid="select-epic-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Not Started">Not Started</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="epic-start">Start Date</Label>
+                <Input
+                  id="epic-start"
+                  type="date"
+                  value={newEpicData.startDate}
+                  onChange={(e) => setNewEpicData(prev => ({ ...prev, startDate: e.target.value }))}
+                  data-testid="input-epic-start-date"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="epic-end">End Date</Label>
+                <Input
+                  id="epic-end"
+                  type="date"
+                  value={newEpicData.endDate}
+                  onChange={(e) => setNewEpicData(prev => ({ ...prev, endDate: e.target.value }))}
+                  data-testid="input-epic-end-date"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Stages</Label>
+              <ScrollArea className="h-32 rounded-md border p-3">
+                <div className="space-y-2">
+                  {projectStages?.map((stage: any) => (
+                    <div key={stage.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`stage-${stage.id}`}
+                        checked={newEpicData.stageIds.includes(stage.id)}
+                        onCheckedChange={() => toggleStageSelection(stage.id)}
+                      />
+                      <label htmlFor={`stage-${stage.id}`} className="text-sm cursor-pointer">
+                        {stage.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateEpic} data-testid="button-create-epic-submit">Create Epic</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Shell>
   );
 }
