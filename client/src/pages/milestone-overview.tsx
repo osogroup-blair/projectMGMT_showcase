@@ -748,7 +748,7 @@ function TasksTab({
             data-testid="button-link-task"
           >
             <Plus className="h-4 w-4" />
-            Link Task
+            Add Tasks
           </Button>
         </div>
       </CardHeader>
@@ -830,7 +830,7 @@ function TasksTab({
               data-testid="button-link-task-empty"
             >
               <Plus className="h-4 w-4" />
-              Link Task
+              Add Tasks
             </Button>
           </div>
         )}
