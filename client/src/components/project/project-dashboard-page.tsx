@@ -41,7 +41,29 @@ import {
   DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, differenceInDays, parseISO, isPast } from "date-fns";
+import { format, differenceInDays, parseISO, isPast, isValid } from "date-fns";
+
+// Safe date parsing that handles non-ISO formats
+const safeParseDateOrFallback = (dateStr: string): Date => {
+  if (!dateStr) return new Date();
+  
+  // Handle relative date strings
+  const lower = dateStr.toLowerCase();
+  if (lower === "tomorrow") return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  if (lower === "yesterday") return new Date(Date.now() - 24 * 60 * 60 * 1000);
+  if (lower === "last week") return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  
+  // Try ISO parsing first
+  const isoDate = parseISO(dateStr);
+  if (isValid(isoDate)) return isoDate;
+  
+  // Try native Date parsing for formats like "11/28"
+  const parsed = new Date(dateStr);
+  if (isValid(parsed)) return parsed;
+  
+  // Default to today
+  return new Date();
+};
 
 // --- Utility Components ---
 
@@ -183,7 +205,7 @@ const UpcomingWorkSection = ({ data }: { data: UpcomingWork }) => {
       meeting: Users
     }[item.type] || FileText;
 
-    const isOverdue = isPast(parseISO(item.dueDate)) && item.status !== 'complete';
+    const isOverdue = isPast(safeParseDateOrFallback(item.dueDate)) && item.status !== 'complete';
 
     return (
       <div key={item.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:shadow-sm transition-all group">
@@ -212,7 +234,7 @@ const UpcomingWorkSection = ({ data }: { data: UpcomingWork }) => {
           <div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-2 items-center">
             <span className={cn("flex items-center gap-1", isOverdue && "text-red-600 font-medium")}>
               <Calendar className="h-3 w-3" />
-              {format(parseISO(item.dueDate), "MMM d")}
+              {format(safeParseDateOrFallback(item.dueDate), "MMM d")}
             </span>
             <span className="w-1 h-1 rounded-full bg-border" />
             <span>{item.owner}</span>

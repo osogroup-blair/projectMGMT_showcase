@@ -56,6 +56,7 @@ interface TaskStats {
 
 import { DeliverablesContent } from "@/pages/deliverables";
 import ProjectDashboardPage from "@/components/project/project-dashboard-page";
+import { TaskBoardContent } from "@/pages/task-board";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -313,6 +314,13 @@ export default function ProjectOverview() {
             </TabsTrigger>
 
             <TabsTrigger 
+              value="tasks" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+            >
+              Tasks
+            </TabsTrigger>
+
+            <TabsTrigger 
               value="deliverables" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
             >
@@ -364,6 +372,11 @@ export default function ProjectOverview() {
             {/* Project Overview Tab Content */}
             <TabsContent value="overview" className="space-y-8">
                {dashboardData && <ProjectDashboardPage dashboard={dashboardData} />}
+            </TabsContent>
+
+            {/* Tasks Tab Content */}
+            <TabsContent value="tasks" className="mt-6">
+              <TaskBoardContent projectId={projectId} />
             </TabsContent>
             
             {/* Timeline Tab Content */}
