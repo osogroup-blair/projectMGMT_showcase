@@ -930,6 +930,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                     {stageTasks.map(task => {
                       const assignee = getAssignee(task.assigneeId);
                       const milestone = getMilestone(task.milestoneId);
+                      const epic = getEpic(task.epicId);
                       const priority = PRIORITY_CONFIG[task.priority];
 
                       return (
@@ -942,6 +943,16 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                             <div className="flex items-start gap-3">
                               <div className="flex-1 space-y-2">
                                 <p className="font-medium leading-tight">{task.title}</p>
+                                {epic && (
+                                  <Link 
+                                    href={`/projects/${projectId}/epics/${epic.id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                                  >
+                                    <LayoutGrid className="h-3 w-3" />
+                                    <span>{epic.title}</span>
+                                  </Link>
+                                )}
                                 {milestone && (
                                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <Flag className="h-3 w-3" />
@@ -987,11 +998,10 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
       ) : (
         <div className="flex-1 bg-card rounded-lg border shadow-sm overflow-hidden">
           <div className="p-4 border-b bg-muted/30 font-medium text-sm grid grid-cols-12 gap-3 text-muted-foreground">
-            <div className="col-span-3">Task</div>
-            <div className="col-span-2">Deliverable</div>
+            <div className="col-span-4">Task</div>
             <div className="col-span-2">Epic</div>
             <div className="col-span-2">Stage</div>
-            <div className="col-span-1">Priority</div>
+            <div className="col-span-2">Priority</div>
             <div className="col-span-2">Assignee</div>
           </div>
           <div className="overflow-y-auto h-full">
@@ -999,7 +1009,6 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
               const assignee = getAssignee(task.assigneeId);
               const stage = stages.find(s => s.id === task.stageId);
               const epic = getEpic(task.epicId);
-              const deliverable = getDeliverable(task.epicId);
               const priority = PRIORITY_CONFIG[task.priority];
 
               return (
@@ -1009,23 +1018,9 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                   onClick={() => handleOpenEdit(task)}
                   data-testid={`task-row-${task.id}`}
                 >
-                  <div className="col-span-3 font-medium flex items-center gap-2">
+                  <div className="col-span-4 font-medium flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                     <span className="truncate">{task.title}</span>
-                  </div>
-                  <div className="col-span-2">
-                    {deliverable ? (
-                      <Link 
-                        href={`/projects/${projectId}/deliverables/${deliverable.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-primary hover:underline truncate block"
-                        data-testid={`link-deliverable-${deliverable.id}`}
-                      >
-                        {deliverable.name}
-                      </Link>
-                    ) : (
-                      <span className="text-muted-foreground italic text-xs">No deliverable</span>
-                    )}
                   </div>
                   <div className="col-span-2">
                     {epic ? (
@@ -1046,7 +1041,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                       {stage?.name || "Unknown"}
                     </Badge>
                   </div>
-                  <div className="col-span-1">
+                  <div className="col-span-2">
                     <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priority.color)}>
                       {priority.label}
                     </span>
