@@ -132,6 +132,15 @@ export default function EpicDetail() {
 
   // Task CRUD handlers
   const handleOpenCreate = (stageId?: string) => {
+    if (epicStages.length === 0) {
+      toast({
+        title: "Cannot Create Task",
+        description: "This epic has no stages assigned. Add stages to the epic first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setEditingTaskId(null);
     setFormData({
       title: "",
