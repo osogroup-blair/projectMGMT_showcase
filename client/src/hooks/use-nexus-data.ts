@@ -103,6 +103,7 @@ export const useMappingTemplates = () => useCollection("mappingTemplates");
 export const useStatusOptions = () => useCollection("statusOptions");
 export const useMilestoneScopeRules = () => useCollection("milestoneScopeRules");
 export const useMilestoneTaskLinks = () => useCollection("milestoneTaskLinks");
+export const useRoleTypes = () => useCollection("roleTypes");
 
 // Single Item Hooks
 export function useProject(id: string) {

@@ -28,6 +28,7 @@ import type {
   TaskTemplate, InsertTaskTemplate,
   MappingTemplate, InsertMappingTemplate,
   StatusOption, InsertStatusOption,
+  RoleType, InsertRoleType,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -211,6 +212,13 @@ export interface IStorage {
   createStatusOption(option: InsertStatusOption): Promise<StatusOption>;
   updateStatusOption(id: string, option: Partial<StatusOption>): Promise<StatusOption>;
   deleteStatusOption(id: string): Promise<void>;
+
+  // Role Types
+  getRoleTypes(): Promise<RoleType[]>;
+  getRoleTypeById(id: string): Promise<RoleType | undefined>;
+  createRoleType(roleType: InsertRoleType): Promise<RoleType>;
+  updateRoleType(id: string, roleType: Partial<RoleType>): Promise<RoleType>;
+  deleteRoleType(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -747,6 +755,27 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteStatusOption(id: string): Promise<void> {
     await db.delete(schema.statusOptions).where(eq(schema.statusOptions.id, id));
+  }
+
+  // Role Types
+  async getRoleTypes(): Promise<RoleType[]> {
+    return await db.select().from(schema.roleTypes);
+  }
+  async getRoleTypeById(id: string): Promise<RoleType | undefined> {
+    const [roleType] = await db.select().from(schema.roleTypes).where(eq(schema.roleTypes.id, id));
+    return roleType;
+  }
+  async createRoleType(roleType: InsertRoleType): Promise<RoleType> {
+    const id = (arguments[0] as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.roleTypes).values({ ...roleType, id }).returning();
+    return created;
+  }
+  async updateRoleType(id: string, roleType: Partial<RoleType>): Promise<RoleType> {
+    const [updated] = await db.update(schema.roleTypes).set(roleType).where(eq(schema.roleTypes.id, id)).returning();
+    return updated;
+  }
+  async deleteRoleType(id: string): Promise<void> {
+    await db.delete(schema.roleTypes).where(eq(schema.roleTypes.id, id));
   }
 }
 

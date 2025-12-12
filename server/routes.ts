@@ -28,6 +28,7 @@ import {
   insertTaskTemplateSchema,
   insertMappingTemplateSchema,
   insertStatusOptionSchema,
+  insertRoleTypeSchema,
 } from "@shared/schema";
 
 // Import seed function
@@ -1051,6 +1052,36 @@ export async function registerRoutes(
 
   app.delete("/api/statusOptions/:id", async (req, res) => {
     await storage.deleteStatusOption(req.params.id);
+    res.status(204).send();
+  });
+
+  // Role Types
+  app.get("/api/roleTypes", async (req, res) => {
+    const roleTypes = await storage.getRoleTypes();
+    res.json(roleTypes);
+  });
+
+  app.post("/api/roleTypes", async (req, res) => {
+    try {
+      const validated = insertRoleTypeSchema.parse(req.body);
+      const roleType = await storage.createRoleType(validated);
+      res.status(201).json(roleType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/roleTypes/:id", async (req, res) => {
+    try {
+      const roleType = await storage.updateRoleType(req.params.id, req.body);
+      res.json(roleType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/roleTypes/:id", async (req, res) => {
+    await storage.deleteRoleType(req.params.id);
     res.status(204).send();
   });
 

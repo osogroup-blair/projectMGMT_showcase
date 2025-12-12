@@ -301,6 +301,14 @@ export const statusOptions = pgTable("status_options", {
   type: text("type").notNull(),
 });
 
+// Role Types (for role template categorization)
+export const roleTypes = pgTable("role_types", {
+  id: varchar("id").primaryKey(),
+  label: text("label").notNull(),
+  description: text("description"),
+  isDefault: boolean("is_default").default(false),
+});
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true });
@@ -328,6 +336,7 @@ export const insertEpicTemplateSchema = createInsertSchema(epicTemplates).omit({
 export const insertTaskTemplateSchema = createInsertSchema(taskTemplates).omit({ id: true });
 export const insertMappingTemplateSchema = createInsertSchema(mappingTemplates).omit({ id: true });
 export const insertStatusOptionSchema = createInsertSchema(statusOptions).omit({ id: true });
+export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -407,3 +416,6 @@ export type InsertMappingTemplate = z.infer<typeof insertMappingTemplateSchema>;
 
 export type StatusOption = typeof statusOptions.$inferSelect;
 export type InsertStatusOption = z.infer<typeof insertStatusOptionSchema>;
+
+export type RoleType = typeof roleTypes.$inferSelect;
+export type InsertRoleType = z.infer<typeof insertRoleTypeSchema>;
