@@ -1170,11 +1170,11 @@ export default function MilestonesManagementPage() {
   // Database Hooks
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allMilestones, isLoading: isMilestonesLoading, create: createMilestone, update: updateMilestone, remove: deleteMilestone } = useMilestones();
-  const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
-  const { data: allTaskLinks, create: createTaskLink, remove: deleteTaskLink } = useMilestoneTaskLinks();
+  const { data: allTaskLinks, create: createTaskLink, createAsync: createTaskLinkAsync, remove: deleteTaskLink } = useMilestoneTaskLinks();
 
   // Filter data by project
   const milestones = useMemo(() => 
@@ -1370,37 +1370,41 @@ export default function MilestonesManagementPage() {
     }
   };
 
-  const handleCreateTask = (taskData: Partial<Task>) => {
+  const handleCreateTask = async (taskData: Partial<Task>) => {
     const newTaskId = `${Date.now()}`;
-    createTask({
-      id: newTaskId,
-      title: taskData.title || "New Task",
-      description: taskData.description || "",
-      project: project?.name || "Project",
-      projectId: projectId,
-      stageId: taskData.stageId,
-      epicId: taskData.epicId,
-      status: taskData.status || "Todo",
-      assigneeId: taskData.assigneeId || null,
-      deadline: new Date().toISOString().split('T')[0],
-      priority: "Medium",
-      estimateHours: 0,
-      effort: 1,
-      tags: []
-    });
-
-    if (selectedId) {
-      const newLinkId = `l-${Date.now()}`;
-      createTaskLink({
-        id: newLinkId,
-        milestoneId: selectedId,
-        taskId: newTaskId,
+    try {
+      await createTaskAsync({
+        id: newTaskId,
+        title: taskData.title || "New Task",
+        description: taskData.description || "",
+        project: project?.name || "Project",
         projectId: projectId,
-        source: "manual_add",
-        locked: true
+        stageId: taskData.stageId,
+        epicId: taskData.epicId,
+        status: taskData.status || "Todo",
+        assigneeId: taskData.assigneeId || null,
+        deadline: new Date().toISOString().split('T')[0],
+        priority: "Medium",
+        estimateHours: 0,
+        effort: 1,
+        tags: []
       });
+
+      if (selectedId) {
+        const newLinkId = `l-${Date.now()}`;
+        await createTaskLinkAsync({
+          id: newLinkId,
+          milestoneId: selectedId,
+          taskId: newTaskId,
+          projectId: projectId,
+          source: "manual_add",
+          locked: true
+        });
+      }
+      toast({ title: "Task Created", description: "Task added to project and milestone." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
     }
-    toast({ title: "Task Created", description: "Task added to project and milestone." });
   };
 
   const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
