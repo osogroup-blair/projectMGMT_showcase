@@ -915,10 +915,10 @@ export const GUIDANCE_ITEMS: GuidanceItem[] = [
 ];
 
 export const STAGE_TEMPLATES: StageTemplate[] = [
-  { id: "st_plan", name: "Plan Strategy", defaultTasks: ["tt1"], defaultRoles: ["rt3"] },
-  { id: "st_validate", name: "Validate Blueprints", defaultTasks: ["tt2"], defaultRoles: ["rt2"] },
-  { id: "st_develop", name: "Develop Solution", defaultTasks: ["tt3", "tt4"], defaultRoles: ["rt1"] },
-  { id: "st_enable", name: "Enable Users", defaultTasks: [], defaultRoles: [] }
+  { id: "st_plan_strategy", name: "Plan Strategy", defaultTasks: ["tt1"], defaultRoles: ["rt3"] },
+  { id: "st_validate_blueprint", name: "Validate Blueprint", defaultTasks: ["tt2"], defaultRoles: ["rt2"] },
+  { id: "st_develop_solution", name: "Develop Solution", defaultTasks: ["tt3", "tt4"], defaultRoles: ["rt1"] },
+  { id: "st_enable_users", name: "Enable Users", defaultTasks: [], defaultRoles: [] }
 ];
 
 export const FRAMEWORK_TEMPLATES: FrameworkTemplate[] = [
@@ -926,7 +926,7 @@ export const FRAMEWORK_TEMPLATES: FrameworkTemplate[] = [
     id: "ft_impl", 
     name: "Implementation Framework",
     description: "Standard implementation delivery framework",
-    defaultStages: ["st_plan", "st_validate", "st_develop", "st_enable"]
+    defaultStages: ["st_plan_strategy", "st_validate_blueprint", "st_develop_solution", "st_enable_users"]
   }
 ];
 

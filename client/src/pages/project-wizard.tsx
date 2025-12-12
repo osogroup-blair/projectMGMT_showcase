@@ -320,7 +320,7 @@ export default function ProjectWizard() {
         const frameworkStages = (framework.defaultStages || [])
             .map(sid => stageTemplates.find(st => st.id === sid))
             .filter(Boolean)
-            .map(st => ({...st, includeTasks: true}));
+            .map(st => ({...st, taskCreationMode: 'per_epic' as const}));
         setStages(frameworkStages);
       }
 
@@ -399,7 +399,7 @@ export default function ProjectWizard() {
       const frameworkStages = (framework.defaultStages || [])
         .map(sid => stageTemplates.find(st => st.id === sid))
         .filter(Boolean)
-        .map(st => ({...st, includeTasks: true}));
+        .map(st => ({...st, taskCreationMode: 'per_epic' as const}));
       setStages(frameworkStages);
 
       // Re-calculate roles based on new framework
@@ -469,11 +469,10 @@ export default function ProjectWizard() {
         throw new Error("Failed to create project");
       }
       
-      // 2. Create project stages and store by array index (not template ID which may be unreliable)
-      // Store created stages with their original wizard stage data for task creation
+      // 2. Create project stages and store with task creation mode
       const createdStages: Array<{ 
         createdStageId: string; 
-        includeTasks: boolean; 
+        taskCreationMode: 'none' | 'once' | 'per_epic'; 
         defaultTasks: string[];
         name: string;
       }> = [];
@@ -491,19 +490,66 @@ export default function ProjectWizard() {
         if (newStage?.id) {
           createdStages.push({
             createdStageId: newStage.id,
-            includeTasks: stageTemplate.includeTasks || false,
+            taskCreationMode: stageTemplate.taskCreationMode || 'per_epic',
             defaultTasks: stageTemplate.defaultTasks || [],
             name: stageTemplate.name
           });
         }
       }
       
-      // Get ALL created stage IDs for epic assignment (epics need access to all project stages)
-      // Filter to ensure only valid IDs are included
+      // Get ALL created stage IDs for epic assignment
       const allStageIds = createdStages.map(s => s.createdStageId).filter(Boolean);
       
-      // 3. Create deliverables with epics and collect created epic IDs
-      const createdEpics: { id: string; title: string }[] = [];
+      // 3. Create default "Project Operations" deliverable with management epics
+      let productManagementEpicId: string | null = null;
+      let projectManagementEpicId: string | null = null;
+      
+      const projectOpsDeliverable = await createDeliverable({
+        projectId: newProject.id,
+        title: "Project Operations",
+        description: "Project-wide management activities and cross-cutting tasks",
+        status: "Active",
+        ownerId: projectData.ownerId || "1",
+        dueDate: projectData.dueDate || new Date().toISOString().split('T')[0],
+        progress: 0
+      });
+      
+      if (projectOpsDeliverable?.id) {
+        // Create Project Management epic
+        const pmEpic = await createEpic({
+          deliverableId: projectOpsDeliverable.id,
+          title: "Project Management",
+          description: "Project coordination, reporting, and governance activities",
+          status: "Active",
+          ownerId: projectData.ownerId || "1",
+          startDate: projectData.startDate || new Date().toISOString().split('T')[0],
+          endDate: projectData.dueDate || new Date().toISOString().split('T')[0],
+          progress: 0,
+          stageIds: allStageIds
+        });
+        if (pmEpic?.id) {
+          projectManagementEpicId = pmEpic.id;
+        }
+        
+        // Create Product Management epic (for project-wide "once" tasks)
+        const prodMgmtEpic = await createEpic({
+          deliverableId: projectOpsDeliverable.id,
+          title: "Product Management",
+          description: "Product requirements, acceptance, and delivery activities",
+          status: "Active",
+          ownerId: projectData.ownerId || "1",
+          startDate: projectData.startDate || new Date().toISOString().split('T')[0],
+          endDate: projectData.dueDate || new Date().toISOString().split('T')[0],
+          progress: 0,
+          stageIds: allStageIds
+        });
+        if (prodMgmtEpic?.id) {
+          productManagementEpicId = prodMgmtEpic.id;
+        }
+      }
+      
+      // 4. Create user-defined deliverables with epics (business epics)
+      const businessEpics: { id: string; title: string }[] = [];
       
       for (const deliverable of deliverables) {
         const newDeliverable = await createDeliverable({
@@ -517,7 +563,6 @@ export default function ProjectWizard() {
         });
         
         if (newDeliverable?.id && deliverable.epics?.length > 0) {
-          // Create epics for this deliverable
           for (const epic of deliverable.epics) {
             const newEpic = await createEpic({
               deliverableId: newDeliverable.id,
@@ -532,45 +577,73 @@ export default function ProjectWizard() {
             });
             
             if (newEpic?.id) {
-              createdEpics.push({ id: newEpic.id, title: epic.title });
+              businessEpics.push({ id: newEpic.id, title: epic.title });
             }
           }
         }
       }
       
-      // 4. Create tasks per epic - each epic gets tasks from ALL stages with includeTasks enabled
-      // Loop: for each epic → for each stage with tasks → create tasks with correct epicId and stageId
+      // 5. Create tasks based on task creation mode
+      // - 'once': Create task once in Product Management epic
+      // - 'per_epic': Create task for each business epic
+      // - 'none': Skip task creation
       let totalTasksCreated = 0;
       
-      for (const createdEpic of createdEpics) {
-        for (const createdStage of createdStages) {
-          // Only process stages that have includeTasks enabled and have default tasks
-          if (createdStage.includeTasks && createdStage.defaultTasks.length > 0) {
-            for (const taskId of createdStage.defaultTasks) {
-              const taskTemplate = taskTemplates.find(t => t.id === taskId);
-              if (taskTemplate) {
-                await createTask({
-                  project: projectData.name,
-                  projectId: newProject.id,
-                  title: taskTemplate.title,
-                  description: taskTemplate.description || "",
-                  status: "Todo",
-                  priority: taskTemplate.defaultPriority || "Medium",
-                  stageId: createdStage.createdStageId,
-                  epicId: createdEpic.id,
-                  effort: 1,
-                  deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-                  estimateHours: taskTemplate.defaultEstimateHours || 0,
-                  tags: []
-                });
-                totalTasksCreated++;
-              }
+      for (const createdStage of createdStages) {
+        if (createdStage.taskCreationMode === 'none' || !createdStage.defaultTasks?.length) {
+          continue;
+        }
+        
+        for (const taskId of createdStage.defaultTasks) {
+          const taskTemplate = taskTemplates.find(t => t.id === taskId);
+          if (!taskTemplate) continue;
+          
+          if (createdStage.taskCreationMode === 'once') {
+            // Create task once in Product Management epic
+            if (productManagementEpicId) {
+              await createTask({
+                project: projectData.name,
+                projectId: newProject.id,
+                title: taskTemplate.title,
+                description: taskTemplate.description || "",
+                status: "Todo",
+                priority: taskTemplate.defaultPriority || "Medium",
+                stageId: createdStage.createdStageId,
+                epicId: productManagementEpicId,
+                effort: 1,
+                deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
+                estimateHours: taskTemplate.defaultEstimateHours || 0,
+                tags: []
+              });
+              totalTasksCreated++;
+            }
+          } else if (createdStage.taskCreationMode === 'per_epic') {
+            // Create task for each business epic
+            for (const businessEpic of businessEpics) {
+              await createTask({
+                project: projectData.name,
+                projectId: newProject.id,
+                title: taskTemplate.title,
+                description: taskTemplate.description || "",
+                status: "Todo",
+                priority: taskTemplate.defaultPriority || "Medium",
+                stageId: createdStage.createdStageId,
+                epicId: businessEpic.id,
+                effort: 1,
+                deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
+                estimateHours: taskTemplate.defaultEstimateHours || 0,
+                tags: []
+              });
+              totalTasksCreated++;
             }
           }
         }
       }
       
-      // 5. Create milestones
+      // Count total epics (management + business)
+      const totalEpics = (projectManagementEpicId ? 1 : 0) + (productManagementEpicId ? 1 : 0) + businessEpics.length;
+      
+      // 6. Create milestones
       let totalMilestonesCreated = 0;
       for (const milestone of milestones) {
         await createMilestone({
@@ -593,7 +666,7 @@ export default function ProjectWizard() {
       
       toast({
         title: "Project Created",
-        description: `${projectData.name} has been successfully created with ${createdEpics.length} epics, ${totalTasksCreated} tasks, and ${totalMilestonesCreated} milestones.`,
+        description: `${projectData.name} has been successfully created with ${totalEpics} epics, ${totalTasksCreated} tasks, and ${totalMilestonesCreated} milestones.`,
       });
       
       setLocation(`/projects/${newProject.id}`);
@@ -874,47 +947,110 @@ export default function ProjectWizard() {
                     <div className="space-y-6">
                         <div>
                             <h3 className="text-lg font-medium">Stage Configuration</h3>
-                            <p className="text-sm text-muted-foreground">Review the stages defined by the {frameworkTemplates.find(f => f.id === projectData.frameworkId)?.name} framework.</p>
+                            <p className="text-sm text-muted-foreground">Review the stages and configure how tasks are created for the {frameworkTemplates.find(f => f.id === projectData.frameworkId)?.name} framework.</p>
+                        </div>
+
+                        <div className="bg-muted/30 p-4 rounded-lg border mb-4">
+                            <h4 className="font-medium text-sm mb-2">Task Creation Modes</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-start gap-2">
+                                    <Badge variant="outline" className="mt-0.5 shrink-0">None</Badge>
+                                    <span>No default tasks created for this stage</span>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <Badge variant="secondary" className="mt-0.5 shrink-0 bg-blue-100 text-blue-700">Once</Badge>
+                                    <span>Tasks created once, assigned to Product Management epic</span>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <Badge variant="secondary" className="mt-0.5 shrink-0 bg-purple-100 text-purple-700">Per Epic</Badge>
+                                    <span>Tasks replicated for each business epic you define</span>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="grid gap-4">
                             {stages.map((stage, index) => (
-                                <div key={stage?.id || index} className="flex items-center gap-4 p-4 border rounded-lg bg-card hover:shadow-sm transition-shadow">
-                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
-                                        {index + 1}
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="font-medium">{stage?.name}</div>
-                                        <div className="text-sm text-muted-foreground">{stage?.description || "Standard stage workflow"}</div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-2">
-                                            <Checkbox 
-                                                id={`stage-tasks-${stage.id}`} 
-                                                checked={stage.includeTasks}
-                                                onCheckedChange={(checked) => {
-                                                    const newStages = [...stages];
-                                                    newStages[index].includeTasks = !!checked;
-                                                    setStages(newStages);
-                                                }}
-                                            />
-                                            <Label 
-                                                htmlFor={`stage-tasks-${stage.id}`}
-                                                className="text-sm cursor-pointer"
-                                            >
-                                                Create default tasks
-                                            </Label>
+                                <Card key={stage?.id || index} className="overflow-hidden">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm shrink-0">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-4 mb-3">
+                                                    <div>
+                                                        <div className="font-medium">{stage?.name}</div>
+                                                        <div className="text-sm text-muted-foreground">{stage?.description || "Standard stage workflow"}</div>
+                                                    </div>
+                                                    <Badge variant="outline" className="shrink-0">
+                                                        {stage?.defaultTasks?.length || 0} Tasks
+                                                    </Badge>
+                                                </div>
+                                                <div className="flex items-center gap-6 pt-2 border-t">
+                                                    <Label className="text-sm text-muted-foreground">Task Creation:</Label>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="radio"
+                                                                id={`stage-none-${stage.id}`}
+                                                                name={`stage-mode-${stage.id}`}
+                                                                checked={stage.taskCreationMode === 'none'}
+                                                                onChange={() => {
+                                                                    const newStages = [...stages];
+                                                                    newStages[index].taskCreationMode = 'none';
+                                                                    setStages(newStages);
+                                                                }}
+                                                                className="h-4 w-4"
+                                                                data-testid={`radio-stage-none-${index}`}
+                                                            />
+                                                            <Label htmlFor={`stage-none-${stage.id}`} className="text-sm cursor-pointer">None</Label>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="radio"
+                                                                id={`stage-once-${stage.id}`}
+                                                                name={`stage-mode-${stage.id}`}
+                                                                checked={stage.taskCreationMode === 'once'}
+                                                                onChange={() => {
+                                                                    const newStages = [...stages];
+                                                                    newStages[index].taskCreationMode = 'once';
+                                                                    setStages(newStages);
+                                                                }}
+                                                                className="h-4 w-4"
+                                                                data-testid={`radio-stage-once-${index}`}
+                                                            />
+                                                            <Label htmlFor={`stage-once-${stage.id}`} className="text-sm cursor-pointer">
+                                                                <span className="flex items-center gap-1">
+                                                                    Once <span className="text-xs text-muted-foreground">(Project-wide)</span>
+                                                                </span>
+                                                            </Label>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="radio"
+                                                                id={`stage-per-epic-${stage.id}`}
+                                                                name={`stage-mode-${stage.id}`}
+                                                                checked={stage.taskCreationMode === 'per_epic'}
+                                                                onChange={() => {
+                                                                    const newStages = [...stages];
+                                                                    newStages[index].taskCreationMode = 'per_epic';
+                                                                    setStages(newStages);
+                                                                }}
+                                                                className="h-4 w-4"
+                                                                data-testid={`radio-stage-per-epic-${index}`}
+                                                            />
+                                                            <Label htmlFor={`stage-per-epic-${stage.id}`} className="text-sm cursor-pointer">
+                                                                <span className="flex items-center gap-1">
+                                                                    Per Epic <span className="text-xs text-muted-foreground">(Replicated)</span>
+                                                                </span>
+                                                            </Label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="flex gap-2 text-xs text-muted-foreground min-w-[100px] justify-end">
-                                            <span className={cn(
-                                                "bg-muted px-2 py-1 rounded transition-opacity",
-                                                !stage.includeTasks && "opacity-50"
-                                            )}>
-                                                {stage.includeTasks ? (stage?.defaultTasks?.length || 0) : 0} Default Tasks
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                </Card>
                             ))}
                             {stages.length === 0 && (
                                 <div className="text-center p-8 border rounded-lg bg-muted/20 text-muted-foreground">
@@ -1230,96 +1366,98 @@ export default function ProjectWizard() {
                                 </div>
                             </div>
                             
-{/* Tasks Preview Section - Tasks per Epic */}
+{/* Tasks Preview Section - Shows task creation breakdown */}
                             {(() => {
-                                // Get all epics from deliverables
-                                const allEpics = deliverables.flatMap(d => 
+                                // Get all business epics from deliverables
+                                const businessEpics = deliverables.flatMap(d => 
                                     d.epics.map(e => ({ ...e, deliverableTitle: d.title }))
                                 );
                                 
-                                // Get tasks that will be created per epic (from stages with includeTasks)
-                                const tasksPerEpic = stages
-                                    .filter(stage => stage.includeTasks && stage.defaultTasks?.length > 0)
+                                // Categorize tasks by creation mode
+                                const onceTasks = stages
+                                    .filter(stage => stage.taskCreationMode === 'once' && stage.defaultTasks?.length > 0)
                                     .flatMap(stage => 
                                         (stage.defaultTasks || []).map(taskId => {
                                             const task = taskTemplates.find(t => t.id === taskId);
-                                            return task ? { ...task, stageName: stage.name, stageId: stage.id } : null;
+                                            return task ? { ...task, stageName: stage.name, stageId: stage.id, mode: 'once' as const } : null;
                                         }).filter(Boolean)
                                     );
                                 
-                                const totalTasks = allEpics.length * tasksPerEpic.length;
+                                const perEpicTasks = stages
+                                    .filter(stage => stage.taskCreationMode === 'per_epic' && stage.defaultTasks?.length > 0)
+                                    .flatMap(stage => 
+                                        (stage.defaultTasks || []).map(taskId => {
+                                            const task = taskTemplates.find(t => t.id === taskId);
+                                            return task ? { ...task, stageName: stage.name, stageId: stage.id, mode: 'per_epic' as const } : null;
+                                        }).filter(Boolean)
+                                    );
                                 
-                                return allEpics.length > 0 && tasksPerEpic.length > 0 ? (
-                                    <div className="space-y-3">
+                                const onceTaskCount = onceTasks.length;
+                                const perEpicTaskCount = perEpicTasks.length * businessEpics.length;
+                                const totalTasks = onceTaskCount + perEpicTaskCount;
+                                const totalEpics = 2 + businessEpics.length; // 2 = PM epics
+                                
+                                const hasTasks = onceTasks.length > 0 || perEpicTasks.length > 0;
+                                
+                                return hasTasks ? (
+                                    <div className="space-y-4">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2 text-primary">
                                                 <CheckSquare className="h-5 w-5" />
                                                 <span className="font-semibold">Tasks to be Created</span>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className="text-xs">
-                                                    {allEpics.length} epics × {tasksPerEpic.length} tasks
-                                                </Badge>
-                                                <Badge variant="secondary">{totalTasks} total tasks</Badge>
-                                            </div>
+                                            <Badge variant="secondary">{totalTasks} total tasks</Badge>
                                         </div>
                                         
-                                        <div className="bg-card border rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
-                                            <Table>
-                                                <TableHeader className="sticky top-0 bg-card z-10">
-                                                    <TableRow className="bg-muted/50">
-                                                        <TableHead className="font-semibold">Epic</TableHead>
-                                                        <TableHead className="font-semibold">Task Title</TableHead>
-                                                        <TableHead className="font-semibold">Stage</TableHead>
-                                                        <TableHead className="font-semibold">Priority</TableHead>
-                                                        <TableHead className="font-semibold text-right">Est. Hours</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {allEpics.flatMap((epic: any, epicIdx: number) => 
-                                                        tasksPerEpic.map((task: any, taskIdx: number) => (
-                                                            <TableRow key={`${epicIdx}-${taskIdx}`} data-testid={`review-task-row-${epicIdx}-${taskIdx}`}>
-                                                                <TableCell>
-                                                                    {taskIdx === 0 ? (
-                                                                        <div className="font-medium text-primary">{epic.title}</div>
-                                                                    ) : (
-                                                                        <span className="text-muted-foreground text-xs">↳</span>
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell className="font-medium">{task.title}</TableCell>
-                                                                <TableCell>
-                                                                    <Badge variant="outline" className="text-xs">
-                                                                        {task.stageName}
-                                                                    </Badge>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <Badge 
-                                                                        variant="outline" 
-                                                                        className={cn(
-                                                                            "text-xs",
-                                                                            task.defaultPriority === "High" && "bg-red-50 text-red-700 border-red-200",
-                                                                            task.defaultPriority === "Medium" && "bg-amber-50 text-amber-700 border-amber-200",
-                                                                            task.defaultPriority === "Low" && "bg-green-50 text-green-700 border-green-200"
-                                                                        )}
-                                                                    >
-                                                                        {task.defaultPriority || "Medium"}
-                                                                    </Badge>
-                                                                </TableCell>
-                                                                <TableCell className="text-right text-muted-foreground">
-                                                                    {task.defaultEstimateHours || 0}h
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))
-                                                    )}
-                                                </TableBody>
-                                            </Table>
+                                        {/* Task Creation Summary */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {onceTasks.length > 0 && (
+                                                <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-4">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Badge className="bg-blue-100 text-blue-700 text-xs">Once</Badge>
+                                                        <span className="font-medium text-sm">Project-wide Tasks</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mb-2">
+                                                        {onceTasks.length} tasks → Product Management epic
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {onceTasks.map((t: any, i: number) => (
+                                                            <Badge key={i} variant="outline" className="text-xs">
+                                                                {t.title}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {perEpicTasks.length > 0 && (
+                                                <div className="bg-purple-50/50 border border-purple-200 rounded-lg p-4">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Badge className="bg-purple-100 text-purple-700 text-xs">Per Epic</Badge>
+                                                        <span className="font-medium text-sm">Replicated Tasks</span>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mb-2">
+                                                        {perEpicTasks.length} tasks × {businessEpics.length} epics = {perEpicTaskCount} tasks
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {perEpicTasks.map((t: any, i: number) => (
+                                                            <Badge key={i} variant="outline" className="text-xs">
+                                                                {t.title}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         
-                                        <p className="text-xs text-muted-foreground">
-                                            Each epic will receive {tasksPerEpic.length} tasks distributed across {stages.filter(s => s.includeTasks).length} stages.
-                                        </p>
+                                        {/* Auto-created deliverable info */}
+                                        <div className="bg-muted/30 rounded-lg p-3 border border-dashed">
+                                            <p className="text-xs text-muted-foreground">
+                                                <span className="font-medium">Auto-created:</span> "Project Operations" deliverable with Project Management and Product Management epics ({totalEpics} total epics)
+                                            </p>
+                                        </div>
                                     </div>
-                                ) : allEpics.length === 0 ? (
+                                ) : businessEpics.length === 0 ? (
                                     <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg border border-dashed">
                                         <CheckSquare className="h-5 w-5 text-muted-foreground" />
                                         <div className="text-sm text-muted-foreground">
@@ -1330,7 +1468,7 @@ export default function ProjectWizard() {
                                     <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-lg border border-dashed">
                                         <CheckSquare className="h-5 w-5 text-muted-foreground" />
                                         <div className="text-sm text-muted-foreground">
-                                            No default tasks selected. Enable "Create default tasks" in Stage Configuration.
+                                            No default tasks selected. Configure task creation modes in Stage Configuration.
                                         </div>
                                     </div>
                                 );
