@@ -57,7 +57,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRoute, useLocation } from "wouter";
+import { useRoute, useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Task } from "@/lib/mock-data";
@@ -818,6 +818,11 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const getAssignee = (id?: string) => users.find((t: any) => t.id === id);
   const getMilestone = (id?: string) => milestones.find((m: any) => m.id === id);
   const getEpic = (id?: string) => projectEpics.find((e: any) => e.id === id);
+  const getDeliverable = (epicId?: string) => {
+    const epic = getEpic(epicId);
+    if (!epic) return null;
+    return projectDeliverables.find((d: any) => d.id === epic.deliverableId);
+  };
 
   if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isStagesLoading || isEpicsLoading || isDeliverablesLoading) {
     return (
@@ -981,33 +986,70 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
         </div>
       ) : (
         <div className="flex-1 bg-card rounded-lg border shadow-sm overflow-hidden">
-          <div className="p-4 border-b bg-muted/30 font-medium text-sm grid grid-cols-12 gap-4 text-muted-foreground">
-            <div className="col-span-4">Task</div>
+          <div className="p-4 border-b bg-muted/30 font-medium text-sm grid grid-cols-12 gap-3 text-muted-foreground">
+            <div className="col-span-3">Task</div>
+            <div className="col-span-2">Deliverable</div>
+            <div className="col-span-2">Epic</div>
             <div className="col-span-2">Stage</div>
+            <div className="col-span-1">Priority</div>
             <div className="col-span-2">Assignee</div>
-            <div className="col-span-2">Priority</div>
-            <div className="col-span-2">Due Date</div>
           </div>
           <div className="overflow-y-auto h-full">
             {filteredTasks.map(task => {
               const assignee = getAssignee(task.assigneeId);
               const stage = stages.find(s => s.id === task.stageId);
+              const epic = getEpic(task.epicId);
+              const deliverable = getDeliverable(task.epicId);
               const priority = PRIORITY_CONFIG[task.priority];
 
               return (
                 <div 
                   key={task.id} 
-                  className="p-4 border-b last:border-0 grid grid-cols-12 gap-4 items-center hover:bg-muted/30 transition-colors cursor-pointer text-sm"
+                  className="p-4 border-b last:border-0 grid grid-cols-12 gap-3 items-center hover:bg-muted/30 transition-colors cursor-pointer text-sm"
                   onClick={() => handleOpenEdit(task)}
+                  data-testid={`task-row-${task.id}`}
                 >
-                  <div className="col-span-4 font-medium flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    {task.title}
+                  <div className="col-span-3 font-medium flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                    <span className="truncate">{task.title}</span>
                   </div>
                   <div className="col-span-2">
-                    <Badge variant="outline" className="font-normal text-muted-foreground">
+                    {deliverable ? (
+                      <Link 
+                        href={`/projects/${projectId}/deliverables/${deliverable.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-primary hover:underline truncate block"
+                        data-testid={`link-deliverable-${deliverable.id}`}
+                      >
+                        {deliverable.name}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground italic text-xs">No deliverable</span>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    {epic ? (
+                      <Link 
+                        href={`/projects/${projectId}/epics/${epic.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-primary hover:underline truncate block"
+                        data-testid={`link-epic-${epic.id}`}
+                      >
+                        {epic.title}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground italic text-xs">No epic</span>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <Badge variant="outline" className="font-normal text-muted-foreground text-xs">
                       {stage?.name || "Unknown"}
                     </Badge>
+                  </div>
+                  <div className="col-span-1">
+                    <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priority.color)}>
+                      {priority.label}
+                    </span>
                   </div>
                   <div className="col-span-2 flex items-center gap-2">
                     {assignee ? (
@@ -1015,20 +1057,11 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                         <Avatar className="h-5 w-5">
                           <AvatarFallback className="text-[9px]">{assignee.name.substring(0,2).toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <span className="truncate">{assignee.name}</span>
+                        <span className="truncate text-xs">{assignee.name}</span>
                       </>
                     ) : (
-                      <span className="text-muted-foreground italic">Unassigned</span>
+                      <span className="text-muted-foreground italic text-xs">Unassigned</span>
                     )}
-                  </div>
-                  <div className="col-span-2">
-                    <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priority.color)}>
-                      {priority.label}
-                    </span>
-                  </div>
-                  <div className="col-span-2 flex items-center gap-1 text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>{new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                   </div>
                 </div>
               );
