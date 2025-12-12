@@ -1,0 +1,152 @@
+{
+  "version": "1.0",
+  "exportedAt": "2025-12-12T00:00:00.000Z",
+  "description": "Frameworks, Stages, Roles, and Standardized Tasks for Nymbl AppGen.",
+  "templates": {
+    "framework": [
+      {
+        "id": "fw_nymbl_implementation",
+        "name": "Nymbl Implementation Framework",
+        "description": "Structured 4-stage delivery framework ensuring alignment, validation, execution, and adoption.",
+        "defaultStages": [
+          "st_plan_strategy",
+          "st_validate_blueprint",
+          "st_develop_solution",
+          "st_enable_users"
+        ]
+      }
+    ],
+    "stage": [
+      {
+        "id": "st_plan_strategy",
+        "name": "Plan Strategy",
+        "description": "Define strategic intent, scope, outcomes, and success criteria that shape the solution.",
+        "defaultTasks": [
+          "tt_create_blueprint",
+          "tt_create_proposal",
+          "tt_create_sow",
+          "tt_sign_contract"
+        ],
+        "defaultRoles": [
+          "rt_solution_consultant",
+          "rt_solution_architect",
+          "rt_product_designer"
+        ],
+        "entryCriteria": "Business objectives captured; initial scope, risks, and desired outcomes drafted.",
+        "exitCriteria": "Strategic intent validated; Problem-Solution Analysis approved; high-level capabilities identified.",
+        "allowedTaskStatuses": ["Todo", "In Progress", "Review", "Done"]
+      },
+      {
+        "id": "st_validate_blueprint",
+        "name": "Validate Blueprint",
+        "description": "Confirm detailed, testable requirements aligned to business objectives and solution feasibility.",
+        "defaultTasks": [
+          "tt_validate_user_stories",
+          "tt_design_pages",
+          "tt_write_test_cases"
+        ],
+        "defaultRoles": [
+          "rt_solution_architect",
+          "rt_product_designer",
+          "rt_qa_engineer"
+        ],
+        "entryCriteria": "Strategic direction approved; scope and capabilities defined.",
+        "exitCriteria": "Requirements validated; blueprint finalized and approved.",
+        "allowedTaskStatuses": ["Todo", "In Progress", "Review", "Done"]
+      },
+      {
+        "id": "st_develop_solution",
+        "name": "Develop Solution",
+        "description": "Develop and integrate capabilities that fulfill validated requirements.",
+        "defaultTasks": [],
+        "defaultRoles": [
+          "rt_dev_lead",
+          "rt_dev_vinyl",
+          "rt_dev_retool",
+          "rt_dev_full_stack",
+          "rt_dev_mendix",
+          "rt_dev_moveworks",
+          "rt_dev_ai_engineer",
+          "rt_qa_engineer",
+          "rt_cloud_ops_aws"
+        ],
+        "entryCriteria": "Blueprint, requirements, and technical plan approved.",
+        "exitCriteria": "Capabilities implemented, integrated, and validated.",
+        "allowedTaskStatuses": ["Todo", "In Progress", "Review", "Done"]
+      },
+      {
+        "id": "st_enable_users",
+        "name": "Enable Users",
+        "description": "Equip users to adopt, operate, and sustain the solution effectively.",
+        "defaultTasks": [
+          "tt_create_support_plan",
+          "tt_create_wiki_page",
+          "tt_publish_wiki_page"
+        ],
+        "defaultRoles": [
+          "rt_support_engineer",
+          "rt_documentation_manager",
+          "rt_client_success_manager",
+          "rt_resource_manager",
+          "rt_cloud_ops_aws"
+        ],
+        "entryCriteria": "Features validated and ready for user adoption.",
+        "exitCriteria": "Users trained; documentation published; support model live.",
+        "allowedTaskStatuses": ["Todo", "In Progress", "Review", "Done"]
+      }
+    ],
+    "task": [
+      { "id": "tt_create_blueprint", "title": "Create Blueprint", "defaultEstimateHours": 4 },
+      { "id": "tt_create_proposal", "title": "Create Proposal", "defaultEstimateHours": 3 },
+      { "id": "tt_create_sow", "title": "Create SOW", "defaultEstimateHours": 2 },
+      { "id": "tt_sign_contract", "title": "Sign Contract", "defaultEstimateHours": 1 },
+
+      { "id": "tt_validate_user_stories", "title": "Validate User Stories", "defaultEstimateHours": 6 },
+      { "id": "tt_design_pages", "title": "Design Pages", "defaultEstimateHours": 8 },
+      { "id": "tt_write_test_cases", "title": "Write Test Cases", "defaultEstimateHours": 4 },
+
+      { "id": "tt_create_support_plan", "title": "Create Support Plan", "defaultEstimateHours": 2 },
+      { "id": "tt_create_wiki_page", "title": "Create Wiki Page", "defaultEstimateHours": 2 },
+      { "id": "tt_publish_wiki_page", "title": "Publish Wiki Page", "defaultEstimateHours": 1 }
+    ],
+    "role": [
+      {
+        "id": "rt_solution_consultant",
+        "name": "Solution Consultant",
+        "description": "Owns strategic alignment; defines value proposition, scope, outcomes, and high-level capabilities.",
+        "defaultRoleType": "Consulting",
+        "defaultPermissions": ["define_scope", "manage_stakeholders", "draft_psa", "propose_roadmap", "view_reports"]
+      },
+      {
+        "id": "rt_solution_architect",
+        "name": "Solution Architect",
+        "description": "Owns the Blueprint and requirements; shapes the functional and technical solution design.",
+        "defaultRoleType": "Architecture",
+        "defaultPermissions": ["manage_requirements", "define_functionality", "design_architecture", "approve_technical_decisions", "view_reports"]
+      },
+      {
+        "id": "rt_product_designer",
+        "name": "Product Designer",
+        "description": "Designs user journeys, workflows, and interfaces that meet business and user needs.",
+        "defaultRoleType": "Design",
+        "defaultPermissions": ["design_workflows", "create_wireframes", "define_ux_standards", "run_user_research", "view_reports"]
+      },
+
+      { "id": "rt_dev_lead", "name": "Development Lead", "description": "Technical lead accountable for implementation quality.", "defaultRoleType": "Development", "defaultPermissions": ["manage_code", "approve_pr", "define_dev_standards", "deploy"] },
+      { "id": "rt_dev_vinyl", "name": "Developer, Vinyl", "description": "Builds solutions using Vinyl.", "defaultRoleType": "Development", "defaultPermissions": ["write_code", "configure_vinyl", "create_pr"] },
+      { "id": "rt_dev_retool", "name": "Developer, Retool", "description": "Implements workflows using Retool.", "defaultRoleType": "Development", "defaultPermissions": ["write_code", "configure_retool", "create_pr"] },
+      { "id": "rt_dev_full_stack", "name": "Developer, Full Stack", "description": "Implements custom front-end and back-end features.", "defaultRoleType": "Development", "defaultPermissions": ["write_code", "design_apis", "create_pr"] },
+      { "id": "rt_dev_mendix", "name": "Developer, Mendix", "description": "Builds enterprise apps on the Mendix platform.", "defaultRoleType": "Development", "defaultPermissions": ["write_code", "configure_mendix", "create_pr"] },
+      { "id": "rt_dev_moveworks", "name": "Developer, Moveworks", "description": "Implements Moveworks-based conversational solutions.", "defaultRoleType": "Development", "defaultPermissions": ["configure_moveworks", "integrate_chatbots"] },
+      { "id": "rt_dev_ai_engineer", "name": "Developer, AI Engineer", "description": "Designs and builds AI/ML-powered capabilities.", "defaultRoleType": "Development", "defaultPermissions": ["build_ml_models", "integrate_llms", "write_code"] },
+
+      { "id": "rt_qa_engineer", "name": "QA Engineer", "description": "Validates functionality and quality through testing.", "defaultRoleType": "Quality", "defaultPermissions": ["define_test_plans", "execute_tests", "manage_defects"] },
+
+      { "id": "rt_documentation_manager", "name": "Documentation Manager", "description": "Creates and manages solution documentation.", "defaultRoleType": "Post Delivery", "defaultPermissions": ["manage_docs", "publish_release_notes"] },
+      { "id": "rt_support_engineer", "name": "Support Engineer", "description": "Provides support and assists with enablement.", "defaultRoleType": "Support", "defaultPermissions": ["manage_support_tickets", "troubleshoot_issues"] },
+      { "id": "rt_client_success_manager", "name": "Client Success Manager", "description": "Ensures client success and adoption.", "defaultRoleType": "Client Services", "defaultPermissions": ["manage_accounts", "track_adoption"] },
+      { "id": "rt_resource_manager", "name": "Resource Manager", "description": "Manages staffing and allocation.", "defaultRoleType": "Management", "defaultPermissions": ["manage_capacity", "assign_resources"] },
+      { "id": "rt_cloud_ops_aws", "name": "Cloud Ops, AWS", "description": "Manages AWS infrastructure and deployments.", "defaultRoleType": "Operations", "defaultPermissions": ["deploy_to_prod", "manage_ci_cd", "monitor_uptime"] }
+    ]
+  }
+}
