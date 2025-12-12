@@ -113,7 +113,7 @@ export default function EpicDetail() {
     status: "Todo",
     priority: "Medium",
     assigneeId: "",
-    effort: 5,
+    effort: 3,
     estimateHours: 0,
     deadline: new Date().toISOString().split('T')[0]
   });
@@ -189,7 +189,7 @@ export default function EpicDetail() {
       status: "Todo",
       priority: "Medium",
       assigneeId: users?.[0]?.id || "",
-      effort: 5,
+      effort: 3,
       estimateHours: 0,
       deadline: new Date().toISOString().split('T')[0]
     });
@@ -205,7 +205,7 @@ export default function EpicDetail() {
       status: task.status || "Todo",
       priority: task.priority || "Medium",
       assigneeId: task.assigneeId || "",
-      effort: task.effort || 5,
+      effort: task.effort || 3,
       estimateHours: task.estimateHours || 0,
       deadline: task.deadline || new Date().toISOString().split('T')[0]
     });

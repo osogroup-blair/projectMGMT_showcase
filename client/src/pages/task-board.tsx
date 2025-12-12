@@ -186,7 +186,7 @@ export default function TaskBoard() {
       deadline: new Date().toISOString().split('T')[0],
       priority: "Medium",
       estimateHours: 0,
-      effort: 5, // Default to Fibonacci value 5
+      effort: 3, // Default to Fibonacci value 3
       tags: []
     });
     setIsDialogOpen(true);

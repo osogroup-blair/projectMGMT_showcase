@@ -75,8 +75,11 @@ import {
   useMilestoneTaskLinks,
   useGuidanceItems,
   useSavedViews,
-  useUsers
+  useUsers,
+  useEpics,
+  useDeliverables
 } from "@/hooks/use-nexus-data";
+import { EFFORT_VALUES } from "@shared/schema";
 
 export default function StageWorkspace() {
   const [match, params] = useRoute("/projects/:projectId/stages/:stageId");
@@ -88,7 +91,9 @@ export default function StageWorkspace() {
   // Database hooks
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
-  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, create: createTask } = useTasks();
+  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allMilestones, isLoading: isMilestonesLoading, createAsync: createMilestone } = useMilestones();
   const { data: allMilestoneLinks, isLoading: isMilestoneLinksLoading } = useMilestoneTaskLinks();
   const { data: allGuidance, isLoading: isGuidanceLoading } = useGuidanceItems();
@@ -151,6 +156,17 @@ export default function StageWorkspace() {
 
   const team = allUsers || [];
 
+  // Filter deliverables and epics for this project
+  const projectDeliverables = useMemo(() => 
+    (allDeliverables || []).filter((d: any) => d.projectId === projectId),
+    [allDeliverables, projectId]
+  );
+  
+  const projectEpics = useMemo(() => {
+    const deliverableIds = new Set(projectDeliverables.map((d: any) => d.id));
+    return (allEpics || []).filter((e: any) => deliverableIds.has(e.deliverableId));
+  }, [allEpics, projectDeliverables]);
+
   const getAssignee = (id?: string) => team.find((u: any) => u.id === id);
 
   // Inline editing state
@@ -167,6 +183,67 @@ export default function StageWorkspace() {
   const [newMilestoneName, setNewMilestoneName] = useState("");
   const [newMilestoneStageId, setNewMilestoneStageId] = useState(stageId);
   const [isCreatingMilestone, setIsCreatingMilestone] = useState(false);
+
+  // Create task modal state
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
+  const [newTaskEpicId, setNewTaskEpicId] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
+  const [newTaskEffort, setNewTaskEffort] = useState(3);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+  const handleOpenCreateTask = () => {
+    if (projectEpics.length === 0) {
+      toast({
+        title: "Cannot Create Task",
+        description: "This project has no epics. Create an epic first before adding tasks.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setNewTaskTitle("");
+    setNewTaskDescription("");
+    setNewTaskEpicId(projectEpics[0]?.id || "");
+    setNewTaskPriority("Medium");
+    setNewTaskEffort(3);
+    setShowCreateTaskModal(true);
+  };
+
+  const handleCreateTask = () => {
+    if (!newTaskTitle.trim()) {
+      toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
+      return;
+    }
+    if (!newTaskEpicId) {
+      toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
+      return;
+    }
+
+    setIsCreatingTask(true);
+    try {
+      createTask({
+        title: newTaskTitle.trim(),
+        description: newTaskDescription,
+        project: project?.name,
+        projectId: projectId,
+        epicId: newTaskEpicId,
+        stageId: stageId, // Pre-filled from context
+        status: "Todo",
+        priority: newTaskPriority,
+        effort: newTaskEffort,
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        tags: []
+      });
+      
+      toast({ title: "Success", description: "Task created successfully." });
+      setShowCreateTaskModal(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to create task.", variant: "destructive" });
+    } finally {
+      setIsCreatingTask(false);
+    }
+  };
 
   const handleCreateMilestone = async () => {
     if (!newMilestoneName.trim()) {
@@ -726,7 +803,7 @@ export default function StageWorkspace() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   
-                  <Button className="h-9 gap-2 ml-auto">
+                  <Button className="h-9 gap-2 ml-auto" onClick={handleOpenCreateTask} data-testid="button-new-task">
                     <Plus className="h-4 w-4" />
                     New Task
                   </Button>
@@ -813,7 +890,7 @@ export default function StageWorkspace() {
                             </Card>
                           );
                         })}
-                        <Button variant="ghost" className="w-full justify-start text-muted-foreground text-sm h-8 hover:bg-muted/50 border border-transparent border-dashed hover:border-border">
+                        <Button variant="ghost" className="w-full justify-start text-muted-foreground text-sm h-8 hover:bg-muted/50 border border-transparent border-dashed hover:border-border" onClick={handleOpenCreateTask}>
                           <Plus className="h-3 w-3 mr-2" /> Add Task
                         </Button>
                       </div>
@@ -875,6 +952,102 @@ export default function StageWorkspace() {
                 </>
               ) : (
                 "Create Milestone"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Task Modal */}
+      <Dialog open={showCreateTaskModal} onOpenChange={setShowCreateTaskModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>
+              Add a new task to the {stage?.name} stage.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Title <span className="text-red-500">*</span></Label>
+              <Input
+                id="task-title"
+                placeholder="Enter task title..."
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                data-testid="input-new-task-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-description">Description</Label>
+              <Input
+                id="task-description"
+                placeholder="Enter task description..."
+                value={newTaskDescription}
+                onChange={(e) => setNewTaskDescription(e.target.value)}
+                data-testid="input-new-task-description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-epic">Epic <span className="text-red-500">*</span></Label>
+                <Select value={newTaskEpicId} onValueChange={setNewTaskEpicId}>
+                  <SelectTrigger id="task-epic" data-testid="select-new-task-epic">
+                    <SelectValue placeholder="Select epic" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectEpics.map((e: any) => (
+                      <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Stage</Label>
+                <Input value={stage?.name || stageId} disabled className="bg-muted" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-priority">Priority</Label>
+                <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                  <SelectTrigger id="task-priority" data-testid="select-new-task-priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="task-effort">Effort <span className="text-red-500">*</span></Label>
+                <Select value={newTaskEffort.toString()} onValueChange={(v) => setNewTaskEffort(parseInt(v))}>
+                  <SelectTrigger id="task-effort" data-testid="select-new-task-effort">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EFFORT_VALUES.map((val) => (
+                      <SelectItem key={val} value={val.toString()}>{val}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateTaskModal(false)} disabled={isCreatingTask}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTask} disabled={isCreatingTask || !newTaskTitle.trim() || !newTaskEpicId} data-testid="button-create-task">
+              {isCreatingTask ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Task"
               )}
             </Button>
           </DialogFooter>

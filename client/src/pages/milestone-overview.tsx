@@ -613,7 +613,7 @@ function TasksTab({
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState("Medium");
-  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(null);
+  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(3);
 
   const currentLinkedTaskIds = useMemo(() => 
     links.filter((l: any) => l.milestoneId === milestone?.id).map((l: any) => l.taskId),
@@ -714,7 +714,7 @@ function TasksTab({
       setSelectedEpicId("");
       setSelectedStageId("");
       setNewTaskPriority("Medium");
-      setNewTaskEffort(null);
+      setNewTaskEffort(3);
       setDialogOpen(false);
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to create task.", variant: "destructive" });
