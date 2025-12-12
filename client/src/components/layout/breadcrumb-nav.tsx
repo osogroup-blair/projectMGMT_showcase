@@ -1,16 +1,67 @@
 import { RefreshCw, Settings, Grid3x3, Sliders, ChevronRight, Home as HomeIcon, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
-import { useProjects, useDeliverables, useEpics, useTasks } from "@/hooks/use-nexus-data";
-import { Fragment } from "react";
+import { useProjects } from "@/hooks/use-nexus-data";
+import { Fragment, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export function BreadcrumbNav() {
   const [location] = useLocation();
   const pathSegments = location.split("/").filter(Boolean);
   const { data: projects } = useProjects();
-  const { data: deliverables } = useDeliverables();
-  const { data: epics } = useEpics();
-  const { data: tasks } = useTasks();
+
+  // Extract specific entity IDs from URL for targeted lookups
+  const entityIds = useMemo(() => {
+    const ids: { deliverableId?: string; epicId?: string; taskId?: string } = {};
+    for (let i = 0; i < pathSegments.length; i++) {
+      const prev = pathSegments[i - 1];
+      const segment = pathSegments[i];
+      if (prev === "deliverables" && segment && !["epics", "tasks", "milestones"].includes(segment)) {
+        ids.deliverableId = segment;
+      }
+      if (prev === "epics" && segment && !["tasks", "milestones"].includes(segment)) {
+        ids.epicId = segment;
+      }
+      if (prev === "tasks" && segment) {
+        ids.taskId = segment;
+      }
+    }
+    return ids;
+  }, [pathSegments]);
+
+  // Lightweight single-entity fetches only when needed
+  const { data: deliverable } = useQuery({
+    queryKey: ["/api/deliverables", entityIds.deliverableId],
+    queryFn: async () => {
+      const res = await fetch(`/api/deliverables/${entityIds.deliverableId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!entityIds.deliverableId,
+    staleTime: 60000,
+  });
+
+  const { data: epic } = useQuery({
+    queryKey: ["/api/epics", entityIds.epicId],
+    queryFn: async () => {
+      const res = await fetch(`/api/epics/${entityIds.epicId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!entityIds.epicId,
+    staleTime: 60000,
+  });
+
+  const { data: task } = useQuery({
+    queryKey: ["/api/tasks", entityIds.taskId],
+    queryFn: async () => {
+      const res = await fetch(`/api/tasks/${entityIds.taskId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!entityIds.taskId,
+    staleTime: 60000,
+  });
 
   const handleGoBack = () => {
     window.history.back();
@@ -35,19 +86,16 @@ export function BreadcrumbNav() {
       return project ? project.name : "Project";
     }
 
-    if (prevSegment === "deliverables") {
-      const deliverable = deliverables?.find((d: any) => d.id === segment);
-      return deliverable ? deliverable.title : "Deliverable";
+    if (prevSegment === "deliverables" && deliverable?.title) {
+      return deliverable.title;
     }
 
-    if (prevSegment === "epics") {
-      const epic = epics?.find((e: any) => e.id === segment);
-      return epic ? epic.title : "Epic";
+    if (prevSegment === "epics" && epic?.title) {
+      return epic.title;
     }
 
-    if (prevSegment === "tasks") {
-      const task = tasks?.find((t: any) => t.id === segment);
-      return task ? task.title : "Task";
+    if (prevSegment === "tasks" && task?.title) {
+      return task.title;
     }
 
     if (prevSegment === "import") {
