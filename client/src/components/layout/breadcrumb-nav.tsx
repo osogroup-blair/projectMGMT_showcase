@@ -1,14 +1,32 @@
 import { RefreshCw, Settings, Grid3x3, Sliders, ChevronRight, Home as HomeIcon, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLocation, Link } from "wouter";
-import { useProjects } from "@/hooks/use-nexus-data";
+import { useLocation, Link, useSearch } from "wouter";
+import { useProjects, useMilestones } from "@/hooks/use-nexus-data";
 import { Fragment, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { PROJECT_STAGES } from "@/lib/mock-data";
+
+const TAB_LABELS: Record<string, string> = {
+  overview: "Dashboard",
+  tasks: "Tasks",
+  deliverables: "Deliverables",
+  timeline: "Timeline",
+  milestones: "Milestones",
+  stages: "Stages",
+};
 
 export function BreadcrumbNav() {
   const [location] = useLocation();
+  const searchString = useSearch();
   const pathSegments = location.split("/").filter(Boolean);
   const { data: projects } = useProjects();
+  const { data: allMilestones } = useMilestones();
+
+  // Parse tab from URL query params
+  const activeTab = useMemo(() => {
+    const params = new URLSearchParams(searchString);
+    return params.get("tab");
+  }, [searchString]);
 
   // Extract specific entity IDs from URL for targeted lookups
   const entityIds = useMemo(() => {
@@ -103,18 +121,20 @@ export function BreadcrumbNav() {
     }
 
     if (prevSegment === "stages") {
-      const stages = {
-        "s1": "Discovery",
-        "s2": "Design",
-        "s3": "Development",
-        "s4": "QA & Testing",
-        "s5": "Launch"
-      };
-      return (stages as any)[segment] || "Stage";
+      const stage = PROJECT_STAGES.find((s: any) => s.id === segment);
+      return stage?.name || "Stage";
+    }
+
+    if (prevSegment === "milestones" && allMilestones) {
+      const milestone = allMilestones.find((m: any) => m.id === segment);
+      return milestone?.name || "Milestone";
     }
 
     return segment;
   };
+
+  // Check if we're on a project overview page (just /projects/:id with optional tab query)
+  const isProjectOverviewPage = pathSegments.length === 2 && pathSegments[0] === "projects";
 
   return (
     <div className="h-12 border-b border-border bg-background flex items-center justify-between px-6 shrink-0">
@@ -138,10 +158,13 @@ export function BreadcrumbNav() {
           const isLast = index === pathSegments.length - 1;
           const label = getBreadcrumbLabel(segment, index, pathSegments);
 
+          // Skip rendering if this would be redundant
+          const showTabAfter = isLast && isProjectOverviewPage && activeTab && activeTab !== "overview";
+
           return (
             <Fragment key={path}>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-              {isLast ? (
+              {isLast && !showTabAfter ? (
                 <span className="font-medium text-foreground truncate max-w-[200px]">
                   {label}
                 </span>
@@ -149,6 +172,14 @@ export function BreadcrumbNav() {
                 <Link href={path} className="hover:text-primary transition-colors truncate max-w-[150px]">
                   {label}
                 </Link>
+              )}
+              {showTabAfter && (
+                <>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+                  <span className="font-medium text-foreground truncate max-w-[200px]">
+                    {TAB_LABELS[activeTab] || activeTab}
+                  </span>
+                </>
               )}
             </Fragment>
           );
