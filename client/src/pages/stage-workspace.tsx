@@ -84,10 +84,10 @@ export default function StageWorkspace() {
   const { data: allSavedViews, isLoading: isSavedViewsLoading } = useSavedViews();
   const { data: allUsers, isLoading: isUsersLoading } = useUsers();
 
-  // Memoized filtered data
+  // Memoized filtered data - stages are shared across all projects (no projectId filter)
   const projectStages = useMemo(() => 
-    (allStages || []).filter((s: any) => s.projectId === projectId).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)),
-    [allStages, projectId]
+    (allStages || []).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)),
+    [allStages]
   );
 
   const stage = useMemo(() => 
