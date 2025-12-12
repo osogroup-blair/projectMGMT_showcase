@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Plus, Search, Filter, MoreVertical, Edit, Trash2, 
   CheckCircle2, Circle, Clock, AlertCircle, Calendar, 
   User, Flag, CheckSquare, Target, Briefcase, Layers,
   ListTodo, SlidersHorizontal, ArrowRight, Copy, Lock, Unlock,
-  Grid3X3, Eye
+  Grid3X3, Eye, Loader2, ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,11 +39,82 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useRoute, Link } from "wouter";
 import { 
-  MILESTONES, MILESTONE_SCOPE_RULES, MILESTONE_TASK_LINKS, 
-  TASKS, EPICS, TEAM, PROJECTS,
-  Milestone, MilestoneScopeRules, MilestoneTaskLink, Task, Epic
-} from "@/lib/mock-data";
+  useMilestones, useTasks, useEpics, useUsers, useProject,
+  useMilestoneScopeRules, useMilestoneTaskLinks
+} from "@/hooks/use-nexus-data";
+
+// Types for local use
+interface Milestone {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string;
+  phase: string;
+  stageId?: string;
+  targetDate: string;
+  status: string;
+  ownerId: string;
+  scopeType?: string;
+  completionMode?: string;
+  completionTargetPercent?: number;
+  tags?: string[];
+  progress?: {
+    totalTasks: number;
+    completedTasks: number;
+    percentComplete: number;
+  };
+  progressPercent?: number;
+  isBillingGate?: boolean;
+  requiredCompletionRatio?: number;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  project: string;
+  projectId?: string;
+  stageId?: string;
+  epicId?: string;
+  status: string;
+  assigneeId?: string;
+  deadline?: string;
+  priority?: string;
+  milestoneId?: string;
+  estimateHours?: number;
+  effort?: number;
+  tags?: string[];
+}
+
+interface Epic {
+  id: string;
+  deliverableId: string;
+  title: string;
+  description: string;
+  status: string;
+  ownerId: string;
+  startDate: string;
+  endDate: string;
+  progress: number;
+  stageIds?: string[];
+}
+
+interface MilestoneScopeRules {
+  milestoneId: string;
+  rules: any[];
+}
+
+interface MilestoneTaskLink {
+  id: string;
+  milestoneId: string;
+  taskId: string;
+  projectId?: string;
+  source: string;
+  locked?: boolean;
+  createdAt?: string;
+}
 
 // --- Types & Constants ---
 
@@ -357,6 +428,7 @@ function ActiveTasksList({
   tasks,
   links,
   epics,
+  team,
   onCreateTask,
   onUpdateTask
 }: {
@@ -364,6 +436,7 @@ function ActiveTasksList({
   tasks: Task[],
   links: MilestoneTaskLink[],
   epics: Epic[],
+  team: any[],
   onCreateTask: (task: Partial<Task>) => void,
   onUpdateTask: (taskId: string, updates: Partial<Task>) => void
 }) {
@@ -415,7 +488,7 @@ function ActiveTasksList({
         onOpenChange={setIsDialogOpen}
         task={editingTask}
         epics={epics}
-        team={TEAM}
+        team={team}
         onSave={editingTask ? handleUpdate : handleCreate}
       />
 
@@ -470,7 +543,7 @@ function ActiveTasksList({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs">
-                      {TEAM.find(t => t.id === task.assigneeId)?.name || "Unassigned"}
+                      {team.find(t => t.id === task.assigneeId)?.name || "Unassigned"}
                     </TableCell>
                     <TableCell className="text-right">
                       <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted font-normal text-[10px]">
@@ -1056,6 +1129,7 @@ function MilestoneDetailPanel({
                   tasks={tasks}
                   links={taskLinks}
                   epics={epics}
+                  team={team}
                   onCreateTask={onCreateTask}
                   onUpdateTask={onUpdateTask}
                 />
@@ -1083,15 +1157,34 @@ function MilestoneDetailPanel({
 
 export default function MilestonesManagementPage() {
   const { toast } = useToast();
-  
-  // Local State for Mock Data
-  const [milestones, setMilestones] = useState<Milestone[]>(MILESTONES);
-  const [selectedId, setSelectedId] = useState<string | null>(MILESTONES[0]?.id || null);
-  const [tasks, setTasks] = useState<Task[]>(TASKS);
-  const [scopeRules, setScopeRules] = useState<MilestoneScopeRules[]>(MILESTONE_SCOPE_RULES);
-  const [taskLinks, setTaskLinks] = useState<MilestoneTaskLink[]>(MILESTONE_TASK_LINKS);
-  
-  // Create Dialog State
+  const [match, params] = useRoute("/projects/:projectId/milestones");
+  const projectId = params?.projectId || "1";
+
+  // Database Hooks
+  const { data: project, isLoading: isProjectLoading } = useProject(projectId);
+  const { data: allMilestones, isLoading: isMilestonesLoading, create: createMilestone, update: updateMilestone, remove: deleteMilestone } = useMilestones();
+  const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask } = useTasks();
+  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
+  const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
+  const { data: allTaskLinks, create: createTaskLink, remove: deleteTaskLink } = useMilestoneTaskLinks();
+
+  // Filter data by project
+  const milestones = useMemo(() => 
+    (allMilestones || []).filter((m: any) => m.projectId === projectId) as Milestone[],
+    [allMilestones, projectId]
+  );
+
+  const tasks = useMemo(() => 
+    (allTasks || []).filter((t: any) => t.projectId === projectId) as Task[],
+    [allTasks, projectId]
+  );
+
+  const epics = useMemo(() => (allEpics || []) as Epic[], [allEpics]);
+  const team = useMemo(() => (users || []) as any[], [users]);
+
+  // Local UI State
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -1099,20 +1192,62 @@ export default function MilestonesManagementPage() {
     targetDate: new Date().toISOString().split('T')[0]
   });
 
+  // Select first milestone when data loads
+  useEffect(() => {
+    if (milestones.length > 0 && !selectedId) {
+      setSelectedId(milestones[0].id);
+    }
+  }, [milestones, selectedId]);
+
   const selectedMilestone = useMemo(() => 
     milestones.find(m => m.id === selectedId), 
     [milestones, selectedId]
   );
 
+  const scopeRules = useMemo(() => 
+    (allScopeRules || []).filter((r: any) => r.milestoneId === selectedId),
+    [allScopeRules, selectedId]
+  );
+
   const selectedRules = useMemo(() => 
-    scopeRules.find(r => r.milestoneId === selectedId) || { milestoneId: selectedId!, rules: [] },
+    scopeRules[0] || { milestoneId: selectedId!, rules: [] },
     [scopeRules, selectedId]
   );
 
-  const selectedLinks = useMemo(() => 
-    taskLinks.filter(l => l.milestoneId === selectedId),
-    [taskLinks, selectedId]
+  const taskLinks = useMemo(() => 
+    (allTaskLinks || []).filter((l: any) => l.milestoneId === selectedId) as MilestoneTaskLink[],
+    [allTaskLinks, selectedId]
   );
+
+  // Calculate milestone progress from linked tasks
+  const milestonesWithProgress = useMemo(() => {
+    return milestones.map(m => {
+      const links = (allTaskLinks || []).filter((l: any) => l.milestoneId === m.id);
+      const linkedTasks = links.map((l: any) => tasks.find(t => t.id === l.taskId)).filter(Boolean);
+      const totalTasks = linkedTasks.length;
+      const completedTasks = linkedTasks.filter((t: any) => t?.status === "Done").length;
+      const percentComplete = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      
+      return {
+        ...m,
+        progress: { totalTasks, completedTasks, percentComplete },
+        progressPercent: percentComplete
+      };
+    });
+  }, [milestones, allTaskLinks, tasks]);
+
+  // Loading state
+  const isLoading = isProjectLoading || isMilestonesLoading || isTasksLoading || isEpicsLoading || isUsersLoading;
+
+  if (isLoading) {
+    return (
+      <Shell>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Shell>
+    );
+  }
 
   // Handlers
   const handleOpenCreate = () => {
@@ -1128,62 +1263,86 @@ export default function MilestonesManagementPage() {
     if (!createForm.name) return;
 
     const newId = `m-${Date.now()}`;
-    const newMilestone: Milestone = {
+    createMilestone({
       id: newId,
-      projectId: "1",
+      projectId: projectId,
       name: createForm.name,
       description: "Describe the milestone goal...",
-      phase: createForm.phase as any,
+      phase: createForm.phase,
       targetDate: createForm.targetDate,
       status: "planned",
-      ownerId: TEAM[0].id,
+      ownerId: team[0]?.id || "1",
       scopeType: "manual",
       completionMode: "all_tasks",
-      progress: {
-        totalTasks: 0,
-        completedTasks: 0,
-        percentComplete: 0
-      }
-    };
+      completionTargetPercent: 100,
+      tags: [],
+      progressTotalTasks: 0,
+      progressCompletedTasks: 0,
+      progressPercentComplete: 0,
+      progressPercent: 0,
+      isBillingGate: false,
+      requiredCompletionRatio: 100
+    });
     
-    setMilestones([...milestones, newMilestone]);
     setSelectedId(newId);
     setIsCreateDialogOpen(false);
     toast({ title: "Milestone Created", description: "Start by defining its scope." });
   };
 
   const handleDelete = (id: string) => {
-    setMilestones(prev => prev.filter(m => m.id !== id));
+    deleteMilestone(id);
     if (selectedId === id) setSelectedId(null);
     toast({ title: "Milestone Deleted" });
   };
 
   const handleUpdateMilestone = (updated: Milestone) => {
-    setMilestones(prev => prev.map(m => m.id === updated.id ? updated : m));
+    updateMilestone({ id: updated.id, updates: updated });
     toast({ title: "Milestone Updated" });
   };
 
   const handleUpdateRules = (updatedRules: MilestoneScopeRules) => {
-    setScopeRules(prev => {
-       const existing = prev.findIndex(r => r.milestoneId === updatedRules.milestoneId);
-       if (existing >= 0) {
-         const copy = [...prev];
-         copy[existing] = updatedRules;
-         return copy;
-       }
-       return [...prev, updatedRules];
-    });
+    const existing = scopeRules.find((r: any) => r.milestoneId === updatedRules.milestoneId);
+    if (existing) {
+      updateScopeRule({ id: existing.id, updates: { rules: updatedRules.rules } });
+    } else {
+      createScopeRule({
+        id: `sr-${Date.now()}`,
+        milestoneId: updatedRules.milestoneId,
+        rules: updatedRules.rules
+      });
+    }
     toast({ title: "Scope Rules Updated", description: "Milestone scope has been recalculated." });
   };
 
   const handleUpdateLinks = (updatedLinks: MilestoneTaskLink[]) => {
-    // Replace all links for this milestone with the new set
-    setTaskLinks(prev => {
-       const others = prev.filter(l => l.milestoneId !== selectedId);
-       return [...others, ...updatedLinks];
+    // For simplicity, we'll handle link changes one at a time
+    // In a real app you might want batch operations
+    const currentLinkIds = taskLinks.map(l => l.id);
+    const newLinkIds = updatedLinks.map(l => l.id);
+    
+    // Delete removed links
+    currentLinkIds.forEach(id => {
+      if (!newLinkIds.includes(id)) {
+        deleteTaskLink(id);
+      }
+    });
+    
+    // Add new links
+    updatedLinks.forEach(link => {
+      if (!currentLinkIds.includes(link.id)) {
+        createTaskLink({
+          id: link.id,
+          milestoneId: link.milestoneId,
+          taskId: link.taskId,
+          projectId: projectId,
+          source: link.source,
+          locked: link.locked || false,
+          createdAt: link.createdAt || new Date().toISOString()
+        });
+      }
     });
 
-    // Recalculate progress
+    // Update milestone progress
     if (selectedMilestone) {
       const total = updatedLinks.length;
       const completed = updatedLinks.filter(l => {
@@ -1193,55 +1352,61 @@ export default function MilestonesManagementPage() {
       
       const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-      const updatedMilestone = {
-        ...selectedMilestone,
-        progress: {
-          totalTasks: total,
-          completedTasks: completed,
-          percentComplete: percent
-        },
-        progressPercent: percent // legacy sync
-      };
-      
-      setMilestones(prev => prev.map(m => m.id === updatedMilestone.id ? updatedMilestone : m));
+      updateMilestone({
+        id: selectedMilestone.id,
+        updates: {
+          progressTotalTasks: total,
+          progressCompletedTasks: completed,
+          progressPercentComplete: percent,
+          progressPercent: percent
+        }
+      });
     }
   };
 
   const handleCreateTask = (taskData: Partial<Task>) => {
-    const newTask: Task = {
-      id: `${Date.now()}`,
+    const newTaskId = `${Date.now()}`;
+    createTask({
+      id: newTaskId,
       title: taskData.title || "New Task",
-      project: PROJECTS[0].name,
+      description: taskData.description || "",
+      project: project?.name || "Project",
+      projectId: projectId,
       stageId: taskData.stageId,
       epicId: taskData.epicId,
       status: taskData.status || "Todo",
       assigneeId: taskData.assigneeId,
-      deadline: new Date().toISOString(),
+      deadline: new Date().toISOString().split('T')[0],
       priority: "Medium",
       estimateHours: 0,
-      tags: [],
-      ...taskData
-    } as Task;
-
-    setTasks([...tasks, newTask]);
+      effort: 1,
+      tags: []
+    });
 
     if (selectedId) {
       const newLink: MilestoneTaskLink = {
         id: `l-${Date.now()}`,
         milestoneId: selectedId,
-        taskId: newTask.id,
+        taskId: newTaskId,
         source: "manual_add",
         locked: true,
         createdAt: new Date().toISOString()
       };
-      // Reuse handleUpdateLinks to ensure progress calc triggers
-      handleUpdateLinks([...selectedLinks, newLink]);
+      createTaskLink({
+        id: newLink.id,
+        milestoneId: newLink.milestoneId,
+        taskId: newLink.taskId,
+        projectId: projectId,
+        source: newLink.source,
+        locked: true,
+        createdAt: newLink.createdAt
+      });
     }
     toast({ title: "Task Created", description: "Task added to project and milestone." });
   };
 
   const handleUpdateTask = (taskId: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+    updateTask({ id: taskId, updates });
     toast({ title: "Task Updated" });
   };
 
@@ -1249,7 +1414,7 @@ export default function MilestonesManagementPage() {
     <Shell>
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
         <MilestoneListPanel 
-          milestones={milestones}
+          milestones={milestonesWithProgress}
           selectedId={selectedId || undefined}
           onSelect={setSelectedId}
           onCreate={handleOpenCreate}
@@ -1262,10 +1427,10 @@ export default function MilestonesManagementPage() {
               milestone={selectedMilestone}
               onSave={handleUpdateMilestone}
               tasks={tasks}
-              epics={EPICS}
-              team={TEAM}
+              epics={epics}
+              team={team}
               scopeRules={selectedRules}
-              taskLinks={selectedLinks}
+              taskLinks={taskLinks}
               onUpdateScopeRules={handleUpdateRules}
               onUpdateTaskLinks={handleUpdateLinks}
               onCreateTask={handleCreateTask}
