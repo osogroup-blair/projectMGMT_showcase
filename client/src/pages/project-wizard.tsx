@@ -484,7 +484,9 @@ export default function ProjectWizard() {
           title: deliverable.title,
           description: deliverable.description || "",
           status: "Active",
-          order: 0
+          ownerId: projectData.ownerId || "1",
+          dueDate: projectData.dueDate || new Date().toISOString().split('T')[0],
+          progress: 0
         });
         
         if (newDeliverable?.id && deliverable.epics?.length > 0) {
