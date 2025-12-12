@@ -1,15 +1,36 @@
-import { STATS } from "@/lib/mock-data";
+import { useProjects, useTasks, useMilestones, useActivity } from "@/hooks/use-nexus-data";
 import { ArrowUpRight, Clock, CheckCircle2, AlertTriangle, Flag, DollarSign, Layers } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useMemo } from "react";
 
 export function StatsGrid() {
+  const { data: projects } = useProjects();
+  const { data: tasks } = useTasks();
+  const { data: milestones } = useMilestones();
+  
+  const stats = useMemo(() => {
+    const activeProjects = projects.filter((p: any) => p.status === 'In Progress').length;
+    const tasksCompleted = tasks.filter((t: any) => t.status === 'Done').length;
+    const totalMilestones = milestones.length;
+    const projectRisks = projects.filter((p: any) => p.status === 'Overdue').length;
+    
+    return {
+      hoursLogged: 32,
+      tasksCompleted,
+      activeProjects,
+      pendingReimbursement: 2450,
+      milestones: totalMilestones,
+      projectRisks
+    };
+  }, [projects, tasks, milestones]);
+
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">This Week</h3>
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <StatCard 
           icon={Clock} 
-          value={STATS.hoursLogged} 
+          value={stats.hoursLogged} 
           label="hours logged" 
           trend="+4%" 
           color="text-blue-500" 
@@ -17,7 +38,7 @@ export function StatsGrid() {
         />
         <StatCard 
           icon={CheckCircle2} 
-          value={STATS.tasksCompleted} 
+          value={stats.tasksCompleted} 
           label="tasks done" 
           trend="+12%" 
           color="text-green-500" 
@@ -25,14 +46,14 @@ export function StatsGrid() {
         />
         <StatCard 
           icon={Layers} 
-          value={STATS.activeProjects} 
+          value={stats.activeProjects} 
           label="active projects" 
           color="text-indigo-500" 
           bg="bg-indigo-50"
         />
         <StatCard 
           icon={DollarSign} 
-          value={`$${STATS.pendingReimbursement.toLocaleString().split('.')[0]}`} 
+          value={`$${stats.pendingReimbursement.toLocaleString().split('.')[0]}`} 
           label="reimbursements" 
           trend="0.5%" 
           color="text-amber-500" 
@@ -40,18 +61,18 @@ export function StatsGrid() {
         />
         <StatCard 
           icon={Flag} 
-          value={STATS.milestones} 
+          value={stats.milestones} 
           label="milestones" 
           color="text-purple-500" 
           bg="bg-purple-50"
         />
         <StatCard 
           icon={AlertTriangle} 
-          value={STATS.projectRisks} 
+          value={stats.projectRisks} 
           label="risks detected" 
           color="text-red-500" 
           bg="bg-red-50"
-          alert
+          alert={stats.projectRisks > 0}
         />
       </div>
     </div>

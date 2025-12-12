@@ -1,15 +1,15 @@
 import { RefreshCw, Settings, Grid3x3, Sliders, ChevronRight, Home as HomeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link } from "wouter";
-import { PROJECTS } from "@/lib/mock-data";
+import { useProjects } from "@/hooks/use-nexus-data";
 import { Fragment } from "react";
 
 export function BreadcrumbNav() {
   const [location] = useLocation();
   const pathSegments = location.split("/").filter(Boolean);
+  const { data: projects } = useProjects();
 
   const getBreadcrumbLabel = (segment: string, index: number, allSegments: string[]) => {
-    // Handle known static routes
     if (segment === "projects") return "Projects";
     if (segment === "import") return "Import";
     if (segment === "mapping") return "Field Mapping";
@@ -17,11 +17,10 @@ export function BreadcrumbNav() {
     if (segment === "stages") return "Stages";
     if (segment === "view-settings") return "View Settings";
 
-    // Handle dynamic IDs based on context
     const prevSegment = allSegments[index - 1];
 
     if (prevSegment === "projects") {
-      const project = PROJECTS.find(p => p.id === segment);
+      const project = projects.find((p: any) => p.id === segment);
       return project ? project.name : "Project";
     }
 
@@ -30,8 +29,6 @@ export function BreadcrumbNav() {
     }
 
     if (prevSegment === "stages") {
-      // Mock stage lookup since we don't have global stage state easily accessible here
-      // In a real app, this would fetch from a query or store
       const stages = {
         "s1": "Discovery",
         "s2": "Design",

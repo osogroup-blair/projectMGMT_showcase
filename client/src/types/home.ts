@@ -6,6 +6,7 @@ export interface HomeTask {
   deliverableName?: string;
   epicId?: string;
   epicName?: string;
+  stageId?: string;
   title: string;
   description?: string;
   status: "not_started" | "in_progress" | "blocked" | "complete";

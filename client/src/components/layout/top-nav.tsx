@@ -2,12 +2,13 @@ import { Search, ChevronDown, Bell } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import logo from "@assets/image_1765392085901.png";
-import { TEAM } from "@/lib/mock-data";
+import { useUsers } from "@/hooks/use-nexus-data";
 
 export function TopNav() {
-  const currentUser = TEAM.find(u => u.id === "1") || TEAM[0];
-  const firstName = currentUser.name.split(" ")[0];
-  const initials = currentUser.name.split(" ").map(n => n[0]).join("").toUpperCase().substring(0, 2);
+  const { data: users } = useUsers();
+  const currentUser = users.find((u: any) => u.id === "1") || users[0] || { name: "User", role: "Member" };
+  const firstName = currentUser.name?.split(" ")[0] || "User";
+  const initials = currentUser.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) || "U";
 
   return (
     <div className="h-16 bg-sidebar text-sidebar-foreground border-b border-sidebar-border flex items-center justify-center px-6 gap-4 relative">

@@ -59,8 +59,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRoute, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { TEAM, Task } from "@/lib/mock-data";
-import { useTasks, useProject, useMilestones } from "@/hooks/use-nexus-data";
+import { Task } from "@/lib/mock-data";
+import { useTasks, useProject, useMilestones, useUsers } from "@/hooks/use-nexus-data";
 
 // Reuse Mock Stages
 const MOCK_STAGES = [
@@ -86,6 +86,7 @@ export default function TaskBoard() {
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask, remove: deleteTask } = useTasks();
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: users, isLoading: isUsersLoading } = useUsers();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState<"board" | "list">("board");
@@ -124,7 +125,7 @@ export default function TaskBoard() {
       projectId: project.id, // New field
       stageId: stageId || "s1",
       status: "Todo",
-      assigneeId: TEAM[0].id,
+      assigneeId: users[0]?.id || "",
       deadline: new Date().toISOString().split('T')[0],
       priority: "Medium",
       estimateHours: 0,
@@ -167,10 +168,10 @@ export default function TaskBoard() {
     setIsDialogOpen(false);
   };
 
-  const getAssignee = (id?: string) => TEAM.find(t => t.id === id);
+  const getAssignee = (id?: string) => users.find((t: any) => t.id === id);
   const getMilestone = (id?: string) => milestones.find((m: any) => m.id === id);
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading) {
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading) {
     return (
       <Shell>
         <div className="flex h-[50vh] items-center justify-center">
@@ -240,7 +241,7 @@ export default function TaskBoard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Assignees</SelectItem>
-                  {TEAM.map(member => (
+                  {users.map((member: any) => (
                     <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -255,7 +256,7 @@ export default function TaskBoard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Milestones</SelectItem>
-                  {MILESTONES.map(m => (
+                  {milestones.map((m: any) => (
                     <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -478,7 +479,7 @@ export default function TaskBoard() {
                       <SelectValue placeholder="Unassigned" />
                     </SelectTrigger>
                     <SelectContent>
-                      {TEAM.map(member => (
+                      {users.map((member: any) => (
                         <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
                       ))}
                     </SelectContent>

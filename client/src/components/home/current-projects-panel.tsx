@@ -1,11 +1,11 @@
 import { HomeTask } from "@/types/home";
-import { PROJECTS, TASKS, EPICS } from "@/lib/mock-data";
+import { useProjects, useTasks, useEpics } from "@/hooks/use-nexus-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List, Layers, Workflow, Flag } from "lucide-react";
-import { useState } from "react";
+import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List, Layers, Workflow, Flag, Loader2 } from "lucide-react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
 import {
@@ -23,44 +23,52 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Helper to map raw Task to HomeTask for the TaskCard
-const mapToHomeTask = (task: any): HomeTask => {
-  const project = PROJECTS.find(p => p.name === task.project || p.id === task.projectId);
-  const epic = EPICS.find(e => e.id === task.epicId);
-  
-  return {
-    id: task.id,
-    projectId: project?.id || "unknown",
-    projectName: task.project || project?.name || "Unknown Project",
-    epicId: epic?.id,
-    epicName: epic?.title,
-    title: task.title,
-    description: task.description,
-    status: task.status === "Done" ? "complete" : task.status === "Todo" ? "not_started" : "in_progress",
-    assignedToUserId: task.assigneeId || "currentUser",
-    dueDateTime: task.deadline, // Simplified
-    priority: task.priority?.toLowerCase() || "medium",
-    isOverdue: task.status === "Overdue",
-    durationBucket: (task.estimateHours || 1) < 2 ? "quick_win" : (task.estimateHours || 1) < 4 ? "medium" : "deep_work",
-    stageId: task.stageId, // Pass through stageId if available in Task type or add to HomeTask if needed. For now assuming task has it.
-  };
-};
-
 export function CurrentProjectsPanel() {
+  const { data: projects, isLoading: projectsLoading } = useProjects();
+  const { data: tasks, isLoading: tasksLoading } = useTasks();
+  const { data: epics, isLoading: epicsLoading } = useEpics();
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>(["In Progress", "Upcoming", "On Hold"]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
+  // Helper to map raw Task to HomeTask for the TaskCard
+  const mapToHomeTask = useMemo(() => (task: any): HomeTask => {
+    const project = projects.find((p: any) => p.name === task.project || p.id === task.projectId);
+    const epic = epics.find((e: any) => e.id === task.epicId);
+    
+    return {
+      id: task.id,
+      projectId: project?.id || "unknown",
+      projectName: task.project || project?.name || "Unknown Project",
+      epicId: epic?.id,
+      epicName: epic?.title,
+      title: task.title,
+      description: task.description,
+      status: task.status === "Done" ? "complete" : task.status === "Todo" ? "not_started" : "in_progress",
+      assignedToUserId: task.assigneeId || "currentUser",
+      dueDateTime: task.deadline,
+      priority: task.priority?.toLowerCase() || "medium",
+      isOverdue: task.status === "Overdue",
+      durationBucket: (task.estimateHours || 1) < 2 ? "quick_win" : (task.estimateHours || 1) < 4 ? "medium" : "deep_work",
+      stageId: task.stageId,
+    };
+  }, [projects, epics]);
+
   // Filter Projects
-  const filteredProjects = PROJECTS.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter.includes(project.status);
-    return matchesSearch && matchesStatus;
-  });
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project: any) => {
+      const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter.includes(project.status);
+      return matchesSearch && matchesStatus;
+    });
+  }, [projects, searchQuery, statusFilter]);
 
   // Group Tasks by Project
   const getProjectTasks = (projectId: string, projectName: string) => {
-    return TASKS.filter(t => t.project === projectName || t.projectId === projectId).map(mapToHomeTask);
+    return tasks
+      .filter((t: any) => t.project === projectName || t.projectId === projectId)
+      .map(mapToHomeTask);
   };
 
   const toggleStatusFilter = (status: string) => {
@@ -72,8 +80,8 @@ export function CurrentProjectsPanel() {
   };
 
   // Helper to render task grid
-  const renderTaskGrid = (tasks: HomeTask[]) => {
-    if (tasks.length === 0) {
+  const renderTaskGrid = (taskList: HomeTask[]) => {
+    if (taskList.length === 0) {
       return (
         <div className="col-span-full text-center py-8 text-muted-foreground text-sm border border-dashed rounded-lg">
           No tasks found in this view.
@@ -82,12 +90,20 @@ export function CurrentProjectsPanel() {
     }
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tasks.map(task => (
+        {taskList.map(task => (
           <TaskCard key={task.id} task={task} compact />
         ))}
       </div>
     );
   };
+
+  if (projectsLoading || tasksLoading || epicsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -146,30 +162,32 @@ export function CurrentProjectsPanel() {
       </div>
 
       {/* Projects List */}
-      {viewMode === "list" ? (
+      {filteredProjects.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          No projects match your filters.
+        </div>
+      ) : viewMode === "list" ? (
         <div className="space-y-4">
-           {filteredProjects.map(project => {
-             const tasks = getProjectTasks(project.id, project.name);
+           {filteredProjects.map((project: any) => {
+             const projectTasks = getProjectTasks(project.id, project.name);
              const progress = project.progress || 0;
              
              // Groupings
              const tasksByStatus = {
-               "Todo": tasks.filter(t => t.status === "not_started"),
-               "In Progress": tasks.filter(t => t.status === "in_progress"),
-               "Done": tasks.filter(t => t.status === "complete"),
+               "Todo": projectTasks.filter(t => t.status === "not_started"),
+               "In Progress": projectTasks.filter(t => t.status === "in_progress"),
+               "Done": projectTasks.filter(t => t.status === "complete"),
              };
 
-             const tasksByEpic = tasks.reduce((acc, task) => {
+             const tasksByEpic = projectTasks.reduce((acc, task) => {
                 const epicName = task.epicName || "No Epic";
                 if (!acc[epicName]) acc[epicName] = [];
                 acc[epicName].push(task);
                 return acc;
              }, {} as Record<string, HomeTask[]>);
 
-             const tasksByStage = tasks.reduce((acc, task) => {
-                // @ts-ignore - stageId comes from raw task but not fully typed in HomeTask yet, accessing directly or we mapped it
+             const tasksByStage = projectTasks.reduce((acc, task) => {
                 const stageId = (task as any).stageId || "no_stage"; 
-                // Simple mapping for demo
                 const stageName = stageId === "st_plan" ? "Planning" : 
                                   stageId === "st_validate" ? "Validation" : 
                                   stageId === "st_develop" ? "Development" : 
@@ -223,7 +241,7 @@ export function CurrentProjectsPanel() {
 
                            <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
                               <Briefcase className="w-4 h-4" />
-                              {tasks.length} tasks
+                              {projectTasks.length} tasks
                            </div>
                         </div>
                         
@@ -300,8 +318,8 @@ export function CurrentProjectsPanel() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {filteredProjects.map(project => {
-             const tasks = getProjectTasks(project.id, project.name);
+           {filteredProjects.map((project: any) => {
+             const projectTasks = getProjectTasks(project.id, project.name);
              const progress = project.progress || 0;
              
              return (
@@ -348,9 +366,9 @@ export function CurrentProjectsPanel() {
                     </div>
                     
                     <div className="mt-auto pt-4 border-t">
-                      <p className="text-xs font-medium text-muted-foreground mb-3">{tasks.length} Active Tasks</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-3">{projectTasks.length} Active Tasks</p>
                       <div className="space-y-2">
-                        {tasks.slice(0, 2).map(task => (
+                        {projectTasks.slice(0, 2).map(task => (
                           <div key={task.id} className="flex items-center gap-2 text-sm">
                              <div className={cn(
                                "w-2 h-2 rounded-full",
@@ -359,9 +377,9 @@ export function CurrentProjectsPanel() {
                              <span className="truncate">{task.title}</span>
                           </div>
                         ))}
-                        {tasks.length > 2 && (
+                        {projectTasks.length > 2 && (
                           <div className="text-xs text-muted-foreground pl-4">
-                            + {tasks.length - 2} more
+                            + {projectTasks.length - 2} more
                           </div>
                         )}
                       </div>

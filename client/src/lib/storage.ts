@@ -13,6 +13,7 @@ export interface NexusDB {
   roleAssignments: any[];
   savedViews: any[];
   guidanceItems: any[];
+  projectStages: any[];
   projectTemplates: any[];
   deliverableTemplates: any[];
   epicTemplates: any[];
@@ -21,6 +22,7 @@ export interface NexusDB {
   frameworkTemplates: any[];
   roleTemplates: any[];
   mappingTemplates: any[];
+  statusOptions: any[];
   projectStatuses: any[];
   taskStatuses: any[];
   stageTypes: any[];
