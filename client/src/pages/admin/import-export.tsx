@@ -137,6 +137,9 @@ type ImportPreviewData = {
   count: number;
   sample: any[];
   errors: string[];
+  existingCount: number;
+  newCount: number;
+  existingIds: string[];
 };
 
 type ImportState = {
@@ -147,6 +150,9 @@ type ImportState = {
   isImporting: boolean;
   importProgress: number;
   errors: string[];
+  hasConflicts: boolean;
+  totalExisting: number;
+  totalNew: number;
 };
 
 const ENTITY_TO_COLLECTION: Record<string, string> = {
@@ -179,6 +185,38 @@ const ENTITY_TO_COLLECTION: Record<string, string> = {
   RoleAssignments: "roleAssignments"
 };
 
+const DEFAULT_STATUS_VALUES: Record<string, string> = {
+  projects: "Not Started",
+  tasks: "Not Started",
+  deliverables: "Not Started",
+  epics: "Not Started",
+  milestones: "Pending"
+};
+
+const applyDefaultsForNewRecord = (record: any, entityName: string): any => {
+  const now = new Date().toISOString();
+  const updated = { ...record };
+  
+  if (!updated.createdAt && !updated.created_at) {
+    updated.createdAt = now;
+  }
+  if (!updated.updatedAt && !updated.updated_at) {
+    updated.updatedAt = now;
+  }
+  
+  const collection = ENTITY_TO_COLLECTION[entityName]?.toLowerCase();
+  if (collection && DEFAULT_STATUS_VALUES[collection] && !updated.status) {
+    updated.status = DEFAULT_STATUS_VALUES[collection];
+  }
+  
+  if ((collection === "projects" || collection === "deliverables" || collection === "epics") && 
+      updated.progress === undefined) {
+    updated.progress = 0;
+  }
+  
+  return updated;
+};
+
 export default function AdminImportExport() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -195,7 +233,10 @@ export default function AdminImportExport() {
     isProcessing: false,
     isImporting: false,
     importProgress: 0,
-    errors: []
+    errors: [],
+    hasConflicts: false,
+    totalExisting: 0,
+    totalNew: 0
   });
   const [availableProjects, setAvailableProjects] = useState<any[]>([]);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
@@ -276,35 +317,68 @@ export default function AdminImportExport() {
 
       const preview: ImportPreviewData[] = [];
       const globalErrors: string[] = [];
+      let totalExisting = 0;
+      let totalNew = 0;
 
-      Object.entries(parsedData).forEach(([entityName, records]) => {
-        if (!Array.isArray(records)) return;
+      for (const [entityName, records] of Object.entries(parsedData)) {
+        if (!Array.isArray(records)) continue;
         
         const entityErrors: string[] = [];
         const collection = ENTITY_TO_COLLECTION[entityName];
         
         if (!collection) {
           entityErrors.push(`Unknown entity: ${entityName}`);
+          preview.push({
+            entityName,
+            count: records.length,
+            sample: records.slice(0, 3),
+            errors: entityErrors,
+            existingCount: 0,
+            newCount: records.length,
+            existingIds: []
+          });
+          continue;
         }
+
+        const existingIds: string[] = [];
+        const existingData = await db.getAll(collection as any);
+        const existingIdSet = new Set(existingData.map((item: any) => item.id));
+        
+        for (const record of records) {
+          if (record.id && existingIdSet.has(record.id)) {
+            existingIds.push(record.id);
+          }
+        }
+
+        const existingCount = existingIds.length;
+        const newCount = records.length - existingCount;
+        totalExisting += existingCount;
+        totalNew += newCount;
 
         preview.push({
           entityName,
           count: records.length,
           sample: records.slice(0, 3),
-          errors: entityErrors
+          errors: entityErrors,
+          existingCount,
+          newCount,
+          existingIds
         });
 
         if (entityErrors.length > 0) {
           globalErrors.push(...entityErrors);
         }
-      });
+      }
 
       setImportState(prev => ({
         ...prev,
         data: parsedData,
         preview,
         errors: globalErrors,
-        isProcessing: false
+        isProcessing: false,
+        hasConflicts: totalExisting > 0,
+        totalExisting,
+        totalNew
       }));
 
     } catch (error: any) {
@@ -432,6 +506,8 @@ export default function AdminImportExport() {
     const totalEntities = entities.length;
     let processed = 0;
     const importErrors: string[] = [];
+    let updatedCount = 0;
+    let createdCount = 0;
 
     for (const [entityName, records] of entities) {
       const collection = ENTITY_TO_COLLECTION[entityName];
@@ -446,11 +522,16 @@ export default function AdminImportExport() {
             const existing = await db.getById(collection as any, record.id);
             if (existing) {
               await db.update(collection as any, record.id, record);
+              updatedCount++;
             } else {
-              await db.create(collection as any, record);
+              const recordWithDefaults = applyDefaultsForNewRecord(record, entityName);
+              await db.create(collection as any, recordWithDefaults);
+              createdCount++;
             }
           } else {
-            await db.create(collection as any, record);
+            const recordWithDefaults = applyDefaultsForNewRecord(record, entityName);
+            await db.create(collection as any, recordWithDefaults);
+            createdCount++;
           }
         } catch (error: any) {
           importErrors.push(`${entityName}: ${error.message}`);
@@ -474,7 +555,7 @@ export default function AdminImportExport() {
     if (importErrors.length === 0) {
       toast({
         title: "Import Complete",
-        description: `Successfully imported data from ${importState.file?.name}.`,
+        description: `Successfully imported: ${createdCount} created, ${updatedCount} updated.`,
       });
       clearImport();
     } else {
@@ -494,7 +575,10 @@ export default function AdminImportExport() {
       isProcessing: false,
       isImporting: false,
       importProgress: 0,
-      errors: []
+      errors: [],
+      hasConflicts: false,
+      totalExisting: 0,
+      totalNew: 0
     });
   };
 
@@ -1111,19 +1195,47 @@ export default function AdminImportExport() {
                           </Button>
                         </div>
 
+                        {importState.hasConflicts && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2" data-testid="conflict-warning-banner">
+                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="text-xs text-amber-800">
+                              <p className="font-medium">Existing records detected</p>
+                              <p className="mt-1">
+                                {importState.totalExisting} record{importState.totalExisting !== 1 ? 's' : ''} will be updated, {importState.totalNew} new record{importState.totalNew !== 1 ? 's' : ''} will be created.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                         <ScrollArea className="h-[150px] border rounded-lg">
                           <div className="divide-y">
                             {importState.preview.map((item, i) => (
-                              <div key={i} className="p-2 text-sm flex items-center justify-between">
+                              <div key={i} className="p-2 text-sm flex items-center justify-between" data-testid={`preview-entity-${item.entityName}`}>
                                 <div className="flex items-center gap-2">
                                   {item.errors.length > 0 ? (
                                     <AlertCircle className="h-3 w-3 text-destructive" />
+                                  ) : item.existingCount > 0 ? (
+                                    <AlertCircle className="h-3 w-3 text-amber-500" />
                                   ) : (
                                     <CheckCircle2 className="h-3 w-3 text-green-600" />
                                   )}
                                   <span>{item.entityName}</span>
                                 </div>
-                                <span className="text-xs text-muted-foreground">{item.count} records</span>
+                                <div className="flex items-center gap-2 text-xs">
+                                  {item.existingCount > 0 && (
+                                    <span className="text-amber-600" data-testid={`count-update-${item.entityName}`}>
+                                      {item.existingCount} update{item.existingCount !== 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                  {item.newCount > 0 && (
+                                    <span className="text-green-600" data-testid={`count-new-${item.entityName}`}>
+                                      {item.newCount} new
+                                    </span>
+                                  )}
+                                  {item.existingCount === 0 && item.newCount === 0 && (
+                                    <span className="text-muted-foreground">{item.count} records</span>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
