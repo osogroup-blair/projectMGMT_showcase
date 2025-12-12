@@ -7,7 +7,9 @@ import {
   Circle,
   Calendar as CalendarIcon,
   ChevronRight,
-  ListTodo
+  ListTodo,
+  Plus,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +22,10 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics } from "@/hooks/use-nexus-data";
-import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -45,7 +47,9 @@ const PRIORITY_CONFIG: Record<string, string> = {
 };
 
 export function MilestonesContent({ projectId }: { projectId: string }) {
-  const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const { data: allMilestones, isLoading: isMilestonesLoading, createAsync: createMilestoneAsync } = useMilestones();
   const { data: allTaskLinks, isLoading: isLinksLoading } = useMilestoneTaskLinks();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
@@ -88,6 +92,31 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
   const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading;
 
+  const handleCreateMilestone = async () => {
+    try {
+      const newMilestone = await createMilestoneAsync({
+        projectId: projectId,
+        name: "New Milestone",
+        description: "",
+        phase: "plan_strategy",
+        targetDate: new Date().toISOString().split('T')[0],
+        status: "planned",
+        ownerId: users?.[0]?.id || "1",
+        scopeType: "manual",
+        completionMode: "all_tasks",
+        completionTargetPercent: 100,
+        tags: []
+      });
+      
+      if (newMilestone?.id) {
+        toast({ title: "Milestone Created", description: "Redirecting to edit details..." });
+        navigate(`/projects/${projectId}/milestones/${newMilestone.id}`);
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create milestone.", variant: "destructive" });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -103,6 +132,10 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
           <h2 className="text-xl font-semibold tracking-tight">Milestones</h2>
           <p className="text-sm text-muted-foreground">Track key project milestones and their associated tasks.</p>
         </div>
+        <Button onClick={handleCreateMilestone} className="gap-2" data-testid="button-create-milestone">
+          <Plus className="h-4 w-4" />
+          New Milestone
+        </Button>
       </div>
 
       <div className="space-y-6">
