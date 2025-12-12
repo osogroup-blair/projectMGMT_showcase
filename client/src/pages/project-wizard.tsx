@@ -516,15 +516,18 @@ export default function ProjectWizard() {
             const taskTemplate = taskTemplates.find(t => t.id === taskId);
             if (taskTemplate) {
               await createTask({
+                project: projectData.name,
                 projectId: newProject.id,
                 title: taskTemplate.title,
                 description: taskTemplate.description || "",
-                status: "Active",
+                status: "Todo",
                 priority: taskTemplate.defaultPriority || "Medium",
                 stageId: actualStageId,
                 epicId: null,
-                effort: taskTemplate.effort || null,
-                dueDate: null
+                effort: 1,
+                deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
+                estimateHours: taskTemplate.defaultEstimateHours || 0,
+                tags: []
               });
             }
           }
@@ -711,7 +714,7 @@ export default function ProjectWizard() {
                                     <Upload className="h-4 w-4 mr-2" /> Import Excel
                                 </Button>
                             </div>
-                            <Button size="sm" onClick={() => {
+                            <Button size="sm" data-testid="button-add-deliverable" onClick={() => {
                                 const newDeliverable = {
                                     id: `d-${Date.now()}`,
                                     title: "New Deliverable",
@@ -788,7 +791,7 @@ export default function ProjectWizard() {
                                                         </Button>
                                                     </div>
                                                 ))}
-                                                <Button variant="ghost" size="sm" className="ml-6 text-xs text-muted-foreground" onClick={() => {
+                                                <Button variant="ghost" size="sm" className="ml-6 text-xs text-muted-foreground" data-testid={`button-add-epic-${deliverable.id}`} onClick={() => {
                                                     const newD = [...deliverables];
                                                     newD[dIndex].epics.push({
                                                         id: `e-${Date.now()}`,
@@ -1014,7 +1017,7 @@ export default function ProjectWizard() {
                     <ChevronLeft className="h-4 w-4 mr-2" /> Back
                 </Button>
                 
-                <Button onClick={handleNext} disabled={isCreating}>
+                <Button onClick={handleNext} disabled={isCreating} data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}>
                     {isCreating ? (
                         <>
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
