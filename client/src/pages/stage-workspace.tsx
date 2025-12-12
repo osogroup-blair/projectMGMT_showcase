@@ -16,8 +16,15 @@ import {
   ChevronDown,
   Pencil,
   Check,
-  X
+  X,
+  Target
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -392,65 +399,130 @@ export default function StageWorkspace() {
                 </Button>
               </div>
               
-              <div className="grid gap-4">
-                {milestones.length > 0 ? milestones.map(m => (
-                  <Card key={m.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-medium">{m.name}</h3>
-                            <Badge variant="outline" className={cn(
-                              m.status === 'Completed' ? "bg-green-50 text-green-700 border-green-200" :
-                              m.status === 'In Progress' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                              "bg-slate-50 text-slate-700 border-slate-200"
-                            )}>
-                              {m.status}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3.5 w-3.5" />
-                              Target: {m.targetDate}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-primary transition-all" style={{ width: `${m.progressPercent}%` }} />
+              {milestones.length > 0 ? (
+                <Accordion type="multiple" defaultValue={milestones.map(m => m.id)} className="space-y-3">
+                  {milestones.map(m => {
+                    const milestoneTasks = tasks.filter(t => t.milestoneId === m.id);
+                    const completedTasks = milestoneTasks.filter(t => t.status === "Done").length;
+                    
+                    return (
+                      <AccordionItem key={m.id} value={m.id} className="border rounded-lg bg-background shadow-sm">
+                        <AccordionTrigger className="px-4 py-3 hover:no-underline [&[data-state=open]>div>.chevron]:rotate-180">
+                          <div className="flex items-center justify-between w-full pr-2">
+                            <div className="flex items-center gap-3">
+                              <Target className={cn(
+                                "h-5 w-5",
+                                m.status === 'Completed' ? "text-green-600" :
+                                m.status === 'In Progress' ? "text-blue-600" :
+                                "text-muted-foreground"
+                              )} />
+                              <div className="text-left">
+                                <h3 className="font-medium text-base">{m.name}</h3>
+                                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {m.targetDate}
+                                  </span>
+                                  <span>{milestoneTasks.length} tasks</span>
+                                </div>
+                              </div>
                             </div>
-                            <span className="text-sm font-medium">{m.progressPercent}%</span>
+                            <div className="flex items-center gap-3">
+                              <Badge variant="outline" className={cn(
+                                "text-xs",
+                                m.status === 'Completed' ? "bg-green-50 text-green-700 border-green-200" :
+                                m.status === 'In Progress' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                "bg-slate-50 text-slate-700 border-slate-200"
+                              )}>
+                                {m.status}
+                              </Badge>
+                              <div className="flex items-center gap-2 min-w-[100px]">
+                                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-primary transition-all" style={{ width: `${m.progressPercent}%` }} />
+                                </div>
+                                <span className="text-xs font-medium text-muted-foreground w-8">{m.progressPercent}%</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                            <DropdownMenuItem>View Tasks</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )) : (
-                  <Card>
-                    <CardContent className="p-8 text-center">
-                      <CheckCircle2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                      <h3 className="font-medium mb-1">No milestones yet</h3>
-                      <p className="text-sm text-muted-foreground mb-4">Create your first milestone to track progress</p>
-                      <Button size="sm" className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        Add Milestone
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4">
+                          <div className="space-y-2 pt-2">
+                            {milestoneTasks.length > 0 ? milestoneTasks.map(task => {
+                              const assignee = getAssignee(task.assigneeId);
+                              return (
+                                <div 
+                                  key={task.id} 
+                                  className="flex items-center gap-3 p-3 rounded-md border bg-muted/30 hover:bg-muted/50 transition-colors"
+                                >
+                                  <div className={cn(
+                                    "w-2 h-2 rounded-full shrink-0",
+                                    task.status === "Done" ? "bg-green-500" :
+                                    task.status === "In Progress" ? "bg-blue-500" :
+                                    task.status === "Review" ? "bg-amber-500" :
+                                    "bg-slate-400"
+                                  )} />
+                                  <Link href={`/projects/${projectId}/tasks/${task.id}`} className="flex-1 min-w-0">
+                                    <span className="text-sm font-medium hover:text-primary hover:underline decoration-primary/30 underline-offset-2 truncate block">
+                                      {task.title}
+                                    </span>
+                                  </Link>
+                                  <Badge variant="outline" className="text-xs shrink-0">
+                                    {task.status}
+                                  </Badge>
+                                  {assignee && (
+                                    <Avatar className="h-6 w-6 shrink-0">
+                                      <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                        {assignee.name.substring(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  )}
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem>Edit Task</DropdownMenuItem>
+                                      <DropdownMenuItem>Remove from Milestone</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              );
+                            }) : (
+                              <div className="text-center py-6 text-muted-foreground">
+                                <p className="text-sm">No tasks linked to this milestone</p>
+                                <Button variant="outline" size="sm" className="mt-2 gap-2">
+                                  <Plus className="h-3 w-3" />
+                                  Add Task
+                                </Button>
+                              </div>
+                            )}
+                            {milestoneTasks.length > 0 && (
+                              <Button variant="ghost" size="sm" className="w-full mt-2 text-muted-foreground gap-2">
+                                <Plus className="h-3 w-3" />
+                                Add Task to Milestone
+                              </Button>
+                            )}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Target className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <h3 className="font-medium mb-1">No milestones yet</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Create your first milestone to track progress</p>
+                    <Button size="sm" className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Milestone
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </TabsContent>
 
