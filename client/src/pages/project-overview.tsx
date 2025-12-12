@@ -17,7 +17,10 @@ import {
   Eye,
   Briefcase,
   Banknote,
-  Loader2
+  Loader2,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -38,7 +41,10 @@ import {
 } from "@/components/ui/tabs";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
 import { PROJECT_STAGES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
-import { useProject, useTasks, useMilestones, useUsers, useDeliverables, useEpics } from "@/hooks/use-nexus-data";
+import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics } from "@/hooks/use-nexus-data";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { StageTabContent } from "@/components/project/stage-tab-content";
 import { TimelineView } from "@/components/project/timeline-view";
@@ -94,12 +100,56 @@ export default function ProjectOverview() {
     }
   };
 
-  const { data: project, isLoading: isProjectLoading } = useProject(projectId);
+  const { data: project, isLoading: isProjectLoading, refetch: refetchProject } = useProject(projectId);
+  const { update: updateProject } = useProjects();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { toast } = useToast();
+
+  // Inline editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [isEditingStartDate, setIsEditingStartDate] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+
+  // Initialize edit values when project loads
+  useEffect(() => {
+    if (project) {
+      setEditTitle(project.name || "");
+      setEditDescription(project.description || "");
+      setEditStartDate(project.startDate || "");
+    }
+  }, [project]);
+
+  const handleSaveTitle = () => {
+    if (!editTitle.trim()) {
+      toast({ title: "Error", description: "Project title cannot be empty.", variant: "destructive" });
+      return;
+    }
+    updateProject({ id: projectId, updates: { name: editTitle.trim() } });
+    setIsEditingTitle(false);
+    toast({ title: "Updated", description: "Project title has been updated." });
+    refetchProject();
+  };
+
+  const handleSaveDescription = () => {
+    updateProject({ id: projectId, updates: { description: editDescription.trim() } });
+    setIsEditingDescription(false);
+    toast({ title: "Updated", description: "Project description has been updated." });
+    refetchProject();
+  };
+
+  const handleSaveStartDate = () => {
+    updateProject({ id: projectId, updates: { startDate: editStartDate } });
+    setIsEditingStartDate(false);
+    toast({ title: "Updated", description: "Start date has been updated." });
+    refetchProject();
+  };
 
   // Derived Data
   const { tasks, milestones, stats, dashboardData } = useMemo(() => {
@@ -276,9 +326,42 @@ export default function ProjectOverview() {
           </div>
 
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div className="space-y-1">
+            <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight text-primary">{project.name}</h1>
+                {isEditingTitle ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="text-2xl font-bold h-10 w-80"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveTitle();
+                        if (e.key === "Escape") { setIsEditingTitle(false); setEditTitle(project.name); }
+                      }}
+                      data-testid="input-edit-title"
+                    />
+                    <Button size="icon" variant="ghost" onClick={handleSaveTitle} data-testid="button-save-title">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setIsEditingTitle(false); setEditTitle(project.name); }} data-testid="button-cancel-title">
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <h1 className="text-3xl font-bold tracking-tight text-primary" data-testid="text-project-title">{project.name}</h1>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="opacity-0 group-hover:opacity-100 transition-opacity" 
+                      onClick={() => setIsEditingTitle(true)}
+                      data-testid="button-edit-title"
+                    >
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
                 <Badge variant="outline" className={cn(
                   "px-2.5 py-0.5 text-sm font-medium border-0",
                   project.status === 'In Progress' && "bg-blue-50 text-blue-700",
@@ -289,11 +372,87 @@ export default function ProjectOverview() {
                   {project.status}
                 </Badge>
               </div>
+
+              {isEditingDescription ? (
+                <div className="flex items-start gap-2 max-w-xl">
+                  <Textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Add a project description..."
+                    className="min-h-[60px] text-sm"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") { setIsEditingDescription(false); setEditDescription(project.description || ""); }
+                    }}
+                    data-testid="input-edit-description"
+                  />
+                  <Button size="icon" variant="ghost" onClick={handleSaveDescription} data-testid="button-save-description">
+                    <Check className="h-4 w-4 text-green-600" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditDescription(project.description || ""); }} data-testid="button-cancel-description">
+                    <X className="h-4 w-4 text-red-600" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  <p className="text-sm text-muted-foreground max-w-xl" data-testid="text-project-description">
+                    {project.description || <span className="italic">Click to add description...</span>}
+                  </p>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6" 
+                    onClick={() => setIsEditingDescription(true)}
+                    data-testid="button-edit-description"
+                  >
+                    <Pencil className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </div>
+              )}
+
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Briefcase className="h-4 w-4" />
                   Nymbl Implementation
                 </span>
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                {isEditingStartDate ? (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <Input
+                      type="date"
+                      value={editStartDate}
+                      onChange={(e) => setEditStartDate(e.target.value)}
+                      className="h-7 w-36 text-sm"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveStartDate();
+                        if (e.key === "Escape") { setIsEditingStartDate(false); setEditStartDate(project.startDate || ""); }
+                      }}
+                      data-testid="input-edit-start-date"
+                    />
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveStartDate} data-testid="button-save-start-date">
+                      <Check className="h-3 w-3 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setIsEditingStartDate(false); setEditStartDate(project.startDate || ""); }} data-testid="button-cancel-start-date">
+                      <X className="h-3 w-3 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 group">
+                    <Calendar className="h-4 w-4" />
+                    <span data-testid="text-start-date">Start: {project.startDate || "Not set"}</span>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5" 
+                      onClick={() => setIsEditingStartDate(true)}
+                      data-testid="button-edit-start-date"
+                    >
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
                 <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />
