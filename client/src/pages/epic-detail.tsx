@@ -58,7 +58,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { X } from "lucide-react";
 import { EFFORT_VALUES } from "@shared/schema";
 
 interface TaskFormData {
@@ -91,6 +98,14 @@ export default function EpicDetail() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+
+  // Filter state
+  const [filters, setFilters] = useState({
+    status: [] as string[],
+    priority: [] as string[],
+    assigneeId: [] as string[]
+  });
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [formData, setFormData] = useState<TaskFormData>({
     title: "",
     description: "",
@@ -109,24 +124,49 @@ export default function EpicDetail() {
   const tasks = useMemo(() => allTasks?.filter((t: any) => t.epicId === epicId) || [], [allTasks, epicId]);
   const owner = useMemo(() => users?.find((u: any) => u.id === epic?.ownerId), [users, epic]);
 
+  // Filter tasks based on active filters
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task: any) => {
+      if (filters.status.length > 0 && !filters.status.includes(task.status)) return false;
+      if (filters.priority.length > 0 && !filters.priority.includes(task.priority)) return false;
+      if (filters.assigneeId.length > 0 && !filters.assigneeId.includes(task.assigneeId)) return false;
+      return true;
+    });
+  }, [tasks, filters]);
+
+  const activeFilterCount = filters.status.length + filters.priority.length + filters.assigneeId.length;
+
+  const toggleFilter = (type: 'status' | 'priority' | 'assigneeId', value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [type]: prev[type].includes(value)
+        ? prev[type].filter(v => v !== value)
+        : [...prev[type], value]
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({ status: [], priority: [], assigneeId: [] });
+  };
+
   // Get Assigned Stages directly from the Epic
   const epicStages = useMemo(() => {
     if (!epic?.stageIds || !projectStages) return [];
     return projectStages.filter((s: any) => epic.stageIds.includes(s.id));
   }, [epic, projectStages]);
 
-  // Calculate progress from task completion
+  // Calculate progress from task completion (uses filtered tasks when filters active)
   const progress = useMemo(() => {
-    if (tasks.length === 0) return 0;
-    const doneTasks = tasks.filter((t: any) => t.status === "Done").length;
-    return Math.round((doneTasks / tasks.length) * 100);
-  }, [tasks]);
+    if (filteredTasks.length === 0) return 0;
+    const doneTasks = filteredTasks.filter((t: any) => t.status === "Done").length;
+    return Math.round((doneTasks / filteredTasks.length) * 100);
+  }, [filteredTasks]);
 
-  // Task counts
+  // Task counts (uses filtered tasks for consistency with board view)
   const taskCounts = useMemo(() => {
-    const done = tasks.filter((t: any) => t.status === "Done").length;
-    return { done, total: tasks.length };
-  }, [tasks]);
+    const done = filteredTasks.filter((t: any) => t.status === "Done").length;
+    return { done, total: filteredTasks.length };
+  }, [filteredTasks]);
 
   const getAssignee = (id?: string) => users?.find((u: any) => u.id === id);
 
@@ -264,7 +304,7 @@ export default function EpicDetail() {
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Link href={`/projects/${projectId}/deliverables`} className="hover:text-primary transition-colors flex items-center gap-1">
+            <Link href={`/projects/${projectId}?tab=deliverables`} className="hover:text-primary transition-colors flex items-center gap-1">
               <ArrowLeft className="h-4 w-4" />
               Deliverables
             </Link>
@@ -302,10 +342,91 @@ export default function EpicDetail() {
             </div>
             
             <div className="flex gap-2">
-              <Button variant="outline" className="gap-2">
-                <Filter className="h-4 w-4" />
-                Filter Tasks
-              </Button>
+              <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-2" data-testid="button-filter-tasks">
+                    <Filter className="h-4 w-4" />
+                    Filter Tasks
+                    {activeFilterCount > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                        {activeFilterCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72" align="end">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm">Filter Tasks</h4>
+                      {activeFilterCount > 0 && (
+                        <Button variant="ghost" size="sm" className="h-auto p-0 text-xs text-muted-foreground" onClick={clearFilters}>
+                          Clear all
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Status</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {["Todo", "In Progress", "Review", "Done"].map(status => (
+                          <div 
+                            key={status} 
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50 transition-colors text-sm",
+                              filters.status.includes(status) && "bg-primary/10 border-primary"
+                            )}
+                            onClick={() => toggleFilter('status', status)}
+                          >
+                            <Checkbox checked={filters.status.includes(status)} />
+                            <span>{status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Priority</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {["Low", "Medium", "High"].map(priority => (
+                          <div 
+                            key={priority} 
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50 transition-colors text-sm",
+                              filters.priority.includes(priority) && "bg-primary/10 border-primary"
+                            )}
+                            onClick={() => toggleFilter('priority', priority)}
+                          >
+                            <Checkbox checked={filters.priority.includes(priority)} />
+                            <span>{priority}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Assignee</Label>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {users?.map((user: any) => (
+                          <div 
+                            key={user.id} 
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-muted/50 transition-colors text-sm",
+                              filters.assigneeId.includes(user.id) && "bg-primary/10 border-primary"
+                            )}
+                            onClick={() => toggleFilter('assigneeId', user.id)}
+                          >
+                            <Checkbox checked={filters.assigneeId.includes(user.id)} />
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[9px]">{user.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="truncate">{user.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Button className="gap-2" onClick={() => handleOpenCreate()} data-testid="button-add-task-header">
                 <Plus className="h-4 w-4" />
                 Add Task
@@ -360,7 +481,7 @@ export default function EpicDetail() {
                 <div>
                   <div className="text-xs text-muted-foreground">Est. Hours</div>
                   <div className="text-lg font-bold">
-                    {tasks.reduce((acc, t) => acc + (t.estimateHours || 0), 0)}h
+                    {filteredTasks.reduce((acc: number, t: any) => acc + (t.estimateHours || 0), 0)}h
                   </div>
                 </div>
                 <div className="h-8 w-8 bg-background rounded-full flex items-center justify-center text-muted-foreground">
@@ -375,13 +496,13 @@ export default function EpicDetail() {
         <div className="flex-1 min-h-0 border rounded-lg bg-muted/5 overflow-hidden flex flex-col">
           <div className="p-3 border-b bg-background font-medium text-sm flex items-center gap-2">
             <Layers className="h-4 w-4 text-muted-foreground" />
-            Epic Workflow
+            Epic Stages
           </div>
           <ScrollArea className="flex-1 p-6">
             <div className="flex gap-6 min-w-max pb-4">
               {epicStages.length > 0 ? (
                 epicStages.map((stage, index) => {
-                  const stageTasks = tasks.filter(t => t.stageId === stage.id);
+                  const stageTasks = filteredTasks.filter(t => t.stageId === stage.id);
                   
                   return (
                     <div key={stage.id} className="w-[320px] shrink-0 flex flex-col gap-4">

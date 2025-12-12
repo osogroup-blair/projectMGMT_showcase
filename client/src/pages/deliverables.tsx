@@ -264,16 +264,29 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                           Associated Epics ({epics.length})
                         </span>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="gap-1.5"
-                          onClick={() => handleOpenCreateEpic(deliverable.id)}
-                          data-testid={`button-add-epic-${deliverable.id}`}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Add Epic
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="gap-1.5 text-muted-foreground"
+                              data-testid={`button-view-deliverable-${deliverable.id}`}
+                            >
+                              View Details
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="gap-1.5"
+                            onClick={() => handleOpenCreateEpic(deliverable.id)}
+                            data-testid={`button-add-epic-${deliverable.id}`}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Add Epic
+                          </Button>
+                        </div>
                       </div>
                       {epics.length > 0 ? (
                         <div className="grid gap-3">

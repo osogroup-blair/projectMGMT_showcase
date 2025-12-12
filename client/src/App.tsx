@@ -27,6 +27,7 @@ import SavedViewsGallery from "@/pages/saved-views";
 import StageWorkspace from "@/pages/stage-workspace";
 import ProjectSettings from "@/pages/project-settings";
 import DeliverablesList from "@/pages/deliverables";
+import DeliverableDetail from "@/pages/deliverable-detail";
 import EpicDetail from "@/pages/epic-detail";
 import ProjectExport from "@/pages/project-export";
 import ProjectWizard from "@/pages/project-wizard";
@@ -48,6 +49,7 @@ function Router() {
       <Route path="/projects/:projectId/export" component={ProjectExport} />
       <Route path="/projects/:projectId/settings" component={ProjectSettings} />
       <Route path="/projects/:projectId/deliverables" component={DeliverablesList} />
+      <Route path="/projects/:projectId/deliverables/:deliverableId" component={DeliverableDetail} />
       <Route path="/projects/:projectId/epics/:epicId" component={EpicDetail} />
       <Route path="/projects/:projectId/stages" component={StageDesigner} />
       <Route path="/projects/:projectId/stages/:stageId" component={StageWorkspace} />
