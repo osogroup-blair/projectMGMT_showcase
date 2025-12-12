@@ -12,7 +12,8 @@ import {
   Package,
   User as UserIcon,
   Workflow,
-  Loader2
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -29,19 +30,78 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages } from "@/hooks/use-nexus-data";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { EFFORT_VALUES } from "@shared/schema";
+
+interface TaskFormData {
+  title: string;
+  description: string;
+  stageId: string;
+  status: "Todo" | "In Progress" | "Review" | "Done";
+  priority: "Low" | "Medium" | "High";
+  assigneeId: string;
+  effort: number;
+  estimateHours: number;
+  deadline: string;
+}
 
 export default function EpicDetail() {
   const [match, params] = useRoute("/projects/:projectId/epics/:epicId");
   const projectId = params?.projectId || "1";
   const epicId = params?.epicId || "e1";
+  const { toast } = useToast();
 
   // Fetch data from database
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
-  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask, remove: deleteTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
+
+  // Task CRUD state
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<TaskFormData>({
+    title: "",
+    description: "",
+    stageId: "",
+    status: "Todo",
+    priority: "Medium",
+    assigneeId: "",
+    effort: 5,
+    estimateHours: 0,
+    deadline: new Date().toISOString().split('T')[0]
+  });
 
   // Derive epic and related data
   const epic = useMemo(() => allEpics?.find((e: any) => e.id === epicId), [allEpics, epicId]);
@@ -69,6 +129,99 @@ export default function EpicDetail() {
   }, [tasks]);
 
   const getAssignee = (id?: string) => users?.find((u: any) => u.id === id);
+
+  // Task CRUD handlers
+  const handleOpenCreate = (stageId?: string) => {
+    setEditingTaskId(null);
+    setFormData({
+      title: "",
+      description: "",
+      stageId: stageId || epicStages[0]?.id || "",
+      status: "Todo",
+      priority: "Medium",
+      assigneeId: users?.[0]?.id || "",
+      effort: 5,
+      estimateHours: 0,
+      deadline: new Date().toISOString().split('T')[0]
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleOpenEdit = (task: any) => {
+    setEditingTaskId(task.id);
+    setFormData({
+      title: task.title || "",
+      description: task.description || "",
+      stageId: task.stageId || epicStages[0]?.id || "",
+      status: task.status || "Todo",
+      priority: task.priority || "Medium",
+      assigneeId: task.assigneeId || "",
+      effort: task.effort || 5,
+      estimateHours: task.estimateHours || 0,
+      deadline: task.deadline || new Date().toISOString().split('T')[0]
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!formData.title.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Task title is required.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.stageId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a stage.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (editingTaskId) {
+      updateTask({
+        id: editingTaskId,
+        updates: {
+          ...formData,
+          epicId,
+          projectId,
+          project: project?.name
+        }
+      });
+      toast({
+        title: "Task Updated",
+        description: `"${formData.title}" has been updated.`
+      });
+    } else {
+      createTask({
+        ...formData,
+        epicId,
+        projectId,
+        project: project?.name
+      });
+      toast({
+        title: "Task Created",
+        description: `"${formData.title}" has been added to the epic.`
+      });
+    }
+    setIsDialogOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (deleteTaskId) {
+      const task = tasks.find(t => t.id === deleteTaskId);
+      deleteTask(deleteTaskId);
+      toast({
+        title: "Task Deleted",
+        description: `"${task?.title}" has been removed.`
+      });
+      setDeleteTaskId(null);
+    }
+  };
 
   // Loading state
   const isLoading = isProjectLoading || isEpicsLoading || isDeliverablesLoading || isTasksLoading || isUsersLoading || isStagesLoading;
@@ -144,7 +297,7 @@ export default function EpicDetail() {
                 <Filter className="h-4 w-4" />
                 Filter Tasks
               </Button>
-              <Button className="gap-2">
+              <Button className="gap-2" onClick={() => handleOpenCreate()} data-testid="button-add-task-header">
                 <Plus className="h-4 w-4" />
                 Add Task
               </Button>
@@ -240,15 +393,18 @@ export default function EpicDetail() {
                           stageTasks.map(task => {
                             const assignee = getAssignee(task.assigneeId);
                             return (
-                              <Card key={task.id} className="shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                              <Card 
+                                key={task.id} 
+                                className="shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                                onClick={() => handleOpenEdit(task)}
+                                data-testid={`card-task-${task.id}`}
+                              >
                                 <CardContent className="p-3 space-y-3">
                                   <div className="space-y-1">
                                     <div className="flex justify-between items-start gap-2">
-                                      <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                                        <h4 className="text-sm font-medium hover:text-primary leading-tight hover:underline decoration-primary/30 underline-offset-2 line-clamp-2">
-                                          {task.title}
-                                        </h4>
-                                      </Link>
+                                      <h4 className="text-sm font-medium hover:text-primary leading-tight line-clamp-2">
+                                        {task.title}
+                                      </h4>
                                       <Badge variant={
                                         task.priority === "High" ? "destructive" : 
                                         task.priority === "Medium" ? "default" : "secondary"
@@ -271,20 +427,19 @@ export default function EpicDetail() {
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                           <Avatar className="h-5 w-5 border border-background">
                                             <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                                              {assignee.name.substring(0, 2).toUpperCase()}
+                                              {assignee.name?.substring(0, 2).toUpperCase() || "??"}
                                             </AvatarFallback>
                                           </Avatar>
-                                          <span className="truncate max-w-[80px]">{assignee.name.split(' ')[0]}</span>
+                                          <span className="truncate max-w-[80px]">{assignee.name?.split(' ')[0] || "Unknown"}</span>
                                         </div>
                                       ) : (
                                         <div className="text-xs text-muted-foreground italic">Unassigned</div>
                                       )}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      {task.estimateHours && (
-                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                          <Clock className="h-3 w-3" />
-                                          {task.estimateHours}h
+                                      {task.effort && (
+                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
+                                          {task.effort} pts
                                         </span>
                                       )}
                                       <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-muted-foreground/20">
@@ -299,11 +454,26 @@ export default function EpicDetail() {
                         ) : (
                           <div className="h-24 rounded-lg border border-dashed flex flex-col items-center justify-center text-muted-foreground/50 text-xs bg-muted/10">
                             <span>No tasks in this stage</span>
-                            <Button variant="link" size="sm" className="h-auto p-0 text-primary opacity-50 hover:opacity-100">
+                            <Button 
+                              variant="link" 
+                              size="sm" 
+                              className="h-auto p-0 text-primary opacity-50 hover:opacity-100"
+                              onClick={() => handleOpenCreate(stage.id)}
+                              data-testid={`button-add-task-${stage.id}`}
+                            >
                               + Add Task
                             </Button>
                           </div>
                         )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="w-full justify-center text-xs text-muted-foreground border border-dashed h-8 mt-2"
+                          onClick={() => handleOpenCreate(stage.id)}
+                          data-testid={`button-add-task-bottom-${stage.id}`}
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Add Task
+                        </Button>
                       </div>
                     </div>
                   );
@@ -319,6 +489,187 @@ export default function EpicDetail() {
           </ScrollArea>
         </div>
       </div>
+
+      {/* Task Create/Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>{editingTaskId ? "Edit Task" : "Create Task"}</DialogTitle>
+            <DialogDescription>
+              {editingTaskId ? "Update the task details below." : "Add a new task to this epic."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Title *</Label>
+              <Input
+                id="task-title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Task title..."
+                data-testid="input-task-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-description">Description</Label>
+              <Textarea
+                id="task-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Task description..."
+                rows={3}
+                data-testid="input-task-description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Stage *</Label>
+                <Select
+                  value={formData.stageId}
+                  onValueChange={(value) => setFormData({ ...formData, stageId: value })}
+                >
+                  <SelectTrigger data-testid="select-task-stage">
+                    <SelectValue placeholder="Select stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {epicStages.map((stage: any) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        {stage.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: any) => setFormData({ ...formData, status: value })}
+                >
+                  <SelectTrigger data-testid="select-task-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Todo">Todo</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Review">Review</SelectItem>
+                    <SelectItem value="Done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value: any) => setFormData({ ...formData, priority: value })}
+                >
+                  <SelectTrigger data-testid="select-task-priority">
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Effort (Story Points)</Label>
+                <Select
+                  value={String(formData.effort)}
+                  onValueChange={(value) => setFormData({ ...formData, effort: Number(value) })}
+                >
+                  <SelectTrigger data-testid="select-task-effort">
+                    <SelectValue placeholder="Select effort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EFFORT_VALUES.map((val) => (
+                      <SelectItem key={val} value={String(val)}>
+                        {val} points
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Assignee</Label>
+                <Select
+                  value={formData.assigneeId}
+                  onValueChange={(value) => setFormData({ ...formData, assigneeId: value })}
+                >
+                  <SelectTrigger data-testid="select-task-assignee">
+                    <SelectValue placeholder="Select assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users?.map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="task-deadline">Deadline</Label>
+                <Input
+                  id="task-deadline"
+                  type="date"
+                  value={formData.deadline}
+                  onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                  data-testid="input-task-deadline"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between">
+            <div>
+              {editingTaskId && (
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setIsDialogOpen(false);
+                    setDeleteTaskId(editingTaskId);
+                  }}
+                  data-testid="button-delete-task"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} data-testid="button-save-task">
+                {editingTaskId ? "Save Changes" : "Create Task"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTaskId} onOpenChange={(open) => !open && setDeleteTaskId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The task will be permanently removed from this epic.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Shell>
   );
 }
