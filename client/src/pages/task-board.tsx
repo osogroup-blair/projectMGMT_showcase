@@ -321,7 +321,7 @@ export default function TaskBoard() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-[1600px] h-[calc(100vh-8rem)] flex flex-col gap-6">
+      <div className="h-[calc(100vh-8rem)] flex flex-col gap-6">
         {/* Header */}
         <div className="flex flex-col gap-6 shrink-0">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

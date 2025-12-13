@@ -685,7 +685,7 @@ export default function ProjectWizard() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-5xl py-6">
+      <div className="py-6">
         <div className="mb-8">
             <h1 className="text-3xl font-bold tracking-tight text-primary">New Project Wizard</h1>
             <p className="text-muted-foreground">Follow the steps to set up your new project structure.</p>

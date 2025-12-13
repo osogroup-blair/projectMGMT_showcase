@@ -416,7 +416,7 @@ export default function ProjectExport() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="space-y-8">
         <div className="flex flex-col gap-6">
           <div className="flex justify-between items-center">
             <div>

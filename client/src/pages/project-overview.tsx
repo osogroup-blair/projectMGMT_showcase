@@ -315,7 +315,7 @@ export default function ProjectOverview() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-7xl space-y-8">
+      <div className="space-y-8">
         {/* Header Section */}
         <div className="flex flex-col gap-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
