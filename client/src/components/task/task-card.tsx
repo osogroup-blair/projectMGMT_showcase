@@ -473,6 +473,11 @@ export function TaskCard({
                 </PopoverContent>
               </Popover>
 
+              {/* Stage */}
+              {stageName && (
+                <Badge variant="outline" className="text-[10px] shrink-0">{stageName}</Badge>
+              )}
+
               <div className="flex items-center gap-2">
                 {/* Effort */}
                 {!isCompact && (
