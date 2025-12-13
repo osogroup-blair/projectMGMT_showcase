@@ -407,7 +407,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
             </CardContent>
           </Card>
         ) : (
-          <Accordion type="multiple" defaultValue={filteredMilestones.map((m: any) => m.id)} className="space-y-4">
+          <Accordion type="multiple" defaultValue={[]} className="space-y-4">
             {filteredMilestones.map((milestone: any) => {
               const status = STATUS_CONFIG[milestone.status] || STATUS_CONFIG.planned;
               const StatusIcon = status.icon;
