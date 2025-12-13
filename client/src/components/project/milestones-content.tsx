@@ -13,7 +13,8 @@ import {
   Pencil,
   Check,
   X,
-  User
+  User,
+  Search
 } from "lucide-react";
 import { ListHeader, LayoutVariant, getGridClassName } from "@/components/ui/list-header";
 import { Button } from "@/components/ui/button";
