@@ -8,7 +8,10 @@ import {
   ChevronRight,
   ListTodo,
   ArrowRight,
-  ExternalLink
+  ExternalLink,
+  Plus,
+  Loader2,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,9 +26,15 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useUsers, useEpics } from "@/hooks/use-nexus-data";
+import { useTasks, useUsers, useEpics, useDeliverables } from "@/hooks/use-nexus-data";
 import { PROJECT_STAGES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
-import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 
 const PRIORITY_CONFIG: Record<string, string> = {
   "Low": "bg-slate-50 text-slate-700 border-slate-200",
@@ -34,12 +43,45 @@ const PRIORITY_CONFIG: Record<string, string> = {
   "Critical": "bg-red-50 text-red-700 border-red-200",
 };
 
+const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21];
+
 export function StagesContent({ projectId }: { projectId: string }) {
-  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { toast } = useToast();
+  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
 
   const stages = PROJECT_STAGES;
+
+  // Add Task Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogStageId, setDialogStageId] = useState<string | null>(null);
+  const [dialogMode, setDialogMode] = useState<"search" | "create">("create");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedEpicId, setSelectedEpicId] = useState<string>("");
+  const [isCreating, setIsCreating] = useState(false);
+
+  // New task form state
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
+  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(3);
+
+  const projectDeliverables = useMemo(() => 
+    (allDeliverables || []).filter((d: any) => d.projectId === projectId),
+    [allDeliverables, projectId]
+  );
+
+  const projectDeliverableIds = useMemo(() => 
+    projectDeliverables.map((d: any) => d.id),
+    [projectDeliverables]
+  );
+
+  const projectEpics = useMemo(() => 
+    (allEpics || []).filter((e: any) => projectDeliverableIds.includes(e.deliverableId)),
+    [allEpics, projectDeliverableIds]
+  );
 
   const getTasksForStage = (stageId: string) => {
     if (!allTasks) return [];
@@ -63,7 +105,60 @@ export function StagesContent({ projectId }: { projectId: string }) {
     return (users || []).find((u: any) => u.id === assigneeId);
   };
 
-  const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading;
+  const openAddTaskDialog = (stageId: string) => {
+    setDialogStageId(stageId);
+    setDialogMode("create");
+    setSearchQuery("");
+    setSelectedEpicId("");
+    setNewTaskTitle("");
+    setNewTaskDescription("");
+    setNewTaskPriority("Medium");
+    setNewTaskEffort(3);
+    setDialogOpen(true);
+  };
+
+  const handleCreateTask = async () => {
+    if (!dialogStageId) return;
+    
+    if (!newTaskTitle.trim()) {
+      toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
+      return;
+    }
+    if (!selectedEpicId) {
+      toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
+      return;
+    }
+    if (!newTaskEffort) {
+      toast({ title: "Error", description: "Effort is required.", variant: "destructive" });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      await createTaskAsync({
+        title: newTaskTitle,
+        description: newTaskDescription || "",
+        project: projectId,
+        projectId: projectId,
+        epicId: selectedEpicId,
+        stageId: dialogStageId,
+        status: "Todo",
+        priority: newTaskPriority,
+        effort: newTaskEffort,
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        tags: []
+      });
+      
+      toast({ title: "Task created", description: "New task has been created and added to the stage." });
+      setDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to create task.", variant: "destructive" });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading;
 
   if (isLoading) {
     return (
@@ -135,7 +230,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
                   <Link href={`/projects/${projectId}/stages/${stage.id}`}>
                     <Button variant="outline" size="sm" className="gap-2" data-testid={`open-workspace-${stage.id}`}>
                       <ExternalLink className="h-3.5 w-3.5" />
-                      Open Workspace
+                      Overview
                     </Button>
                   </Link>
                 </div>
@@ -146,6 +241,16 @@ export function StagesContent({ projectId }: { projectId: string }) {
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Tasks ({stageTasks.length})
                       </span>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="gap-2 h-7"
+                        onClick={() => openAddTaskDialog(stage.id)}
+                        data-testid={`button-add-task-${stage.id}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Task
+                      </Button>
                     </div>
                     {stageTasks.length > 0 ? (
                       <div className="grid gap-3">
@@ -216,6 +321,111 @@ export function StagesContent({ projectId }: { projectId: string }) {
           })}
         </Accordion>
       </div>
+
+      {/* Add Task Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>
+              Create a new task in this stage. Tasks must be assigned to an epic.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Title *</Label>
+              <Input
+                id="task-title"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                placeholder="Enter task title"
+                data-testid="input-new-task-title"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="task-description">Description</Label>
+              <Textarea
+                id="task-description"
+                value={newTaskDescription}
+                onChange={(e) => setNewTaskDescription(e.target.value)}
+                placeholder="Enter task description"
+                className="min-h-[80px]"
+                data-testid="input-new-task-description"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="task-epic">Epic *</Label>
+              <Select value={selectedEpicId} onValueChange={setSelectedEpicId}>
+                <SelectTrigger data-testid="select-task-epic">
+                  <SelectValue placeholder="Select an epic" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectEpics.map((epic: any) => (
+                    <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-priority">Priority</Label>
+                <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
+                  <SelectTrigger data-testid="select-task-priority">
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="task-effort">Effort *</Label>
+                <Select 
+                  value={newTaskEffort?.toString() || ""} 
+                  onValueChange={(v) => setNewTaskEffort(Number(v))}
+                >
+                  <SelectTrigger data-testid="select-task-effort">
+                    <SelectValue placeholder="Select effort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EFFORT_VALUES.map((val) => (
+                      <SelectItem key={val} value={val.toString()}>{val} pts</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel-task">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateTask} 
+              disabled={isCreating}
+              data-testid="button-create-task"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Task"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
