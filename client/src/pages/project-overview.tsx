@@ -59,7 +59,7 @@ interface TaskStats {
 
 import { DeliverablesContent } from "@/pages/deliverables";
 import ProjectDashboardPage from "@/components/project/project-dashboard-page";
-import { TaskBoardContent } from "@/pages/task-board";
+import { TaskListContent } from "@/components/project/task-list-content";
 import { MilestonesContent } from "@/components/project/milestones-content";
 import { StagesContent } from "@/components/project/stages-content";
 
@@ -523,7 +523,7 @@ export default function ProjectOverview() {
 
             {/* Tasks Tab Content */}
             <TabsContent value="tasks" className="mt-6">
-              <TaskBoardContent projectId={projectId} />
+              <TaskListContent projectId={projectId} />
             </TabsContent>
             
             {/* Timeline Tab Content */}
