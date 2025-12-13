@@ -10,7 +10,6 @@ import {
   ArrowRight,
   ExternalLink
 } from "lucide-react";
-import { ListHeader, LayoutVariant, getGridClassName } from "@/components/ui/list-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -40,19 +39,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
 
-  const [stageSearchQuery, setStageSearchQuery] = useState("");
-  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("one-column");
-
   const stages = PROJECT_STAGES;
-
-  const filteredStages = useMemo(() => {
-    if (!stageSearchQuery.trim()) return stages;
-    const q = stageSearchQuery.toLowerCase();
-    return stages.filter((s: any) => 
-      s.name?.toLowerCase().includes(q) || 
-      s.description?.toLowerCase().includes(q)
-    );
-  }, [stages, stageSearchQuery]);
 
   const getTasksForStage = (stageId: string) => {
     if (!allTasks) return [];
@@ -88,24 +75,14 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <div className="space-y-4 mb-6">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Stages</h2>
-          <p className="text-sm text-muted-foreground">View project stages and their associated tasks.</p>
-        </div>
-        <ListHeader
-          searchPlaceholder="Search stages..."
-          searchValue={stageSearchQuery}
-          onSearchChange={setStageSearchQuery}
-          layoutVariant={layoutVariant}
-          onLayoutChange={setLayoutVariant}
-          showNewButton={false}
-        />
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold tracking-tight">Stages</h2>
+        <p className="text-sm text-muted-foreground">View project stages and their associated tasks.</p>
       </div>
 
       <div className="space-y-6">
-        <Accordion type="multiple" defaultValue={filteredStages.map((s: any) => s.id)} className="space-y-4">
-          {filteredStages.map((stage: any) => {
+        <Accordion type="multiple" defaultValue={stages.map((s: any) => s.id)} className="space-y-4">
+          {stages.map((stage: any) => {
             const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
             const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
             const progress = getStageProgress(stage.id);

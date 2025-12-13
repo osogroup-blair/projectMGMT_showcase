@@ -1052,40 +1052,21 @@ function MilestonesTabContent({
   allMilestoneLinks: any[];
   projectId: string;
   getAssignee: (id?: string) => any;
-  openMilestoneModal: (mode: string) => void;
+  openMilestoneModal: (mode: "link" | "create") => void;
 }) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("one-column");
-
-  const filteredMilestones = useMemo(() => {
-    if (!searchQuery.trim()) return milestones;
-    const q = searchQuery.toLowerCase();
-    return milestones.filter((m: any) => 
-      m.name?.toLowerCase().includes(q) || 
-      m.description?.toLowerCase().includes(q)
-    );
-  }, [milestones, searchQuery]);
-
   return (
     <div className="space-y-4">
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold">Stage Milestones</h2>
-        </div>
-        <ListHeader
-          searchPlaceholder="Search milestones..."
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          newButtonLabel="Add Milestone"
-          onNewClick={() => openMilestoneModal("link")}
-          layoutVariant={layoutVariant}
-          onLayoutChange={setLayoutVariant}
-        />
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Stage Milestones</h2>
+        <Button onClick={() => openMilestoneModal("link")} className="gap-2" data-testid="button-add-milestone">
+          <Plus className="h-4 w-4" />
+          Add Milestone
+        </Button>
       </div>
       
-      {filteredMilestones.length > 0 ? (
-        <Accordion type="multiple" defaultValue={filteredMilestones.map((m: any) => m.id)} className={getGridClassName(layoutVariant)}>
-          {filteredMilestones.map((m: any) => {
+      {milestones.length > 0 ? (
+        <Accordion type="multiple" defaultValue={milestones.map((m: any) => m.id)} className="space-y-3">
+          {milestones.map((m: any) => {
             const linkedTaskIds = allMilestoneLinks
               .filter((link: any) => link.milestoneId === m.id)
               .map((link: any) => link.taskId);

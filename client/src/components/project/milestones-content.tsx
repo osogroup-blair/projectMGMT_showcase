@@ -16,7 +16,6 @@ import {
   User,
   Search
 } from "lucide-react";
-import { ListHeader, LayoutVariant, getGridClassName } from "@/components/ui/list-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -93,7 +92,6 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const [dialogMilestoneId, setDialogMilestoneId] = useState<string | null>(null);
   const [dialogMode, setDialogMode] = useState<"search" | "create">("search");
   const [searchQuery, setSearchQuery] = useState("");
-  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("three-column");
   const [selectedEpicId, setSelectedEpicId] = useState<string>("");
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
@@ -382,20 +380,15 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <div className="space-y-4 mb-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Milestones</h2>
           <p className="text-sm text-muted-foreground">Track key project milestones and their associated tasks.</p>
         </div>
-        <ListHeader
-          searchPlaceholder="Search milestones..."
-          searchValue={milestoneSearchQuery}
-          onSearchChange={setMilestoneSearchQuery}
-          newButtonLabel="New Milestone"
-          onNewClick={handleCreateMilestone}
-          layoutVariant={layoutVariant}
-          onLayoutChange={setLayoutVariant}
-        />
+        <Button onClick={handleCreateMilestone} className="gap-2" data-testid="button-new-milestone">
+          <Plus className="h-4 w-4" />
+          New Milestone
+        </Button>
       </div>
 
       <div className="space-y-6">
