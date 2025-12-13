@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { Shell } from "@/components/layout/shell";
+import { ListHeader, LayoutVariant, getGridClassName } from "@/components/ui/list-header";
 import { 
   Flag, 
   CheckCircle2, 

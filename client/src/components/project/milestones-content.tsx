@@ -103,10 +103,22 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const [newTaskPriority, setNewTaskPriority] = useState("Medium");
   const [newTaskEffort, setNewTaskEffort] = useState<number | null>(3);
 
+  // Milestone search state
+  const [milestoneSearchQuery, setMilestoneSearchQuery] = useState("");
+
   const milestones = useMemo(() => 
     (allMilestones || []).filter((m: any) => m.projectId === projectId),
     [allMilestones, projectId]
   );
+
+  const filteredMilestones = useMemo(() => {
+    if (!milestoneSearchQuery.trim()) return milestones;
+    const q = milestoneSearchQuery.toLowerCase();
+    return milestones.filter((m: any) => 
+      m.name?.toLowerCase().includes(q) || 
+      m.description?.toLowerCase().includes(q)
+    );
+  }, [milestones, milestoneSearchQuery]);
 
   const projectTasks = useMemo(() => 
     (allTasks || []).filter((t: any) => t.projectId === projectId || t.project === projectId),
@@ -369,31 +381,40 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="space-y-4 mb-6">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Milestones</h2>
           <p className="text-sm text-muted-foreground">Track key project milestones and their associated tasks.</p>
         </div>
-        <Button onClick={handleCreateMilestone} className="gap-2" data-testid="button-create-milestone">
-          <Plus className="h-4 w-4" />
-          New Milestone
-        </Button>
+        <ListHeader
+          searchPlaceholder="Search milestones..."
+          searchValue={milestoneSearchQuery}
+          onSearchChange={setMilestoneSearchQuery}
+          newButtonLabel="New Milestone"
+          onNewClick={handleCreateMilestone}
+          layoutVariant={layoutVariant}
+          onLayoutChange={setLayoutVariant}
+        />
       </div>
 
       <div className="space-y-6">
-        {milestones.length === 0 ? (
+        {filteredMilestones.length === 0 ? (
           <Card className="bg-muted/10 border-dashed">
             <CardContent className="flex flex-col items-center justify-center p-12 text-center">
               <Flag className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-              <h3 className="text-lg font-medium">No milestones defined</h3>
+              <h3 className="text-lg font-medium">
+                {milestones.length === 0 ? "No milestones defined" : "No milestones match your search"}
+              </h3>
               <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">
-                Milestones help track key project deliverables and deadlines.
+                {milestones.length === 0 
+                  ? "Milestones help track key project deliverables and deadlines."
+                  : "Try adjusting your search terms."}
               </p>
             </CardContent>
           </Card>
         ) : (
-          <Accordion type="multiple" defaultValue={milestones.map((m: any) => m.id)} className="space-y-4">
-            {milestones.map((milestone: any) => {
+          <Accordion type="multiple" defaultValue={filteredMilestones.map((m: any) => m.id)} className="space-y-4">
+            {filteredMilestones.map((milestone: any) => {
               const status = STATUS_CONFIG[milestone.status] || STATUS_CONFIG.planned;
               const StatusIcon = status.icon;
               const owner = getOwner(milestone.ownerId);
