@@ -10,12 +10,12 @@ import {
   ListTodo,
   Plus,
   Loader2,
-  Search,
   Pencil,
   Check,
   X,
   User
 } from "lucide-react";
+import { ListHeader, LayoutVariant, getGridClassName } from "@/components/ui/list-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -92,6 +92,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const [dialogMilestoneId, setDialogMilestoneId] = useState<string | null>(null);
   const [dialogMode, setDialogMode] = useState<"search" | "create">("search");
   const [searchQuery, setSearchQuery] = useState("");
+  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("three-column");
   const [selectedEpicId, setSelectedEpicId] = useState<string>("");
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
