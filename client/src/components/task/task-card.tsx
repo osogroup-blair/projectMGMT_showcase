@@ -349,22 +349,8 @@ export function TaskCard({
         ) : (
           <>
             {/* Compact/Grid Layout - Stacked Rows */}
-            {/* Top Row: Epic, Stage, Status */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground min-w-0">
-                {epicName && (
-                  <button 
-                    className="hover:text-purple-600 truncate max-w-[80px]"
-                    onClick={(e) => { e.stopPropagation(); onOpenEpic?.(task.epicId!); }}
-                  >
-                    {epicName}
-                  </button>
-                )}
-                {epicName && stageName && <span>•</span>}
-                {stageName && (
-                  <span className="truncate max-w-[60px]">{stageName}</span>
-                )}
-              </div>
+            {/* Top Row: Status only */}
+            <div className="flex items-center justify-end">
               <Select value={task.status} onValueChange={handleStatusChange}>
                 <SelectTrigger 
                   className={cn("h-6 w-auto min-w-[80px] text-[10px] border-0 font-medium px-1.5", STATUS_COLORS[task.status])}
@@ -380,7 +366,7 @@ export function TaskCard({
               </Select>
             </div>
 
-            {/* Middle Row: Title */}
+            {/* Middle Row: Title with Epic below */}
             <div className="relative group/title">
               {isEditingTitle ? (
                 <Input
@@ -393,13 +379,23 @@ export function TaskCard({
                 />
               ) : (
                 <div className="flex items-start gap-1">
-                  <button
-                    className="text-left font-medium text-sm leading-tight line-clamp-2 hover:text-primary flex-1"
-                    onClick={(e) => { e.stopPropagation(); onOpenTask?.(task.id); }}
-                    onDoubleClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
-                  >
-                    {task.title}
-                  </button>
+                  <div className="flex-1 min-w-0">
+                    <button
+                      className="text-left font-medium text-sm leading-tight line-clamp-2 hover:text-primary w-full"
+                      onClick={(e) => { e.stopPropagation(); onOpenTask?.(task.id); }}
+                      onDoubleClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
+                    >
+                      {task.title}
+                    </button>
+                    {epicName && (
+                      <button 
+                        className="text-[11px] text-muted-foreground hover:text-purple-600 truncate block max-w-full mt-0.5"
+                        onClick={(e) => { e.stopPropagation(); onOpenEpic?.(task.epicId!); }}
+                      >
+                        {epicName}
+                      </button>
+                    )}
+                  </div>
                   <Button 
                     variant="ghost" 
                     size="icon" 
