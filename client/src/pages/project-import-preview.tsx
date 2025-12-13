@@ -106,7 +106,7 @@ export default function ProjectImportPreview() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-6xl space-y-8">
+      <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-primary">Preview & Confirm</h1>

@@ -71,7 +71,7 @@ export default function ProjectImport() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-3xl space-y-8">
+      <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-primary">Import Project Data</h1>
           <p className="text-muted-foreground">Upload a file to create a new project or update an existing one.</p>

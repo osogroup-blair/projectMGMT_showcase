@@ -202,7 +202,7 @@ export default function RoleAssignments() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-4xl space-y-8">
+      <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
