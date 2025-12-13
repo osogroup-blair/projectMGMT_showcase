@@ -208,7 +208,7 @@ export default function DeliverableDetail() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="space-y-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Link href={`/projects/${projectId}?tab=deliverables`} className="hover:text-primary transition-colors flex items-center gap-1" data-testid="link-back-deliverables">
             <ArrowLeft className="h-4 w-4" />

@@ -1116,7 +1116,7 @@ function MilestoneDetailPanel({
 
       {/* Main Content Tabs: Active Tasks vs Scope Definition */}
       <div className="flex-1 overflow-auto bg-muted/5 p-6">
-         <div className="max-w-4xl mx-auto">
+         <div className="w-full">
             <Tabs defaultValue="tasks" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="tasks" className="gap-2">

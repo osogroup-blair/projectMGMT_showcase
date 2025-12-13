@@ -322,7 +322,7 @@ export default function MilestoneOverview() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="space-y-4">
           <div className="flex items-start gap-4">

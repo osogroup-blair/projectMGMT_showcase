@@ -300,7 +300,7 @@ export default function EpicDetail() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-7xl h-[calc(100vh-8rem)] flex flex-col">
+      <div className="h-[calc(100vh-8rem)] flex flex-col">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

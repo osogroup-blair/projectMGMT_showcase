@@ -441,7 +441,7 @@ export default function DeliverablesList() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-7xl space-y-8">
+      <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
