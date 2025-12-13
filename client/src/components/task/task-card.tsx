@@ -187,21 +187,16 @@ export function TaskCard({
                 </SelectContent>
               </Select>
 
-              {/* Epic & Stage Context */}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-                {epicName && (
-                  <button 
-                    className="hover:text-purple-600 hover:underline truncate max-w-[100px]"
-                    onClick={(e) => { e.stopPropagation(); onOpenEpic?.(task.epicId!); }}
-                    aria-label={`Open epic ${epicName}`}
-                  >
-                    {epicName}
-                  </button>
-                )}
-                {stageName && (
-                  <Badge variant="outline" className="text-[10px] shrink-0">{stageName}</Badge>
-                )}
-              </div>
+              {/* Epic Context */}
+              {epicName && (
+                <button 
+                  className="text-xs text-muted-foreground hover:text-purple-600 hover:underline truncate max-w-[100px] shrink-0"
+                  onClick={(e) => { e.stopPropagation(); onOpenEpic?.(task.epicId!); }}
+                  aria-label={`Open epic ${epicName}`}
+                >
+                  {epicName}
+                </button>
+              )}
 
               {/* Title (Editable) */}
               <div className="flex-1 min-w-0">
@@ -339,6 +334,11 @@ export function TaskCard({
                   </div>
                 </PopoverContent>
               </Popover>
+
+              {/* Stage */}
+              {stageName && (
+                <Badge variant="outline" className="text-[10px] shrink-0">{stageName}</Badge>
+              )}
 
               {/* Priority Badge */}
               <Badge className={cn("text-[10px] px-1.5 shrink-0", PRIORITY_COLORS[task.priority])}>
