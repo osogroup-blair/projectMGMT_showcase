@@ -252,7 +252,7 @@ export default function StageTemplateDesigner() {
 
   return (
     <Shell>
-      <div className="flex flex-col h-[calc(100vh-4rem)] max-w-7xl mx-auto w-full">
+      <div className="flex flex-col h-[calc(100vh-4rem)] w-full">
         {/* Header */}
         <div className="flex items-center justify-between py-6 border-b shrink-0 bg-background/95 backdrop-blur z-10">
           <div className="flex flex-col gap-1">

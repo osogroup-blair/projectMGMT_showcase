@@ -208,7 +208,7 @@ export default function AdminAppDefaults() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="space-y-8">
         <div className="flex flex-col gap-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-primary">App Defaults</h1>

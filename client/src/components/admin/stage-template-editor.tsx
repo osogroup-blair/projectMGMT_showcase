@@ -163,7 +163,7 @@ export function StageTemplateEditor({
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="p-6 space-y-8 max-w-5xl mx-auto">
+        <div className="p-6 space-y-8">
           {/* Basic Info */}
           <Card>
             <CardHeader>
