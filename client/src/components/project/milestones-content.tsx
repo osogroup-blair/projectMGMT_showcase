@@ -424,52 +424,49 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                   data-testid={`accordion-milestone-${milestone.id}`}
                 >
                   <AccordionTrigger className="hover:no-underline py-4">
-                    <div className="flex items-start gap-4 text-left w-full">
-                      <div className={cn("p-2 rounded-lg mt-1", status.bgColor, status.color)}>
-                        <StatusIcon className="h-5 w-5" />
-                      </div>
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-3">
-                          {isEditingThis && editingField === "name" ? (
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <Input
-                                ref={inputRef}
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") saveEdit(milestone.id, "name");
-                                  if (e.key === "Escape") cancelEditing();
-                                }}
-                                className="h-8 w-64 text-lg font-semibold"
-                                data-testid={`input-milestone-name-${milestone.id}`}
-                              />
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveEdit(milestone.id, "name")}>
-                                <Check className="h-4 w-4 text-green-600" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEditing}>
-                                <X className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
-                              <Link 
-                                href={`/projects/${projectId}/milestones/${milestone.id}`}
-                              >
-                                <h3 className="text-lg font-semibold hover:text-primary hover:underline decoration-primary/30 underline-offset-2 transition-colors">
+                    <div className="flex items-start gap-4 text-left w-full justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className={cn("p-2 rounded-lg mt-1", status.bgColor, status.color)}>
+                          <StatusIcon className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-3">
+                            {isEditingThis && editingField === "name" ? (
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Input
+                                  ref={inputRef}
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveEdit(milestone.id, "name");
+                                    if (e.key === "Escape") cancelEditing();
+                                  }}
+                                  className="h-8 w-64 text-lg font-semibold"
+                                  data-testid={`input-milestone-name-${milestone.id}`}
+                                />
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveEdit(milestone.id, "name")}>
+                                  <Check className="h-4 w-4 text-green-600" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEditing}>
+                                  <X className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
+                                <h3 className="text-lg font-semibold">
                                   {milestone.name}
                                 </h3>
-                              </Link>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => startEditing(milestone.id, "name", milestone.name)}
-                                data-testid={`button-edit-name-${milestone.id}`}
-                              >
-                                <Pencil className="h-3 w-3 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          )}
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => startEditing(milestone.id, "name", milestone.name)}
+                                  data-testid={`button-edit-name-${milestone.id}`}
+                                >
+                                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            )}
                           <Badge variant="outline" className={cn(
                             "font-normal",
                             milestone.status === "achieved" || milestone.status === "Completed" 
@@ -606,6 +603,18 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                           </div>
                         </div>
                       </div>
+                      </div>
+                      <Link href={`/projects/${projectId}/milestones/${milestone.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="gap-2"
+                          data-testid={`button-milestone-overview-${milestone.id}`}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                          Overview
+                        </Button>
+                      </Link>
                     </div>
                   </AccordionTrigger>
 
