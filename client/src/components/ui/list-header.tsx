@@ -11,6 +11,7 @@ interface ListHeaderProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   newButtonLabel?: string;
+  newButtonTestId?: string;
   onNewClick?: () => void;
   layoutVariant: LayoutVariant;
   onLayoutChange: (variant: LayoutVariant) => void;
@@ -24,6 +25,7 @@ export function ListHeader({
   searchValue,
   onSearchChange,
   newButtonLabel = "New",
+  newButtonTestId = "button-new",
   onNewClick,
   layoutVariant,
   onLayoutChange,
@@ -45,7 +47,7 @@ export function ListHeader({
       </div>
       
       {showNewButton && onNewClick && (
-        <Button onClick={onNewClick} className="gap-2" data-testid="button-new">
+        <Button onClick={onNewClick} className="gap-2" data-testid={newButtonTestId}>
           <Plus className="h-4 w-4" />
           {newButtonLabel}
         </Button>

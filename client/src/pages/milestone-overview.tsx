@@ -603,12 +603,26 @@ function TasksTab({
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"search" | "create">("search");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [dialogSearchQuery, setDialogSearchQuery] = useState("");
   const [selectedEpicId, setSelectedEpicId] = useState<string>("");
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const { toast } = useToast();
   const { createAsync: createTaskAsync } = useTasks();
   const [isCreating, setIsCreating] = useState(false);
+  
+  // ListHeader state for filtering linked tasks
+  const [listSearchQuery, setListSearchQuery] = useState("");
+  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("one-column");
+  
+  // Filter linked tasks by search
+  const filteredLinkedTasks = useMemo(() => {
+    if (!listSearchQuery.trim()) return linkedTasks;
+    const q = listSearchQuery.toLowerCase();
+    return linkedTasks.filter((t: any) => 
+      t.title?.toLowerCase().includes(q) || 
+      t.description?.toLowerCase().includes(q)
+    );
+  }, [linkedTasks, listSearchQuery]);
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -629,8 +643,8 @@ function TasksTab({
   const filteredSearchTasks = useMemo(() => {
     let result = searchableTasks;
     
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (dialogSearchQuery.trim()) {
+      const q = dialogSearchQuery.toLowerCase();
       result = result.filter(t => 
         t.title?.toLowerCase().includes(q) || 
         t.description?.toLowerCase().includes(q)
@@ -646,7 +660,7 @@ function TasksTab({
     }
     
     return result.slice(0, 20); // Limit results
-  }, [searchableTasks, searchQuery, selectedEpicId, selectedStageId]);
+  }, [searchableTasks, dialogSearchQuery, selectedEpicId, selectedStageId]);
 
   const handleLinkTask = (taskId: string) => {
     const newLink: MilestoneTaskLink = {
@@ -726,7 +740,7 @@ function TasksTab({
 
   const openDialog = (mode: "search" | "create") => {
     setDialogMode(mode);
-    setSearchQuery("");
+    setDialogSearchQuery("");
     setSelectedEpicId("");
     setSelectedStageId("");
     setDialogOpen(true);
@@ -734,29 +748,29 @@ function TasksTab({
 
   return (
     <>
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+    <div className="space-y-4">
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold flex items-center gap-2">
             <ListTodo className="h-5 w-5" />
             Linked Tasks ({linkedTasks.length})
-          </CardTitle>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="gap-2"
-            onClick={() => openDialog("search")}
-            data-testid="button-link-task"
-          >
-            <Plus className="h-4 w-4" />
-            Add Tasks
-          </Button>
+          </h2>
         </div>
-      </CardHeader>
-      <CardContent>
-        {linkedTasks.length > 0 ? (
-          <div className="space-y-3">
-            {linkedTasks.map((task: any) => {
+        <ListHeader
+          searchPlaceholder="Search linked tasks..."
+          searchValue={listSearchQuery}
+          onSearchChange={setListSearchQuery}
+          newButtonLabel="Add Tasks"
+          newButtonTestId="button-link-task"
+          onNewClick={() => openDialog("search")}
+          layoutVariant={layoutVariant}
+          onLayoutChange={setLayoutVariant}
+        />
+      </div>
+      
+      {filteredLinkedTasks.length > 0 ? (
+        <div className={getGridClassName(layoutVariant)}>
+          {filteredLinkedTasks.map((task: any) => {
               const epic = getEpic(task.epicId);
               const assignee = getAssignee(task.assigneeId);
               const priorityClass = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
@@ -816,27 +830,35 @@ function TasksTab({
               );
             })}
           </div>
-        ) : (
-          <div className="p-8 border border-dashed rounded-md text-center bg-muted/20">
+      ) : (
+        <Card>
+          <CardContent className="p-8 text-center">
             <ListTodo className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-            <h3 className="font-medium mb-1">No tasks linked</h3>
+            <h3 className="font-medium mb-1">
+              {linkedTasks.length === 0 ? "No tasks linked" : "No tasks match your search"}
+            </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Link tasks to this milestone to track progress. Use the Scope Definition tab to define rules or manually add tasks.
+              {linkedTasks.length === 0 
+                ? "Link tasks to this milestone to track progress. Use the Scope Definition tab to define rules or manually add tasks."
+                : "Try adjusting your search terms"
+              }
             </p>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="gap-2"
-              onClick={() => openDialog("search")}
-              data-testid="button-link-task-empty"
-            >
-              <Plus className="h-4 w-4" />
-              Add Tasks
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            {linkedTasks.length === 0 && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => openDialog("search")}
+                data-testid="button-link-task-empty"
+              >
+                <Plus className="h-4 w-4" />
+                Add Tasks
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
 
     {/* Link/Create Task Dialog */}
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -867,8 +889,8 @@ function TasksTab({
                 <Input 
                   placeholder="Search tasks by title..."
                   className="pl-9"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  value={dialogSearchQuery}
+                  onChange={e => setDialogSearchQuery(e.target.value)}
                   data-testid="input-search-task"
                 />
               </div>

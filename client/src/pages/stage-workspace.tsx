@@ -1038,3 +1038,169 @@ export default function StageWorkspace() {
     </Shell>
   );
 }
+
+function MilestonesTabContent({
+  milestones,
+  allTasks,
+  allMilestoneLinks,
+  projectId,
+  getAssignee,
+  openMilestoneModal
+}: {
+  milestones: any[];
+  allTasks: any[];
+  allMilestoneLinks: any[];
+  projectId: string;
+  getAssignee: (id?: string) => any;
+  openMilestoneModal: (mode: string) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("one-column");
+
+  const filteredMilestones = useMemo(() => {
+    if (!searchQuery.trim()) return milestones;
+    const q = searchQuery.toLowerCase();
+    return milestones.filter((m: any) => 
+      m.name?.toLowerCase().includes(q) || 
+      m.description?.toLowerCase().includes(q)
+    );
+  }, [milestones, searchQuery]);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Stage Milestones</h2>
+        </div>
+        <ListHeader
+          searchPlaceholder="Search milestones..."
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          newButtonLabel="Add Milestone"
+          onNewClick={() => openMilestoneModal("link")}
+          layoutVariant={layoutVariant}
+          onLayoutChange={setLayoutVariant}
+        />
+      </div>
+      
+      {filteredMilestones.length > 0 ? (
+        <Accordion type="multiple" defaultValue={filteredMilestones.map((m: any) => m.id)} className={getGridClassName(layoutVariant)}>
+          {filteredMilestones.map((m: any) => {
+            const linkedTaskIds = allMilestoneLinks
+              .filter((link: any) => link.milestoneId === m.id)
+              .map((link: any) => link.taskId);
+            const milestoneTasks = allTasks.filter((t: any) => linkedTaskIds.includes(t.id));
+            const completedTasks = milestoneTasks.filter((t: any) => t.status === "Done").length;
+            const progressPercent = milestoneTasks.length > 0 ? Math.round((completedTasks / milestoneTasks.length) * 100) : 0;
+            
+            return (
+              <AccordionItem key={m.id} value={m.id} className="border rounded-lg bg-background shadow-sm">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                  <div className="flex items-center justify-between w-full pr-2">
+                    <div className="flex items-center gap-3">
+                      <Target className={cn(
+                        "h-5 w-5",
+                        m.status === 'Completed' || m.status === 'achieved' ? "text-green-600" :
+                        m.status === 'In Progress' || m.status === 'in_progress' ? "text-blue-600" :
+                        "text-muted-foreground"
+                      )} />
+                      <div className="text-left">
+                        <h3 className="font-medium text-base">{m.name}</h3>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {m.targetDate}
+                          </span>
+                          <span>{milestoneTasks.length} tasks</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className={cn(
+                        "text-xs",
+                        m.status === 'Completed' || m.status === 'achieved' ? "bg-green-50 text-green-700 border-green-200" :
+                        m.status === 'In Progress' || m.status === 'in_progress' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                        "bg-slate-50 text-slate-700 border-slate-200"
+                      )}>
+                        {m.status}
+                      </Badge>
+                      <div className="flex items-center gap-2 min-w-[100px]">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
+                        </div>
+                        <span className="text-xs font-medium text-muted-foreground w-8">{progressPercent}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="space-y-2 pt-2">
+                    {milestoneTasks.length > 0 ? milestoneTasks.map((task: any) => {
+                      const assignee = getAssignee(task.assigneeId);
+                      return (
+                        <div 
+                          key={task.id} 
+                          className="flex items-center gap-3 p-3 rounded-md border bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className={cn(
+                            "w-2 h-2 rounded-full shrink-0",
+                            task.status === "Done" ? "bg-green-500" :
+                            task.status === "In Progress" ? "bg-blue-500" :
+                            task.status === "Review" ? "bg-amber-500" :
+                            "bg-slate-400"
+                          )} />
+                          <Link href={`/projects/${projectId}/tasks/${task.id}`} className="flex-1 min-w-0">
+                            <span className="text-sm font-medium hover:text-primary hover:underline decoration-primary/30 underline-offset-2 truncate block">
+                              {task.title}
+                            </span>
+                          </Link>
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {task.status}
+                          </Badge>
+                          {assignee && (
+                            <Avatar className="h-6 w-6 shrink-0">
+                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                {assignee.name?.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      );
+                    }) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <p className="text-sm">No tasks linked to this milestone</p>
+                        <Link href={`/projects/${projectId}/milestones/${m.id}`}>
+                          <Button variant="outline" size="sm" className="mt-2 gap-2">
+                            View Milestone
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      ) : (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Target className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <h3 className="font-medium mb-1">
+              {milestones.length === 0 ? "No milestones yet" : "No milestones match your search"}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              {milestones.length === 0 ? "Create your first milestone to track progress" : "Try adjusting your search terms"}
+            </p>
+            {milestones.length === 0 && (
+              <Button size="sm" className="gap-2" onClick={() => openMilestoneModal("link")}>
+                <Plus className="h-4 w-4" />
+                Add Milestone
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
