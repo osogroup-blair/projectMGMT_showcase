@@ -104,6 +104,8 @@ export const useStatusOptions = () => useCollection("statusOptions");
 export const useMilestoneScopeRules = () => useCollection("milestoneScopeRules");
 export const useMilestoneTaskLinks = () => useCollection("milestoneTaskLinks");
 export const useRoleTypes = () => useCollection("roleTypes");
+export const useSprints = () => useCollection("sprints");
+export const useSprintMembers = () => useCollection("sprintMembers");
 
 // Single Item Hooks
 export function useProject(id: string) {

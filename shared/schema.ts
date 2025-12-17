@@ -105,9 +105,10 @@ export const sprints = pgTable("sprints", {
   ownerUserId: varchar("owner_user_id").references(() => users.id),
   name: text("name").notNull(),
   goal: text("goal"),
-  startDate: text("start_date").notNull(),
-  endDate: text("end_date").notNull(),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
   status: text("status").notNull().default("planned"),
+  capacityHours: integer("capacity_hours"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -61,6 +61,7 @@ import ProjectDashboardPage from "@/components/project/project-dashboard-page";
 import { TaskListContent } from "@/components/project/task-list-content";
 import { MilestonesContent } from "@/components/project/milestones-content";
 import { StagesContent } from "@/components/project/stages-content";
+import { SprintsContent } from "@/components/project/sprints-content";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -527,6 +528,14 @@ export default function ProjectOverview() {
             >
               Stages
             </TabsTrigger>
+
+            <TabsTrigger 
+              value="sprints" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+              data-testid="tab-sprints"
+            >
+              Sprints
+            </TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
@@ -569,6 +578,13 @@ export default function ProjectOverview() {
             <TabsContent value="milestones">
               <div className="mt-6">
                 <MilestonesContent projectId={projectId} />
+              </div>
+            </TabsContent>
+
+            {/* Sprints Tab */}
+            <TabsContent value="sprints">
+              <div className="mt-6">
+                <SprintsContent projectId={projectId} />
               </div>
             </TabsContent>
 

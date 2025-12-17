@@ -33,6 +33,8 @@ import EpicDetail from "@/pages/epic-detail";
 import ProjectExport from "@/pages/project-export";
 import ProjectWizard from "@/pages/project-wizard";
 import ProjectManagement from "@/pages/project-management";
+import SprintList from "@/pages/sprint-list";
+import SprintDetail from "@/pages/sprint-detail";
 import AdminTemplates from "@/pages/admin/templates";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import AdminAppDefaults from "@/pages/admin/app-defaults";
@@ -59,6 +61,8 @@ function Router() {
       <Route path="/projects/:projectId/stages/:stageId/view-settings" component={StageViewSettings} />
       <Route path="/projects/:projectId/milestones" component={MilestonesManagement} />
       <Route path="/projects/:projectId/milestones/:milestoneId" component={MilestoneOverview} />
+      <Route path="/projects/:projectId/sprints" component={SprintList} />
+      <Route path="/projects/:projectId/sprints/:sprintId" component={SprintDetail} />
       <Route path="/projects/:projectId/tasks" component={TaskBoard} />
       <Route path="/projects/:projectId/tasks/:taskId" component={TaskDetail} />
       <Route path="/projects/:projectId/team" component={ProjectTeam} />

@@ -7,6 +7,8 @@ export interface NexusDB {
   milestones: any[];
   milestoneScopeRules: any[];
   milestoneTaskLinks: any[];
+  sprints: any[];
+  sprintMembers: any[];
   users: any[];
   activity: any[];
   comments: any[];

@@ -19,7 +19,8 @@ import {
   Columns,
   Trash2,
   Loader2,
-  Rows3
+  Rows3,
+  Zap
 } from "lucide-react";
 import { TaskCard, LayoutVariant } from "@/components/task/task-card";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Task } from "@/lib/mock-data";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints } from "@/hooks/use-nexus-data";
 import { EFFORT_VALUES } from "@shared/schema";
 
 // Stage color mapping based on stage type/order
@@ -101,6 +102,12 @@ export default function TaskBoard() {
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { data: allSprints } = useSprints();
+  
+  const projectSprints = useMemo(() => {
+    if (!allSprints || !project) return [];
+    return allSprints.filter((s: any) => s.projectId === project.id);
+  }, [allSprints, project]);
   
   // Filter deliverables for this project
   const projectDeliverables = useMemo(() => {
@@ -157,6 +164,7 @@ export default function TaskBoard() {
   // Filters
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
+  const [sprintFilter, setSprintFilter] = useState<string>("all");
   
   // Sidebar grouping
   const [groupBy, setGroupBy] = useState<"stage" | "status" | "epic" | "assignee" | "milestone">("stage");
@@ -236,6 +244,8 @@ export default function TaskBoard() {
                           (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
     const matchesAssignee = assigneeFilter === "all" || t.assigneeId === assigneeFilter;
     const matchesMilestone = milestoneFilter === "all" || t.milestoneId === milestoneFilter;
+    const matchesSprint = sprintFilter === "all" || 
+      (sprintFilter === "backlog" ? !t.sprintId : t.sprintId === sprintFilter);
     
     // Filter by selected section in sidebar
     let matchesSection = true;
@@ -247,7 +257,7 @@ export default function TaskBoard() {
       else if (groupBy === "milestone") matchesSection = selectedSection === "unassigned" ? !t.milestoneId : t.milestoneId === selectedSection;
     }
     
-    return matchesSearch && matchesAssignee && matchesMilestone && matchesSection;
+    return matchesSearch && matchesAssignee && matchesMilestone && matchesSprint && matchesSection;
   });
 
   const handleOpenCreate = (stageId?: string, epicId?: string) => {
@@ -410,6 +420,22 @@ export default function TaskBoard() {
                   <SelectItem value="all">All Milestones</SelectItem>
                   {milestones.map((m: any) => (
                     <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={sprintFilter} onValueChange={setSprintFilter}>
+                <SelectTrigger className="w-[160px]" data-testid="select-sprint-filter">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Sprint" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sprints</SelectItem>
+                  <SelectItem value="backlog">Backlog</SelectItem>
+                  {projectSprints.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
