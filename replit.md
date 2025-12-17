@@ -45,6 +45,7 @@ The core domain entities follow a hierarchical structure:
 4. **Tasks** - Individual work items within epics
 5. **Milestones** - Key dates with scope rules linking to tasks
 6. **Stages** - Workflow phases that epics/tasks progress through
+7. **Sprints** - Time-boxed iterations with lifecycle (Planned → Active → Closed) and capacity tracking
 
 Supporting entities include Users, Roles, Assignments, Views, Guidance Items, and various template types for reusability.
 
@@ -55,6 +56,8 @@ All API routes follow the pattern:
 - `/api/projects/:projectId/deliverables` - Nested resources
 - `/api/projects/:projectId/tasks` - Task management
 - `/api/projects/:projectId/milestones` - Milestone tracking
+- `/api/projects/:projectId/sprints` - Sprint management per project
+- `/api/sprints` - Sprint CRUD, `/api/sprints/:id/start`, `/api/sprints/:id/close` for lifecycle
 - `/api/project-import/*` - Import workflow endpoints
 - `/api/users` - User management
 - `/api/seed` - Development database seeding
