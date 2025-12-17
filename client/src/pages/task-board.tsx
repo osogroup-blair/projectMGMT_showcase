@@ -83,7 +83,7 @@ const getStageColor = (stageId: string, order: number) => {
   return colors[(order - 1) % colors.length];
 };
 
-const PRIORITY_CONFIG = {
+const PRIORITY_CONFIG: Record<string, { color: string; label: string }> = {
   "High": { color: "text-red-600 bg-red-100", label: "High" },
   "Medium": { color: "text-amber-600 bg-amber-100", label: "Medium" },
   "Low": { color: "text-slate-600 bg-slate-100", label: "Low" }
@@ -529,7 +529,7 @@ export default function TaskBoard() {
                                 <h4 className="font-medium text-sm leading-tight mb-1 line-clamp-2">{task.title}</h4>
                                 {task.tags && task.tags.length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-2">
-                                    {task.tags.map(tag => (
+                                    {task.tags.map((tag: string) => (
                                       <span key={tag} className="text-[10px] text-muted-foreground bg-muted px-1 rounded-sm">
                                         {tag}
                                       </span>
