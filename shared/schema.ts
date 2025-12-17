@@ -64,6 +64,7 @@ export const epics = pgTable("epics", {
 // Project Stages
 export const projectStages = pgTable("project_stages", {
   id: varchar("id").primaryKey(),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   order: integer("order").notNull(),

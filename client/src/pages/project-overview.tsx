@@ -38,8 +38,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
-import { PROJECT_STAGES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
-import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics } from "@/hooks/use-nexus-data";
+import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages } from "@/hooks/use-nexus-data";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -106,6 +105,7 @@ export default function ProjectOverview() {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { toast } = useToast();
 
   // Inline editing state
@@ -285,9 +285,15 @@ export default function ProjectOverview() {
     return { tasks: projectTasks, milestones: projectMilestones, stats, dashboardData };
   }, [project, allTasks, allMilestones, users, allDeliverables, allEpics]);
 
-  const stages = PROJECT_STAGES; // Keep using static stages for now as they are structural
+  // Use actual project stages from database, filtered by project and sorted by order
+  const stages = useMemo(() => {
+    if (!projectStages) return [];
+    return [...projectStages]
+      .filter((s: any) => s.projectId === projectId)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [projectStages, projectId]);
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isDeliverablesLoading || isEpicsLoading) {
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isDeliverablesLoading || isEpicsLoading || isStagesLoading) {
     return (
       <Shell>
         <div className="flex h-[50vh] items-center justify-center">

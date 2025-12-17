@@ -509,6 +509,7 @@ export default function ProjectWizard() {
       for (let i = 0; i < stages.length; i++) {
         const stageTemplate = stages[i];
         const newStage = await createProjectStage({
+          projectId: newProject.id,
           name: stageTemplate.name,
           description: stageTemplate.description || "",
           order: i,
