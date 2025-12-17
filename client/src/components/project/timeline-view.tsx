@@ -270,12 +270,18 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
 
   // Calculate total timeline range based on data, but padded generously
   const timelineStart = useMemo(() => {
+    if (stagesWithDates.length === 0) {
+      return startOfYear(new Date());
+    }
     const baseStart = stagesWithDates[0].startDate;
     // Pad significantly to allow scrolling around
     return startOfYear(subYears(baseStart, 1)); 
   }, [stagesWithDates]);
 
   const timelineEnd = useMemo(() => {
+    if (stagesWithDates.length === 0) {
+      return endOfYear(addYears(new Date(), 1));
+    }
     const baseEnd = stagesWithDates[stagesWithDates.length - 1].endDate;
     return endOfYear(addYears(baseEnd, 2));
   }, [stagesWithDates]);
