@@ -499,6 +499,7 @@ export default function ProjectWizard() {
       
       // 2. Create project stages and store with task creation mode
       const createdStages: Array<{ 
+        templateId: string;
         createdStageId: string; 
         taskCreationMode: 'none' | 'once' | 'per_epic'; 
         defaultTasks: string[];
@@ -517,6 +518,7 @@ export default function ProjectWizard() {
         
         if (newStage?.id) {
           createdStages.push({
+            templateId: stageTemplate.id,
             createdStageId: newStage.id,
             taskCreationMode: stageTemplate.taskCreationMode || 'per_epic',
             defaultTasks: stageTemplate.defaultTasks || [],
@@ -524,6 +526,10 @@ export default function ProjectWizard() {
           });
         }
       }
+      
+      // Build mapping from template stage ID to created stage ID
+      const stageIdMap = new Map<string, string>();
+      createdStages.forEach(s => stageIdMap.set(s.templateId, s.createdStageId));
       
       // Get ALL created stage IDs for epic assignment
       const allStageIds = createdStages.map(s => s.createdStageId).filter(Boolean);
@@ -674,12 +680,16 @@ export default function ProjectWizard() {
       // 6. Create milestones
       let totalMilestonesCreated = 0;
       for (const milestone of milestones) {
+        // Map template stage ID to actual created stage ID
+        const resolvedStageId = milestone.stageId ? stageIdMap.get(milestone.stageId) || null : null;
+        
         await createMilestone({
           id: crypto.randomUUID(),
           projectId: newProject.id,
           name: milestone.name,
           description: milestone.description || "",
-          phase: milestone.phase,
+          phase: milestone.phase || "plan_strategy",
+          stageId: resolvedStageId,
           targetDate: milestone.targetDate,
           status: "planned",
           ownerId: milestone.ownerId,
@@ -1102,6 +1112,7 @@ export default function ProjectWizard() {
                                     name: "New Milestone",
                                     description: "",
                                     phase: "plan_strategy",
+                                    stageId: stages[0]?.id || "",
                                     targetDate: new Date().toISOString().split('T')[0],
                                     ownerId: users[0]?.id || "1",
                                     scopeType: "manual",
@@ -1124,6 +1135,7 @@ export default function ProjectWizard() {
                                         name: "Project Kickoff",
                                         description: "",
                                         phase: "plan_strategy",
+                                        stageId: stages[0]?.id || "",
                                         targetDate: new Date().toISOString().split('T')[0],
                                         ownerId: users[0]?.id || "1",
                                         scopeType: "manual",
@@ -1189,23 +1201,26 @@ export default function ProjectWizard() {
                                                                 </Select>
                                                             </div>
                                                             <div className="space-y-1">
-                                                                <Label className="text-xs">Phase</Label>
+                                                                <Label className="text-xs">Stage</Label>
                                                                 <Select 
-                                                                    value={milestone.phase}
+                                                                    value={milestone.stageId || ""}
                                                                     onValueChange={(val) => {
                                                                         const newMs = [...milestones];
-                                                                        newMs[index].phase = val;
+                                                                        newMs[index].stageId = val;
                                                                         setMilestones(newMs);
                                                                     }}
                                                                 >
-                                                                    <SelectTrigger className="h-9" data-testid={`select-milestone-phase-${index}`}>
-                                                                        <SelectValue placeholder="Select phase" />
+                                                                    <SelectTrigger className="h-9" data-testid={`select-milestone-stage-${index}`}>
+                                                                        <SelectValue placeholder="Select stage" />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
-                                                                        <SelectItem value="plan_strategy">Plan Strategy</SelectItem>
-                                                                        <SelectItem value="validate_blueprints">Validate Blueprints</SelectItem>
-                                                                        <SelectItem value="develop_solution">Develop Solution</SelectItem>
-                                                                        <SelectItem value="enable_users">Enable Users</SelectItem>
+                                                                        {stages.length > 0 ? (
+                                                                            stages.map((stage) => (
+                                                                                <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
+                                                                            ))
+                                                                        ) : (
+                                                                            <SelectItem value="" disabled>No stages configured</SelectItem>
+                                                                        )}
                                                                     </SelectContent>
                                                                 </Select>
                                                             </div>
