@@ -292,8 +292,9 @@ export default function MilestoneOverview() {
   };
 
   const handleSaveStage = (newStageId: string) => {
-    if (milestone && newStageId !== milestone.stageId) {
-      updateMilestone({ id: milestone.id, updates: { stageId: newStageId || null } });
+    const stageValue = newStageId === "__none__" ? null : newStageId;
+    if (milestone && stageValue !== milestone.stageId) {
+      updateMilestone({ id: milestone.id, updates: { stageId: stageValue } });
       toast({ title: "Stage updated" });
     }
     setIsEditingStage(false);
@@ -536,14 +537,14 @@ export default function MilestoneOverview() {
                     {isEditingStage ? (
                       <div onClick={(e) => e.stopPropagation()}>
                         <Select 
-                          value={milestone.stageId || ""} 
+                          value={milestone.stageId || "__none__"} 
                           onValueChange={(value) => handleSaveStage(value)}
                         >
                           <SelectTrigger className="h-7 text-sm mt-1" data-testid="select-milestone-stage">
                             <SelectValue placeholder="Select stage" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No stage</SelectItem>
+                            <SelectItem value="__none__">No stage</SelectItem>
                             {milestoneStages.map((s: any) => (
                               <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                             ))}
