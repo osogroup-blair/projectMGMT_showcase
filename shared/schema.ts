@@ -98,6 +98,40 @@ export const milestones = pgTable("milestones", {
   requiredCompletionRatio: integer("required_completion_ratio"),
 });
 
+// Sprints (timeboxed work containers)
+export const sprints = pgTable("sprints", {
+  id: varchar("id").primaryKey(),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  ownerUserId: varchar("owner_user_id").references(() => users.id),
+  name: text("name").notNull(),
+  goal: text("goal"),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  status: text("status").notNull().default("planned"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Sprint Members (capacity tracking)
+export const sprintMembers = pgTable("sprint_members", {
+  id: varchar("id").primaryKey(),
+  sprintId: varchar("sprint_id").notNull().references(() => sprints.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  capacityHours: integer("capacity_hours").default(0),
+  capacityPoints: integer("capacity_points").default(0),
+});
+
+// Sprint Scope Events (audit trail for scope changes)
+export const sprintScopeEvents = pgTable("sprint_scope_events", {
+  id: varchar("id").primaryKey(),
+  sprintId: varchar("sprint_id").notNull().references(() => sprints.id, { onDelete: "cascade" }),
+  taskId: varchar("task_id").notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  eventType: text("event_type").notNull(),
+  occurredAt: timestamp("occurred_at").defaultNow(),
+  note: text("note"),
+});
+
 // Fibonacci sequence values for effort estimation (1-100)
 export const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89] as const;
 export type EffortValue = typeof EFFORT_VALUES[number];
@@ -116,6 +150,7 @@ export const tasks = pgTable("tasks", {
   deadline: text("deadline").notNull(),
   priority: text("priority").notNull().default("Medium"),
   milestoneId: varchar("milestone_id").references(() => milestones.id),
+  sprintId: varchar("sprint_id").references(() => sprints.id),
   estimateHours: integer("estimate_hours"),
   effort: integer("effort"),
   tags: text("tags").array().default([]),
@@ -319,6 +354,9 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });
 export const insertMilestoneSchema = createInsertSchema(milestones).omit({ id: true });
 export const insertMilestoneScopeRuleSchema = createInsertSchema(milestoneScopeRules).omit({ id: true });
 export const insertMilestoneTaskLinkSchema = createInsertSchema(milestoneTaskLinks).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSprintSchema = createInsertSchema(sprints).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSprintMemberSchema = createInsertSchema(sprintMembers).omit({ id: true });
+export const insertSprintScopeEventSchema = createInsertSchema(sprintScopeEvents).omit({ id: true, occurredAt: true });
 export const insertActivitySchema = createInsertSchema(activity).omit({ id: true });
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true });
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({ id: true });
@@ -363,6 +401,15 @@ export type InsertMilestoneScopeRule = z.infer<typeof insertMilestoneScopeRuleSc
 
 export type MilestoneTaskLink = typeof milestoneTaskLinks.$inferSelect;
 export type InsertMilestoneTaskLink = z.infer<typeof insertMilestoneTaskLinkSchema>;
+
+export type Sprint = typeof sprints.$inferSelect;
+export type InsertSprint = z.infer<typeof insertSprintSchema>;
+
+export type SprintMember = typeof sprintMembers.$inferSelect;
+export type InsertSprintMember = z.infer<typeof insertSprintMemberSchema>;
+
+export type SprintScopeEvent = typeof sprintScopeEvents.$inferSelect;
+export type InsertSprintScopeEvent = z.infer<typeof insertSprintScopeEventSchema>;
 
 export type Activity = typeof activity.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
