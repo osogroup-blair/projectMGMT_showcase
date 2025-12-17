@@ -38,7 +38,7 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
-import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages } from "@/hooks/use-nexus-data";
+import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates } from "@/hooks/use-nexus-data";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -106,6 +106,7 @@ export default function ProjectOverview() {
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
+  const { data: frameworkTemplates, isLoading: isFrameworksLoading } = useFrameworkTemplates();
   const { toast } = useToast();
 
   // Inline editing state
@@ -293,7 +294,14 @@ export default function ProjectOverview() {
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [projectStages, projectId]);
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isDeliverablesLoading || isEpicsLoading || isStagesLoading) {
+  // Get the framework name from the framework ID
+  const frameworkName = useMemo(() => {
+    if (!project?.frameworkId || !frameworkTemplates) return "Not set";
+    const framework = frameworkTemplates.find((f: any) => f.id === project.frameworkId);
+    return framework?.name || "Unknown Framework";
+  }, [project?.frameworkId, frameworkTemplates]);
+
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isDeliverablesLoading || isEpicsLoading || isStagesLoading || isFrameworksLoading) {
     return (
       <Shell>
         <div className="flex h-[50vh] items-center justify-center">
@@ -410,9 +418,9 @@ export default function ProjectOverview() {
               )}
 
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5" data-testid="text-framework-name">
                   <Briefcase className="h-4 w-4" />
-                  Nymbl Implementation
+                  {frameworkName}
                 </span>
                 <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
                 {isEditingStartDate ? (
