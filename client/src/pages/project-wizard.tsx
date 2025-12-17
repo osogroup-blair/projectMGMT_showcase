@@ -139,6 +139,34 @@ export default function ProjectWizard() {
     }
   };
 
+  // Helper function to get a value from a row with flexible column name matching
+  // Handles spaces vs underscores, case insensitivity, and common variations
+  const getRowValue = (row: any, ...possibleNames: string[]): any => {
+    // First try exact matches
+    for (const name of possibleNames) {
+      if (row[name] !== undefined) return row[name];
+    }
+    
+    // Build normalized lookup map for the row keys
+    const rowKeys = Object.keys(row);
+    const normalizedMap = new Map<string, string>();
+    rowKeys.forEach(key => {
+      // Normalize: lowercase, replace spaces/underscores/hyphens with nothing
+      const normalized = key.toLowerCase().replace(/[\s_-]/g, '');
+      normalizedMap.set(normalized, key);
+    });
+    
+    // Try to find a match using normalized names
+    for (const name of possibleNames) {
+      const normalized = name.toLowerCase().replace(/[\s_-]/g, '');
+      if (normalizedMap.has(normalized)) {
+        return row[normalizedMap.get(normalized)!];
+      }
+    }
+    
+    return undefined;
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -166,12 +194,11 @@ export default function ProjectWizard() {
             const dData = XLSX.utils.sheet_to_json(wb.Sheets[deliverablesSheetName]);
             const eData = XLSX.utils.sheet_to_json(wb.Sheets[epicsSheetName]);
 
-            // Process Deliverables
+            // Process Deliverables - use flexible column matching
             dData.forEach((row: any) => {
-                // Try specific headers first, then fallbacks
-                const title = row['deliverable_name'] || row['Title'] || row['Name'] || row['Deliverable'];
-                const externalId = row['deliverable_id']; // Capture external ID for linking
-                const description = row['deliverable_description'] || row['Description'] || "";
+                const title = getRowValue(row, 'Deliverable Name', 'deliverable_name', 'Title', 'Name', 'Deliverable');
+                const externalId = getRowValue(row, 'Deliverable ID', 'deliverable_id', 'ID');
+                const description = getRowValue(row, 'Deliverable Description', 'deliverable_description', 'Description') || "";
 
                 if (title) {
                     const id = `d-${Date.now()}-${Math.random()}`;
@@ -189,24 +216,24 @@ export default function ProjectWizard() {
                     
                     // Store mapping if external ID exists
                     if (externalId) {
-                        deliverableIdMap.set(externalId, title);
+                        deliverableIdMap.set(String(externalId), title);
                     }
                 }
             });
 
-            // Process Epics
+            // Process Epics - use flexible column matching
             eData.forEach((row: any) => {
-                const epicTitle = row['epic_name'] || row['Title'] || row['Name'] || row['Epic'];
-                const description = row['epic_user_story'] || row['Description'] || "";
+                const epicTitle = getRowValue(row, 'Epic Name', 'epic_name', 'Title', 'Name', 'Epic');
+                const description = getRowValue(row, 'Epic User Story', 'epic_user_story', 'Epic Description', 'Description') || "";
                 
                 // Try to find parent by ID first, then Name
-                const parentId = row['deliverable_id'];
-                const parentName = row['deliverable_name'] || row['Deliverable'] || row['Parent'] || row['Deliverable Name'];
+                const parentId = getRowValue(row, 'Deliverable ID', 'deliverable_id');
+                const parentName = getRowValue(row, 'Deliverable Name', 'deliverable_name', 'Deliverable', 'Parent');
                 
                 let targetDeliverableName = null;
 
-                if (parentId && deliverableIdMap.has(parentId)) {
-                    targetDeliverableName = deliverableIdMap.get(parentId);
+                if (parentId && deliverableIdMap.has(String(parentId))) {
+                    targetDeliverableName = deliverableIdMap.get(String(parentId));
                 } else if (parentName && processedDeliverables.has(parentName)) {
                     targetDeliverableName = parentName;
                 }
@@ -227,21 +254,21 @@ export default function ProjectWizard() {
             const ws = wb.Sheets[wsname];
             const data = XLSX.utils.sheet_to_json(ws);
 
-            // Check structure
-            const hasDeliverableCol = data.length > 0 && ('Deliverable' in (data[0] as object) || 'Deliverable Name' in (data[0] as object));
+            // Check structure - use flexible matching
+            const hasDeliverableCol = data.length > 0 && (getRowValue(data[0], 'Deliverable', 'Deliverable Name', 'deliverable_name') !== undefined);
             
             if (hasDeliverableCol) {
                 // Flat structure: Deliverable | Epic | Description
                 data.forEach((row: any) => {
-                    const dName = row['Deliverable'] || row['Deliverable Name'];
-                    const eName = row['Epic'] || row['Epic Name'] || row['Title']; // If 'Title' assumes Epic Title if Deliverable col exists
+                    const dName = getRowValue(row, 'Deliverable', 'Deliverable Name', 'deliverable_name');
+                    const eName = getRowValue(row, 'Epic', 'Epic Name', 'epic_name', 'Title');
                     
                     if (dName) {
                         if (!processedDeliverables.has(dName)) {
                             processedDeliverables.set(dName, {
                                 id: `d-${Date.now()}-${Math.random()}`,
                                 title: dName,
-                                description: row['Deliverable Description'] || "",
+                                description: getRowValue(row, 'Deliverable Description', 'deliverable_description') || "",
                                 epics: []
                             });
                         }
@@ -250,7 +277,7 @@ export default function ProjectWizard() {
                             processedDeliverables.get(dName).epics.push({
                                 id: `e-${Date.now()}-${Math.random()}`,
                                 title: eName,
-                                description: row['Description'] || row['Epic Description'] || "",
+                                description: getRowValue(row, 'Description', 'Epic Description', 'epic_description') || "",
                                 tasks: []
                             });
                         }
@@ -260,12 +287,12 @@ export default function ProjectWizard() {
                 // Simple list of deliverables? Or maybe just try to guess
                 // Let's assume it's just a list of things to add as deliverables if no "Epic" column
                  data.forEach((row: any) => {
-                    const title = row['Title'] || row['Name'] || Object.values(row)[0]; // Fallback to first column
+                    const title = getRowValue(row, 'Title', 'Name') || Object.values(row)[0]; // Fallback to first column
                     if (title && typeof title === 'string') {
                          processedDeliverables.set(title, {
                                 id: `d-${Date.now()}-${Math.random()}`,
                                 title: title,
-                                description: row['Description'] || "",
+                                description: getRowValue(row, 'Description') || "",
                                 epics: []
                             });
                     }
@@ -275,10 +302,11 @@ export default function ProjectWizard() {
 
         // Convert Map to Array and update state
         if (processedDeliverables.size > 0) {
+            const epicCount = Array.from(processedDeliverables.values()).reduce((sum, d) => sum + d.epics.length, 0);
             setDeliverables([...deliverables, ...Array.from(processedDeliverables.values())]);
             toast({
                 title: "Import Successful",
-                description: `Imported ${processedDeliverables.size} deliverables from Excel.`,
+                description: `Imported ${processedDeliverables.size} deliverables with ${epicCount} epics from Excel.`,
             });
         } else {
             toast({
