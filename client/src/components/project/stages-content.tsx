@@ -26,8 +26,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useUsers, useEpics, useDeliverables } from "@/hooks/use-nexus-data";
-import { PROJECT_STAGES, STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
+import { useTasks, useUsers, useEpics, useDeliverables, useProjectStages } from "@/hooks/use-nexus-data";
+import { STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,8 +51,15 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { data: allProjectStages, isLoading: isStagesLoading } = useProjectStages();
 
-  const stages = PROJECT_STAGES;
+  // Get stages for this project, sorted by order
+  const stages = useMemo(() => {
+    if (!allProjectStages) return [];
+    return [...allProjectStages]
+      .filter((s: any) => s.projectId === projectId)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [allProjectStages, projectId]);
 
   // Add Task Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
