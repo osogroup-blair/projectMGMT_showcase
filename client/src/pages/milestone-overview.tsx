@@ -69,13 +69,6 @@ const PRIORITY_CONFIG: Record<string, string> = {
   "Critical": "bg-red-50 text-red-700 border-red-200",
 };
 
-const TASK_STAGES = [
-  { id: "st_plan", label: "Plan", color: "bg-purple-100 text-purple-800" },
-  { id: "st_validate", label: "Validate", color: "bg-blue-100 text-blue-800" },
-  { id: "st_develop", label: "Develop", color: "bg-indigo-100 text-indigo-800" },
-  { id: "st_enable", label: "Enable", color: "bg-green-100 text-green-800" },
-];
-
 interface MilestoneTaskLink {
   id: string;
   milestoneId: string;
@@ -221,6 +214,7 @@ export default function MilestoneOverview() {
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editDate, setEditDate] = useState("");
   const [isEditingStage, setIsEditingStage] = useState(false);
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -298,6 +292,21 @@ export default function MilestoneOverview() {
       toast({ title: "Stage updated" });
     }
     setIsEditingStage(false);
+  };
+
+  const handleSaveStatus = (newStatus: string) => {
+    if (milestone && newStatus !== milestone.status) {
+      updateMilestone({ id: milestone.id, updates: { status: newStatus } });
+      toast({ title: "Status updated" });
+    }
+    setIsEditingStatus(false);
+  };
+
+  const handleToggleBillingGate = () => {
+    if (milestone) {
+      updateMilestone({ id: milestone.id, updates: { isBillingGate: !milestone.isBillingGate } });
+      toast({ title: milestone.isBillingGate ? "Billing gate removed" : "Marked as billing gate" });
+    }
   };
 
   // Get stages for this project (not just from tasks)
@@ -391,18 +400,46 @@ export default function MilestoneOverview() {
                     <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
                   </h1>
                 )}
-                <Badge variant="outline" className={cn(
-                  "font-normal",
-                  milestone.status === "achieved" || milestone.status === "Completed" 
-                    ? "bg-green-50 text-green-700 border-green-200" 
-                    : milestone.status === "in_progress" || milestone.status === "In Progress"
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : milestone.status === "slipped" || milestone.status === "Blocked"
-                    ? "bg-red-50 text-red-700 border-red-200"
-                    : "bg-slate-50 text-slate-700 border-slate-200"
-                )}>
-                  {status.label}
-                </Badge>
+                {isEditingStatus ? (
+                  <Select 
+                    value={milestone.status || "planned"} 
+                    onValueChange={(value) => handleSaveStatus(value)}
+                  >
+                    <SelectTrigger className="h-7 w-32 text-sm" data-testid="select-milestone-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="planned">Planned</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="achieved">Achieved</SelectItem>
+                      <SelectItem value="slipped">Slipped</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "font-normal cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all",
+                      milestone.status === "achieved" || milestone.status === "Completed" 
+                        ? "bg-green-50 text-green-700 border-green-200" 
+                        : milestone.status === "in_progress" || milestone.status === "In Progress"
+                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                        : milestone.status === "slipped" || milestone.status === "Blocked"
+                        ? "bg-red-50 text-red-700 border-red-200"
+                        : "bg-slate-50 text-slate-700 border-slate-200"
+                    )}
+                    onClick={() => setIsEditingStatus(true)}
+                    data-testid="badge-milestone-status"
+                  >
+                    {status.label}
+                  </Badge>
+                )}
+                {milestone.isBillingGate && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 font-normal">
+                    Billing Gate
+                  </Badge>
+                )}
               </div>
               
               {/* Description - inline editable */}
@@ -447,7 +484,7 @@ export default function MilestoneOverview() {
           </div>
 
           {/* Info Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {/* Target Date - inline editable */}
             <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => !isEditingDate && setIsEditingDate(true)}>
               <CardContent className="p-4">
@@ -582,6 +619,29 @@ export default function MilestoneOverview() {
                     <p className="text-sm font-medium">{progress.percent}%</p>
                   </div>
                   <Progress value={progress.percent} className="h-2" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Billing Gate Toggle */}
+            <Card className={cn(
+              "hover:border-primary/50 transition-colors",
+              milestone.isBillingGate && "border-amber-300 bg-amber-50/30"
+            )}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Flag className={cn("h-5 w-5", milestone.isBillingGate ? "text-amber-600" : "text-muted-foreground")} />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Billing Gate</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Switch 
+                        checked={milestone.isBillingGate || false} 
+                        onCheckedChange={handleToggleBillingGate}
+                        data-testid="switch-billing-gate"
+                      />
+                      <span className="text-sm font-medium">{milestone.isBillingGate ? "Yes" : "No"}</span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
