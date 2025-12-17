@@ -10,6 +10,9 @@ import type {
   Milestone, InsertMilestone,
   MilestoneScopeRule, InsertMilestoneScopeRule,
   MilestoneTaskLink, InsertMilestoneTaskLink,
+  Sprint, InsertSprint,
+  SprintMember, InsertSprintMember,
+  SprintScopeEvent, InsertSprintScopeEvent,
   Activity, InsertActivity,
   Comment, InsertComment,
   Attachment, InsertAttachment,
@@ -228,6 +231,27 @@ export interface IStorage {
   createRoleType(roleType: InsertRoleType): Promise<RoleType>;
   updateRoleType(id: string, roleType: Partial<RoleType>): Promise<RoleType>;
   deleteRoleType(id: string): Promise<void>;
+
+  // Sprints
+  getSprints(): Promise<Sprint[]>;
+  getSprintById(id: string): Promise<Sprint | undefined>;
+  getSprintsByProjectId(projectId: string): Promise<Sprint[]>;
+  createSprint(sprint: InsertSprint): Promise<Sprint>;
+  updateSprint(id: string, sprint: Partial<Sprint>): Promise<Sprint>;
+  deleteSprint(id: string): Promise<void>;
+
+  // Sprint Members
+  getSprintMembers(): Promise<SprintMember[]>;
+  getSprintMemberById(id: string): Promise<SprintMember | undefined>;
+  getSprintMembersBySprintId(sprintId: string): Promise<SprintMember[]>;
+  createSprintMember(member: InsertSprintMember): Promise<SprintMember>;
+  updateSprintMember(id: string, member: Partial<SprintMember>): Promise<SprintMember>;
+  deleteSprintMember(id: string): Promise<void>;
+
+  // Sprint Scope Events
+  getSprintScopeEvents(): Promise<SprintScopeEvent[]>;
+  getSprintScopeEventsBySprintId(sprintId: string): Promise<SprintScopeEvent[]>;
+  createSprintScopeEvent(event: InsertSprintScopeEvent): Promise<SprintScopeEvent>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -848,6 +872,67 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteRoleType(id: string): Promise<void> {
     await db.delete(schema.roleTypes).where(eq(schema.roleTypes.id, id));
+  }
+
+  // Sprints
+  async getSprints(): Promise<Sprint[]> {
+    return await db.select().from(schema.sprints);
+  }
+  async getSprintById(id: string): Promise<Sprint | undefined> {
+    const [sprint] = await db.select().from(schema.sprints).where(eq(schema.sprints.id, id));
+    return sprint;
+  }
+  async getSprintsByProjectId(projectId: string): Promise<Sprint[]> {
+    return await db.select().from(schema.sprints).where(eq(schema.sprints.projectId, projectId));
+  }
+  async createSprint(sprint: InsertSprint): Promise<Sprint> {
+    const id = (sprint as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.sprints).values({ ...sprint, id }).returning();
+    return created;
+  }
+  async updateSprint(id: string, sprint: Partial<Sprint>): Promise<Sprint> {
+    const [updated] = await db.update(schema.sprints).set(sprint).where(eq(schema.sprints.id, id)).returning();
+    return updated;
+  }
+  async deleteSprint(id: string): Promise<void> {
+    await db.delete(schema.sprints).where(eq(schema.sprints.id, id));
+  }
+
+  // Sprint Members
+  async getSprintMembers(): Promise<SprintMember[]> {
+    return await db.select().from(schema.sprintMembers);
+  }
+  async getSprintMemberById(id: string): Promise<SprintMember | undefined> {
+    const [member] = await db.select().from(schema.sprintMembers).where(eq(schema.sprintMembers.id, id));
+    return member;
+  }
+  async getSprintMembersBySprintId(sprintId: string): Promise<SprintMember[]> {
+    return await db.select().from(schema.sprintMembers).where(eq(schema.sprintMembers.sprintId, sprintId));
+  }
+  async createSprintMember(member: InsertSprintMember): Promise<SprintMember> {
+    const id = (member as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.sprintMembers).values({ ...member, id }).returning();
+    return created;
+  }
+  async updateSprintMember(id: string, member: Partial<SprintMember>): Promise<SprintMember> {
+    const [updated] = await db.update(schema.sprintMembers).set(member).where(eq(schema.sprintMembers.id, id)).returning();
+    return updated;
+  }
+  async deleteSprintMember(id: string): Promise<void> {
+    await db.delete(schema.sprintMembers).where(eq(schema.sprintMembers.id, id));
+  }
+
+  // Sprint Scope Events
+  async getSprintScopeEvents(): Promise<SprintScopeEvent[]> {
+    return await db.select().from(schema.sprintScopeEvents);
+  }
+  async getSprintScopeEventsBySprintId(sprintId: string): Promise<SprintScopeEvent[]> {
+    return await db.select().from(schema.sprintScopeEvents).where(eq(schema.sprintScopeEvents.sprintId, sprintId));
+  }
+  async createSprintScopeEvent(event: InsertSprintScopeEvent): Promise<SprintScopeEvent> {
+    const id = (event as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.sprintScopeEvents).values({ ...event, id }).returning();
+    return created;
   }
 }
 

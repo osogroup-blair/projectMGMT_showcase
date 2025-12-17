@@ -9,6 +9,9 @@ import {
   insertMilestoneSchema,
   insertMilestoneScopeRuleSchema,
   insertMilestoneTaskLinkSchema,
+  insertSprintSchema,
+  insertSprintMemberSchema,
+  insertSprintScopeEventSchema,
   insertUserSchema,
   insertActivitySchema,
   insertCommentSchema,
@@ -1269,6 +1272,175 @@ export async function registerRoutes(
   app.delete("/api/roleTypes/:id", async (req, res) => {
     await storage.deleteRoleType(req.params.id);
     res.status(204).send();
+  });
+
+  // Sprints
+  app.get("/api/sprints", async (req, res) => {
+    const sprints = await storage.getSprints();
+    res.json(sprints);
+  });
+
+  app.get("/api/sprints/:id", async (req, res) => {
+    const sprint = await storage.getSprintById(req.params.id);
+    if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+    res.json(sprint);
+  });
+
+  app.get("/api/projects/:projectId/sprints", async (req, res) => {
+    const sprints = await storage.getSprintsByProjectId(req.params.projectId);
+    res.json(sprints);
+  });
+
+  app.post("/api/sprints", async (req, res) => {
+    try {
+      const validated = insertSprintSchema.parse(req.body);
+      const sprint = await storage.createSprint(validated);
+      res.status(201).json(sprint);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/sprints/:id", async (req, res) => {
+    try {
+      const sprint = await storage.updateSprint(req.params.id, req.body);
+      res.json(sprint);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/sprints/:id", async (req, res) => {
+    await storage.deleteSprint(req.params.id);
+    res.status(204).send();
+  });
+
+  // Sprint lifecycle actions
+  app.post("/api/sprints/:id/start", async (req, res) => {
+    try {
+      const sprint = await storage.getSprintById(req.params.id);
+      if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+      if (sprint.status !== "planned") {
+        return res.status(400).json({ error: "Only planned sprints can be started" });
+      }
+      // Check no other active sprint for this project
+      const projectSprints = await storage.getSprintsByProjectId(sprint.projectId);
+      const hasActiveSprint = projectSprints.some(s => s.status === "active" && s.id !== sprint.id);
+      if (hasActiveSprint) {
+        return res.status(400).json({ error: "Project already has an active sprint" });
+      }
+      const updated = await storage.updateSprint(req.params.id, { status: "active" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/sprints/:id/close", async (req, res) => {
+    try {
+      const sprint = await storage.getSprintById(req.params.id);
+      if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+      if (sprint.status !== "active") {
+        return res.status(400).json({ error: "Only active sprints can be closed" });
+      }
+      const updated = await storage.updateSprint(req.params.id, { status: "closed" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Assign/unassign tasks to sprint
+  app.post("/api/sprints/:id/tasks", async (req, res) => {
+    try {
+      const sprint = await storage.getSprintById(req.params.id);
+      if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+      const { taskIds } = req.body;
+      if (!Array.isArray(taskIds)) {
+        return res.status(400).json({ error: "taskIds must be an array" });
+      }
+      // Assign tasks to sprint
+      const updates = await Promise.all(
+        taskIds.map(taskId => storage.updateTask(taskId, { sprintId: sprint.id }))
+      );
+      // Log scope events
+      await Promise.all(
+        taskIds.map(taskId => storage.createSprintScopeEvent({
+          sprintId: sprint.id,
+          taskId,
+          eventType: "added",
+          userId: req.body.userId || null,
+          note: req.body.note || null
+        }))
+      );
+      res.json({ updated: updates.length });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/sprints/:id/tasks/remove", async (req, res) => {
+    try {
+      const sprint = await storage.getSprintById(req.params.id);
+      if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+      const { taskIds } = req.body;
+      if (!Array.isArray(taskIds)) {
+        return res.status(400).json({ error: "taskIds must be an array" });
+      }
+      // Remove tasks from sprint
+      const updates = await Promise.all(
+        taskIds.map(taskId => storage.updateTask(taskId, { sprintId: null }))
+      );
+      // Log scope events
+      await Promise.all(
+        taskIds.map(taskId => storage.createSprintScopeEvent({
+          sprintId: sprint.id,
+          taskId,
+          eventType: "removed",
+          userId: req.body.userId || null,
+          note: req.body.note || null
+        }))
+      );
+      res.json({ updated: updates.length });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Sprint Members
+  app.get("/api/sprints/:sprintId/members", async (req, res) => {
+    const members = await storage.getSprintMembersBySprintId(req.params.sprintId);
+    res.json(members);
+  });
+
+  app.post("/api/sprintMembers", async (req, res) => {
+    try {
+      const validated = insertSprintMemberSchema.parse(req.body);
+      const member = await storage.createSprintMember(validated);
+      res.status(201).json(member);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/sprintMembers/:id", async (req, res) => {
+    try {
+      const member = await storage.updateSprintMember(req.params.id, req.body);
+      res.json(member);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/sprintMembers/:id", async (req, res) => {
+    await storage.deleteSprintMember(req.params.id);
+    res.status(204).send();
+  });
+
+  // Sprint Scope Events
+  app.get("/api/sprints/:sprintId/scopeEvents", async (req, res) => {
+    const events = await storage.getSprintScopeEventsBySprintId(req.params.sprintId);
+    res.json(events);
   });
 
   return httpServer;
