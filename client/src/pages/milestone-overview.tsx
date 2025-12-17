@@ -220,6 +220,7 @@ export default function MilestoneOverview() {
   const [isEditingOwner, setIsEditingOwner] = useState(false);
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editDate, setEditDate] = useState("");
+  const [isEditingStage, setIsEditingStage] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -289,6 +290,27 @@ export default function MilestoneOverview() {
     }
     setIsEditingDate(false);
   };
+
+  const handleSaveStage = (newStageId: string) => {
+    if (milestone && newStageId !== milestone.stageId) {
+      updateMilestone({ id: milestone.id, updates: { stageId: newStageId || null } });
+      toast({ title: "Stage updated" });
+    }
+    setIsEditingStage(false);
+  };
+
+  // Get stages for this project (not just from tasks)
+  const milestoneStages = useMemo(() => {
+    if (!allStages) return [];
+    return [...allStages]
+      .filter((s: any) => s.projectId === projectId)
+      .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+  }, [allStages, projectId]);
+
+  const currentStage = useMemo(() => {
+    if (!milestone?.stageId || !allStages) return null;
+    return allStages.find((s: any) => s.id === milestone.stageId);
+  }, [milestone?.stageId, allStages]);
 
   const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isStagesLoading;
 
@@ -424,7 +446,7 @@ export default function MilestoneOverview() {
           </div>
 
           {/* Info Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Target Date - inline editable */}
             <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => !isEditingDate && setIsEditingDate(true)}>
               <CardContent className="p-4">
@@ -496,6 +518,41 @@ export default function MilestoneOverview() {
                     ) : (
                       <p className="font-medium group flex items-center gap-1">
                         {owner?.name || "Unassigned"}
+                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stage - inline editable */}
+            <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => !isEditingStage && setIsEditingStage(true)}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Layers className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="text-xs text-muted-foreground">Stage</p>
+                    {isEditingStage ? (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Select 
+                          value={milestone.stageId || ""} 
+                          onValueChange={(value) => handleSaveStage(value)}
+                        >
+                          <SelectTrigger className="h-7 text-sm mt-1" data-testid="select-milestone-stage">
+                            <SelectValue placeholder="Select stage" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">No stage</SelectItem>
+                            {milestoneStages.map((s: any) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <p className="font-medium group flex items-center gap-1">
+                        {currentStage?.name || "Not assigned"}
                         <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
                       </p>
                     )}
