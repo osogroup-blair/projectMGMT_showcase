@@ -28,6 +28,7 @@ export interface TaskFilters {
   stageIds: string[];
   epicIds: string[];
   assigneeIds: string[];
+  sprintIds: string[];
   dueDateRange: { from: string; to: string } | null;
 }
 
@@ -46,6 +47,11 @@ interface User {
   name: string;
 }
 
+interface Sprint {
+  id: string;
+  name: string;
+}
+
 interface TaskFilterModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,6 +60,7 @@ interface TaskFilterModalProps {
   stages: Stage[];
   epics: Epic[];
   users: User[];
+  sprints?: Sprint[];
 }
 
 const STATUS_OPTIONS = ["Todo", "In Progress", "Review", "Done"];
@@ -67,6 +74,7 @@ export function TaskFilterModal({
   stages,
   epics,
   users,
+  sprints = [],
 }: TaskFilterModalProps) {
   const [localFilters, setLocalFilters] = useState<TaskFilters>(filters);
 
@@ -109,6 +117,13 @@ export function TaskFilterModal({
     setLocalFilters({ ...localFilters, assigneeIds: updated });
   };
 
+  const handleSprintToggle = (sprintId: string) => {
+    const updated = localFilters.sprintIds.includes(sprintId)
+      ? localFilters.sprintIds.filter(s => s !== sprintId)
+      : [...localFilters.sprintIds, sprintId];
+    setLocalFilters({ ...localFilters, sprintIds: updated });
+  };
+
   const handleResetFilters = () => {
     setLocalFilters({
       statuses: [],
@@ -116,6 +131,7 @@ export function TaskFilterModal({
       stageIds: [],
       epicIds: [],
       assigneeIds: [],
+      sprintIds: [],
       dueDateRange: null,
     });
   };
@@ -278,6 +294,44 @@ export function TaskFilterModal({
             </div>
           </div>
 
+          {/* Sprint Filter */}
+          {sprints.length > 0 && (
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Sprint</Label>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={localFilters.sprintIds.includes("backlog") ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer transition-colors px-3 py-1.5",
+                    localFilters.sprintIds.includes("backlog") 
+                      ? "bg-primary text-primary-foreground" 
+                      : "hover:bg-muted"
+                  )}
+                  onClick={() => handleSprintToggle("backlog")}
+                  data-testid="filter-sprint-backlog"
+                >
+                  Backlog
+                </Badge>
+                {sprints.map((sprint) => (
+                  <Badge
+                    key={sprint.id}
+                    variant={localFilters.sprintIds.includes(sprint.id) ? "default" : "outline"}
+                    className={cn(
+                      "cursor-pointer transition-colors px-3 py-1.5",
+                      localFilters.sprintIds.includes(sprint.id) 
+                        ? "bg-primary text-primary-foreground" 
+                        : "hover:bg-muted"
+                    )}
+                    onClick={() => handleSprintToggle(sprint.id)}
+                    data-testid={`filter-sprint-${sprint.id}`}
+                  >
+                    {sprint.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Due Date Range */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Due Date</Label>
@@ -352,6 +406,7 @@ export function getActiveFilterCount(filters: TaskFilters): number {
     filters.stageIds.length +
     filters.epicIds.length +
     filters.assigneeIds.length +
+    filters.sprintIds.length +
     (filters.dueDateRange && (filters.dueDateRange.from || filters.dueDateRange.to) ? 1 : 0)
   );
 }
@@ -362,5 +417,6 @@ export const emptyFilters: TaskFilters = {
   stageIds: [],
   epicIds: [],
   assigneeIds: [],
+  sprintIds: [],
   dueDateRange: null,
 };

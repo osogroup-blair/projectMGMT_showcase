@@ -19,7 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 import { TaskFilterModal, TaskFilters, emptyFilters, getActiveFilterCount } from "./task-filter-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -53,6 +53,12 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { data: allSprints } = useSprints();
+
+  const projectSprints = useMemo(() => {
+    if (!allSprints || !project) return [];
+    return allSprints.filter((s: any) => s.projectId === project.id);
+  }, [allSprints, project]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<TaskFilters>(emptyFilters);
@@ -152,6 +158,17 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             return false;
           }
         } else if (!filters.assigneeIds.includes(task.assigneeId)) {
+          return false;
+        }
+      }
+
+      // Sprint filter
+      if (filters.sprintIds.length > 0) {
+        if (filters.sprintIds.includes("backlog")) {
+          if (task.sprintId && !filters.sprintIds.includes(task.sprintId)) {
+            return false;
+          }
+        } else if (!filters.sprintIds.includes(task.sprintId)) {
           return false;
         }
       }
@@ -451,6 +468,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
         stages={stages.map((s: any) => ({ id: s.id, name: s.name }))}
         epics={projectEpics.map((e: any) => ({ id: e.id, title: e.title }))}
         users={(users || []).map((u: any) => ({ id: u.id, name: u.name }))}
+        sprints={projectSprints.map((s: any) => ({ id: s.id, name: s.name }))}
       />
 
       {/* Create Task Dialog */}
