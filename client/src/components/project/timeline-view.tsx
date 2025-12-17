@@ -152,11 +152,20 @@ export function TimelineView({ stages, milestones: initialMilestones, project, t
 
   const [stagesWithDates, setStagesWithDates] = useState(() => generateStageDates(stages, project.startDate));
   
-  // Recalculate if project start date changes, but only if we haven't modified them?
-  // For this prototype, we'll just respect the initial load or manual changes
-  // useEffect(() => {
-  //   setStagesWithDates(generateStageDates(stages, project.startDate));
-  // }, [stages, project.startDate]);
+  // Sync local state with props when async data arrives
+  useEffect(() => {
+    setMilestones(initialMilestones);
+  }, [initialMilestones]);
+
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
+
+  useEffect(() => {
+    if (stages && stages.length > 0) {
+      setStagesWithDates(generateStageDates(stages, project.startDate));
+    }
+  }, [stages, project.startDate]);
 
   // Stage Editing State
   const [editingStage, setEditingStage] = useState<any | null>(null);
