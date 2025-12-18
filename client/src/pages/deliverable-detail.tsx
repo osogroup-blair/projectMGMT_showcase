@@ -50,12 +50,19 @@ export default function DeliverableDetail() {
   const projectId = params?.projectId || "1";
   const deliverableId = params?.deliverableId || "d1";
 
-  const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading, update: updateDeliverable } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: projectStages } = useProjectStages();
   const { toast } = useToast();
+
+  // Edit dates state
+  const [editingDates, setEditingDates] = useState({
+    startDate: "",
+    dueDate: ""
+  });
+  const [isEditingDates, setIsEditingDates] = useState(false);
 
   // Create Epic dialog state
   const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
@@ -119,10 +126,16 @@ export default function DeliverableDetail() {
     }));
   };
 
-  const deliverable = useMemo(() => 
-    allDeliverables?.find((d: any) => d.id === deliverableId), 
-    [allDeliverables, deliverableId]
-  );
+  const deliverable = useMemo(() => {
+    const d = allDeliverables?.find((d: any) => d.id === deliverableId);
+    if (d && (!editingDates.startDate || !editingDates.dueDate)) {
+      setEditingDates({
+        startDate: d.startDate || "",
+        dueDate: d.dueDate || ""
+      });
+    }
+    return d;
+  }, [allDeliverables, deliverableId]);
 
   const epics = useMemo(() => 
     allEpics?.filter((e: any) => e.deliverableId === deliverableId) || [], 
@@ -181,6 +194,26 @@ export default function DeliverableDetail() {
     return effort;
   }, [epics, allTasks]);
 
+  const handleSaveDates = () => {
+    if (!editingDates.startDate || !editingDates.dueDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide both start and due dates.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    updateDeliverable({
+      id: deliverableId,
+      updates: {
+        startDate: editingDates.startDate,
+        dueDate: editingDates.dueDate
+      }
+    });
+    setIsEditingDates(false);
+  };
+
   const isLoading = isDeliverablesLoading || isEpicsLoading || isUsersLoading || isTasksLoading;
 
   if (isLoading) {
@@ -209,15 +242,6 @@ export default function DeliverableDetail() {
   return (
     <Shell>
       <div className="space-y-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link href={`/projects/${projectId}?tab=deliverables`} className="hover:text-primary transition-colors flex items-center gap-1" data-testid="link-back-deliverables">
-            <ArrowLeft className="h-4 w-4" />
-            Deliverables
-          </Link>
-          <span className="text-border">/</span>
-          <span className="text-foreground font-medium">{deliverable.title}</span>
-        </div>
-
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 space-y-6">
             <div className="flex items-start gap-4">
@@ -304,7 +328,28 @@ export default function DeliverableDetail() {
 
           <Card className="w-full lg:w-72 shrink-0">
             <CardContent className="p-4 space-y-4">
-              <h3 className="font-semibold text-sm">Details</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm">Details</h3>
+                {isEditingDates ? (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setIsEditingDates(false)}
+                    data-testid="button-cancel-edit-dates"
+                  >
+                    Cancel
+                  </Button>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={() => setIsEditingDates(true)}
+                    data-testid="button-edit-dates"
+                  >
+                    Edit
+                  </Button>
+                )}
+              </div>
               
               <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-3">
@@ -322,13 +367,53 @@ export default function DeliverableDetail() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Due Date</div>
-                    <div data-testid="text-due-date">{deliverable.dueDate}</div>
-                  </div>
-                </div>
+                {isEditingDates ? (
+                  <>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1.5">Start Date</div>
+                      <Input 
+                        type="date" 
+                        value={editingDates.startDate}
+                        onChange={(e) => setEditingDates(prev => ({ ...prev, startDate: e.target.value }))}
+                        data-testid="input-start-date"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1.5">Due Date</div>
+                      <Input 
+                        type="date" 
+                        value={editingDates.dueDate}
+                        onChange={(e) => setEditingDates(prev => ({ ...prev, dueDate: e.target.value }))}
+                        data-testid="input-due-date"
+                      />
+                    </div>
+                    <Button 
+                      size="sm" 
+                      className="w-full mt-2" 
+                      onClick={handleSaveDates}
+                      data-testid="button-save-dates"
+                    >
+                      Save Dates
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-xs text-muted-foreground">Start Date</div>
+                        <div data-testid="text-start-date">{deliverable.startDate || "Not set"}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="text-xs text-muted-foreground">Due Date</div>
+                        <div data-testid="text-due-date">{deliverable.dueDate}</div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
