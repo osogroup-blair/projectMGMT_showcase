@@ -9,7 +9,10 @@ import {
   Layers,
   Calendar as CalendarIcon,
   ChevronRight,
-  CheckCircle2
+  CheckCircle2,
+  List,
+  GanttChart,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +63,7 @@ import { Loader2 } from "lucide-react";
 // Export content component separately for reuse
 export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
+  const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
 
   const { data: allDeliverables, isLoading: isDeliverablesLoading, create: createDeliverable } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
@@ -175,6 +179,116 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     );
   }
 
+  // Calculate timeline bounds for Gantt view
+  const ganttData = useMemo(() => {
+    if (deliverables.length === 0) return { minDate: new Date(), maxDate: new Date(), items: [] };
+    
+    const items: Array<{
+      id: string;
+      type: "deliverable" | "epic";
+      title: string;
+      startDate: Date;
+      endDate: Date;
+      progress: number;
+      parentId?: string;
+      status: string;
+    }> = [];
+
+    let minDate = new Date();
+    let maxDate = new Date();
+    let hasValidDates = false;
+
+    deliverables.forEach((d: any) => {
+      const start = d.startDate ? new Date(d.startDate) : new Date();
+      const end = d.dueDate ? new Date(d.dueDate) : new Date();
+      
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        if (!hasValidDates) {
+          minDate = start;
+          maxDate = end;
+          hasValidDates = true;
+        } else {
+          if (start < minDate) minDate = start;
+          if (end > maxDate) maxDate = end;
+        }
+      }
+
+      items.push({
+        id: d.id,
+        type: "deliverable",
+        title: d.title,
+        startDate: start,
+        endDate: end,
+        progress: getDeliverableProgress(d.id),
+        status: d.status
+      });
+
+      const epics = getEpicsForDeliverable(d.id);
+      epics.forEach((e: any) => {
+        const epicStart = e.startDate ? new Date(e.startDate) : start;
+        const epicEnd = e.endDate ? new Date(e.endDate) : end;
+        
+        if (!isNaN(epicStart.getTime()) && epicStart < minDate) minDate = epicStart;
+        if (!isNaN(epicEnd.getTime()) && epicEnd > maxDate) maxDate = epicEnd;
+
+        items.push({
+          id: e.id,
+          type: "epic",
+          title: e.title,
+          startDate: epicStart,
+          endDate: epicEnd,
+          progress: getEpicProgress(e.id),
+          parentId: d.id,
+          status: e.status
+        });
+      });
+    });
+
+    // Add padding to date range
+    const padding = (maxDate.getTime() - minDate.getTime()) * 0.05;
+    minDate = new Date(minDate.getTime() - padding);
+    maxDate = new Date(maxDate.getTime() + padding);
+
+    return { minDate, maxDate, items };
+  }, [deliverables, allEpics]);
+
+  // Helper to calculate bar position
+  const getBarStyle = (startDate: Date, endDate: Date) => {
+    const totalDays = (ganttData.maxDate.getTime() - ganttData.minDate.getTime()) / (1000 * 60 * 60 * 24);
+    const startOffset = (startDate.getTime() - ganttData.minDate.getTime()) / (1000 * 60 * 60 * 24);
+    const duration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    const left = (startOffset / totalDays) * 100;
+    const width = Math.max((duration / totalDays) * 100, 2);
+    
+    return { left: `${left}%`, width: `${width}%` };
+  };
+
+  // Generate month markers for the timeline
+  const getTimelineMonths = () => {
+    const months: Array<{ label: string; left: string }> = [];
+    const totalDays = (ganttData.maxDate.getTime() - ganttData.minDate.getTime()) / (1000 * 60 * 60 * 24);
+    
+    const current = new Date(ganttData.minDate);
+    current.setDate(1);
+    
+    while (current <= ganttData.maxDate) {
+      const dayOffset = (current.getTime() - ganttData.minDate.getTime()) / (1000 * 60 * 60 * 24);
+      const left = (dayOffset / totalDays) * 100;
+      
+      if (left >= 0 && left <= 100) {
+        months.push({
+          label: current.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+          left: `${left}%`
+        });
+      }
+      
+      current.setMonth(current.getMonth() + 1);
+    }
+    
+    return months;
+  };
+
   return (
     <>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -182,13 +296,43 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
           <h2 className="text-xl font-semibold tracking-tight">Deliverables</h2>
           <p className="text-sm text-muted-foreground">Manage high-level deliverables and breakdown epics.</p>
         </div>
-        <Button className="gap-2" size="sm">
-          <Plus className="h-4 w-4" />
-          New Deliverable
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center border rounded-lg p-1 bg-muted/30">
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+                viewMode === "list" 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              data-testid="button-view-list"
+            >
+              <List className="h-4 w-4" />
+              List
+            </button>
+            <button
+              onClick={() => setViewMode("gantt")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+                viewMode === "gantt" 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              data-testid="button-view-gantt"
+            >
+              <GanttChart className="h-4 w-4" />
+              Gantt
+            </button>
+          </div>
+          <Button className="gap-2" size="sm">
+            <Plus className="h-4 w-4" />
+            New Deliverable
+          </Button>
+        </div>
       </div>
 
-      {/* Deliverables List */}
+      {/* Deliverables Content */}
       <div className="space-y-6">
         {deliverables.length === 0 ? (
           <Card className="bg-muted/10 border-dashed">
@@ -201,7 +345,133 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               <Button>Create First Deliverable</Button>
             </CardContent>
           </Card>
+        ) : viewMode === "gantt" ? (
+          /* Gantt View */
+          <Card>
+            <CardContent className="p-0">
+              {/* Timeline Header */}
+              <div className="border-b bg-muted/30 px-4 py-2 flex">
+                <div className="w-[280px] shrink-0 text-sm font-medium text-muted-foreground">
+                  Item
+                </div>
+                <div className="flex-1 relative h-6 overflow-hidden">
+                  {getTimelineMonths().map((month, idx) => (
+                    <div 
+                      key={idx}
+                      className="absolute text-xs text-muted-foreground whitespace-nowrap"
+                      style={{ left: month.left }}
+                    >
+                      {month.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Gantt Rows */}
+              <div className="divide-y">
+                {deliverables.map((deliverable: any) => {
+                  const epics = getEpicsForDeliverable(deliverable.id);
+                  const progress = getDeliverableProgress(deliverable.id);
+                  const barStyle = getBarStyle(
+                    deliverable.startDate ? new Date(deliverable.startDate) : new Date(),
+                    deliverable.dueDate ? new Date(deliverable.dueDate) : new Date()
+                  );
+                  
+                  return (
+                    <div key={deliverable.id}>
+                      {/* Deliverable Row */}
+                      <div className="flex items-center hover:bg-muted/30 transition-colors group">
+                        <div className="w-[280px] shrink-0 px-4 py-3 flex items-center gap-2">
+                          <div className={cn(
+                            "p-1.5 rounded",
+                            deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                            deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                            "bg-slate-100 text-slate-700"
+                          )}>
+                            <Package className="h-4 w-4" />
+                          </div>
+                          <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`} className="flex-1 min-w-0">
+                            <span className="font-medium text-sm truncate block hover:text-primary transition-colors">
+                              {deliverable.title}
+                            </span>
+                          </Link>
+                        </div>
+                        <div className="flex-1 relative h-10 bg-muted/10">
+                          {/* Grid lines */}
+                          {getTimelineMonths().map((month, idx) => (
+                            <div 
+                              key={idx}
+                              className="absolute top-0 bottom-0 border-l border-dashed border-muted-foreground/20"
+                              style={{ left: month.left }}
+                            />
+                          ))}
+                          {/* Deliverable Bar */}
+                          <div 
+                            className="absolute top-1/2 -translate-y-1/2 h-6 rounded-md bg-primary/20 border border-primary/40 flex items-center overflow-hidden"
+                            style={barStyle}
+                          >
+                            <div 
+                              className="h-full bg-primary/60 transition-all"
+                              style={{ width: `${progress}%` }}
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-primary-foreground mix-blend-difference">
+                              {progress > 0 && `${progress}%`}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Epic Rows */}
+                      {epics.map((epic: any) => {
+                        const epicProgress = getEpicProgress(epic.id);
+                        const epicBarStyle = getBarStyle(
+                          epic.startDate ? new Date(epic.startDate) : new Date(),
+                          epic.endDate ? new Date(epic.endDate) : new Date()
+                        );
+                        
+                        return (
+                          <div key={epic.id} className="flex items-center hover:bg-muted/20 transition-colors">
+                            <div className="w-[280px] shrink-0 px-4 py-2 flex items-center gap-2 pl-10">
+                              <div className="p-1 bg-primary/10 text-primary rounded">
+                                <Layers className="h-3 w-3" />
+                              </div>
+                              <Link href={`/projects/${projectId}/epics/${epic.id}`} className="flex-1 min-w-0">
+                                <span className="text-sm truncate block hover:text-primary transition-colors">
+                                  {epic.title}
+                                </span>
+                              </Link>
+                            </div>
+                            <div className="flex-1 relative h-8 bg-muted/5">
+                              {/* Grid lines */}
+                              {getTimelineMonths().map((month, idx) => (
+                                <div 
+                                  key={idx}
+                                  className="absolute top-0 bottom-0 border-l border-dashed border-muted-foreground/10"
+                                  style={{ left: month.left }}
+                                />
+                              ))}
+                              {/* Epic Bar */}
+                              <div 
+                                className="absolute top-1/2 -translate-y-1/2 h-4 rounded bg-blue-200 border border-blue-300 flex items-center overflow-hidden"
+                                style={epicBarStyle}
+                              >
+                                <div 
+                                  className="h-full bg-blue-400 transition-all"
+                                  style={{ width: `${epicProgress}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         ) : (
+          /* List View */
           <Accordion type="multiple" defaultValue={deliverables.map(d => d.id)} className="space-y-4">
             {deliverables.map(deliverable => {
               const epics = getEpicsForDeliverable(deliverable.id);
