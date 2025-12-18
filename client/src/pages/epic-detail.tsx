@@ -28,7 +28,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints } from "@/hooks/use-nexus-data";
@@ -774,6 +774,7 @@ export default function EpicDetail() {
                 </>
               )}
             </div>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
       </div>
