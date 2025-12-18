@@ -33,6 +33,7 @@ export const projects = pgTable("projects", {
   frameworkId: varchar("framework_id").references(() => frameworkTemplates.id),
   defaultMappingTemplateId: varchar("default_mapping_template_id"),
   permissions: jsonb("permissions"),
+  sprintDurationWeeks: integer("sprint_duration_weeks"),
 });
 
 // Deliverables

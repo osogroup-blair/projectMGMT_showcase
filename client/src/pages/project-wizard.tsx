@@ -117,6 +117,7 @@ export default function ProjectWizard() {
     templateId: "",
     startDate: new Date().toISOString().split('T')[0],
     dueDate: "",
+    sprintDurationWeeks: 2,
   });
 
   const [deliverables, setDeliverables] = useState<any[]>([]);
@@ -801,6 +802,7 @@ export default function ProjectWizard() {
                                     type="date" 
                                     value={projectData.startDate}
                                     onChange={(e) => setProjectData({...projectData, startDate: e.target.value})}
+                                    data-testid="input-project-start-date"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -809,8 +811,32 @@ export default function ProjectWizard() {
                                     type="date" 
                                     value={projectData.dueDate}
                                     onChange={(e) => setProjectData({...projectData, dueDate: e.target.value})}
+                                    data-testid="input-project-due-date"
                                 />
                             </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Sprint Duration</Label>
+                            <Select 
+                              value={String(projectData.sprintDurationWeeks)} 
+                              onValueChange={(v) => setProjectData({...projectData, sprintDurationWeeks: parseInt(v)})}
+                            >
+                              <SelectTrigger data-testid="select-sprint-duration">
+                                <SelectValue placeholder="Select sprint length..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="0">No Sprints</SelectItem>
+                                <SelectItem value="1">1 Week</SelectItem>
+                                <SelectItem value="2">2 Weeks</SelectItem>
+                                <SelectItem value="3">3 Weeks</SelectItem>
+                                <SelectItem value="4">4 Weeks</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              {projectData.sprintDurationWeeks > 0 
+                                ? `Sprints will be automatically created based on project dates.`
+                                : `You can create sprints manually later.`}
+                            </p>
                           </div>
                         </div>
 
