@@ -13,7 +13,9 @@ import {
   User as UserIcon,
   Workflow,
   Loader2,
-  Trash2
+  Trash2,
+  LayoutGrid,
+  Timer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -29,7 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages } from "@/hooks/use-nexus-data";
+import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints } from "@/hooks/use-nexus-data";
 import {
   Dialog,
   DialogContent,
@@ -93,6 +95,15 @@ export default function EpicDetail() {
   const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask, remove: deleteTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
+  const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
+
+  // View mode state (stage or sprint)
+  const [viewMode, setViewMode] = useState<"stage" | "sprint">("stage");
+
+  // Get sprints for this project
+  const projectSprints = useMemo(() => {
+    return allSprints?.filter((s: any) => s.projectId === projectId) || [];
+  }, [allSprints, projectId]);
 
   // Task CRUD state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -481,15 +492,44 @@ export default function EpicDetail() {
           </div>
         </div>
 
-        {/* Tasks grouped by Stage (from Epic's assigned stages) */}
+        {/* Tasks grouped by Stage or Sprint */}
         <div className="flex-1 min-h-0 border rounded-lg bg-muted/5 overflow-hidden flex flex-col">
-          <div className="p-3 border-b bg-background font-medium text-sm flex items-center gap-2">
-            <Layers className="h-4 w-4 text-muted-foreground" />
-            Epic Stages
+          <div className="p-3 border-b bg-background font-medium text-sm flex items-center justify-between overflow-x-auto">
+            <div className="flex items-center gap-4 min-w-max">
+              <button
+                onClick={() => setViewMode("stage")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm",
+                  viewMode === "stage" 
+                    ? "bg-primary text-primary-foreground" 
+                    : "hover:bg-muted text-muted-foreground"
+                )}
+                data-testid="button-view-by-stage"
+              >
+                <Layers className="h-4 w-4" />
+                By Stage
+              </button>
+              <button
+                onClick={() => setViewMode("sprint")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm",
+                  viewMode === "sprint" 
+                    ? "bg-primary text-primary-foreground" 
+                    : "hover:bg-muted text-muted-foreground"
+                )}
+                data-testid="button-view-by-sprint"
+              >
+                <Timer className="h-4 w-4" />
+                By Sprint
+              </button>
+            </div>
+            <div className="text-xs text-muted-foreground min-w-max">
+              {viewMode === "stage" ? `${epicStages.length} Stages` : `${projectSprints.length} Sprints`}
+            </div>
           </div>
           <ScrollArea className="flex-1 p-6">
             <div className="flex gap-6 min-w-max pb-4">
-              {epicStages.length > 0 ? (
+              {viewMode === "stage" && (epicStages.length > 0 ? (
                 epicStages.map((stage, index) => {
                   const stageTasks = filteredTasks.filter(t => t.stageId === stage.id);
                   
@@ -604,6 +644,134 @@ export default function EpicDetail() {
                     <h3 className="text-lg font-medium">No Stages Assigned</h3>
                     <p className="text-sm">This epic doesn't have any stages assigned yet.</p>
                 </div>
+              ))}
+              
+              {viewMode === "sprint" && (
+                <>
+                  {/* Backlog column for tasks without sprint */}
+                  <div className="w-[320px] shrink-0 flex flex-col gap-4">
+                    <div className="flex items-center gap-2 pb-2 border-b">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border bg-muted text-muted-foreground border-muted-foreground/30">
+                        -
+                      </div>
+                      <h3 className="font-semibold text-sm">Backlog</h3>
+                      <Badge variant="secondary" className="ml-auto text-[10px] h-5">
+                        {filteredTasks.filter(t => !t.sprintId).length}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {filteredTasks.filter(t => !t.sprintId).length > 0 ? (
+                        filteredTasks.filter(t => !t.sprintId).map(task => {
+                          const assignee = getAssignee(task.assigneeId);
+                          return (
+                            <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
+                              <Card className="shadow-sm hover:shadow-md transition-shadow cursor-pointer group" data-testid={`card-task-${task.id}`}>
+                                <CardContent className="p-3 space-y-3">
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between items-start gap-2">
+                                      <h4 className="text-sm font-medium hover:text-primary leading-tight line-clamp-2">{task.title}</h4>
+                                      <Badge variant={task.priority === "High" ? "destructive" : task.priority === "Medium" ? "default" : "secondary"} className="text-[10px] h-5 px-1.5 shrink-0">{task.priority}</Badge>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between pt-1 border-t border-dashed mt-2">
+                                    <div className="flex items-center gap-2">
+                                      {assignee ? (
+                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                          <Avatar className="h-5 w-5 border border-background">
+                                            <AvatarFallback className="text-[9px] bg-primary/10 text-primary">{assignee.name?.substring(0, 2).toUpperCase() || "??"}</AvatarFallback>
+                                          </Avatar>
+                                          <span className="truncate max-w-[80px]">{assignee.name?.split(' ')[0] || "Unknown"}</span>
+                                        </div>
+                                      ) : (
+                                        <div className="text-xs text-muted-foreground italic">Unassigned</div>
+                                      )}
+                                    </div>
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-muted-foreground/20">{task.status}</Badge>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </Link>
+                          );
+                        })
+                      ) : (
+                        <div className="h-24 rounded-lg border border-dashed flex flex-col items-center justify-center text-muted-foreground/50 text-xs bg-muted/10">
+                          <span>No backlog tasks</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sprint columns */}
+                  {projectSprints.map((sprint: any, index: number) => {
+                    const sprintTasks = filteredTasks.filter(t => t.sprintId === sprint.id);
+                    return (
+                      <div key={sprint.id} className="w-[320px] shrink-0 flex flex-col gap-4">
+                        <div className="flex items-center gap-2 pb-2 border-b">
+                          <div className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border bg-background",
+                            sprint.status === "Active" ? "text-green-600 border-green-600" : "text-primary border-primary"
+                          )}>
+                            {index + 1}
+                          </div>
+                          <h3 className="font-semibold text-sm">{sprint.name}</h3>
+                          {sprint.status === "Active" && <Badge className="bg-green-100 text-green-700 text-[10px] h-5">Active</Badge>}
+                          <Badge variant="secondary" className="ml-auto text-[10px] h-5">{sprintTasks.length}</Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {sprint.startDate} → {sprint.endDate}
+                        </div>
+                        <div className="flex flex-col gap-3">
+                          {sprintTasks.length > 0 ? (
+                            sprintTasks.map(task => {
+                              const assignee = getAssignee(task.assigneeId);
+                              return (
+                                <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
+                                  <Card className="shadow-sm hover:shadow-md transition-shadow cursor-pointer group" data-testid={`card-task-${task.id}`}>
+                                    <CardContent className="p-3 space-y-3">
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between items-start gap-2">
+                                          <h4 className="text-sm font-medium hover:text-primary leading-tight line-clamp-2">{task.title}</h4>
+                                          <Badge variant={task.priority === "High" ? "destructive" : task.priority === "Medium" ? "default" : "secondary"} className="text-[10px] h-5 px-1.5 shrink-0">{task.priority}</Badge>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center justify-between pt-1 border-t border-dashed mt-2">
+                                        <div className="flex items-center gap-2">
+                                          {assignee ? (
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                              <Avatar className="h-5 w-5 border border-background">
+                                                <AvatarFallback className="text-[9px] bg-primary/10 text-primary">{assignee.name?.substring(0, 2).toUpperCase() || "??"}</AvatarFallback>
+                                              </Avatar>
+                                              <span className="truncate max-w-[80px]">{assignee.name?.split(' ')[0] || "Unknown"}</span>
+                                            </div>
+                                          ) : (
+                                            <div className="text-xs text-muted-foreground italic">Unassigned</div>
+                                          )}
+                                        </div>
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-muted-foreground/20">{task.status}</Badge>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                </Link>
+                              );
+                            })
+                          ) : (
+                            <div className="h-24 rounded-lg border border-dashed flex flex-col items-center justify-center text-muted-foreground/50 text-xs bg-muted/10">
+                              <span>No tasks in sprint</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {projectSprints.length === 0 && (
+                    <div className="w-full flex flex-col items-center justify-center py-12 text-muted-foreground">
+                      <Timer className="h-12 w-12 mb-4 opacity-20" />
+                      <h3 className="text-lg font-medium">No Sprints Created</h3>
+                      <p className="text-sm">Create sprints in the project settings or enable auto-generation.</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </ScrollArea>
