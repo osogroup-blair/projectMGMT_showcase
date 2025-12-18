@@ -68,6 +68,36 @@ export async function registerRoutes(
     try {
       const validated = insertProjectSchema.parse(req.body);
       const project = await storage.createProject(validated);
+      
+      // Auto-generate sprints if sprintDurationWeeks is set
+      if (project && project.sprintDurationWeeks && project.sprintDurationWeeks > 0 && project.startDate && project.deadline) {
+        const startDate = new Date(project.startDate);
+        const endDate = new Date(project.deadline);
+        const durationMs = project.sprintDurationWeeks * 7 * 24 * 60 * 60 * 1000;
+        const totalMs = endDate.getTime() - startDate.getTime();
+        const sprintCount = Math.max(1, Math.ceil(totalMs / durationMs));
+        
+        for (let i = 0; i < sprintCount; i++) {
+          const sprintStart = new Date(startDate.getTime() + (i * durationMs));
+          let sprintEnd = new Date(sprintStart.getTime() + durationMs - (24 * 60 * 60 * 1000));
+          
+          // Last sprint ends at project deadline
+          if (sprintEnd > endDate || i === sprintCount - 1) {
+            sprintEnd = endDate;
+          }
+          
+          await storage.createSprint({
+            projectId: project.id,
+            name: `Sprint ${i + 1}`,
+            goal: null,
+            startDate: sprintStart.toISOString().split('T')[0],
+            endDate: sprintEnd.toISOString().split('T')[0],
+            status: 'Planned',
+            capacityHours: null
+          });
+        }
+      }
+      
       res.status(201).json(project);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

@@ -491,7 +491,8 @@ export default function ProjectWizard() {
         startDate: projectData.startDate || null,
         deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
         frameworkId: projectData.frameworkId || null,
-        progress: 0
+        progress: 0,
+        sprintDurationWeeks: projectData.sprintDurationWeeks || null
       });
       
       if (!newProject?.id) {
@@ -1392,6 +1393,12 @@ export default function ProjectWizard() {
                                 <div>
                                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Due Date</h4>
                                     <p className="font-medium">{projectData.dueDate || "Not set"}</p>
+                                </div>
+                                <div>
+                                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Sprint Duration</h4>
+                                    <p className="font-medium">
+                                      {projectData.sprintDurationWeeks === 0 ? "No Sprints" : `${projectData.sprintDurationWeeks} Week${projectData.sprintDurationWeeks > 1 ? 's' : ''}`}
+                                    </p>
                                 </div>
                             </div>
 
