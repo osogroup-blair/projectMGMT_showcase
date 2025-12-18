@@ -577,27 +577,30 @@ export default function TaskBoard() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 bg-card rounded-lg border shadow-sm overflow-hidden flex flex-col">
-            <div className="p-4 border-b bg-muted/30 font-medium text-sm grid gap-3 text-muted-foreground shrink-0" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr" }}>
-              <div>Task</div>
-              <div>Stage</div>
-              <div>Assignee</div>
-              <div>Sprint</div>
-              <div>Priority</div>
-              <div>Due Date</div>
+          <div className="flex-1 bg-card rounded-lg border shadow-sm flex flex-col">
+            <div className="overflow-x-auto overflow-y-hidden">
+              <div className="p-4 border-b bg-muted/30 font-medium text-sm grid gap-3 text-muted-foreground shrink-0" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", minWidth: "min-content" }}>
+                <div>Task</div>
+                <div>Stage</div>
+                <div>Assignee</div>
+                <div>Sprint</div>
+                <div>Priority</div>
+                <div>Due Date</div>
+              </div>
             </div>
-            <div className="overflow-y-auto h-full">
-              {filteredTasks.map(task => {
-                const assignee = getAssignee(task.assigneeId);
-                const stage = stages.find(s => s.id === task.stageId);
-                const priority = PRIORITY_CONFIG[task.priority];
+            <div className="overflow-x-auto overflow-y-auto h-full flex-1">
+              <div style={{ minWidth: "min-content" }}>
+                {filteredTasks.map(task => {
+                  const assignee = getAssignee(task.assigneeId);
+                  const stage = stages.find(s => s.id === task.stageId);
+                  const priority = PRIORITY_CONFIG[task.priority];
 
-                return (
-                  <div 
-                    key={task.id} 
-                    className="p-4 border-b last:border-0 grid gap-3 items-center hover:bg-muted/30 transition-colors text-sm group"
-                    style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr" }}
-                  >
+                  return (
+                    <div 
+                      key={task.id} 
+                      className="p-4 border-b last:border-0 grid gap-3 items-center hover:bg-muted/30 transition-colors text-sm group"
+                      style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr" }}
+                    >
                     <div className="font-medium flex items-center gap-2 cursor-pointer" onClick={() => handleOpenEdit(task)}>
                       <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                       {task.title}
@@ -644,8 +647,9 @@ export default function TaskBoard() {
                       {new Date(task.deadline).toLocaleDateString()}
                     </div>
                   </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
         )}
