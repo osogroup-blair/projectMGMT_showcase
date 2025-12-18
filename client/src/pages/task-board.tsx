@@ -577,13 +577,14 @@ export default function TaskBoard() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 bg-card rounded-lg border shadow-sm overflow-hidden">
-            <div className="p-4 border-b bg-muted/30 font-medium text-sm grid grid-cols-12 gap-4 text-muted-foreground">
-              <div className="col-span-4">Task</div>
-              <div className="col-span-2">Stage</div>
-              <div className="col-span-2">Assignee</div>
-              <div className="col-span-2">Priority</div>
-              <div className="col-span-2">Due Date</div>
+          <div className="flex-1 bg-card rounded-lg border shadow-sm overflow-hidden flex flex-col">
+            <div className="p-4 border-b bg-muted/30 font-medium text-sm grid gap-3 text-muted-foreground shrink-0" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr" }}>
+              <div>Task</div>
+              <div>Stage</div>
+              <div>Assignee</div>
+              <div>Sprint</div>
+              <div>Priority</div>
+              <div>Due Date</div>
             </div>
             <div className="overflow-y-auto h-full">
               {filteredTasks.map(task => {
@@ -594,19 +595,19 @@ export default function TaskBoard() {
                 return (
                   <div 
                     key={task.id} 
-                    className="p-4 border-b last:border-0 grid grid-cols-12 gap-4 items-center hover:bg-muted/30 transition-colors cursor-pointer text-sm"
-                    onClick={() => handleOpenEdit(task)}
+                    className="p-4 border-b last:border-0 grid gap-3 items-center hover:bg-muted/30 transition-colors text-sm group"
+                    style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr" }}
                   >
-                    <div className="col-span-4 font-medium flex items-center gap-2">
+                    <div className="font-medium flex items-center gap-2 cursor-pointer" onClick={() => handleOpenEdit(task)}>
                       <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                       {task.title}
                     </div>
-                    <div className="col-span-2">
+                    <div className="cursor-pointer" onClick={() => handleOpenEdit(task)}>
                       <Badge variant="outline" className="font-normal text-muted-foreground">
                         {stage?.name || "Unknown"}
                       </Badge>
                     </div>
-                    <div className="col-span-2 flex items-center gap-2">
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleOpenEdit(task)}>
                       {assignee ? (
                         <>
                           <Avatar className="h-5 w-5">
@@ -618,12 +619,28 @@ export default function TaskBoard() {
                         <span className="text-muted-foreground italic">Unassigned</span>
                       )}
                     </div>
-                    <div className="col-span-2">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <Select 
+                        value={task.sprintId || "backlog"} 
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { sprintId: v === "backlog" ? undefined : v } })}
+                      >
+                        <SelectTrigger className="h-8" data-testid={`select-sprint-${task.id}`}>
+                          <SelectValue placeholder="Backlog" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="backlog">Backlog</SelectItem>
+                          {projectSprints.map((s: any) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="cursor-pointer" onClick={() => handleOpenEdit(task)}>
                       <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priority.color)}>
                         {priority.label}
                       </span>
                     </div>
-                    <div className="col-span-2 text-muted-foreground">
+                    <div className="text-muted-foreground cursor-pointer" onClick={() => handleOpenEdit(task)}>
                       {new Date(task.deadline).toLocaleDateString()}
                     </div>
                   </div>
