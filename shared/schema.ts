@@ -44,6 +44,7 @@ export const deliverables = pgTable("deliverables", {
   description: text("description").notNull(),
   status: text("status").notNull().default("Not Started"),
   ownerId: varchar("owner_id").notNull().references(() => users.id),
+  startDate: text("start_date"),
   dueDate: text("due_date").notNull(),
   progress: integer("progress").notNull().default(0),
 });
