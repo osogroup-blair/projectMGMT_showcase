@@ -439,10 +439,10 @@ export default function ProjectsList() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={`https://i.pravatar.cc/150?u=${project.owner}`} />
-                        <AvatarFallback>{project.owner.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={`https://i.pravatar.cc/150?u=${project.ownerId || 'unassigned'}`} />
+                        <AvatarFallback>{project.owner ? project.owner.charAt(0).toUpperCase() : '—'}</AvatarFallback>
                       </Avatar>
-                      <span className="text-sm text-muted-foreground">{project.owner}</span>
+                      <span className="text-sm text-muted-foreground">{project.owner || '—'}</span>
                     </div>
                   </TableCell>
                   <TableCell>
