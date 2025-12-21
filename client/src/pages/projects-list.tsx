@@ -1,9 +1,7 @@
 import { 
-  Project, 
-  TEAM,
-  FRAMEWORK_TEMPLATES
+  Project
 } from "@/lib/mock-data";
-import { useProjects } from "@/hooks/use-nexus-data";
+import { useProjects, useUsers } from "@/hooks/use-nexus-data";
 import { 
   Search, 
   Filter, 
@@ -80,8 +78,8 @@ import { useToast } from "@/hooks/use-toast";
 // Extended Project Interface for this view
 interface ExtendedProject extends Project {
   client: string;
-  phase: string;
   owner: string;
+  ownerId?: string;
   startDate: string;
   endDate: string;
   riskLevel: "Low" | "Medium" | "High";
@@ -91,6 +89,7 @@ interface ExtendedProject extends Project {
 export default function ProjectsList() {
   const { toast } = useToast();
   const { data: projectsData, isLoading, create: createProject, update: updateProject, remove: deleteProject } = useProjects();
+  const { data: usersData } = useUsers();
   
   // Filters State
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -112,8 +111,7 @@ export default function ProjectsList() {
     name: "",
     client: "",
     status: "Upcoming",
-    phase: "Planning",
-    owner: "",
+    ownerId: "",
     startDate: "",
     endDate: "",
     riskLevel: "Low",
@@ -122,24 +120,26 @@ export default function ProjectsList() {
     frameworkId: ""
   });
 
+  // Helper to get user name by id
+  const getUserName = (userId?: string) => {
+    if (!userId || !usersData) return "—";
+    const user = usersData.find((u: any) => u.id === userId);
+    return user?.name || "—";
+  };
+
   // Enrich Data Memo
   const projects = useMemo(() => {
     return projectsData.map((p: any) => ({
       ...p,
-      client: p.client || (p.name.includes("Houlihan") ? "Houlihan Lokey" : 
-              p.name.includes("Colgate") ? "Colgate-Palmolive" : 
-              p.name.includes("Kraft") ? "Kraft Heinz" : "SDMP Internal"),
-      phase: p.phase || (p.status === "Upcoming" ? "Planning" : 
-             p.status === "In Progress" ? "Development" : 
-             p.status === "Completed" ? "Delivery" : "On Hold"),
-      owner: p.owner || TEAM[Math.floor(Math.random() * TEAM.length)].name,
-      startDate: p.startDate || "2023-10-01",
-      endDate: p.endDate || "2023-12-15",
-      riskLevel: p.riskLevel || (p.status === "Overdue" ? "High" : 
-                 p.progress && p.progress < 50 && p.status === "In Progress" ? "Medium" : "Low"),
-      description: p.description || "A strategic initiative to overhaul the core systems and improve user experience across all digital touchpoints."
+      client: p.client || "—",
+      owner: getUserName(p.ownerId),
+      ownerId: p.ownerId,
+      startDate: p.startDate || "",
+      endDate: p.deadline || "",
+      riskLevel: p.riskLevel || "Low",
+      description: p.description || ""
     })) as ExtendedProject[];
-  }, [projectsData]);
+  }, [projectsData, usersData]);
 
   // Filter Logic
   const filteredProjects = projects.filter(project => {
@@ -159,12 +159,9 @@ export default function ProjectsList() {
       deadline: formData.endDate || "TBD",
       progress: formData.progress || 0,
       frameworkId: formData.frameworkId,
-      // Custom fields to be persisted
-      client: formData.client || "Internal",
-      phase: formData.phase || "Planning",
-      owner: formData.owner || TEAM[0].name,
+      client: formData.client || "",
+      ownerId: formData.ownerId || undefined,
       startDate: formData.startDate || new Date().toISOString().split('T')[0],
-      endDate: formData.endDate || "",
       riskLevel: formData.riskLevel || "Low",
       description: formData.description || "",
     };
@@ -202,8 +199,7 @@ export default function ProjectsList() {
       name: project.name,
       client: project.client,
       status: project.status,
-      phase: project.phase,
-      owner: project.owner,
+      ownerId: project.ownerId,
       startDate: project.startDate,
       endDate: project.endDate,
       riskLevel: project.riskLevel,
@@ -259,8 +255,7 @@ export default function ProjectsList() {
       name: "",
       client: "",
       status: "Upcoming",
-      phase: "Planning",
-      owner: "",
+      ownerId: "",
       startDate: "",
       endDate: "",
       riskLevel: "Low",
@@ -356,7 +351,6 @@ export default function ProjectsList() {
                 </TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Phase</TableHead>
                 <TableHead>Owner</TableHead>
                 <TableHead>Timeline</TableHead>
                 <TableHead>Risk</TableHead>
@@ -441,11 +435,6 @@ export default function ProjectsList() {
                         {project.status}
                       </Badge>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground ring-1 ring-inset ring-gray-500/10">
-                      {project.phase}
-                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -603,36 +592,20 @@ export default function ProjectsList() {
               <div className="space-y-2">
                 <Label htmlFor="edit-owner">Project Owner</Label>
                 <Select 
-                  value={formData.owner} 
-                  onValueChange={(val) => setFormData({...formData, owner: val})}
+                  value={formData.ownerId || ""} 
+                  onValueChange={(val) => setFormData({...formData, ownerId: val})}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select owner" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TEAM.map(member => (
-                      <SelectItem key={member.id} value={member.name}>{member.name}</SelectItem>
+                    <SelectItem value="">Unassigned</SelectItem>
+                    {(usersData || []).map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-framework">Project Framework</Label>
-              <Select 
-                value={formData.frameworkId} 
-                onValueChange={(val) => setFormData({...formData, frameworkId: val})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a framework" />
-                </SelectTrigger>
-                <SelectContent>
-                  {FRAMEWORK_TEMPLATES.map(fw => (
-                    <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
