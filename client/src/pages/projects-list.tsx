@@ -592,14 +592,14 @@ export default function ProjectsList() {
               <div className="space-y-2">
                 <Label htmlFor="edit-owner">Project Owner</Label>
                 <Select 
-                  value={formData.ownerId || ""} 
-                  onValueChange={(val) => setFormData({...formData, ownerId: val})}
+                  value={formData.ownerId || "unassigned"} 
+                  onValueChange={(val) => setFormData({...formData, ownerId: val === "unassigned" ? undefined : val})}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select owner" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     {(usersData || []).map((user: any) => (
                       <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
                     ))}
