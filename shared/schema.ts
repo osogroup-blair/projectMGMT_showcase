@@ -34,6 +34,9 @@ export const projects = pgTable("projects", {
   defaultMappingTemplateId: varchar("default_mapping_template_id"),
   permissions: jsonb("permissions"),
   sprintDurationWeeks: integer("sprint_duration_weeks"),
+  ownerId: varchar("owner_id").references(() => users.id),
+  client: text("client"),
+  riskLevel: text("risk_level"),
 });
 
 // Deliverables
