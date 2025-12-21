@@ -9,7 +9,8 @@ import {
   Calendar,
   Loader2,
   SlidersHorizontal,
-  ListTodo
+  ListTodo,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [, setLocation] = useLocation();
   
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
-  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
@@ -362,16 +363,17 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           </CardContent>
         </Card>
       ) : (
-        <div className="border rounded-lg bg-card overflow-hidden">
-          <Table>
+        <div className="border rounded-lg bg-card overflow-x-auto">
+          <Table style={{ minWidth: "900px" }}>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[40%]">Task</TableHead>
-                <TableHead className="w-[15%]">Stage</TableHead>
-                <TableHead className="w-[15%]">Status</TableHead>
-                <TableHead className="w-[10%]">Priority</TableHead>
-                <TableHead className="w-[12%]">Assignee</TableHead>
-                <TableHead className="w-[8%] text-right">Due</TableHead>
+                <TableHead style={{ width: "25%" }}>Task</TableHead>
+                <TableHead style={{ width: "12%" }}>Stage</TableHead>
+                <TableHead style={{ width: "12%" }}>Status</TableHead>
+                <TableHead style={{ width: "15%" }}>Sprint</TableHead>
+                <TableHead style={{ width: "10%" }}>Priority</TableHead>
+                <TableHead style={{ width: "14%" }}>Assignee</TableHead>
+                <TableHead style={{ width: "12%" }} className="text-right">Due</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -414,6 +416,22 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                       >
                         {task.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select 
+                        value={task.sprintId || "backlog"} 
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { sprintId: v === "backlog" ? undefined : v } })}
+                      >
+                        <SelectTrigger className="h-8 w-full" data-testid={`select-sprint-${task.id}`}>
+                          <SelectValue placeholder="Backlog" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="backlog">Backlog</SelectItem>
+                          {projectSprints.map((s: any) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <span className={cn(
