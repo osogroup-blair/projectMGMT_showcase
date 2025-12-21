@@ -437,13 +437,7 @@ export default function ProjectsList() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={`https://i.pravatar.cc/150?u=${project.ownerId || 'unassigned'}`} />
-                        <AvatarFallback>{project.owner ? project.owner.charAt(0).toUpperCase() : '—'}</AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-muted-foreground">{project.owner || '—'}</span>
-                    </div>
+                    <span className="text-sm text-muted-foreground">{project.owner || '—'}</span>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col text-xs text-muted-foreground">
