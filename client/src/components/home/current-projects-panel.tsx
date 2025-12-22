@@ -1,5 +1,6 @@
 import { HomeTask } from "@/types/home";
 import { useProjects, useTasks, useEpics } from "@/hooks/use-nexus-data";
+import { useCurrentUser } from "@/contexts/current-user-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function CurrentProjectsPanel() {
   const { data: projects, isLoading: projectsLoading } = useProjects();
-  const { data: tasks, isLoading: tasksLoading } = useTasks();
+  const { data: allTasks, isLoading: tasksLoading } = useTasks();
   const { data: epics, isLoading: epicsLoading } = useEpics();
+  const { currentUserId } = useCurrentUser();
+  
+  // Filter tasks to only show those assigned to the current user
+  const tasks = useMemo(() => {
+    if (!allTasks) return [];
+    return allTasks.filter((task: any) => task.assigneeId === currentUserId);
+  }, [allTasks, currentUserId]);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string[]>(["In Progress", "Upcoming", "On Hold"]);
