@@ -32,6 +32,9 @@ import type {
   MappingTemplate, InsertMappingTemplate,
   StatusOption, InsertStatusOption,
   RoleType, InsertRoleType,
+  UserPreferences, InsertUserPreferences,
+  WorkBlock, InsertWorkBlock,
+  DayPlan, InsertDayPlan,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -1000,6 +1003,59 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return projects;
+  }
+
+  // User Preferences
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    const [prefs] = await db.select().from(schema.userPreferences).where(eq(schema.userPreferences.userId, userId));
+    return prefs;
+  }
+  async createUserPreferences(prefs: InsertUserPreferences): Promise<UserPreferences> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.userPreferences).values({ ...prefs, id }).returning();
+    return created;
+  }
+  async updateUserPreferences(userId: string, prefs: Partial<UserPreferences>): Promise<UserPreferences> {
+    const [updated] = await db.update(schema.userPreferences).set(prefs).where(eq(schema.userPreferences.userId, userId)).returning();
+    return updated;
+  }
+
+  // Work Blocks
+  async getWorkBlocksByUserAndDate(userId: string, date: string): Promise<WorkBlock[]> {
+    return await db.select().from(schema.workBlocks).where(
+      and(eq(schema.workBlocks.userId, userId), eq(schema.workBlocks.date, date))
+    );
+  }
+  async createWorkBlock(block: InsertWorkBlock): Promise<WorkBlock> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.workBlocks).values({ ...block, id }).returning();
+    return created;
+  }
+  async updateWorkBlock(id: string, block: Partial<WorkBlock>): Promise<WorkBlock> {
+    const [updated] = await db.update(schema.workBlocks).set({ ...block, updatedAt: new Date() }).where(eq(schema.workBlocks.id, id)).returning();
+    return updated;
+  }
+  async deleteWorkBlock(id: string): Promise<void> {
+    await db.delete(schema.workBlocks).where(eq(schema.workBlocks.id, id));
+  }
+
+  // Day Plans
+  async getDayPlan(userId: string, date: string): Promise<DayPlan | undefined> {
+    const [plan] = await db.select().from(schema.dayPlans).where(
+      and(eq(schema.dayPlans.userId, userId), eq(schema.dayPlans.date, date))
+    );
+    return plan;
+  }
+  async createDayPlan(plan: InsertDayPlan): Promise<DayPlan> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.dayPlans).values({ ...plan, id }).returning();
+    return created;
+  }
+  async updateDayPlan(userId: string, date: string, plan: Partial<DayPlan>): Promise<DayPlan> {
+    const [updated] = await db.update(schema.dayPlans).set({ ...plan, updatedAt: new Date() }).where(
+      and(eq(schema.dayPlans.userId, userId), eq(schema.dayPlans.date, date))
+    ).returning();
+    return updated;
   }
 }
 

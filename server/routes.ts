@@ -32,6 +32,9 @@ import {
   insertMappingTemplateSchema,
   insertStatusOptionSchema,
   insertRoleTypeSchema,
+  insertUserPreferencesSchema,
+  insertWorkBlockSchema,
+  insertDayPlanSchema,
 } from "@shared/schema";
 
 // Import seed function
@@ -1498,6 +1501,118 @@ export async function registerRoutes(
       res.json(projects);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // User Preferences
+  app.get("/api/users/:userId/preferences", async (req, res) => {
+    try {
+      const prefs = await storage.getUserPreferences(req.params.userId);
+      if (!prefs) {
+        return res.json({
+          userId: req.params.userId,
+          workdayStartTime: "09:00",
+          workdayEndTime: "17:00",
+          defaultTargetDailyMinutes: 480,
+          showOnlyActionable: false,
+          timezone: "America/New_York"
+        });
+      }
+      res.json(prefs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/users/:userId/preferences", async (req, res) => {
+    try {
+      const validated = insertUserPreferencesSchema.parse({ ...req.body, userId: req.params.userId });
+      const existing = await storage.getUserPreferences(req.params.userId);
+      if (existing) {
+        const updated = await storage.updateUserPreferences(req.params.userId, validated);
+        return res.json(updated);
+      }
+      const created = await storage.createUserPreferences(validated);
+      res.status(201).json(created);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Work Blocks
+  app.get("/api/users/:userId/workblocks", async (req, res) => {
+    try {
+      const date = req.query.date as string;
+      if (!date) return res.status(400).json({ error: "date query parameter required" });
+      const blocks = await storage.getWorkBlocksByUserAndDate(req.params.userId, date);
+      res.json(blocks);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/workblocks", async (req, res) => {
+    try {
+      const validated = insertWorkBlockSchema.parse(req.body);
+      const created = await storage.createWorkBlock(validated);
+      res.status(201).json(created);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/workblocks/:id", async (req, res) => {
+    try {
+      const updated = await storage.updateWorkBlock(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/workblocks/:id", async (req, res) => {
+    try {
+      await storage.deleteWorkBlock(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Day Plans
+  app.get("/api/users/:userId/dayplan", async (req, res) => {
+    try {
+      const date = req.query.date as string;
+      if (!date) return res.status(400).json({ error: "date query parameter required" });
+      const plan = await storage.getDayPlan(req.params.userId, date);
+      if (!plan) {
+        return res.json({
+          userId: req.params.userId,
+          date,
+          workBlocks: [],
+          unassignedTaskIds: [],
+          targetWorkMinutes: 480,
+          plannedMinutes: 0
+        });
+      }
+      res.json(plan);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/dayplans", async (req, res) => {
+    try {
+      const validated = insertDayPlanSchema.parse(req.body);
+      const existing = await storage.getDayPlan(validated.userId, validated.date);
+      if (existing) {
+        const updated = await storage.updateDayPlan(validated.userId, validated.date, validated);
+        return res.json(updated);
+      }
+      const created = await storage.createDayPlan(validated);
+      res.status(201).json(created);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   });
 

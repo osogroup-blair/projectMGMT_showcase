@@ -351,6 +351,44 @@ export const roleTypes = pgTable("role_types", {
   isDefault: boolean("is_default").default(false),
 });
 
+// User Preferences (for work hours and settings)
+export const userPreferences = pgTable("user_preferences", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  workdayStartTime: text("workday_start_time").default("09:00"),
+  workdayEndTime: text("workday_end_time").default("17:00"),
+  defaultTargetDailyMinutes: integer("default_target_daily_minutes").default(480),
+  showOnlyActionable: boolean("show_only_actionable").default(false),
+  timezone: text("timezone").default("America/New_York"),
+});
+
+// Work Blocks (time-boxed work sessions)
+export const workBlocks = pgTable("work_blocks", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  label: text("label"),
+  taskIds: text("task_ids").array().default([]),
+  totalPlannedMinutes: integer("total_planned_minutes"),
+  status: text("status").notNull().default("planned"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Day Plans (daily planning container)
+export const dayPlans = pgTable("day_plans", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),
+  targetWorkMinutes: integer("target_work_minutes").default(480),
+  plannedMinutes: integer("planned_minutes").default(0),
+  unassignedTaskIds: text("unassigned_task_ids").array().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true });
@@ -382,6 +420,9 @@ export const insertTaskTemplateSchema = createInsertSchema(taskTemplates).omit({
 export const insertMappingTemplateSchema = createInsertSchema(mappingTemplates).omit({ id: true });
 export const insertStatusOptionSchema = createInsertSchema(statusOptions).omit({ id: true });
 export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true });
+export const insertWorkBlockSchema = createInsertSchema(workBlocks).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDayPlanSchema = createInsertSchema(dayPlans).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -473,3 +514,12 @@ export type InsertStatusOption = z.infer<typeof insertStatusOptionSchema>;
 
 export type RoleType = typeof roleTypes.$inferSelect;
 export type InsertRoleType = z.infer<typeof insertRoleTypeSchema>;
+
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+
+export type WorkBlock = typeof workBlocks.$inferSelect;
+export type InsertWorkBlock = z.infer<typeof insertWorkBlockSchema>;
+
+export type DayPlan = typeof dayPlans.$inferSelect;
+export type InsertDayPlan = z.infer<typeof insertDayPlanSchema>;
