@@ -20,6 +20,10 @@ function escapeValue(val: any): string {
   if (val instanceof Date) return `'${val.toISOString()}'`;
   if (Array.isArray(val)) {
     if (val.length === 0) return "'{}'";
+    const hasObjects = val.some(v => typeof v === "object" && v !== null);
+    if (hasObjects) {
+      return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+    }
     const escaped = val.map(v => {
       if (typeof v === "string") {
         return v.replace(/\\/g, "\\\\").replace(/"/g, '\\"');

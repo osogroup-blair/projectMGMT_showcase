@@ -1,5 +1,5 @@
 -- Database Export from Development
--- Generated at: 2025-12-22T05:57:51.045Z
+-- Generated at: 2025-12-22T06:00:13.366Z
 
 -- IMPORTANT: Run these statements in order due to foreign key constraints
 
@@ -210,7 +210,7 @@ INSERT INTO milestone_task_links (id, milestone_id, task_id, project_id, source,
 INSERT INTO milestone_task_links (id, milestone_id, task_id, project_id, source, rule_id, locked, created_at, updated_at) VALUES ('e5a3c675-645a-41bf-91d4-ce05907b2fe9', '03fc1457-6956-4e37-a314-13f68661b091', '507667cf-99e9-4a49-902c-8c2a1eeaeaa1', '2b3e02b8-b7ae-42ce-aae7-eff2073a71f9', 'rule:r-1765564874958', NULL, FALSE, '2025-12-12T19:03:08.197Z', '2025-12-12T19:03:08.197Z');
 
 -- milestone_scope_rules (1 rows)
-INSERT INTO milestone_scope_rules (id, milestone_id, rules, last_evaluated_at) VALUES ('d773da56-bb87-402e-87b9-70ae65590d37', '03fc1457-6956-4e37-a314-13f68661b091', '{"[object Object]"}', NULL);
+INSERT INTO milestone_scope_rules (id, milestone_id, rules, last_evaluated_at) VALUES ('d773da56-bb87-402e-87b9-70ae65590d37', '03fc1457-6956-4e37-a314-13f68661b091', '[{"id":"r-1765564874958","label":"All Plan Strategy Tasks","stage":"902868ab-aa98-46d5-b305-2fbe8b2b7997","active":true,"epicType":"all","taskTemplateKey":"all"}]', NULL);
 
 -- saved_views (2 rows)
 INSERT INTO saved_views (id, name, description, stage_ids, view_type, visibility, is_default, config) VALUES ('v1', 'Default Kanban', 'Standard board view for daily standups', '{"s1","s2","s3","s4"}', 'Kanban', 'Global', TRUE, '{"groupBy":"stage"}');
