@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, Target, Briefcase } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TEAM } from "@/lib/mock-data";
+import { useCurrentUser } from "@/contexts/current-user-context";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -35,7 +35,7 @@ interface UserHomePageProps {
 }
 
 export function UserHomePage({ homeState }: UserHomePageProps) {
-  const currentUser = TEAM.find(u => u.id === "5") || TEAM[0]; // Mock current user
+  const { currentUser } = useCurrentUser();
   const [tasks, setTasks] = useState(homeState.todayTasks);
   const [dayPlans, setDayPlans] = useState(homeState.dayPlans);
   

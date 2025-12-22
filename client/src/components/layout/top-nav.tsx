@@ -1,23 +1,36 @@
 import { Search, ChevronDown, Bell } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import logo from "@assets/image_1765392085901.png";
-import { useUsers } from "@/hooks/use-nexus-data";
+import { useCurrentUser } from "@/contexts/current-user-context";
 
 export function TopNav() {
-  const { data: users } = useUsers();
-  const currentUser = users.find((u: any) => u.id === "1") || users[0] || { name: "User", role: "Member" };
-  const firstName = currentUser.name?.split(" ")[0] || "User";
-  const initials = currentUser.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) || "U";
+  const { currentUser, users, setCurrentUserId } = useCurrentUser();
+  
+  const firstName = currentUser?.name?.split(" ")[0] || "User";
+  const initials = currentUser?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) || "U";
+
+  const getTimeGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   return (
     <div className="h-16 bg-sidebar text-sidebar-foreground border-b border-sidebar-border flex items-center justify-center px-6 gap-4 relative">
-      {/* Logo - Left */}
       <div className="absolute left-6 w-32 shrink-0">
         <img src={logo} alt="Nymbl" className="h-6 w-auto object-contain" />
       </div>
 
-      {/* Search - Center */}
       <div className="max-w-md w-full">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-sidebar-foreground/70" />
@@ -32,23 +45,52 @@ export function TopNav() {
         </div>
       </div>
 
-      {/* Right Side - Greeting + Profile */}
       <div className="absolute right-6 flex items-center gap-4">
         <div className="text-right hidden sm:block">
-          <p className="text-sm text-sidebar-foreground/70 mr-2">Good morning, <span className="font-medium text-sidebar-foreground">{firstName}!</span></p>
+          <p className="text-sm text-sidebar-foreground/70 mr-2">{getTimeGreeting()}, <span className="font-medium text-sidebar-foreground">{firstName}!</span></p>
         </div>
         <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent">
           <Bell className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-2 pl-4 border-l border-sidebar-border">
-          <div className="text-right hidden sm:block">
-            <div className="text-sm font-medium">{currentUser.name}</div>
-            <div className="text-xs text-sidebar-foreground/70">{currentUser.role}</div>
-          </div>
-          <Avatar className="h-8 w-8 border border-sidebar-border">
-            <AvatarImage src={currentUser.avatar || "https://github.com/shadcn.png"} />
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="button-user-dropdown">
+                <div className="text-right hidden sm:block">
+                  <div className="text-sm font-medium">{currentUser?.name || "Select User"}</div>
+                  <div className="text-xs text-sidebar-foreground/70">{currentUser?.role || "No role"}</div>
+                </div>
+                <Avatar className="h-8 w-8 border border-sidebar-border">
+                  <AvatarImage src={currentUser?.avatar || "https://github.com/shadcn.png"} />
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <ChevronDown className="h-4 w-4 text-sidebar-foreground/70" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Switch User</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {users.map((user: any) => (
+                <DropdownMenuItem 
+                  key={user.id} 
+                  onClick={() => setCurrentUserId(user.id)}
+                  className={user.id === currentUser?.id ? "bg-accent" : ""}
+                  data-testid={`menu-item-user-${user.id}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={user.avatar} />
+                      <AvatarFallback>{user.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="text-sm font-medium">{user.name}</div>
+                      <div className="text-xs text-muted-foreground">{user.role}</div>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>

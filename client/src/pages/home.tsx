@@ -2,8 +2,7 @@ import { UserHomePage } from "@/components/home/user-home-page";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfToday, addDays, isBefore, isAfter, parseISO, endOfWeek } from "date-fns";
 import type { UserHomeState, HomeTask, HomeMilestoneSummary, DayPlan, WorkBlock } from "@/types/home";
-
-const CURRENT_USER_ID = "1";
+import { useCurrentUser } from "@/contexts/current-user-context";
 
 function mapApiTaskToHomeTask(apiTask: any): HomeTask {
   const today = startOfToday();
@@ -45,7 +44,7 @@ function mapApiTaskToHomeTask(apiTask: any): HomeTask {
     title: apiTask.title,
     description: apiTask.description,
     status: mapStatus(apiTask.status),
-    assignedToUserId: apiTask.assigneeId || CURRENT_USER_ID,
+    assignedToUserId: apiTask.assigneeId || "",
     dueDateTime: apiTask.deadline,
     estimatedDurationMinutes: estimateMinutes,
     durationBucket,
@@ -92,17 +91,19 @@ function mapApiMilestoneToSummary(apiMilestone: any): HomeMilestoneSummary {
 }
 
 export default function Home() {
+  const { currentUserId, isLoading: userLoading } = useCurrentUser();
   const today = startOfToday();
   const todayStr = format(today, "yyyy-MM-dd");
   const weekEnd = endOfWeek(today);
 
   const { data: apiTasks = [], isLoading: tasksLoading } = useQuery({
-    queryKey: ["/api/home/tasks", CURRENT_USER_ID],
+    queryKey: ["/api/home/tasks", currentUserId],
     queryFn: async () => {
-      const response = await fetch(`/api/home/tasks/${CURRENT_USER_ID}`);
+      const response = await fetch(`/api/home/tasks/${currentUserId}`);
       if (!response.ok) throw new Error("Failed to fetch tasks");
       return response.json();
-    }
+    },
+    enabled: !!currentUserId
   });
 
   const { data: apiMilestones = [], isLoading: milestonesLoading } = useQuery({
@@ -148,7 +149,7 @@ export default function Home() {
     });
 
   const emptyDayPlan: DayPlan = {
-    userId: CURRENT_USER_ID,
+    userId: currentUserId,
     date: todayStr,
     workBlocks: [],
     unassignedTaskIds: todayTasks.map(t => t.id),
@@ -157,7 +158,7 @@ export default function Home() {
   };
 
   const homeState: UserHomeState = {
-    userId: CURRENT_USER_ID,
+    userId: currentUserId,
     today: todayStr,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     preferences: {
@@ -173,7 +174,7 @@ export default function Home() {
     upcomingMilestones,
   };
 
-  if (tasksLoading || milestonesLoading) {
+  if (userLoading || tasksLoading || milestonesLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
