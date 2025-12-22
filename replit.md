@@ -49,6 +49,10 @@ The core domain entities follow a hierarchical structure:
 
 Supporting entities include Users, Roles, Assignments, Views, Guidance Items, and various template types for reusability.
 
+8. **User Preferences** - User settings for work hours, timezone, and display preferences
+9. **Work Blocks** - Time-boxed work sessions for daily planning (start/end time, assigned tasks)
+10. **Day Plans** - Daily planning container with work blocks and unassigned tasks
+
 ### API Structure
 
 All API routes follow the pattern:
@@ -60,6 +64,12 @@ All API routes follow the pattern:
 - `/api/sprints` - Sprint CRUD, `/api/sprints/:id/start`, `/api/sprints/:id/close` for lifecycle
 - `/api/project-import/*` - Import workflow endpoints
 - `/api/users` - User management
+- `/api/users/:userId/preferences` - User preferences (work hours, timezone)
+- `/api/users/:userId/workblocks` - Work blocks for daily planning
+- `/api/users/:userId/dayplan` - Day plan management
+- `/api/home/tasks/:userId` - User's tasks for home page
+- `/api/home/milestones` - Upcoming milestones for home page
+- `/api/home/projects` - Active projects summary for home page
 - `/api/seed` - Development database seeding
 
 ### File Structure
