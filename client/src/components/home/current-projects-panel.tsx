@@ -1,5 +1,5 @@
 import { HomeTask } from "@/types/home";
-import { useProjects, useTasks, useEpics } from "@/hooks/use-nexus-data";
+import { useProjects, useTasks, useEpics, useProjectStages } from "@/hooks/use-nexus-data";
 import { useCurrentUser } from "@/contexts/current-user-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ export function CurrentProjectsPanel() {
   const { data: projects, isLoading: projectsLoading } = useProjects();
   const { data: allTasks, isLoading: tasksLoading } = useTasks();
   const { data: epics, isLoading: epicsLoading } = useEpics();
+  const { data: projectStages, isLoading: stagesLoading } = useProjectStages();
   const { currentUserId } = useCurrentUser();
   
   // Filter tasks to only show those assigned to the current user
@@ -105,7 +106,7 @@ export function CurrentProjectsPanel() {
     );
   };
 
-  if (projectsLoading || tasksLoading || epicsLoading) {
+  if (projectsLoading || tasksLoading || epicsLoading || stagesLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -194,17 +195,48 @@ export function CurrentProjectsPanel() {
                 return acc;
              }, {} as Record<string, HomeTask[]>);
 
+             // Get stages for this project (project-specific first, then global/shared stages)
+             const allStages = projectStages || [];
+             let stagesForProject = allStages
+               .filter((s: any) => s.projectId === project.id)
+               .sort((a: any, b: any) => a.order - b.order);
+             
+             // If no project-specific stages, use global stages (projectId is null or undefined)
+             if (stagesForProject.length === 0) {
+               stagesForProject = allStages
+                 .filter((s: any) => !s.projectId)
+                 .sort((a: any, b: any) => a.order - b.order);
+             }
+             
+             // Create a map of stageId to stageName
+             const stageNameMap = stagesForProject.reduce((acc: Record<string, string>, stage: any) => {
+               acc[stage.id] = stage.name;
+               return acc;
+             }, {} as Record<string, string>);
+             
              const tasksByStage = projectTasks.reduce((acc, task) => {
                 const stageId = (task as any).stageId || "no_stage"; 
-                const stageName = stageId === "st_plan" ? "Planning" : 
-                                  stageId === "st_validate" ? "Validation" : 
-                                  stageId === "st_develop" ? "Development" : 
-                                  stageId === "st_enable" ? "Enablement" : "Unknown Stage";
+                const stageName = stageNameMap[stageId] || "No Stage";
                 
                 if (!acc[stageName]) acc[stageName] = [];
                 acc[stageName].push(task);
                 return acc;
              }, {} as Record<string, HomeTask[]>);
+             
+             // Ensure stages appear in order even if empty
+             const orderedTasksByStage: Record<string, HomeTask[]> = {};
+             if (stagesForProject.length > 0) {
+               stagesForProject.forEach((stage: any) => {
+                 orderedTasksByStage[stage.name] = tasksByStage[stage.name] || [];
+               });
+               // Add "No Stage" if there are tasks without a stage
+               if (tasksByStage["No Stage"]) {
+                 orderedTasksByStage["No Stage"] = tasksByStage["No Stage"];
+               }
+             } else {
+               // No stages defined - show all tasks under "No Stage"
+               orderedTasksByStage["No Stage"] = projectTasks;
+             }
              
              return (
                <Card key={project.id} className="overflow-hidden">
@@ -305,7 +337,7 @@ export function CurrentProjectsPanel() {
                          </TabsContent>
 
                          <TabsContent value="stage" className="mt-0 space-y-8">
-                            {Object.entries(tasksByStage).map(([stageName, stageTasks]) => (
+                            {Object.entries(orderedTasksByStage).map(([stageName, stageTasks]) => (
                                <div key={stageName} className="space-y-3">
                                   <h4 className="text-sm font-semibold flex items-center gap-2">
                                      <Workflow className="w-4 h-4 text-orange-500" />
