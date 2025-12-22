@@ -13,26 +13,29 @@ function camelToSnake(str: string): string {
   return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 }
 
-function escapeValue(val: any): string {
+function escapeValue(val: any, isJsonColumn: boolean = false): string {
   if (val === null || val === undefined) return "NULL";
   if (typeof val === "number") return String(val);
   if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
   if (val instanceof Date) return `'${val.toISOString()}'`;
   if (Array.isArray(val)) {
-    if (val.length === 0) return "'{}'";
+    if (isJsonColumn) {
+      return `'${JSON.stringify(val).replace(/'/g, "''")}'::jsonb`;
+    }
+    if (val.length === 0) return "ARRAY[]::text[]";
     const hasObjects = val.some(v => typeof v === "object" && v !== null);
     if (hasObjects) {
-      return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+      return `'${JSON.stringify(val).replace(/'/g, "''")}'::jsonb`;
     }
     const escaped = val.map(v => {
       if (typeof v === "string") {
-        return v.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        return `'${v.replace(/'/g, "''")}'`;
       }
       return v;
     });
-    return `'{"${escaped.join('","')}"}'`;
+    return `ARRAY[${escaped.join(", ")}]::text[]`;
   }
-  if (typeof val === "object") return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+  if (typeof val === "object") return `'${JSON.stringify(val).replace(/'/g, "''")}'::jsonb`;
   return `'${String(val).replace(/'/g, "''")}'`;
 }
 
