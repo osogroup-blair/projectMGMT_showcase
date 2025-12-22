@@ -15,8 +15,14 @@ function escapeValue(val: any): string {
   if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
   if (val instanceof Date) return `'${val.toISOString()}'`;
   if (Array.isArray(val)) {
-    const escaped = val.map(v => typeof v === "string" ? v.replace(/'/g, "''") : v);
-    return `ARRAY[${escaped.map(v => typeof v === "string" ? `'${v}'` : v).join(", ")}]`;
+    if (val.length === 0) return "'{}'";
+    const escaped = val.map(v => {
+      if (typeof v === "string") {
+        return v.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      }
+      return v;
+    });
+    return `'{"${escaped.join('","')}"}'`;
   }
   if (typeof val === "object") return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
   return `'${String(val).replace(/'/g, "''")}'`;
