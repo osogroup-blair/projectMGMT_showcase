@@ -9,6 +9,10 @@ import {
 } from "../shared/schema";
 import * as fs from "fs";
 
+function camelToSnake(str: string): string {
+  return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
 function escapeValue(val: any): string {
   if (val === null || val === undefined) return "NULL";
   if (typeof val === "number") return String(val);
@@ -31,12 +35,13 @@ function escapeValue(val: any): string {
 function generateInserts(tableName: string, rows: any[]): string {
   if (rows.length === 0) return `-- No data in ${tableName}\n`;
   
-  const columns = Object.keys(rows[0]);
+  const camelColumns = Object.keys(rows[0]);
+  const snakeColumns = camelColumns.map(col => camelToSnake(col));
   const lines: string[] = [`-- ${tableName} (${rows.length} rows)`];
   
   for (const row of rows) {
-    const values = columns.map(col => escapeValue(row[col]));
-    lines.push(`INSERT INTO ${tableName} (${columns.join(", ")}) VALUES (${values.join(", ")});`);
+    const values = camelColumns.map(col => escapeValue(row[col]));
+    lines.push(`INSERT INTO ${tableName} (${snakeColumns.join(", ")}) VALUES (${values.join(", ")});`);
   }
   
   return lines.join("\n") + "\n\n";
