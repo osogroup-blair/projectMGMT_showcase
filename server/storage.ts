@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte, or, isNull, sql } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User, InsertUser,
@@ -933,6 +933,73 @@ export class DatabaseStorage implements IStorage {
     const id = (event as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.sprintScopeEvents).values({ ...event, id }).returning();
     return created;
+  }
+
+  // Home Page Data
+  async getTasksByAssignee(assigneeId: string): Promise<Task[]> {
+    return await db.select().from(schema.tasks).where(eq(schema.tasks.assigneeId, assigneeId));
+  }
+
+  async getTasksForUserHome(userId: string): Promise<any[]> {
+    const tasks = await db
+      .select({
+        id: schema.tasks.id,
+        title: schema.tasks.title,
+        description: schema.tasks.description,
+        status: schema.tasks.status,
+        priority: schema.tasks.priority,
+        deadline: schema.tasks.deadline,
+        estimateHours: schema.tasks.estimateHours,
+        projectId: schema.tasks.projectId,
+        projectName: schema.projects.name,
+        epicId: schema.tasks.epicId,
+        epicTitle: schema.epics.title,
+        deliverableId: schema.epics.deliverableId,
+        milestoneId: schema.tasks.milestoneId,
+        assigneeId: schema.tasks.assigneeId,
+      })
+      .from(schema.tasks)
+      .leftJoin(schema.projects, eq(schema.tasks.projectId, schema.projects.id))
+      .leftJoin(schema.epics, eq(schema.tasks.epicId, schema.epics.id))
+      .where(eq(schema.tasks.assigneeId, userId));
+    return tasks;
+  }
+
+  async getUpcomingMilestones(): Promise<any[]> {
+    const milestones = await db
+      .select({
+        id: schema.milestones.id,
+        name: schema.milestones.name,
+        targetDate: schema.milestones.targetDate,
+        status: schema.milestones.status,
+        progressPercent: schema.milestones.progressPercent,
+        projectId: schema.milestones.projectId,
+        projectName: schema.projects.name,
+      })
+      .from(schema.milestones)
+      .leftJoin(schema.projects, eq(schema.milestones.projectId, schema.projects.id));
+    return milestones;
+  }
+
+  async getActiveProjectsWithProgress(): Promise<any[]> {
+    const projects = await db
+      .select({
+        id: schema.projects.id,
+        name: schema.projects.name,
+        status: schema.projects.status,
+        progress: schema.projects.progress,
+        startDate: schema.projects.startDate,
+        deadline: schema.projects.deadline,
+        client: schema.projects.client,
+      })
+      .from(schema.projects)
+      .where(
+        or(
+          eq(schema.projects.status, 'Active'),
+          eq(schema.projects.status, 'In Progress')
+        )
+      );
+    return projects;
   }
 }
 

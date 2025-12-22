@@ -1473,5 +1473,33 @@ export async function registerRoutes(
     res.json(events);
   });
 
+  // Home Page APIs
+  app.get("/api/home/tasks/:userId", async (req, res) => {
+    try {
+      const tasks = await storage.getTasksForUserHome(req.params.userId);
+      res.json(tasks);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/home/milestones", async (req, res) => {
+    try {
+      const milestones = await storage.getUpcomingMilestones();
+      res.json(milestones);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/home/projects", async (req, res) => {
+    try {
+      const projects = await storage.getActiveProjectsWithProgress();
+      res.json(projects);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
