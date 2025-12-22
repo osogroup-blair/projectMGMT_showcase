@@ -12,16 +12,24 @@ interface CurrentUserContextType {
 const CurrentUserContext = createContext<CurrentUserContextType | undefined>(undefined);
 
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
-  const { data: users, isLoading } = useUsers();
-  const [currentUserId, setCurrentUserId] = useState<string>("1");
+  const { data: users, isLoading: usersLoading } = useUsers();
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
-    if (users && users.length > 0 && !users.find((u: any) => u.id === currentUserId)) {
+    if (!usersLoading && users !== undefined && !hasInitialized) {
+      if (users.length > 0) {
+        setCurrentUserId(users[0].id);
+      }
+      setHasInitialized(true);
+    } else if (users && users.length > 0 && currentUserId && !users.find((u: any) => u.id === currentUserId)) {
       setCurrentUserId(users[0].id);
     }
-  }, [users, currentUserId]);
+  }, [users, usersLoading, currentUserId, hasInitialized]);
 
   const currentUser = users?.find((u: any) => u.id === currentUserId) || null;
+  
+  const isLoading = usersLoading || !hasInitialized;
 
   return (
     <CurrentUserContext.Provider value={{ 
