@@ -1,4 +1,4 @@
-import { HomeTask } from "@/types/home";
+import { HomeTask } from "../types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";

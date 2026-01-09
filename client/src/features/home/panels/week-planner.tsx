@@ -1,4 +1,4 @@
-import { DayPlan } from "@/types/home";
+import { DayPlan } from "../types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkBlockCard } from "./work-block-card";
 import { Calendar as CalendarIcon, Plus } from "lucide-react";

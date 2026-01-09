@@ -1,4 +1,4 @@
-import { HomeMilestoneSummary } from "@/types/home";
+import { HomeMilestoneSummary } from "../types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Flag, Calendar, ArrowRight } from "lucide-react";

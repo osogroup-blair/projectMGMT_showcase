@@ -1,4 +1,4 @@
-import { HomeTask } from "@/types/home";
+import { HomeTask } from "../types";
 import { useProjects, useTasks, useEpics, useProjectStages } from "@/hooks/use-nexus-data";
 import { useCurrentUser } from "@/context/current-user-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

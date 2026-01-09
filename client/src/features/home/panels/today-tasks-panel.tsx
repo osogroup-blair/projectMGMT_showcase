@@ -1,4 +1,4 @@
-import { HomeTask } from "@/types/home";
+import { HomeTask } from "../types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskCard } from "./task-card";
 import { Filter, CheckSquare, Clock, GripVertical } from "lucide-react";

@@ -1,4 +1,4 @@
-import { WorkBlock } from "@/types/home";
+import { WorkBlock } from "../types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, MoreHorizontal, PlayCircle } from "lucide-react";

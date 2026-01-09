@@ -1,4 +1,4 @@
-import { UserHomeState, HomeTask, WorkBlock } from "@/types/home";
+import { UserHomeState, HomeTask, WorkBlock } from "../types";
 import { Shell } from "@/components/layout/shell";
 import { TodayTasksPanel } from "./today-tasks-panel";
 import { WeekPlanner } from "./week-planner";

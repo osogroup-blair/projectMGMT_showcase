@@ -1,7 +1,7 @@
 import { UserHomePage } from "@/features/home/panels/user-home-page";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfToday, addDays, isBefore, isAfter, parseISO, endOfWeek } from "date-fns";
-import type { UserHomeState, HomeTask, HomeMilestoneSummary, DayPlan, WorkBlock } from "@/types/home";
+import type { UserHomeState, HomeTask, HomeMilestoneSummary, DayPlan, WorkBlock } from "@/features/home/types";
 import { useCurrentUser } from "@/context/current-user-context";
 
 function mapApiTaskToHomeTask(apiTask: any): HomeTask {

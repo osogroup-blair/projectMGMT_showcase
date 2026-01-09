@@ -45,7 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { UnifiedTimeline } from "@/features/project/timeline/unified-timeline";
 import { useMemo, useState, useEffect } from "react";
-import { ProjectDashboard } from "@/types/dashboard";
+import { ProjectDashboard } from "@/features/project/dashboard/types";
 import { differenceInDays, parseISO } from "date-fns";
 
 // Mock Data Types
