@@ -40,6 +40,9 @@ import type {
   WorkBlock, InsertWorkBlock,
   DayPlan, InsertDayPlan,
   ProjectFavorite, InsertProjectFavorite,
+  TaskType, InsertTaskType,
+  ProjectTaskType, InsertProjectTaskType,
+  TaskDependency, InsertTaskDependency,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -298,6 +301,34 @@ export interface IStorage {
   createProjectFavorite(favorite: InsertProjectFavorite): Promise<ProjectFavorite>;
   deleteProjectFavorite(userId: string, projectId: string): Promise<void>;
   isProjectFavorite(userId: string, projectId: string): Promise<boolean>;
+
+  // Task Types (global)
+  getTaskTypes(): Promise<TaskType[]>;
+  getTaskTypeById(id: string): Promise<TaskType | undefined>;
+  createTaskType(taskType: InsertTaskType): Promise<TaskType>;
+  updateTaskType(id: string, taskType: Partial<TaskType>): Promise<TaskType>;
+  deleteTaskType(id: string): Promise<void>;
+
+  // Project Task Types (project-level overrides)
+  getProjectTaskTypes(): Promise<ProjectTaskType[]>;
+  getProjectTaskTypeById(id: string): Promise<ProjectTaskType | undefined>;
+  getProjectTaskTypesByProjectId(projectId: string): Promise<ProjectTaskType[]>;
+  createProjectTaskType(projectTaskType: InsertProjectTaskType): Promise<ProjectTaskType>;
+  updateProjectTaskType(id: string, projectTaskType: Partial<ProjectTaskType>): Promise<ProjectTaskType>;
+  deleteProjectTaskType(id: string): Promise<void>;
+  deleteProjectTaskTypesByProjectId(projectId: string): Promise<void>;
+
+  // Task Dependencies
+  getTaskDependencies(): Promise<TaskDependency[]>;
+  getTaskDependencyById(id: string): Promise<TaskDependency | undefined>;
+  getTaskDependenciesByTaskId(taskId: string): Promise<TaskDependency[]>;
+  getDependentTasksByTaskId(taskId: string): Promise<TaskDependency[]>;
+  createTaskDependency(dependency: InsertTaskDependency): Promise<TaskDependency>;
+  deleteTaskDependency(id: string): Promise<void>;
+  deleteTaskDependenciesByTaskId(taskId: string): Promise<void>;
+
+  // Subtasks
+  getSubtasksByParentId(parentTaskId: string): Promise<Task[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1276,6 +1307,87 @@ export class DatabaseStorage implements IStorage {
       and(eq(schema.projectFavorites.userId, userId), eq(schema.projectFavorites.projectId, projectId))
     );
     return !!favorite;
+  }
+
+  // Task Types (global)
+  async getTaskTypes(): Promise<TaskType[]> {
+    return await db.select().from(schema.taskTypes);
+  }
+  async getTaskTypeById(id: string): Promise<TaskType | undefined> {
+    const [taskType] = await db.select().from(schema.taskTypes).where(eq(schema.taskTypes.id, id));
+    return taskType;
+  }
+  async createTaskType(taskType: InsertTaskType): Promise<TaskType> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.taskTypes).values({ ...taskType, id }).returning();
+    return created;
+  }
+  async updateTaskType(id: string, taskType: Partial<TaskType>): Promise<TaskType> {
+    const [updated] = await db.update(schema.taskTypes).set(taskType).where(eq(schema.taskTypes.id, id)).returning();
+    return updated;
+  }
+  async deleteTaskType(id: string): Promise<void> {
+    await db.delete(schema.taskTypes).where(eq(schema.taskTypes.id, id));
+  }
+
+  // Project Task Types (project-level overrides)
+  async getProjectTaskTypes(): Promise<ProjectTaskType[]> {
+    return await db.select().from(schema.projectTaskTypes);
+  }
+  async getProjectTaskTypeById(id: string): Promise<ProjectTaskType | undefined> {
+    const [projectTaskType] = await db.select().from(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.id, id));
+    return projectTaskType;
+  }
+  async getProjectTaskTypesByProjectId(projectId: string): Promise<ProjectTaskType[]> {
+    return await db.select().from(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, projectId));
+  }
+  async createProjectTaskType(projectTaskType: InsertProjectTaskType): Promise<ProjectTaskType> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.projectTaskTypes).values({ ...projectTaskType, id }).returning();
+    return created;
+  }
+  async updateProjectTaskType(id: string, projectTaskType: Partial<ProjectTaskType>): Promise<ProjectTaskType> {
+    const [updated] = await db.update(schema.projectTaskTypes).set(projectTaskType).where(eq(schema.projectTaskTypes.id, id)).returning();
+    return updated;
+  }
+  async deleteProjectTaskType(id: string): Promise<void> {
+    await db.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.id, id));
+  }
+  async deleteProjectTaskTypesByProjectId(projectId: string): Promise<void> {
+    await db.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, projectId));
+  }
+
+  // Task Dependencies
+  async getTaskDependencies(): Promise<TaskDependency[]> {
+    return await db.select().from(schema.taskDependencies);
+  }
+  async getTaskDependencyById(id: string): Promise<TaskDependency | undefined> {
+    const [dependency] = await db.select().from(schema.taskDependencies).where(eq(schema.taskDependencies.id, id));
+    return dependency;
+  }
+  async getTaskDependenciesByTaskId(taskId: string): Promise<TaskDependency[]> {
+    return await db.select().from(schema.taskDependencies).where(eq(schema.taskDependencies.taskId, taskId));
+  }
+  async getDependentTasksByTaskId(taskId: string): Promise<TaskDependency[]> {
+    return await db.select().from(schema.taskDependencies).where(eq(schema.taskDependencies.dependsOnTaskId, taskId));
+  }
+  async createTaskDependency(dependency: InsertTaskDependency): Promise<TaskDependency> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.taskDependencies).values({ ...dependency, id }).returning();
+    return created;
+  }
+  async deleteTaskDependency(id: string): Promise<void> {
+    await db.delete(schema.taskDependencies).where(eq(schema.taskDependencies.id, id));
+  }
+  async deleteTaskDependenciesByTaskId(taskId: string): Promise<void> {
+    await db.delete(schema.taskDependencies).where(
+      or(eq(schema.taskDependencies.taskId, taskId), eq(schema.taskDependencies.dependsOnTaskId, taskId))
+    );
+  }
+
+  // Subtasks
+  async getSubtasksByParentId(parentTaskId: string): Promise<Task[]> {
+    return await db.select().from(schema.tasks).where(eq(schema.tasks.parentTaskId, parentTaskId));
   }
 }
 

@@ -195,6 +195,9 @@ export const tasks = pgTable("tasks", {
   blocked: boolean("blocked").default(false),
   blockerReason: text("blocker_reason"),
   updatedAt: timestamp("updated_at").defaultNow(),
+  // Task Type and Subtask support
+  taskTypeId: varchar("task_type_id"),
+  parentTaskId: varchar("parent_task_id"),
 });
 
 // Milestone Scope Rules (stored as JSONB for flexibility)
@@ -403,6 +406,40 @@ export const mappingTemplates = pgTable("mapping_templates", {
   dataType: text("data_type").notNull(),
 });
 
+// Task Types (global defaults for categorizing tasks)
+export const taskTypes = pgTable("task_types", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
+  icon: text("icon"), // optional lucide icon name
+  isDefault: boolean("is_default").default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Project Task Types (project-level task type configuration)
+export const projectTaskTypes = pgTable("project_task_types", {
+  id: varchar("id").primaryKey(),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  taskTypeId: varchar("task_type_id").references(() => taskTypes.id, { onDelete: "cascade" }), // null for custom project types
+  name: text("name").notNull(), // can override global name
+  color: text("color").notNull(),
+  icon: text("icon"),
+  isEnabled: boolean("is_enabled").default(true),
+  isDefault: boolean("is_default").default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Task Dependencies (finish-to-start blocking relationships)
+export const taskDependencies = pgTable("task_dependencies", {
+  id: varchar("id").primaryKey(),
+  taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  dependsOnTaskId: varchar("depends_on_task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  dependencyType: text("dependency_type").notNull().default("finish_to_start"), // only finish_to_start for v1
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Status Options (global defaults)
 export const statusOptions = pgTable("status_options", {
   id: varchar("id").primaryKey(),
@@ -516,6 +553,9 @@ export const insertMappingTemplateSchema = createInsertSchema(mappingTemplates).
 export const insertStatusOptionSchema = createInsertSchema(statusOptions).omit({ id: true });
 export const insertProjectTaskStatusSchema = createInsertSchema(projectTaskStatuses).omit({ id: true, createdAt: true });
 export const insertProjectSettingsSchema = createInsertSchema(projectSettings).omit({ id: true, updatedAt: true });
+export const insertTaskTypeSchema = createInsertSchema(taskTypes).omit({ id: true, createdAt: true });
+export const insertProjectTaskTypeSchema = createInsertSchema(projectTaskTypes).omit({ id: true, createdAt: true });
+export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({ id: true, createdAt: true });
 export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true });
 export const insertWorkBlockSchema = createInsertSchema(workBlocks).omit({ id: true, createdAt: true, updatedAt: true });
@@ -644,3 +684,12 @@ export type InsertWorkBlock = z.infer<typeof insertWorkBlockSchema>;
 
 export type DayPlan = typeof dayPlans.$inferSelect;
 export type InsertDayPlan = z.infer<typeof insertDayPlanSchema>;
+
+export type TaskType = typeof taskTypes.$inferSelect;
+export type InsertTaskType = z.infer<typeof insertTaskTypeSchema>;
+
+export type ProjectTaskType = typeof projectTaskTypes.$inferSelect;
+export type InsertProjectTaskType = z.infer<typeof insertProjectTaskTypeSchema>;
+
+export type TaskDependency = typeof taskDependencies.$inferSelect;
+export type InsertTaskDependency = z.infer<typeof insertTaskDependencySchema>;
