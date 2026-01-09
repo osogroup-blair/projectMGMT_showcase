@@ -423,8 +423,7 @@ export class DatabaseStorage implements IStorage {
       // 10. Delete project stages for this project
       await tx.delete(schema.projectStages).where(eq(schema.projectStages.projectId, id));
       
-      // 11. Delete role assignments for this project
-      await tx.delete(schema.roleAssignments).where(eq(schema.roleAssignments.projectId, id));
+      // 11. Role assignments are linked to roles, not projects directly - skip
       
       // 12. Delete project task types for this project
       await tx.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, id));
