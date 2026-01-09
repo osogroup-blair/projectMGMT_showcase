@@ -1,0 +1,364 @@
+# App Gen Prompt: Build “Integration Fabric” Middleware (Systems + Endpoint Objects + Object/Attribute Mapping + Publish)
+
+## Role
+You are an expert product engineer building a production-ready middleware module called **Integration Fabric** inside an existing multi-tenant platform. Your goal is to implement the full UX + frontend logic + backend data model for:
+1) **Systems Registry**
+2) **Endpoint Objects (reusable API contracts)**
+3) **Platform Objects & Attributes**
+4) **Object ↔ Endpoint bindings (object-level endpoint plan)**
+5) **Attribute mappings through bound endpoints**
+6) **Compose (composite objects)**
+7) **Publish (versioned interfaces + optional UI scaffolding hooks)**
+8) **Test runner + logs**
+
+This is a multi-step build. Implement it incrementally with checkpoints.
+
+---
+
+## Non-Negotiable Requirements
+- Multi-tenant: every record is scoped by `tenant_id` (or by tenant-aware access control).
+- Everything is **versioned**:
+  - Endpoint Objects have versions
+  - Platform Objects have versions
+  - Publishing pins dependencies to endpoint versions
+- Endpoint Objects are **reusable** across many object mappings.
+- Objects must have an **Endpoints view** that clearly shows which endpoint objects are tied to the object and in what role (Read/Create/Update/Delete/Enrich/Lookup/Search).
+- Attribute mappings MUST reference an existing object-endpoint binding (enforce “bind endpoint first, then map fields”).
+- Schema-aware mapping: mapping UI must use endpoint request/response schemas to drive field pickers (no free-text unless explicitly toggled to “expert override”).
+- Provide a test runner to execute endpoint calls with sample inputs and show normalized object output + mapping diffs.
+- Provide “Used By / Impact” references and show warnings before publishing breaking changes.
+
+---
+
+## Architecture & Build Stages (follow in order, ask for confirmation between stages)
+
+### Stage 1 — Data Model + API contracts
+Implement persistent storage and CRUD APIs for all entities listed below. Use database migrations. Add proper indexes for tenant scope and search.
+
+**Entities**
+A) Systems
+- SYSTEM
+- SYSTEM_ENVIRONMENT
+- SYSTEM_AUTH_PROFILE
+- SYSTEM_POLICY
+
+B) Endpoint Objects
+- ENDPOINT_OBJECT
+- ENDPOINT_VERSION
+- ENDPOINT_TEST_CASE
+
+C) Platform Objects
+- PLATFORM_OBJECT
+- OBJECT_VERSION
+- OBJECT_ATTRIBUTE
+
+D) Bindings + Mappings
+- OBJECT_ENDPOINT_BINDING
+- ATTRIBUTE_MAPPING
+- TRANSFORM_PIPELINE
+- VALIDATION_RULE
+
+E) Composites + Publish + Impact
+- COMPOSITE_DEFINITION
+- PUBLISHED_INTERFACE
+- INTERFACE_DEPENDENCY
+- IMPACT_REFERENCE
+
+F) Observability
+- INTEGRATION_EXECUTION_LOG
+
+**API standards**
+- REST endpoints under `/api/tenants/{tenantId}/integration-fabric/...`
+- CRUD + list endpoints for each entity
+- Filtering: search by name, status, type
+- Pagination on lists
+- Soft delete where appropriate; “status=deprecated” for versioned assets
+- Validation errors must be actionable and field-specific
+
+**Enforce constraints**
+- Endpoint versions immutable after publish (new version required).
+- Object versions immutable after publish (new version required).
+- Attribute mappings cannot exist without a binding (`ATTRIBUTE_MAPPING.binding_id` FK).
+- Publishing creates `PUBLISHED_INTERFACE` and pins endpoint versions via `INTERFACE_DEPENDENCY`.
+
+Deliverables for Stage 1:
+- DB schema + migrations
+- Full CRUD API endpoints
+- Seed script for demo tenant data
+
+STOP after Stage 1 and request confirmation.
+
+---
+
+### Stage 2 — UI Shell + Navigation
+Implement the Integration Fabric module UI with top navigation:
+- Systems
+- Endpoint Objects
+- Objects
+- Composites
+- Publish / Versions
+- Monitor
+
+Global search bar can search across: systems, endpoints, objects.
+
+Deliverables:
+- Route structure
+- Layout + nav
+- Empty state pages wired to APIs
+
+STOP after Stage 2 and request confirmation.
+
+---
+
+### Stage 3 — Systems Registry UX
+Build:
+- Systems list (search, filters, status)
+- System create/edit
+- System detail with tabs:
+  - Overview
+  - Endpoint Objects (scoped to system)
+  - Used By
+  - Settings (env/auth/policies)
+
+Include:
+- Environment management (Sandbox/Prod)
+- Auth profile management (store secret refs, not raw secrets)
+- Policy defaults (timeouts, retries, cache)
+
+Deliverables:
+- Fully working Systems pages
+- Demo system templates (e.g., Jira, Salesforce, NetSuite)
+
+STOP after Stage 3 and request confirmation.
+
+---
+
+### Stage 4 — Endpoint Objects UX (reusable contract builder)
+Build:
+- Endpoint Objects list (global + filter by system)
+- Endpoint Object create wizard:
+  1) Purpose/name/category
+  2) Method + path template + params
+  3) Request/response schema editor (JSON schema)
+  4) Defaults: pagination, caching, retries, error contract mapping
+- Endpoint Object detail:
+  - Definition
+  - Schema
+  - Test & Logs
+  - Bound Objects (shows which platform objects use which endpoint versions and roles)
+  - Versions (view/compare)
+
+Test Runner:
+- Choose environment (Sandbox/Prod)
+- Provide sample inputs
+- Execute call (mock execution ok if no real connector)
+- Store execution log + render response
+
+Deliverables:
+- Fully working Endpoint Objects section
+- Version creation flow
+- Bound Objects tab wired from bindings data
+
+STOP after Stage 4 and request confirmation.
+
+---
+
+### Stage 5 — Platform Objects Catalog + Object Studio
+Build:
+- Objects catalog list
+  - show mapped status (unmapped/partial/complete)
+  - show system icons + endpoint counts
+  - show published badge
+- Object create/edit + versioning
+- Object Studio (3-pane layout):
+  - Pane A: attribute tree
+  - Pane B: center workspace with toggles:
+    - Systems | Endpoints | Fields | Compose
+  - Pane C: inspector
+
+#### Object Studio: Systems view
+- Add/Remove systems (implicitly via endpoint binding or explicitly as “context systems”)
+- System role per object (Primary / Enrichment / Write-back)
+
+#### Object Studio: Endpoints view (CRITICAL)
+For the selected object version:
+- Table of bound endpoint versions with columns:
+  - Operation role (Read/Create/Update/Delete/Enrich/Lookup/Search)
+  - System
+  - Endpoint Object + Version
+  - Mode (Live/Cached/Event-driven)
+  - Direction (In/Out/Both)
+  - Source of truth (Platform/System)
+  - Enabled toggle
+- “Add Endpoint” opens a picker:
+  - select System → Endpoint Object → Version
+  - assign operation role
+  - set mode/direction/source-of-truth
+- Clicking a row opens inspector with:
+  - schema preview
+  - required fields coverage summary
+  - error policy
+  - last executions
+
+Enforce:
+- Cannot map fields until at least one endpoint binding exists.
+
+#### Object Studio: Fields view
+- Mapping table: rows = attributes, columns include:
+  - Endpoint binding (dropdown)
+  - External field path picker (schema-aware)
+  - Transform pipeline
+  - Validation rules
+  - Direction
+- Unmapped required attributes show warning state.
+- “Auto-map”:
+  - heuristic match by name/type across selected endpoint schema
+  - user reviews diffs before applying
+
+Inspector on attribute:
+- Shows mapping summary
+- Transform step editor
+- Validation editor
+- PII tags / access policy
+
+Deliverables:
+- Object Studio working end-to-end for bindings + mappings
+- Auto-map UX
+- Coverage indicators
+
+STOP after Stage 5 and request confirmation.
+
+---
+
+### Stage 6 — Compose (Composite Objects)
+Build composite builder:
+- Choose base object(s)
+- Add sources: (object version + endpoint binding)
+- Define merge rules:
+  - precedence
+  - conflict resolution
+  - freshness/caching
+- Add computed fields
+- Preview composite schema
+
+Deliverables:
+- Composite objects CRUD + UI builder
+- Preview schema diff
+
+STOP after Stage 6 and request confirmation.
+
+---
+
+### Stage 7 — Publish / Versions / Impact
+Build publishing workflow:
+- Validate mapping completeness (or allow partial publish with warnings)
+- Detect breaking schema changes:
+  - required fields removed
+  - types changed
+- Show Impact view:
+  - “Used by” references (pages/workflows/apis)
+- Publish creates:
+  - PUBLISHED_INTERFACE
+  - pins endpoint versions via INTERFACE_DEPENDENCY
+- Version browser:
+  - compare object versions
+  - compare endpoint versions
+  - show dependency graph
+
+Deliverables:
+- Publishing wizard
+- Version diff viewer
+- Dependency graph view
+
+STOP after Stage 7 and request confirmation.
+
+---
+
+### Stage 8 — Monitor
+Build monitoring UI:
+- Execution logs table
+- Filter by object, endpoint, system, status
+- Drill-down view shows:
+  - request inputs (redacted)
+  - response summary
+  - errors + classification
+  - correlation IDs
+
+Deliverables:
+- Monitor section
+- Execution log drill-down
+
+STOP after Stage 8 and request confirmation.
+
+---
+
+## UX & Interaction Details (must implement)
+- Global search across Systems/Endpoints/Objects
+- Consistent empty states and onboarding CTAs
+- Badges:
+  - Draft / Published / Deprecated
+  - Unmapped / Partial / Complete
+- “Bind endpoint first” guardrail with inline helper text
+- Schema-aware field pickers:
+  - browse JSON schema tree
+  - search field names
+- Transform pipeline editor:
+  - ordered steps
+  - step templates: trim, uppercase, enum_map, date_parse, split/join, lookup, fallback
+- Validation editor:
+  - regex, enum, range, required, custom
+- Auto-map review modal:
+  - proposed mappings
+  - accept/reject per field
+- Coverage indicators:
+  - % required attributes mapped per endpoint role (esp Read)
+- Bound Objects view on Endpoint detail:
+  - list objects using this endpoint with operation roles and versions
+- Environment selector for tests (Sandbox/Prod)
+
+---
+
+## Permissions / RBAC
+Implement roles:
+- Admin: full access
+- Integration Architect: can create systems/endpoints/objects/publish
+- Builder: can map fields, bind endpoints, run tests
+- Viewer: read-only
+
+Every UI action must respect role permissions.
+
+---
+
+## Demo Seed Data (must include)
+Seed for one tenant:
+- Systems: Jira, Salesforce, NetSuite (dummy)
+- Endpoint Objects:
+  - Jira.ProjectRead v1
+  - Jira.ProjectUpdate v1
+  - Salesforce.CustomerRead v1
+  - NetSuite.BudgetLookup v1
+- Platform Objects:
+  - Project (v1 with attributes)
+  - Customer (v1)
+- Bindings:
+  - Project.Read → Jira.ProjectRead v1
+  - Project.Update → Jira.ProjectUpdate v1
+  - Project.Enrich → NetSuite.BudgetLookup v1
+- Attribute mappings for core fields
+- Publish Project v1 as internal interface
+
+---
+
+## Quality Bar
+- No hard-coded select options: all pickers populate dynamically from APIs.
+- Ensure referential integrity and safe deletes.
+- Add loading/error states and optimistic updates where safe.
+- Include unit tests for validation rules and mapping constraints.
+- Include API contract tests for core endpoints.
+
+---
+
+## Output Format
+1) Provide a detailed implementation plan aligned to stages above.
+2) Then start implementing Stage 1 immediately.
+3) After completing each stage, summarize what was built and ask for confirmation before proceeding.
