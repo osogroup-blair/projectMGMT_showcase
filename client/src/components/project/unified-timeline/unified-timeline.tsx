@@ -222,7 +222,7 @@ export function UnifiedTimeline({
                 )}
                 
                 {layers.deliverables && deliverables.length > 0 && (
-                  <div className="bg-blue-50/30" data-testid="sidebar-label-deliverables">
+                  <div data-testid="sidebar-label-deliverables">
                     {deliverables.map((deliverable) => {
                       const isExpanded = expandedDeliverables.has(deliverable.id);
                       const deliverableEpics = epics.filter((e) => e.deliverableId === deliverable.id);
@@ -232,8 +232,12 @@ export function UnifiedTimeline({
                       return (
                         <div key={deliverable.id}>
                           <div
-                            className="flex items-center gap-1 px-2 border-b bg-blue-50/20 hover:bg-blue-50/40 transition-colors cursor-pointer"
-                            style={{ height: DELIVERABLE_ROW_HEIGHT }}
+                            className="flex items-center gap-1.5 px-2 border-b hover:opacity-80 transition-colors cursor-pointer"
+                            style={{ 
+                              height: DELIVERABLE_ROW_HEIGHT,
+                              borderLeft: `4px solid ${color}`,
+                              backgroundColor: `${color}08`,
+                            }}
                             onClick={() => hasEpics && handleToggleDeliverable(deliverable.id)}
                             data-testid={`sidebar-deliverable-${deliverable.id}`}
                           >
@@ -256,11 +260,11 @@ export function UnifiedTimeline({
                               <div className="w-4 shrink-0" />
                             )}
                             <div 
-                              className="w-2 h-2 rounded-full shrink-0" 
+                              className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" 
                               style={{ backgroundColor: color }} 
                             />
                             <span 
-                              className="text-xs font-medium truncate"
+                              className="text-xs font-semibold truncate"
                               style={{ color }}
                             >
                               {deliverable.title}
@@ -270,8 +274,12 @@ export function UnifiedTimeline({
                           {isExpanded && hasEpics && deliverableEpics.map((epic) => (
                             <div
                               key={epic.id}
-                              className="flex items-center gap-1 pl-7 pr-2 border-b bg-slate-50/50 hover:bg-slate-100/50 transition-colors"
-                              style={{ height: EPIC_ROW_HEIGHT }}
+                              className="flex items-center gap-1.5 pl-7 pr-2 border-b hover:opacity-80 transition-colors"
+                              style={{ 
+                                height: EPIC_ROW_HEIGHT,
+                                borderLeft: `4px solid ${color}`,
+                                backgroundColor: `${color}05`,
+                              }}
                               data-testid={`sidebar-epic-${epic.id}`}
                             >
                               <div 
