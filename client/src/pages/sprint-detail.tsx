@@ -18,7 +18,14 @@ import {
   X,
   ChevronDown,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  Users,
+  AlertTriangle,
+  BarChart3,
+  Settings,
+  Trash2,
+  Archive,
+  Link as LinkIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,13 +37,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Link, useRoute } from "wouter";
+import { Link, useRoute, useSearch, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useSprints, useTasks, useProject, useUsers, useEpics } from "@/hooks/use-nexus-data";
+import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
@@ -57,13 +63,35 @@ export default function SprintDetail() {
   const [, params] = useRoute("/projects/:projectId/sprints/:sprintId");
   const projectId = params?.projectId || "";
   const sprintId = params?.sprintId || "";
+  const searchString = useSearch();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  const tabFromUrl = useMemo(() => {
+    const params = new URLSearchParams(searchString);
+    return params.get("tab") || "plan";
+  }, [searchString]);
+
+  const [activeTab, setActiveTab] = useState<string>(tabFromUrl);
+
+  useEffect(() => {
+    if (tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl, activeTab]);
+
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    setLocation(`/projects/${projectId}/sprints/${sprintId}?tab=${newTab}`);
+  };
+
   const { data: project } = useProject(projectId);
-  const { data: allSprints, update: updateSprint } = useSprints();
+  const { data: allSprints, update: updateSprint, remove: deleteSprint } = useSprints();
   const { data: allTasks, update: updateTask } = useTasks();
   const { data: users } = useUsers();
   const { data: allEpics } = useEpics();
+  const { data: allMilestones } = useMilestones();
+  const { data: allDeliverables } = useDeliverables();
 
   const sprint = useMemo(() => 
     (allSprints || []).find((s: any) => s.id === sprintId),
@@ -95,12 +123,16 @@ export default function SprintDetail() {
   const [isEditingDates, setIsEditingDates] = useState(false);
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
+  const [isEditingCapacity, setIsEditingCapacity] = useState(false);
+  const [editCapacity, setEditCapacity] = useState("");
   const [showAddTasksDialog, setShowAddTasksDialog] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("tasks");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const isReadOnly = sprint?.status === "closed";
+  const isPartiallyLocked = sprint?.status === "active";
 
   useEffect(() => {
     if (sprint) {
@@ -108,6 +140,7 @@ export default function SprintDetail() {
       setEditGoal(sprint.goal || "");
       setEditStartDate(sprint.startDate || "");
       setEditEndDate(sprint.endDate || "");
+      setEditCapacity(sprint.capacityHours?.toString() || "");
     }
   }, [sprint]);
 
@@ -127,6 +160,7 @@ export default function SprintDetail() {
   const handleSaveName = () => {
     if (editName.trim() && editName !== sprint?.name) {
       updateSprint({ id: sprintId, updates: { name: editName.trim() } });
+      toast({ title: "Sprint name updated" });
     }
     setIsEditingName(false);
   };
@@ -134,6 +168,7 @@ export default function SprintDetail() {
   const handleSaveGoal = () => {
     if (editGoal !== sprint?.goal) {
       updateSprint({ id: sprintId, updates: { goal: editGoal || null } });
+      toast({ title: "Sprint goal updated" });
     }
     setIsEditingGoal(false);
   };
@@ -147,6 +182,14 @@ export default function SprintDetail() {
       } 
     });
     setIsEditingDates(false);
+    toast({ title: "Sprint dates updated" });
+  };
+
+  const handleSaveCapacity = () => {
+    const hours = parseInt(editCapacity) || null;
+    updateSprint({ id: sprintId, updates: { capacityHours: hours } });
+    setIsEditingCapacity(false);
+    toast({ title: "Team capacity updated" });
   };
 
   const handleStartSprint = async () => {
@@ -215,6 +258,18 @@ export default function SprintDetail() {
     }
   };
 
+  const handleDeleteSprint = async () => {
+    if (!confirm("Are you sure you want to delete this sprint? This action cannot be undone.")) return;
+    try {
+      await fetch(`/api/sprints/${sprintId}`, { method: "DELETE" });
+      deleteSprint(sprintId);
+      toast({ title: "Sprint deleted" });
+      setLocation(`/projects/${projectId}?tab=sprints`);
+    } catch (error: any) {
+      toast({ title: "Failed to delete sprint", description: error.message, variant: "destructive" });
+    }
+  };
+
   const getUser = (userId?: string) => {
     if (!userId) return null;
     return (users || []).find((u: any) => u.id === userId);
@@ -238,9 +293,23 @@ export default function SprintDetail() {
     const total = sprintTasks.length;
     const done = sprintTasks.filter((t: any) => t.status === "Done" || t.status === "Completed").length;
     const inProgress = sprintTasks.filter((t: any) => t.status === "In Progress").length;
+    const toDo = sprintTasks.filter((t: any) => t.status === "To Do" || t.status === "Pending").length;
     const percent = total > 0 ? Math.round((done / total) * 100) : 0;
-    return { total, done, inProgress, percent };
+    const totalEffort = sprintTasks.reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
+    const doneEffort = sprintTasks.filter((t: any) => t.status === "Done" || t.status === "Completed")
+      .reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
+    return { total, done, inProgress, toDo, percent, totalEffort, doneEffort };
   }, [sprintTasks]);
+
+  const linkedEpics = useMemo(() => {
+    const epicIds = new Set(sprintTasks.map((t: any) => t.epicId).filter(Boolean));
+    return (allEpics || []).filter((e: any) => epicIds.has(e.id));
+  }, [sprintTasks, allEpics]);
+
+  const linkedMilestones = useMemo(() => {
+    const milestoneIds = new Set(sprintTasks.map((t: any) => t.milestoneId).filter(Boolean));
+    return (allMilestones || []).filter((m: any) => milestoneIds.has(m.id));
+  }, [sprintTasks, allMilestones]);
 
   if (!sprint) {
     return (
@@ -254,6 +323,7 @@ export default function SprintDetail() {
 
   const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
   const StatusIcon = statusConfig.icon;
+  const ownerUser = getUser(sprint.ownerUserId);
 
   return (
     <Shell>
@@ -264,7 +334,7 @@ export default function SprintDetail() {
               <Zap className={cn("h-6 w-6", statusConfig.color)} />
             </div>
             <div className="space-y-1">
-              {isEditingName ? (
+              {isEditingName && !isReadOnly ? (
                 <div className="flex items-center gap-2">
                   <Input
                     ref={nameInputRef}
@@ -286,12 +356,15 @@ export default function SprintDetail() {
                 </div>
               ) : (
                 <h1 
-                  className="text-2xl font-bold tracking-tight cursor-pointer hover:text-primary group flex items-center gap-2"
-                  onClick={() => setIsEditingName(true)}
+                  className={cn(
+                    "text-2xl font-bold tracking-tight group flex items-center gap-2",
+                    !isReadOnly && "cursor-pointer hover:text-primary"
+                  )}
+                  onClick={() => !isReadOnly && setIsEditingName(true)}
                   data-testid="text-sprint-name"
                 >
                   {sprint.name}
-                  <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-100 text-muted-foreground" />
+                  {!isReadOnly && <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-100 text-muted-foreground" />}
                 </h1>
               )}
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -323,219 +396,631 @@ export default function SprintDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center justify-between">
-                  Sprint Goal
-                  {!isEditingGoal && (
-                    <Button variant="ghost" size="sm" onClick={() => setIsEditingGoal(true)} data-testid="button-edit-goal">
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isEditingGoal ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      ref={goalInputRef}
-                      value={editGoal}
-                      onChange={(e) => setEditGoal(e.target.value)}
-                      placeholder="What do you want to achieve in this sprint?"
-                      className="min-h-[80px]"
-                      data-testid="input-edit-goal"
-                    />
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleSaveGoal} data-testid="button-save-goal">Save</Button>
-                      <Button size="sm" variant="outline" onClick={() => setIsEditingGoal(false)} data-testid="button-cancel-goal">Cancel</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">
-                    {sprint.goal || "No goal set for this sprint."}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Sprint Backlog</CardTitle>
-                  <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Tasks
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {sprintTasks.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Target className="h-8 w-8 mx-auto mb-2" />
-                    <p>No tasks in this sprint yet.</p>
-                    <Button variant="link" onClick={() => setShowAddTasksDialog(true)}>
-                      Add tasks from backlog
-                    </Button>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[40%]">Task</TableHead>
-                        <TableHead>Epic</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Assignee</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sprintTasks.map((task: any) => {
-                        const taskStatus = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG["Pending"];
-                        const TaskStatusIcon = taskStatus.icon;
-                        const assignee = getUser(task.assigneeId || task.assignee);
-                        const epic = getEpic(task.epicId);
-
-                        return (
-                          <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
-                            <TableCell>
-                              <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium hover:text-primary">
-                                {task.title || task.name}
-                              </Link>
-                            </TableCell>
-                            <TableCell>
-                              {epic ? (
-                                <Badge variant="outline" className="font-normal">
-                                  {epic.name}
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>
-                                <TaskStatusIcon className="h-3 w-3 mr-1" />
-                                {task.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {assignee ? (
-                                <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback className="text-xs">
-                                      {assignee.name?.charAt(0) || assignee.username?.charAt(0) || "?"}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm">{assignee.name || assignee.username}</span>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => handleRemoveTask(task.id)}
-                                data-testid={`button-remove-task-${task.id}`}
-                              >
-                                <X className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 bg-muted/30 rounded-lg border">
+          <div className="text-center">
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-xs text-muted-foreground">Total Tasks</div>
           </div>
-
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center justify-between">
-                  Dates
-                  {!isEditingDates && (
-                    <Button variant="ghost" size="sm" onClick={() => setIsEditingDates(true)} data-testid="button-edit-dates">
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isEditingDates ? (
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs">Start Date</Label>
-                      <Input
-                        type="date"
-                        value={editStartDate}
-                        onChange={(e) => setEditStartDate(e.target.value)}
-                        data-testid="input-edit-start-date"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">End Date</Label>
-                      <Input
-                        type="date"
-                        value={editEndDate}
-                        onChange={(e) => setEditEndDate(e.target.value)}
-                        data-testid="input-edit-end-date"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleSaveDates} data-testid="button-save-dates">Save</Button>
-                      <Button size="sm" variant="outline" onClick={() => setIsEditingDates(false)} data-testid="button-cancel-dates">Cancel</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Start</span>
-                      <span>{sprint.startDate ? new Date(sprint.startDate).toLocaleDateString() : "Not set"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">End</span>
-                      <span>{sprint.endDate ? new Date(sprint.endDate).toLocaleDateString() : "Not set"}</span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Progress</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Completion</span>
-                    <span className="font-medium">{stats.percent}%</span>
-                  </div>
-                  <Progress value={stats.percent} className="h-2" />
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                  <div className="p-2 rounded-md bg-slate-50">
-                    <div className="text-lg font-semibold">{stats.total}</div>
-                    <div className="text-xs text-muted-foreground">Total</div>
-                  </div>
-                  <div className="p-2 rounded-md bg-blue-50">
-                    <div className="text-lg font-semibold text-blue-600">{stats.inProgress}</div>
-                    <div className="text-xs text-muted-foreground">In Progress</div>
-                  </div>
-                  <div className="p-2 rounded-md bg-green-50">
-                    <div className="text-lg font-semibold text-green-600">{stats.done}</div>
-                    <div className="text-xs text-muted-foreground">Done</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">{stats.done}</div>
+            <div className="text-xs text-muted-foreground">Completed</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
+            <div className="text-xs text-muted-foreground">In Progress</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-slate-600">{stats.toDo}</div>
+            <div className="text-xs text-muted-foreground">To Do</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold">{stats.percent}%</div>
+            <div className="text-xs text-muted-foreground">Progress</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold">{stats.totalEffort}</div>
+            <div className="text-xs text-muted-foreground">Story Points</div>
           </div>
         </div>
+
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
+            <TabsTrigger 
+              value="plan" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+              data-testid="tab-plan"
+            >
+              <Target className="h-4 w-4 mr-2" />
+              Plan
+            </TabsTrigger>
+            <TabsTrigger 
+              value="run" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+              data-testid="tab-run"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Run
+            </TabsTrigger>
+            <TabsTrigger 
+              value="insights" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+              data-testid="tab-insights"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Insights
+            </TabsTrigger>
+            <TabsTrigger 
+              value="settings" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+              data-testid="tab-settings"
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="plan" className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center justify-between">
+                      Sprint Goal & Success Criteria
+                      {!isEditingGoal && !isReadOnly && (
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingGoal(true)} data-testid="button-edit-goal">
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isEditingGoal && !isReadOnly ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          ref={goalInputRef}
+                          value={editGoal}
+                          onChange={(e) => setEditGoal(e.target.value)}
+                          placeholder="What do you want to achieve in this sprint? Include success criteria."
+                          className="min-h-[100px]"
+                          data-testid="input-edit-goal"
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveGoal} data-testid="button-save-goal">Save</Button>
+                          <Button size="sm" variant="outline" onClick={() => setIsEditingGoal(false)} data-testid="button-cancel-goal">Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground whitespace-pre-wrap">
+                        {sprint.goal || "No goal set for this sprint. Define what you want to achieve."}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Sprint Backlog</CardTitle>
+                      {!isReadOnly && (
+                        <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks">
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Tasks
+                        </Button>
+                      )}
+                    </div>
+                    <CardDescription>
+                      {stats.total} tasks committed, {stats.totalEffort} story points
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {sprintTasks.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Target className="h-8 w-8 mx-auto mb-2" />
+                        <p>No tasks in this sprint yet.</p>
+                        {!isReadOnly && (
+                          <Button variant="link" onClick={() => setShowAddTasksDialog(true)}>
+                            Add tasks from backlog
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[40%]">Task</TableHead>
+                            <TableHead>Epic</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Effort</TableHead>
+                            <TableHead>Assignee</TableHead>
+                            {!isReadOnly && <TableHead className="w-[50px]"></TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sprintTasks.map((task: any) => {
+                            const taskStatus = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG["Pending"];
+                            const TaskStatusIcon = taskStatus.icon;
+                            const assignee = getUser(task.assigneeId || task.assignee);
+                            const epic = getEpic(task.epicId);
+
+                            return (
+                              <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
+                                <TableCell>
+                                  <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium hover:text-primary">
+                                    {task.title || task.name}
+                                  </Link>
+                                </TableCell>
+                                <TableCell>
+                                  {epic ? (
+                                    <Link href={`/projects/${projectId}/epics/${epic.id}`}>
+                                      <Badge variant="outline" className="font-normal hover:bg-muted cursor-pointer">
+                                        {epic.title || epic.name}
+                                      </Badge>
+                                    </Link>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>
+                                    <TaskStatusIcon className="h-3 w-3 mr-1" />
+                                    {task.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm">{task.effort || "-"}</span>
+                                </TableCell>
+                                <TableCell>
+                                  {assignee ? (
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarFallback className="text-xs">
+                                          {assignee.name?.charAt(0) || assignee.username?.charAt(0) || "?"}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm">{assignee.name || assignee.username}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                                {!isReadOnly && (
+                                  <TableCell>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => handleRemoveTask(task.id)}
+                                      data-testid={`button-remove-task-${task.id}`}
+                                    >
+                                      <X className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {(linkedEpics.length > 0 || linkedMilestones.length > 0) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <LinkIcon className="h-4 w-4" />
+                        Linked Entities
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {linkedEpics.length > 0 && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Epics</Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {linkedEpics.map((epic: any) => (
+                              <Link key={epic.id} href={`/projects/${projectId}/epics/${epic.id}`}>
+                                <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                                  {epic.title || epic.name}
+                                </Badge>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {linkedMilestones.length > 0 && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Milestones</Label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {linkedMilestones.map((milestone: any) => (
+                              <Link key={milestone.id} href={`/projects/${projectId}/milestones/${milestone.id}`}>
+                                <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                                  {milestone.name}
+                                </Badge>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center justify-between">
+                      Dates
+                      {!isEditingDates && !isPartiallyLocked && !isReadOnly && (
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingDates(true)} data-testid="button-edit-dates">
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isEditingDates && !isPartiallyLocked && !isReadOnly ? (
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs">Start Date</Label>
+                          <Input
+                            type="date"
+                            value={editStartDate}
+                            onChange={(e) => setEditStartDate(e.target.value)}
+                            data-testid="input-edit-start-date"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">End Date</Label>
+                          <Input
+                            type="date"
+                            value={editEndDate}
+                            onChange={(e) => setEditEndDate(e.target.value)}
+                            data-testid="input-edit-end-date"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveDates} data-testid="button-save-dates">Save</Button>
+                          <Button size="sm" variant="outline" onClick={() => setIsEditingDates(false)} data-testid="button-cancel-dates">Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Start</span>
+                          <span>{sprint.startDate ? new Date(sprint.startDate).toLocaleDateString() : "Not set"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">End</span>
+                          <span>{sprint.endDate ? new Date(sprint.endDate).toLocaleDateString() : "Not set"}</span>
+                        </div>
+                        {isPartiallyLocked && (
+                          <p className="text-xs text-muted-foreground italic mt-2">
+                            Dates cannot be changed while sprint is active.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center justify-between">
+                      Team Capacity
+                      {!isEditingCapacity && !isReadOnly && (
+                        <Button variant="ghost" size="sm" onClick={() => setIsEditingCapacity(true)} data-testid="button-edit-capacity">
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isEditingCapacity && !isReadOnly ? (
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs">Capacity (hours)</Label>
+                          <Input
+                            type="number"
+                            value={editCapacity}
+                            onChange={(e) => setEditCapacity(e.target.value)}
+                            placeholder="e.g., 80"
+                            data-testid="input-edit-capacity"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveCapacity} data-testid="button-save-capacity">Save</Button>
+                          <Button size="sm" variant="outline" onClick={() => setIsEditingCapacity(false)} data-testid="button-cancel-capacity">Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Hours</span>
+                          <span>{sprint.capacityHours || "Not set"}</span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Progress</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">Completion</span>
+                        <span className="font-medium">{stats.percent}%</span>
+                      </div>
+                      <Progress value={stats.percent} className="h-2" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                      <div className="p-2 rounded-md bg-slate-50">
+                        <div className="text-lg font-semibold">{stats.total}</div>
+                        <div className="text-xs text-muted-foreground">Total</div>
+                      </div>
+                      <div className="p-2 rounded-md bg-blue-50">
+                        <div className="text-lg font-semibold text-blue-600">{stats.inProgress}</div>
+                        <div className="text-xs text-muted-foreground">In Progress</div>
+                      </div>
+                      <div className="p-2 rounded-md bg-green-50">
+                        <div className="text-lg font-semibold text-green-600">{stats.done}</div>
+                        <div className="text-xs text-muted-foreground">Done</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="run" className="mt-6">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Active Task Board</CardTitle>
+                    {!isReadOnly && (
+                      <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks-run">
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Tasks
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 font-medium text-sm text-slate-600 pb-2 border-b">
+                        <Circle className="h-4 w-4" />
+                        To Do ({stats.toDo})
+                      </div>
+                      <div className="space-y-2 min-h-[200px]">
+                        {sprintTasks.filter((t: any) => t.status === "To Do" || t.status === "Pending").map((task: any) => (
+                          <Card key={task.id} className="p-3">
+                            <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium text-sm hover:text-primary">
+                              {task.title || task.name}
+                            </Link>
+                            <div className="flex items-center justify-between mt-2">
+                              {task.effort && <Badge variant="outline" className="text-xs">{task.effort} pts</Badge>}
+                              {getUser(task.assigneeId) && (
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-xs">
+                                    {getUser(task.assigneeId)?.name?.charAt(0) || "?"}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 font-medium text-sm text-blue-600 pb-2 border-b">
+                        <Clock className="h-4 w-4" />
+                        In Progress ({stats.inProgress})
+                      </div>
+                      <div className="space-y-2 min-h-[200px]">
+                        {sprintTasks.filter((t: any) => t.status === "In Progress").map((task: any) => (
+                          <Card key={task.id} className="p-3 border-l-2 border-l-blue-500">
+                            <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium text-sm hover:text-primary">
+                              {task.title || task.name}
+                            </Link>
+                            <div className="flex items-center justify-between mt-2">
+                              {task.effort && <Badge variant="outline" className="text-xs">{task.effort} pts</Badge>}
+                              {getUser(task.assigneeId) && (
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-xs">
+                                    {getUser(task.assigneeId)?.name?.charAt(0) || "?"}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 font-medium text-sm text-green-600 pb-2 border-b">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Done ({stats.done})
+                      </div>
+                      <div className="space-y-2 min-h-[200px]">
+                        {sprintTasks.filter((t: any) => t.status === "Done" || t.status === "Completed").map((task: any) => (
+                          <Card key={task.id} className="p-3 border-l-2 border-l-green-500 bg-green-50/30">
+                            <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium text-sm hover:text-primary">
+                              {task.title || task.name}
+                            </Link>
+                            <div className="flex items-center justify-between mt-2">
+                              {task.effort && <Badge variant="outline" className="text-xs">{task.effort} pts</Badge>}
+                              {getUser(task.assigneeId) && (
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-xs">
+                                    {getUser(task.assigneeId)?.name?.charAt(0) || "?"}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="insights" className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Planned vs Actual</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Committed Tasks</span>
+                      <span className="font-medium">{stats.total}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Completed Tasks</span>
+                      <span className="font-medium text-green-600">{stats.done}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Completion Rate</span>
+                      <span className="font-medium">{stats.percent}%</span>
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Committed Effort</span>
+                      <span className="font-medium">{stats.totalEffort} pts</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Delivered Effort</span>
+                      <span className="font-medium text-green-600">{stats.doneEffort} pts</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Sprint Velocity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-center h-40 text-muted-foreground">
+                    <div className="text-center">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Velocity chart coming soon</p>
+                      <p className="text-xs">Compare across sprints to track team capacity</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Retrospective</CardTitle>
+                  <CardDescription>Reflect on what worked well and what can be improved</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+                      <h4 className="font-medium text-green-800 mb-2">What went well</h4>
+                      <p className="text-sm text-green-700">Add retrospective notes after sprint completion.</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                      <h4 className="font-medium text-amber-800 mb-2">What could improve</h4>
+                      <p className="text-sm text-amber-700">Identify areas for improvement in future sprints.</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                      <h4 className="font-medium text-blue-800 mb-2">Action items</h4>
+                      <p className="text-sm text-blue-700">Track improvement commitments for the next sprint.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Sprint Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Current Status</span>
+                    <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0")}>
+                      <StatusIcon className="h-3 w-3 mr-1" />
+                      {statusConfig.label}
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    {sprint.status === "planned" && (
+                      <Button onClick={handleStartSprint} className="flex-1" data-testid="button-start-sprint-settings">
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Sprint
+                      </Button>
+                    )}
+                    {sprint.status === "active" && (
+                      <Button variant="secondary" onClick={handleCloseSprint} className="flex-1" data-testid="button-close-sprint-settings">
+                        <Square className="h-4 w-4 mr-2" />
+                        Close Sprint
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Sprint Owner</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {ownerUser ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback>{ownerUser.name?.charAt(0) || "?"}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{ownerUser.name}</div>
+                        <div className="text-sm text-muted-foreground">{ownerUser.email || ownerUser.username}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No owner assigned</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2 border-red-200">
+                <CardHeader>
+                  <CardTitle className="text-base text-red-600">Danger Zone</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-4 rounded-lg border border-red-200 bg-red-50">
+                    <div>
+                      <div className="font-medium">Delete Sprint</div>
+                      <div className="text-sm text-muted-foreground">Permanently delete this sprint and remove all task associations.</div>
+                    </div>
+                    <Button variant="destructive" onClick={handleDeleteSprint} data-testid="button-delete-sprint">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={showAddTasksDialog} onOpenChange={setShowAddTasksDialog}>
@@ -554,61 +1039,50 @@ export default function SprintDetail() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
-                data-testid="input-search-backlog"
+                data-testid="input-search-tasks"
               />
             </div>
             <div className="max-h-[300px] overflow-y-auto border rounded-md">
               {filteredBacklogTasks.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground">
-                  No tasks in backlog
+                <div className="p-8 text-center text-muted-foreground">
+                  <p>No tasks available in backlog</p>
                 </div>
               ) : (
-                filteredBacklogTasks.map((task: any) => (
-                  <div 
-                    key={task.id}
-                    className="flex items-center gap-3 p-3 border-b last:border-0 hover:bg-muted/50"
-                    data-testid={`checkbox-task-${task.id}`}
-                  >
-                    <Checkbox
-                      checked={selectedTasks.includes(task.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedTasks([...selectedTasks, task.id]);
-                        } else {
-                          setSelectedTasks(selectedTasks.filter(id => id !== task.id));
-                        }
-                      }}
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium">{task.title || task.name}</div>
-                      {task.epicId && (
-                        <div className="text-xs text-muted-foreground">
-                          Epic: {getEpic(task.epicId)?.name}
-                        </div>
-                      )}
-                    </div>
-                    <Badge variant="outline" className="text-xs">
-                      {task.status}
-                    </Badge>
-                  </div>
-                ))
+                <Table>
+                  <TableBody>
+                    {filteredBacklogTasks.map((task: any) => (
+                      <TableRow key={task.id} data-testid={`row-backlog-task-${task.id}`}>
+                        <TableCell className="w-[40px]">
+                          <Checkbox
+                            checked={selectedTasks.includes(task.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedTasks([...selectedTasks, task.id]);
+                              } else {
+                                setSelectedTasks(selectedTasks.filter(id => id !== task.id));
+                              }
+                            }}
+                            data-testid={`checkbox-task-${task.id}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{task.title || task.name}</div>
+                          {task.effort && <span className="text-xs text-muted-foreground">{task.effort} pts</span>}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
             </div>
           </div>
           <DialogFooter>
-            <div className="flex items-center justify-between w-full">
-              <span className="text-sm text-muted-foreground">
-                {selectedTasks.length} task(s) selected
-              </span>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowAddTasksDialog(false)} data-testid="button-cancel-add-tasks">
-                  Cancel
-                </Button>
-                <Button onClick={handleAddTasks} disabled={selectedTasks.length === 0} data-testid="button-confirm-add-tasks">
-                  Add to Sprint
-                </Button>
-              </div>
-            </div>
+            <Button variant="outline" onClick={() => setShowAddTasksDialog(false)} data-testid="button-cancel-add-tasks">
+              Cancel
+            </Button>
+            <Button onClick={handleAddTasks} disabled={selectedTasks.length === 0} data-testid="button-confirm-add-tasks">
+              Add {selectedTasks.length} Task{selectedTasks.length !== 1 ? "s" : ""}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

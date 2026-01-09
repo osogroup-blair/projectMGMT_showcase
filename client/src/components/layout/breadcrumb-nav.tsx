@@ -1,7 +1,7 @@
 import { RefreshCw, Settings, Grid3x3, Sliders, ChevronRight, Home as HomeIcon, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link, useSearch } from "wouter";
-import { useProjects, useMilestones } from "@/hooks/use-nexus-data";
+import { useProjects, useMilestones, useSprints } from "@/hooks/use-nexus-data";
 import { Fragment, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PROJECT_STAGES } from "@/lib/mock-data";
@@ -13,6 +13,7 @@ const TAB_LABELS: Record<string, string> = {
   timeline: "Timeline",
   milestones: "Milestones",
   stages: "Stages",
+  sprints: "Sprints",
 };
 
 export function BreadcrumbNav() {
@@ -21,6 +22,7 @@ export function BreadcrumbNav() {
   const pathSegments = location.split("/").filter(Boolean);
   const { data: projects } = useProjects();
   const { data: allMilestones } = useMilestones();
+  const { data: allSprints } = useSprints();
 
   // Parse tab from URL query params
   const activeTab = useMemo(() => {
@@ -30,18 +32,21 @@ export function BreadcrumbNav() {
 
   // Extract specific entity IDs from URL for targeted lookups
   const entityIds = useMemo(() => {
-    const ids: { deliverableId?: string; epicId?: string; taskId?: string } = {};
+    const ids: { deliverableId?: string; epicId?: string; taskId?: string; sprintId?: string } = {};
     for (let i = 0; i < pathSegments.length; i++) {
       const prev = pathSegments[i - 1];
       const segment = pathSegments[i];
-      if (prev === "deliverables" && segment && !["epics", "tasks", "milestones"].includes(segment)) {
+      if (prev === "deliverables" && segment && !["epics", "tasks", "milestones", "sprints"].includes(segment)) {
         ids.deliverableId = segment;
       }
-      if (prev === "epics" && segment && !["tasks", "milestones"].includes(segment)) {
+      if (prev === "epics" && segment && !["tasks", "milestones", "sprints"].includes(segment)) {
         ids.epicId = segment;
       }
       if (prev === "tasks" && segment) {
         ids.taskId = segment;
+      }
+      if (prev === "sprints" && segment) {
+        ids.sprintId = segment;
       }
     }
     return ids;
@@ -119,6 +124,7 @@ export function BreadcrumbNav() {
     if (segment === "epics") return "Epics";
     if (segment === "tasks") return "Tasks";
     if (segment === "milestones") return "Milestones";
+    if (segment === "sprints") return "Sprints";
     if (segment === "view-settings") return "View Settings";
 
     const prevSegment = allSegments[index - 1];
@@ -154,6 +160,11 @@ export function BreadcrumbNav() {
       return milestone?.name || "Milestone";
     }
 
+    if (prevSegment === "sprints" && allSprints) {
+      const sprint = allSprints.find((s: any) => s.id === segment);
+      return sprint?.name || "Sprint";
+    }
+
     return segment;
   };
 
@@ -165,9 +176,18 @@ export function BreadcrumbNav() {
     pathSegments[0] === "projects" && 
     pathSegments[2] === "tasks";
 
+  // Check if we're on a sprint detail page: /projects/:projectId/sprints/:sprintId
+  const isSprintDetailPage = pathSegments.length === 4 && 
+    pathSegments[0] === "projects" && 
+    pathSegments[2] === "sprints";
+
   // Get project info for task detail breadcrumb
   const projectIdFromPath = pathSegments[1];
   const projectForBreadcrumb = projects?.find((p: any) => p.id === projectIdFromPath);
+  
+  // Get sprint info for sprint detail breadcrumb
+  const sprintIdFromPath = isSprintDetailPage ? pathSegments[3] : null;
+  const sprintForBreadcrumb = sprintIdFromPath ? allSprints?.find((s: any) => s.id === sprintIdFromPath) : null;
 
   return (
     <div className="h-12 border-b border-border bg-background flex items-center justify-between px-6 shrink-0">
@@ -186,8 +206,28 @@ export function BreadcrumbNav() {
           <HomeIcon className="h-4 w-4" />
         </Link>
         
-        {/* Custom breadcrumb for task detail page: Project > Deliverable > Epic > Task */}
-        {isTaskDetailPage && taskDeliverable && taskEpic && task ? (
+        {/* Custom breadcrumb for sprint detail page: Project > Sprints > Sprint Name */}
+        {isSprintDetailPage && sprintForBreadcrumb ? (
+          <>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href="/projects" className="hover:text-primary transition-colors truncate max-w-[150px]">
+              Projects
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href={`/projects/${projectIdFromPath}`} className="hover:text-primary transition-colors truncate max-w-[150px]">
+              {projectForBreadcrumb?.name || "Project"}
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href={`/projects/${projectIdFromPath}?tab=sprints`} className="hover:text-primary transition-colors truncate max-w-[150px]">
+              Sprints
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <span className="font-medium text-foreground truncate max-w-[200px]">
+              {sprintForBreadcrumb.name}
+            </span>
+          </>
+        ) : /* Custom breadcrumb for task detail page: Project > Deliverable > Epic > Task */
+        isTaskDetailPage && taskDeliverable && taskEpic && task ? (
           <>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
             <Link href="/projects" className="hover:text-primary transition-colors truncate max-w-[150px]">
