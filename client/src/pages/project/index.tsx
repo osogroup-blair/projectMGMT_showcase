@@ -359,244 +359,308 @@ export default function ProjectOverview() {
   const completionPercentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return (
-    <Shell>
-      <div className="space-y-8">
-        {/* Header Section */}
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                {isEditingTitle ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="text-2xl font-bold h-10 w-80"
+    <Shell noPadding>
+      <div className="flex flex-col">
+        {/* Header Section - Wrapped in padding */}
+        <div className="px-6 py-8 space-y-8">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  {isEditingTitle ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="text-2xl font-bold h-10 w-80"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveTitle();
+                          if (e.key === "Escape") { setIsEditingTitle(false); setEditTitle(project.name); }
+                        }}
+                        data-testid="input-edit-title"
+                      />
+                      <Button size="icon" variant="ghost" onClick={handleSaveTitle} data-testid="button-save-title">
+                        <Check className="h-4 w-4 text-green-600" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => { setIsEditingTitle(false); setEditTitle(project.name); }} data-testid="button-cancel-title">
+                        <X className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group">
+                      <h1 className="text-3xl font-bold tracking-tight text-primary" data-testid="text-project-title">{project.name}</h1>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="opacity-0 group-hover:opacity-100 transition-opacity" 
+                        onClick={() => setIsEditingTitle(true)}
+                        data-testid="button-edit-title"
+                      >
+                        <Pencil className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  )}
+                  <Badge variant="outline" className={cn(
+                    "px-2.5 py-0.5 text-sm font-medium border-0",
+                    project.status === 'In Progress' && "bg-blue-50 text-blue-700",
+                    project.status === 'Upcoming' && "bg-purple-50 text-purple-700",
+                    project.status === 'Overdue' && "bg-red-50 text-red-700",
+                    project.status === 'Completed' && "bg-green-50 text-green-700"
+                  )}>
+                    {project.status}
+                  </Badge>
+                </div>
+
+                {isEditingDescription ? (
+                  <div className="flex items-start gap-2 max-w-xl">
+                    <Textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      placeholder="Add a project description..."
+                      className="min-h-[60px] text-sm"
                       autoFocus
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveTitle();
-                        if (e.key === "Escape") { setIsEditingTitle(false); setEditTitle(project.name); }
+                        if (e.key === "Escape") { setIsEditingDescription(false); setEditDescription(project.description || ""); }
                       }}
-                      data-testid="input-edit-title"
+                      data-testid="input-edit-description"
                     />
-                    <Button size="icon" variant="ghost" onClick={handleSaveTitle} data-testid="button-save-title">
+                    <Button size="icon" variant="ghost" onClick={handleSaveDescription} data-testid="button-save-description">
                       <Check className="h-4 w-4 text-green-600" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => { setIsEditingTitle(false); setEditTitle(project.name); }} data-testid="button-cancel-title">
+                    <Button size="icon" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditDescription(project.description || ""); }} data-testid="button-cancel-description">
                       <X className="h-4 w-4 text-red-600" />
                     </Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 group">
-                    <h1 className="text-3xl font-bold tracking-tight text-primary" data-testid="text-project-title">{project.name}</h1>
+                    <p className="text-sm text-muted-foreground max-w-xl" data-testid="text-project-description">
+                      {project.description || <span className="italic">Click to add description...</span>}
+                    </p>
                     <Button 
                       size="icon" 
                       variant="ghost" 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity" 
-                      onClick={() => setIsEditingTitle(true)}
-                      data-testid="button-edit-title"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6" 
+                      onClick={() => setIsEditingDescription(true)}
+                      data-testid="button-edit-description"
                     >
-                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
                     </Button>
                   </div>
                 )}
-                <Badge variant="outline" className={cn(
-                  "px-2.5 py-0.5 text-sm font-medium border-0",
-                  project.status === 'In Progress' && "bg-blue-50 text-blue-700",
-                  project.status === 'Upcoming' && "bg-purple-50 text-purple-700",
-                  project.status === 'Overdue' && "bg-red-50 text-red-700",
-                  project.status === 'Completed' && "bg-green-50 text-green-700"
-                )}>
-                  {project.status}
-                </Badge>
+
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5" data-testid="text-framework-name">
+                    <Briefcase className="h-4 w-4" />
+                    {frameworkName}
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                  {isEditingStartDate ? (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <Input
+                        type="date"
+                        value={editStartDate}
+                        onChange={(e) => setEditStartDate(e.target.value)}
+                        className="h-7 w-36 text-sm"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveStartDate();
+                          if (e.key === "Escape") { setIsEditingStartDate(false); setEditStartDate(project.startDate || ""); }
+                        }}
+                        data-testid="input-edit-start-date"
+                      />
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveStartDate} data-testid="button-save-start-date">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setIsEditingStartDate(false); setEditStartDate(project.startDate || ""); }} data-testid="button-cancel-start-date">
+                        <X className="h-3 w-3 text-red-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 group">
+                      <Calendar className="h-4 w-4" />
+                      <span data-testid="text-start-date">Start: {project.startDate || "Not set"}</span>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5" 
+                        onClick={() => setIsEditingStartDate(true)}
+                        data-testid="button-edit-start-date"
+                      >
+                        <Pencil className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  )}
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                  {isEditingDeadline ? (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <Input
+                        type="date"
+                        value={editDeadline}
+                        onChange={(e) => setEditDeadline(e.target.value)}
+                        className="h-7 w-36 text-sm"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveDeadline();
+                          if (e.key === "Escape") { setIsEditingDeadline(false); setEditDeadline(project.deadline || ""); }
+                        }}
+                        data-testid="input-edit-deadline"
+                      />
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveDeadline} data-testid="button-save-deadline">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setIsEditingDeadline(false); setEditDeadline(project.deadline || ""); }} data-testid="button-cancel-deadline">
+                        <X className="h-3 w-3 text-red-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 group">
+                      <Calendar className="h-4 w-4" />
+                      <span data-testid="text-deadline">Due {project.deadline || "Not set"}</span>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5" 
+                        onClick={() => setIsEditingDeadline(true)}
+                        data-testid="button-edit-deadline"
+                      >
+                        <Pencil className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {isEditingDescription ? (
-                <div className="flex items-start gap-2 max-w-xl">
-                  <Textarea
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    placeholder="Add a project description..."
-                    className="min-h-[60px] text-sm"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") { setIsEditingDescription(false); setEditDescription(project.description || ""); }
-                    }}
-                    data-testid="input-edit-description"
-                  />
-                  <Button size="icon" variant="ghost" onClick={handleSaveDescription} data-testid="button-save-description">
-                    <Check className="h-4 w-4 text-green-600" />
+              <div className="flex gap-2 w-full lg:w-auto">
+                <Link href={`/projects/${projectId}/management`}>
+                  <Button variant="outline" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Management
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => { setIsEditingDescription(false); setEditDescription(project.description || ""); }} data-testid="button-cancel-description">
-                    <X className="h-4 w-4 text-red-600" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 group">
-                  <p className="text-sm text-muted-foreground max-w-xl" data-testid="text-project-description">
-                    {project.description || <span className="italic">Click to add description...</span>}
-                  </p>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6" 
-                    onClick={() => setIsEditingDescription(true)}
-                    data-testid="button-edit-description"
-                  >
-                    <Pencil className="h-3 w-3 text-muted-foreground" />
-                  </Button>
-                </div>
-              )}
-
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5" data-testid="text-framework-name">
-                  <Briefcase className="h-4 w-4" />
-                  {frameworkName}
-                </span>
-                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                {isEditingStartDate ? (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <Input
-                      type="date"
-                      value={editStartDate}
-                      onChange={(e) => setEditStartDate(e.target.value)}
-                      className="h-7 w-36 text-sm"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveStartDate();
-                        if (e.key === "Escape") { setIsEditingStartDate(false); setEditStartDate(project.startDate || ""); }
-                      }}
-                      data-testid="input-edit-start-date"
-                    />
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveStartDate} data-testid="button-save-start-date">
-                      <Check className="h-3 w-3 text-green-600" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setIsEditingStartDate(false); setEditStartDate(project.startDate || ""); }} data-testid="button-cancel-start-date">
-                      <X className="h-3 w-3 text-red-600" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 group">
-                    <Calendar className="h-4 w-4" />
-                    <span data-testid="text-start-date">Start: {project.startDate || "Not set"}</span>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5" 
-                      onClick={() => setIsEditingStartDate(true)}
-                      data-testid="button-edit-start-date"
-                    >
-                      <Pencil className="h-3 w-3 text-muted-foreground" />
-                    </Button>
-                  </div>
-                )}
-                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                {isEditingDeadline ? (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <Input
-                      type="date"
-                      value={editDeadline}
-                      onChange={(e) => setEditDeadline(e.target.value)}
-                      className="h-7 w-36 text-sm"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveDeadline();
-                        if (e.key === "Escape") { setIsEditingDeadline(false); setEditDeadline(project.deadline || ""); }
-                      }}
-                      data-testid="input-edit-deadline"
-                    />
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveDeadline} data-testid="button-save-deadline">
-                      <Check className="h-3 w-3 text-green-600" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setIsEditingDeadline(false); setEditDeadline(project.deadline || ""); }} data-testid="button-cancel-deadline">
-                      <X className="h-3 w-3 text-red-600" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 group">
-                    <Calendar className="h-4 w-4" />
-                    <span data-testid="text-deadline">Due {project.deadline || "Not set"}</span>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5" 
-                      onClick={() => setIsEditingDeadline(true)}
-                      data-testid="button-edit-deadline"
-                    >
-                      <Pencil className="h-3 w-3 text-muted-foreground" />
-                    </Button>
-                  </div>
-                )}
+                </Link>
+                <Button size="icon" variant="ghost">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
-            <div className="flex gap-2 w-full lg:w-auto">
-              <Link href={`/projects/${projectId}/management`}>
-                <Button variant="outline" className="gap-2">
-                  <Settings className="h-4 w-4" />
-                  Management
-                </Button>
-              </Link>
-              <Button size="icon" variant="ghost">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-muted-foreground">Completion</p>
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-2xl font-bold" data-testid="text-completion-percent">{completionPercentage}%</h3>
+                  </div>
+                  <Progress value={completionPercentage} className="h-2 mt-4" />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
+                    <ListTodo className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-2xl font-bold" data-testid="text-total-tasks">{stats.total}</h3>
+                    <p className="text-xs text-muted-foreground">across all epics</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    {stats.completed} completed, {stats.inProgress} in progress
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-muted-foreground">At Risk</p>
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-2xl font-bold text-red-600" data-testid="text-at-risk-tasks">{stats.atRisk}</h3>
+                    <p className="text-xs text-muted-foreground">tasks needing attention</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    High priority items past due
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-muted-foreground">Milestones</p>
+                    <Flag className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-2xl font-bold" data-testid="text-milestone-count">{milestones.length}</h3>
+                    <p className="text-xs text-muted-foreground">defined</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-4">
+                    Next: {milestones[0]?.name || "None scheduled"}
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
 
-
-        {/* Tabs Navigation */}
+        {/* Tabs Navigation - Sticky to Breadcrumbs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <div className="sticky top-28 z-30 bg-background -mx-6 px-6 pb-0">
-            <div className="flex items-center justify-between border-b">
-              <TabsList className="justify-start rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto">
+          <div className="sticky top-0 z-30 bg-background border-b shadow-sm">
+            <div className="px-6">
+              <TabsList className="justify-start rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto no-scrollbar">
                 <TabsTrigger 
                   value="overview" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Dashboard
                 </TabsTrigger>
 
                 <TabsTrigger 
                   value="timeline" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Timeline
                 </TabsTrigger>
 
                 <TabsTrigger 
                   value="sprints" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Sprints
                 </TabsTrigger>
 
                 <TabsTrigger 
                   value="milestones" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Milestones
                 </TabsTrigger>
 
                 <TabsTrigger 
                   value="tasks" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Tasks
                 </TabsTrigger>
 
                 <TabsTrigger 
                   value="deliverables" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Deliverables
                 </TabsTrigger>
 
                 <TabsTrigger 
                   value="stages" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Stages
                 </TabsTrigger>
@@ -604,47 +668,42 @@ export default function ProjectOverview() {
             </div>
           </div>
 
-          {/* Project Overview Tab Content */}
-          <TabsContent value="overview" className="space-y-6 mt-0">
-            <TimeHorizonDashboard projectId={projectId} />
-          </TabsContent>
+          <div className="px-6 py-6">
+            <TabsContent value="overview" className="mt-0 outline-none">
+              <TimeHorizonDashboard projectId={projectId} />
+            </TabsContent>
 
-          {/* Timeline Tab Content */}
-          <TabsContent value="timeline" className="h-[700px] mt-0">
-            <UnifiedTimeline 
-              project={project}
-              sprints={projectSprints}
-              milestones={milestones}
-              stages={stages}
-              deliverables={projectDeliverables}
-              epics={projectEpics}
-            />
-          </TabsContent>
+            <TabsContent value="timeline" className="h-[700px] mt-0 outline-none">
+              <UnifiedTimeline 
+                project={project}
+                sprints={projectSprints}
+                milestones={milestones}
+                stages={stages}
+                deliverables={projectDeliverables}
+                epics={projectEpics}
+              />
+            </TabsContent>
 
-          {/* Sprints Tab */}
-          <TabsContent value="sprints" className="mt-0">
-            <SprintsContent projectId={projectId} />
-          </TabsContent>
+            <TabsContent value="sprints" className="mt-0 outline-none">
+              <SprintsContent projectId={projectId} />
+            </TabsContent>
 
-          {/* Milestones Tab */}
-          <TabsContent value="milestones" className="mt-0">
-            <MilestonesContent projectId={projectId} />
-          </TabsContent>
+            <TabsContent value="milestones" className="mt-0 outline-none">
+              <MilestonesContent projectId={projectId} />
+            </TabsContent>
 
-          {/* Tasks Tab Content */}
-          <TabsContent value="tasks" className="mt-0">
-            <TaskListContent projectId={projectId} />
-          </TabsContent>
-          
-          {/* Deliverables Tab */}
-          <TabsContent value="deliverables" className="mt-0">
-            <DeliverablesContent projectId={projectId} />
-          </TabsContent>
+            <TabsContent value="tasks" className="mt-0 outline-none">
+              <TaskListContent projectId={projectId} />
+            </TabsContent>
+            
+            <TabsContent value="deliverables" className="mt-0 outline-none">
+              <DeliverablesContent projectId={projectId} />
+            </TabsContent>
 
-          {/* Stages Tab */}
-          <TabsContent value="stages" className="mt-0">
-            <StagesContent projectId={projectId} />
-          </TabsContent>
+            <TabsContent value="stages" className="mt-0 outline-none">
+              <StagesContent projectId={projectId} />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </Shell>

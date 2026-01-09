@@ -1,8 +1,9 @@
+import { cn } from "@/lib/utils";
 import { TopNav } from "./top-nav";
 import { SubNav } from "./sub-nav";
 import { BreadcrumbNav } from "./breadcrumb-nav";
 
-export function Shell({ children }: { children: React.ReactNode }) {
+export function Shell({ children, noPadding = false }: { children: React.ReactNode, noPadding?: boolean }) {
   return (
     <div className="h-screen overflow-hidden bg-background font-sans">
       {/* Fixed Top Nav - h-16 (64px) */}
@@ -22,7 +23,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       
       {/* Scrollable Content Area - mt-28 = 16 (header) + 12 (breadcrumb) = 112px */}
       <main className="ml-48 pt-28 h-screen overflow-auto">
-        <div className="p-6 space-y-8">
+        <div className={cn(noPadding ? "" : "p-6", !noPadding && "space-y-8")}>
           {children}
         </div>
       </main>
