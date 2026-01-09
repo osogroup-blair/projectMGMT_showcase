@@ -165,9 +165,9 @@ export function UnifiedTimeline({
           onLayerToggle={handleLayerToggle}
         />
 
-        <div className="flex flex-1 overflow-hidden relative">
+        <div className="flex flex-1 relative overflow-hidden">
           <div 
-            className="flex-shrink-0 w-48 border-r bg-background relative z-40 flex flex-col"
+            className="flex-shrink-0 w-48 border-r bg-background relative z-40 flex flex-col overflow-hidden"
           >
             <div 
               className="h-12 border-b flex items-center px-3 bg-muted/30 shrink-0"
