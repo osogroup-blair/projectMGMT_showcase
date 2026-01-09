@@ -398,6 +398,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         showFilter={false}
+        addButtonLabel="Add Milestone"
+        onAddClick={handleCreateMilestone}
       />
 
       <div className="space-y-4 pt-4">

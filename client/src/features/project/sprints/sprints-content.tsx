@@ -164,6 +164,8 @@ export function SprintsContent({ projectId }: { projectId: string }) {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         showFilter={false}
+        addButtonLabel="Add Sprint"
+        onAddClick={() => setShowCreateDialog(true)}
       />
 
       <div className="space-y-4 pt-4">

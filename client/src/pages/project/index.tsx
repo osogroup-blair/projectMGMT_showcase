@@ -601,21 +601,6 @@ export default function ProjectOverview() {
                   Stages
                 </TabsTrigger>
               </TabsList>
-
-              {activeTab !== "overview" && activeTab !== "timeline" && (
-                <Button 
-                  size="sm" 
-                  className="gap-1.5 mb-1"
-                  data-testid={`button-add-${activeTab}`}
-                  onClick={() => {
-                    const addButton = document.querySelector(`[data-testid="button-create-${activeTab}"]`) as HTMLButtonElement;
-                    if (addButton) addButton.click();
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add {activeTab === "tasks" ? "Task" : activeTab === "deliverables" ? "Deliverable" : activeTab === "milestones" ? "Milestone" : activeTab === "stages" ? "Stage" : activeTab === "sprints" ? "Sprint" : ""}
-                </Button>
-              )}
             </div>
           </div>
 

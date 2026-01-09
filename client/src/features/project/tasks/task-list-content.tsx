@@ -293,6 +293,15 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 </Badge>
               )}
             </Button>
+            <Button 
+              size="sm"
+              className="gap-1.5"
+              onClick={openCreateDialog}
+              data-testid="button-add-task"
+            >
+              <Plus className="h-4 w-4" />
+              Add Task
+            </Button>
           </div>
         </div>
 

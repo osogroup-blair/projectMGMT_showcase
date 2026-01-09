@@ -205,6 +205,11 @@ export function StagesContent({ projectId }: { projectId: string }) {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         showFilter={false}
+        addButtonLabel="Add Stage"
+        onAddClick={() => {
+          const btn = document.querySelector('[data-testid="button-create-stages"]') as HTMLButtonElement;
+          if (btn) btn.click();
+        }}
       />
 
       <div className="space-y-4 pt-4">

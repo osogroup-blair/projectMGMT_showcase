@@ -437,7 +437,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
       />
 
       <div className="sticky top-40 z-20 bg-background py-3 -mx-6 px-6 border-b">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -448,7 +448,16 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               data-testid="input-search-deliverables"
             />
           </div>
-          <div className="flex items-center rounded-md bg-muted p-0.5">
+          <Button 
+            size="sm"
+            className="gap-1.5"
+            onClick={handleCreateDeliverable}
+            data-testid="button-add-deliverable"
+          >
+            <Plus className="h-4 w-4" />
+            Add Deliverable
+          </Button>
+          <div className="flex items-center rounded-md bg-muted p-0.5 ml-auto">
             <button
               onClick={() => setViewMode("list")}
               className={cn(

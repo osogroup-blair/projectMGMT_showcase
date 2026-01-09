@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Search, SlidersHorizontal, LayoutGrid, List } from "lucide-react";
+import { Search, SlidersHorizontal, LayoutGrid, List, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +16,8 @@ interface TabToolbarProps {
   filterCount?: number;
   onFilterClick?: () => void;
   showFilter?: boolean;
+  addButtonLabel?: string;
+  onAddClick?: () => void;
   className?: string;
 }
 
@@ -29,7 +30,9 @@ export function TabToolbar({
   showViewToggle = true,
   filterCount = 0,
   onFilterClick,
-  showFilter = true,
+  showFilter = false,
+  addButtonLabel,
+  onAddClick,
   className,
 }: TabToolbarProps) {
   return (
@@ -67,8 +70,20 @@ export function TabToolbar({
           </Button>
         )}
 
+        {addButtonLabel && onAddClick && (
+          <Button 
+            size="sm"
+            className="gap-1.5"
+            onClick={onAddClick}
+            data-testid="button-add-item"
+          >
+            <Plus className="h-4 w-4" />
+            {addButtonLabel}
+          </Button>
+        )}
+
         {showViewToggle && onViewModeChange && (
-          <div className="flex items-center rounded-md bg-muted p-0.5">
+          <div className="flex items-center rounded-md bg-muted p-0.5 ml-auto">
             <button
               onClick={() => onViewModeChange("list")}
               className={cn(
