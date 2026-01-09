@@ -2462,9 +2462,96 @@ export async function registerRoutes(
 
       const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+      // Returns mapped ID if available, otherwise returns original value (for pre-existing entities)
       const remapForeignKey = (value: string | undefined, entityType: string): string | undefined => {
         if (!value) return undefined;
-        return idMappings[entityType]?.[value] || value;
+        // Check if we have a mapping from this import batch
+        if (idMappings[entityType]?.[value]) {
+          return idMappings[entityType][value];
+        }
+        // Return original value - it might reference a pre-existing entity
+        return value;
+      };
+
+      // Cache for verified existing entity IDs to avoid repeated lookups
+      const existingEntityCache: Record<string, Set<string>> = {
+        Users: new Set<string>(),
+        Projects: new Set<string>(),
+        Deliverables: new Set<string>(),
+        Epics: new Set<string>(),
+        ProjectStages: new Set<string>(),
+        Milestones: new Set<string>(),
+        Sprints: new Set<string>()
+      };
+
+      // Pre-fetch existing entities for FK validation
+      const existingUsers = await storage.getUsers();
+      existingUsers.forEach(u => existingEntityCache.Users.add(u.id));
+      
+      const existingProjects = await storage.getProjects();
+      existingProjects.forEach(p => existingEntityCache.Projects.add(p.id));
+      
+      const existingDeliverables = await storage.getDeliverables();
+      existingDeliverables.forEach(d => existingEntityCache.Deliverables.add(d.id));
+      
+      const existingEpics = await storage.getEpics();
+      existingEpics.forEach(e => existingEntityCache.Epics.add(e.id));
+      
+      const existingStages = await storage.getProjectStages();
+      existingStages.forEach(s => existingEntityCache.ProjectStages.add(s.id));
+      
+      const existingSprints = await storage.getSprints();
+      existingSprints.forEach(s => existingEntityCache.Sprints.add(s.id));
+      
+      const existingMilestones = await storage.getMilestones();
+      existingMilestones.forEach(m => existingEntityCache.Milestones.add(m.id));
+
+      // Cache for fallback user - fetched once when needed
+      let fallbackUserId: string | undefined;
+      const getFallbackUserId = async (): Promise<string | undefined> => {
+        if (fallbackUserId) return fallbackUserId;
+        // First try defaults.ownerId but verify it exists
+        if (defaults?.ownerId && existingEntityCache.Users.has(defaults.ownerId)) {
+          fallbackUserId = defaults.ownerId;
+          return fallbackUserId;
+        }
+        // Fall back to first existing user
+        fallbackUserId = existingUsers[0]?.id;
+        return fallbackUserId;
+      };
+
+      // Validate ownerId - returns valid ID or undefined
+      const validateOwnerId = async (ownerId: string | undefined): Promise<string | undefined> => {
+        if (!ownerId) return undefined;
+        // Check if it's a newly created user from this import
+        const mappedId = idMappings.Users[ownerId];
+        if (mappedId) return mappedId;
+        // Check if it's an existing user
+        if (existingEntityCache.Users.has(ownerId)) return ownerId;
+        // Not found - return undefined to trigger fallback
+        return undefined;
+      };
+
+      // Validate any FK - returns valid ID only if it exists (in mappings or in DB)
+      const validateForeignKey = (value: string | undefined, entityType: string): string | undefined => {
+        if (!value) return undefined;
+        // Check if it was created in this import batch
+        if (idMappings[entityType]?.[value]) {
+          return idMappings[entityType][value];
+        }
+        // Check if it exists in the database
+        if (existingEntityCache[entityType]?.has(value)) {
+          return value;
+        }
+        // Not found - return undefined
+        return undefined;
+      };
+
+      // Register newly created entity in cache for child entities to reference
+      const registerCreatedEntity = (entityType: string, id: string) => {
+        if (existingEntityCache[entityType]) {
+          existingEntityCache[entityType].add(id);
+        }
       };
 
       for (const entityType of importOrder) {
@@ -2494,6 +2581,14 @@ export async function registerRoutes(
               }
 
               case 'Projects': {
+                // Build ownerId with fallback chain: validate existing → mapped user → defaults.ownerId → first existing user
+                let projectOwnerId = await validateOwnerId(row.ownerId);
+                if (!projectOwnerId) {
+                  projectOwnerId = await getFallbackUserId();
+                  if (row.ownerId) {
+                    console.log(`Import: Project "${row.name}" ownerId "${row.ownerId}" not found, using fallback user`);
+                  }
+                }
                 const projectData = {
                   id: newId,
                   name: row.name || 'Imported Project',
@@ -2502,7 +2597,7 @@ export async function registerRoutes(
                   startDate: row.startDate || defaults?.startDate,
                   deadline: row.deadline || defaults?.deadline || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                   progress: row.progress || 0,
-                  ownerId: remapForeignKey(row.ownerId, 'Users') || defaults?.ownerId,
+                  ownerId: projectOwnerId,
                   frameworkId: row.frameworkId,
                   client: row.client,
                   riskLevel: row.riskLevel,
@@ -2510,14 +2605,20 @@ export async function registerRoutes(
                 };
                 await storage.createProject(projectData);
                 idMappings.Projects[sourceId] = newId;
+                registerCreatedEntity('Projects', newId);
                 results[entityType].created++;
                 break;
               }
 
               case 'ProjectStages': {
+                const validProjectId = validateForeignKey(row.projectId, 'Projects');
+                if (!validProjectId) {
+                  results[entityType].errors.push(`Stage "${row.name}": projectId "${row.projectId}" not found`);
+                  continue;
+                }
                 const stageData = {
                   id: newId,
-                  projectId: remapForeignKey(row.projectId, 'Projects'),
+                  projectId: validProjectId,
                   name: row.name || 'Imported Stage',
                   description: row.description,
                   order: row.order || 0,
@@ -2526,26 +2627,22 @@ export async function registerRoutes(
                   startDate: row.startDate,
                   endDate: row.endDate
                 };
-                if (!stageData.projectId) {
-                  results[entityType].errors.push(`Stage "${row.name}": Missing projectId`);
-                  continue;
-                }
                 await storage.createProjectStage(stageData);
                 idMappings.ProjectStages[sourceId] = newId;
+                registerCreatedEntity('ProjectStages', newId);
                 results[entityType].created++;
                 break;
               }
 
               case 'Deliverables': {
-                const mappedProjectId = remapForeignKey(row.projectId, 'Projects');
-                if (!mappedProjectId) {
-                  results[entityType].errors.push(`Deliverable "${row.title}": Missing projectId`);
+                const validProjectId = validateForeignKey(row.projectId, 'Projects');
+                if (!validProjectId) {
+                  results[entityType].errors.push(`Deliverable "${row.title}": projectId "${row.projectId}" not found`);
                   continue;
                 }
-                let mappedOwnerId = remapForeignKey(row.ownerId, 'Users') || defaults?.ownerId;
+                let mappedOwnerId = await validateOwnerId(row.ownerId);
                 if (!mappedOwnerId) {
-                  const users = await storage.getUsers();
-                  mappedOwnerId = users[0]?.id;
+                  mappedOwnerId = await getFallbackUserId();
                 }
                 if (!mappedOwnerId) {
                   results[entityType].errors.push(`Deliverable "${row.title}": No owner available`);
@@ -2553,7 +2650,7 @@ export async function registerRoutes(
                 }
                 const deliverableData = {
                   id: newId,
-                  projectId: mappedProjectId,
+                  projectId: validProjectId,
                   title: row.title || row.name || 'Imported Deliverable',
                   description: row.description || row.title || 'Imported deliverable',
                   status: row.status || 'Not Started',
@@ -2565,20 +2662,20 @@ export async function registerRoutes(
                 };
                 await storage.createDeliverable(deliverableData);
                 idMappings.Deliverables[sourceId] = newId;
+                registerCreatedEntity('Deliverables', newId);
                 results[entityType].created++;
                 break;
               }
 
               case 'Epics': {
-                const mappedDeliverableId = remapForeignKey(row.deliverableId, 'Deliverables');
-                if (!mappedDeliverableId) {
-                  results[entityType].errors.push(`Epic "${row.title}": Missing deliverableId`);
+                const validDeliverableId = validateForeignKey(row.deliverableId, 'Deliverables');
+                if (!validDeliverableId) {
+                  results[entityType].errors.push(`Epic "${row.title}": deliverableId "${row.deliverableId}" not found`);
                   continue;
                 }
-                let epicOwnerId = remapForeignKey(row.ownerId, 'Users') || defaults?.ownerId;
+                let epicOwnerId = await validateOwnerId(row.ownerId);
                 if (!epicOwnerId) {
-                  const users = await storage.getUsers();
-                  epicOwnerId = users[0]?.id;
+                  epicOwnerId = await getFallbackUserId();
                 }
                 if (!epicOwnerId) {
                   results[entityType].errors.push(`Epic "${row.title}": No owner available`);
@@ -2586,7 +2683,7 @@ export async function registerRoutes(
                 }
                 const epicData = {
                   id: newId,
-                  deliverableId: mappedDeliverableId,
+                  deliverableId: validDeliverableId,
                   title: row.title || row.name || 'Imported Epic',
                   description: row.description || row.title || 'Imported epic',
                   status: row.status || 'Not Started',
@@ -2599,15 +2696,20 @@ export async function registerRoutes(
                 };
                 await storage.createEpic(epicData);
                 idMappings.Epics[sourceId] = newId;
+                registerCreatedEntity('Epics', newId);
                 results[entityType].created++;
                 break;
               }
 
               case 'Milestones': {
-                let milestoneOwnerId = remapForeignKey(row.ownerId, 'Users') || defaults?.ownerId;
+                const validMilestoneProjectId = validateForeignKey(row.projectId, 'Projects');
+                // Log warning if projectId was provided but not found (projectId is nullable in schema)
+                if (row.projectId && !validMilestoneProjectId) {
+                  console.log(`Import: Milestone "${row.name}" projectId "${row.projectId}" not found, clearing reference`);
+                }
+                let milestoneOwnerId = await validateOwnerId(row.ownerId);
                 if (!milestoneOwnerId) {
-                  const users = await storage.getUsers();
-                  milestoneOwnerId = users[0]?.id;
+                  milestoneOwnerId = await getFallbackUserId();
                 }
                 if (!milestoneOwnerId) {
                   results[entityType].errors.push(`Milestone "${row.name}": No owner available`);
@@ -2615,7 +2717,7 @@ export async function registerRoutes(
                 }
                 const milestoneData = {
                   id: newId,
-                  projectId: remapForeignKey(row.projectId, 'Projects'),
+                  projectId: validMilestoneProjectId || null,
                   name: row.name || 'Imported Milestone',
                   description: row.description || 'Imported milestone',
                   phase: row.phase || 'Planning',
@@ -2627,19 +2729,20 @@ export async function registerRoutes(
                 };
                 await storage.createMilestone(milestoneData);
                 idMappings.Milestones[sourceId] = newId;
+                registerCreatedEntity('Milestones', newId);
                 results[entityType].created++;
                 break;
               }
 
               case 'Sprints': {
-                const mappedSprintProjectId = remapForeignKey(row.projectId, 'Projects');
-                if (!mappedSprintProjectId) {
-                  results[entityType].errors.push(`Sprint "${row.name}": Missing projectId`);
+                const validSprintProjectId = validateForeignKey(row.projectId, 'Projects');
+                if (!validSprintProjectId) {
+                  results[entityType].errors.push(`Sprint "${row.name}": projectId "${row.projectId}" not found`);
                   continue;
                 }
                 const sprintData = {
                   id: newId,
-                  projectId: mappedSprintProjectId,
+                  projectId: validSprintProjectId,
                   name: row.name || 'Imported Sprint',
                   goal: row.goal,
                   startDate: row.startDate || defaults?.startDate,
@@ -2649,25 +2752,42 @@ export async function registerRoutes(
                 };
                 await storage.createSprint(sprintData);
                 idMappings.Sprints[sourceId] = newId;
+                registerCreatedEntity('Sprints', newId);
                 results[entityType].created++;
                 break;
               }
 
               case 'Tasks': {
+                // Validate task FKs - all are optional in schema, but log warnings for unmapped references
+                const validEpicId = validateForeignKey(row.epicId, 'Epics');
+                const validProjectId = validateForeignKey(row.projectId, 'Projects');
+                const validStageId = validateForeignKey(row.stageId, 'ProjectStages');
+                const validAssigneeId = await validateOwnerId(row.assigneeId);
+                const validMilestoneId = validateForeignKey(row.milestoneId, 'Milestones');
+                const validSprintId = validateForeignKey(row.sprintId, 'Sprints');
+                
+                // Log warnings for unmapped FKs but continue (they're nullable in schema)
+                if (row.epicId && !validEpicId) {
+                  console.log(`Import: Task "${row.title}" epicId "${row.epicId}" not found, clearing reference`);
+                }
+                if (row.projectId && !validProjectId) {
+                  console.log(`Import: Task "${row.title}" projectId "${row.projectId}" not found, clearing reference`);
+                }
+                
                 const taskData = {
                   id: newId,
                   title: row.title || 'Imported Task',
                   description: row.description,
                   project: row.project || 'Imported',
-                  projectId: remapForeignKey(row.projectId, 'Projects'),
-                  epicId: remapForeignKey(row.epicId, 'Epics'),
-                  stageId: remapForeignKey(row.stageId, 'ProjectStages'),
+                  projectId: validProjectId || null,
+                  epicId: validEpicId || null,
+                  stageId: validStageId || null,
                   status: row.status || 'To Do',
-                  assigneeId: remapForeignKey(row.assigneeId, 'Users'),
+                  assigneeId: validAssigneeId || null,
                   deadline: row.deadline || defaults?.deadline || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                   priority: row.priority || 'Medium',
-                  milestoneId: remapForeignKey(row.milestoneId, 'Milestones'),
-                  sprintId: remapForeignKey(row.sprintId, 'Sprints'),
+                  milestoneId: validMilestoneId || null,
+                  sprintId: validSprintId || null,
                   estimateHours: row.estimateHours,
                   effort: row.effort,
                   tags: row.tags || [],
