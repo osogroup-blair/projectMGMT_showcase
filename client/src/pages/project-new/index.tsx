@@ -550,6 +550,7 @@ export default function ProjectWizard() {
         description: "Project-wide management activities and cross-cutting tasks",
         status: "Active",
         ownerId: projectData.ownerId || "1",
+        startDate: projectData.startDate || new Date().toISOString().split('T')[0],
         dueDate: projectData.dueDate || new Date().toISOString().split('T')[0],
         progress: 0
       });
@@ -595,6 +596,7 @@ export default function ProjectWizard() {
           description: deliverable.description || "",
           status: "Active",
           ownerId: projectData.ownerId || "1",
+          startDate: projectData.startDate || new Date().toISOString().split('T')[0],
           dueDate: projectData.dueDate || new Date().toISOString().split('T')[0],
           progress: 0
         });
