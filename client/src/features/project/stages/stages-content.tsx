@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
 
 const PRIORITY_CONFIG: Record<string, string> = {
   "Low": "bg-slate-50 text-slate-700 border-slate-200",
@@ -65,9 +66,12 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogStageId, setDialogStageId] = useState<string | null>(null);
   const [dialogMode, setDialogMode] = useState<"search" | "create">("create");
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedEpicId, setSelectedEpicId] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
+
+  // Toolbar state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -167,6 +171,16 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading;
 
+  // Filter stages by search query
+  const filteredStages = useMemo(() => {
+    if (!searchQuery.trim()) return stages;
+    const query = searchQuery.toLowerCase();
+    return stages.filter((stage: any) => 
+      stage.name?.toLowerCase().includes(query) ||
+      stage.description?.toLowerCase().includes(query)
+    );
+  }, [stages, searchQuery]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -184,9 +198,18 @@ export function StagesContent({ projectId }: { projectId: string }) {
         aria-hidden="true"
       />
 
+      <TabToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search stages..."
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        showFilter={false}
+      />
+
       <div className="space-y-4 pt-4">
         <Accordion type="multiple" defaultValue={[]} className="space-y-4">
-          {stages.map((stage: any) => {
+          {filteredStages.map((stage: any) => {
             const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
             const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
             const progress = getStageProgress(stage.id);

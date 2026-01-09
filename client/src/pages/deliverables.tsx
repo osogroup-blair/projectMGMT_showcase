@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Pencil,
   X,
-  Trash2
+  Trash2,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,11 +74,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TabToolbar } from "@/components/ui/tab-toolbar";
 
 // Export content component separately for reuse
 export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
@@ -96,6 +99,17 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const [deliverableToDelete, setDeliverableToDelete] = useState<{ id: string; title: string } | null>(null);
 
   const deliverables = allDeliverables.filter((d: any) => d.projectId === projectId);
+  
+  // Filter deliverables by search query
+  const filteredDeliverables = useMemo(() => {
+    if (!searchQuery.trim()) return deliverables;
+    const query = searchQuery.toLowerCase();
+    return deliverables.filter((d: any) => 
+      d.title?.toLowerCase().includes(query) ||
+      d.description?.toLowerCase().includes(query)
+    );
+  }, [deliverables, searchQuery]);
+  
   const getEpicsForDeliverable = (deliverableId: string) => allEpics.filter((e: any) => e.deliverableId === deliverableId);
   const getOwner = (ownerId: string) => users.find((t: any) => t.id === ownerId);
 
@@ -422,40 +436,62 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         aria-hidden="true"
       />
 
-      <div className="flex justify-end items-center gap-3 pt-4 mb-4">
-        <div className="flex items-center border rounded-lg p-1 bg-muted/30">
-          <button
-            onClick={() => setViewMode("list")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-              viewMode === "list" 
-                ? "bg-background text-foreground shadow-sm" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            data-testid="button-view-list"
-          >
-            <List className="h-4 w-4" />
-            List
-          </button>
-          <button
-            onClick={() => setViewMode("gantt")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-              viewMode === "gantt" 
-                ? "bg-background text-foreground shadow-sm" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            data-testid="button-view-gantt"
-          >
-            <GanttChart className="h-4 w-4" />
-            Gantt
-          </button>
+      <div className="sticky top-40 z-20 bg-background py-3 -mx-6 px-6 border-b">
+        <div className="flex items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search deliverables..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-9"
+              data-testid="input-search-deliverables"
+            />
+          </div>
+          <div className="flex items-center rounded-md bg-muted p-0.5">
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
+                viewMode === "list" 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              data-testid="button-view-list"
+            >
+              <List className="h-4 w-4" />
+              List
+            </button>
+            <button
+              onClick={() => setViewMode("gantt")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
+                viewMode === "gantt" 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              data-testid="button-view-gantt"
+            >
+              <GanttChart className="h-4 w-4" />
+              Gantt
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Deliverables Content */}
-      <div className="space-y-6">
-        {deliverables.length === 0 ? (
+      <div className="space-y-6 pt-4">
+        {filteredDeliverables.length === 0 && deliverables.length > 0 ? (
+          <Card className="bg-muted/10 border-dashed">
+            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <Package className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+              <h3 className="text-lg font-medium">No deliverables match your search</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mt-2">
+                Try adjusting your search terms.
+              </p>
+            </CardContent>
+          </Card>
+        ) : deliverables.length === 0 ? (
           <Card className="bg-muted/10 border-dashed">
             <CardContent className="flex flex-col items-center justify-center p-12 text-center">
               <Package className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
@@ -490,7 +526,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               
               {/* Gantt Rows */}
               <div className="divide-y">
-                {deliverables.map((deliverable: any) => {
+                {filteredDeliverables.map((deliverable: any) => {
                   const epics = getEpicsForDeliverable(deliverable.id);
                   const progress = getDeliverableProgress(deliverable.id);
                   const barStyle = getBarStyle(
@@ -594,7 +630,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         ) : (
           /* List View */
           <Accordion type="multiple" defaultValue={[]} className="space-y-4">
-            {deliverables.map(deliverable => {
+            {filteredDeliverables.map(deliverable => {
               const epics = getEpicsForDeliverable(deliverable.id);
               const owner = getOwner(deliverable.ownerId);
               const progress = getDeliverableProgress(deliverable.id);

@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -105,6 +106,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
   // Milestone search state
   const [milestoneSearchQuery, setMilestoneSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   const milestones = useMemo(() => 
     (allMilestones || []).filter((m: any) => m.projectId === projectId),
@@ -387,6 +389,15 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
         onClick={handleCreateMilestone} 
         className="hidden" 
         aria-hidden="true"
+      />
+
+      <TabToolbar
+        searchQuery={milestoneSearchQuery}
+        onSearchChange={setMilestoneSearchQuery}
+        searchPlaceholder="Search milestones..."
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        showFilter={false}
       />
 
       <div className="space-y-4 pt-4">

@@ -10,7 +10,8 @@ import {
   Circle,
   MoreVertical,
   Trash2,
-  Loader2
+  Loader2,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -52,6 +54,20 @@ export function SprintsContent({ projectId }: { projectId: string }) {
     startDate: "",
     endDate: "",
   });
+
+  // Toolbar state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
+
+  // Filter sprints by search query
+  const filteredSprints = useMemo(() => {
+    if (!searchQuery.trim()) return sprints;
+    const query = searchQuery.toLowerCase();
+    return sprints.filter((sprint: any) => 
+      sprint.name?.toLowerCase().includes(query) ||
+      sprint.goal?.toLowerCase().includes(query)
+    );
+  }, [sprints, searchQuery]);
 
   const handleCreateSprint = async () => {
     if (!newSprint.name.trim()) {
@@ -132,7 +148,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-4 pt-4">
+    <>
       {/* Hidden trigger for tab-level Add button */}
       <button 
         data-testid="button-create-sprints" 
@@ -141,8 +157,28 @@ export function SprintsContent({ projectId }: { projectId: string }) {
         aria-hidden="true"
       />
 
-      <div className="grid gap-4">
-        {sprints.length === 0 ? (
+      <TabToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search sprints..."
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        showFilter={false}
+      />
+
+      <div className="space-y-4 pt-4">
+        <div className="grid gap-4">
+          {filteredSprints.length === 0 && sprints.length > 0 ? (
+            <Card className="bg-muted/10 border-dashed">
+              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                <Zap className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+                <h3 className="text-lg font-medium">No sprints match your search</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mt-2">
+                  Try adjusting your search terms.
+                </p>
+              </CardContent>
+            </Card>
+          ) : sprints.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Zap className="h-12 w-12 text-muted-foreground mb-4" />
@@ -157,7 +193,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
             </CardContent>
           </Card>
         ) : (
-          sprints.map((sprint: any) => {
+          filteredSprints.map((sprint: any) => {
             const stats = getSprintStats(sprint.id);
             const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
             const StatusIcon = statusConfig.icon;
@@ -170,15 +206,18 @@ export function SprintsContent({ projectId }: { projectId: string }) {
                       <div className={cn("p-2 rounded-md", statusConfig.bgColor)}>
                         <Zap className={cn("h-5 w-5", statusConfig.color)} />
                       </div>
-                      <div>
+                      <div className="flex items-center gap-3">
                         <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
                           <CardTitle className="text-lg hover:text-primary cursor-pointer" data-testid={`link-sprint-${sprint.id}`}>
                             {sprint.name}
                           </CardTitle>
                         </Link>
-                        {sprint.goal && (
-                          <CardDescription className="mt-1">{sprint.goal}</CardDescription>
-                        )}
+                        <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
+                          <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-sprint-${sprint.id}`}>
+                            <ExternalLink className="h-3 w-3" />
+                            Overview
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -213,6 +252,9 @@ export function SprintsContent({ projectId }: { projectId: string }) {
                       </DropdownMenu>
                     </div>
                   </div>
+                  {sprint.goal && (
+                    <CardDescription className="mt-1">{sprint.goal}</CardDescription>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-6 text-sm text-muted-foreground mb-3">
@@ -251,6 +293,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
             );
           })
         )}
+        </div>
       </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
@@ -333,6 +376,6 @@ export function SprintsContent({ projectId }: { projectId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

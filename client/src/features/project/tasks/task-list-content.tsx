@@ -265,32 +265,35 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       />
 
       {/* Search and Filter Bar */}
-      <div className="flex flex-col gap-4 pt-4">
-        <div className="flex gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-tasks"
-            />
+      <div className="flex flex-col gap-4">
+        <div className="sticky top-40 z-20 bg-background py-3 -mx-6 px-6 border-b">
+          <div className="flex gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-9"
+                data-testid="input-search-tasks"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="gap-2"
+              onClick={() => setFilterModalOpen(true)}
+              data-testid="button-open-filters"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {activeFilterCount}
+                </Badge>
+              )}
+            </Button>
           </div>
-          <Button 
-            variant="outline" 
-            className="gap-2"
-            onClick={() => setFilterModalOpen(true)}
-            data-testid="button-open-filters"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                {activeFilterCount}
-              </Badge>
-            )}
-          </Button>
         </div>
 
         {/* Active Filters Summary */}
