@@ -473,14 +473,69 @@ function RiskRadarCard({ risks }: { risks: RiskItem[] }) {
 
 interface TimeHorizonDashboardProps {
   projectId?: string;
+  externalFilters?: DashboardFilters;
+  onFiltersChange?: (filters: DashboardFilters) => void;
 }
 
-export default function TimeHorizonDashboard({ projectId }: TimeHorizonDashboardProps) {
-  const [filters, setFilters] = useState<DashboardFilters>({
+export function DashboardFilterControls({
+  filters,
+  onFiltersChange,
+}: {
+  filters: DashboardFilters;
+  onFiltersChange: (filters: DashboardFilters) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Select 
+        value={filters.range} 
+        onValueChange={(value: TimeRange) => onFiltersChange({ ...filters, range: value })}
+      >
+        <SelectTrigger className="w-[130px] h-8 text-xs" data-testid="range-selector">
+          <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="week">This Week</SelectItem>
+          <SelectItem value="nextWeek">Next Week</SelectItem>
+          <SelectItem value="30days">30 Days</SelectItem>
+          <SelectItem value="60days">60 Days</SelectItem>
+          <SelectItem value="90days">90 Days</SelectItem>
+        </SelectContent>
+      </Select>
+      
+      <Select 
+        value={filters.assigneeScope} 
+        onValueChange={(value: AssigneeScope) => onFiltersChange({ ...filters, assigneeScope: value })}
+      >
+        <SelectTrigger className="w-[120px] h-8 text-xs" data-testid="scope-selector">
+          <Users className="h-3.5 w-3.5 mr-1.5" />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="me">Assigned to me</SelectItem>
+          <SelectItem value="team">My team</SelectItem>
+          <SelectItem value="all">Everyone</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+export default function TimeHorizonDashboard({ projectId, externalFilters, onFiltersChange }: TimeHorizonDashboardProps) {
+  const [internalFilters, setInternalFilters] = useState<DashboardFilters>({
     range: 'week',
     projectIds: projectId ? [projectId] : [],
     assigneeScope: 'all',
   });
+
+  const filters = externalFilters || internalFilters;
+  const updateFilters = (newFilters: DashboardFilters) => {
+    if (onFiltersChange) {
+      onFiltersChange(newFilters);
+    } else {
+      setInternalFilters(newFilters);
+    }
+  };
 
   const { data: dashboard, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard', filters, projectId],
@@ -534,50 +589,50 @@ export default function TimeHorizonDashboard({ projectId }: TimeHorizonDashboard
 
   return (
     <div className={cn("space-y-6", !isProjectScoped && "p-6")}>
-      <div className="flex items-center justify-between">
-        {!isProjectScoped && (
+      {!isProjectScoped && (
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">What matters now, what's coming, and where risks are forming</p>
           </div>
-        )}
-        
-        <div className={cn("flex items-center gap-3", isProjectScoped && "ml-auto")}>
-          <Select 
-            value={filters.range} 
-            onValueChange={(value: TimeRange) => setFilters(f => ({ ...f, range: value }))}
-          >
-            <SelectTrigger className="w-[140px]" data-testid="range-selector">
-              <CalendarDays className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="nextWeek">Next Week</SelectItem>
-              <SelectItem value="30days">30 Days</SelectItem>
-              <SelectItem value="60days">60 Days</SelectItem>
-              <SelectItem value="90days">90 Days</SelectItem>
-            </SelectContent>
-          </Select>
           
-          <Select 
-            value={filters.assigneeScope} 
-            onValueChange={(value: AssigneeScope) => setFilters(f => ({ ...f, assigneeScope: value }))}
-          >
-            <SelectTrigger className="w-[130px]" data-testid="scope-selector">
-              <Users className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="me">Assigned to me</SelectItem>
-              <SelectItem value="team">My team</SelectItem>
-              <SelectItem value="all">Everyone</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+          <div className="flex items-center gap-3">
+            <Select 
+              value={filters.range} 
+              onValueChange={(value: TimeRange) => updateFilters({ ...filters, range: value })}
+            >
+              <SelectTrigger className="w-[140px]" data-testid="range-selector">
+                <CalendarDays className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="nextWeek">Next Week</SelectItem>
+                <SelectItem value="30days">30 Days</SelectItem>
+                <SelectItem value="60days">60 Days</SelectItem>
+                <SelectItem value="90days">90 Days</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select 
+              value={filters.assigneeScope} 
+              onValueChange={(value: AssigneeScope) => updateFilters({ ...filters, assigneeScope: value })}
+            >
+              <SelectTrigger className="w-[130px]" data-testid="scope-selector">
+                <Users className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="me">Assigned to me</SelectItem>
+                <SelectItem value="team">My team</SelectItem>
+                <SelectItem value="all">Everyone</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      <SummaryBar summary={dashboard.summary} />
+          <SummaryBar summary={dashboard.summary} />
+        </div>
+      )}
 
       <Tabs defaultValue="thisWeek" className="space-y-6">
         <TabsList>

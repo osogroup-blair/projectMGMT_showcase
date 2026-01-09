@@ -48,7 +48,7 @@ import { UnifiedTimeline } from "@/features/project/timeline/unified-timeline";
 import { useMemo, useState, useEffect } from "react";
 import { ProjectDashboard } from "@/features/project/dashboard/types";
 import { differenceInDays, parseISO } from "date-fns";
-import { TimeHorizonDashboard } from "@/features/dashboard";
+import { TimeHorizonDashboard, DashboardFilterControls, type DashboardFilters } from "@/features/dashboard";
 
 // Mock Data Types
 interface TaskStats {
@@ -121,6 +121,13 @@ export default function ProjectOverview() {
   const [editDescription, setEditDescription] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
   const [editDeadline, setEditDeadline] = useState("");
+
+  // Dashboard filters state (lifted up for tab row display)
+  const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>({
+    range: 'week',
+    projectIds: projectId ? [projectId] : [],
+    assigneeScope: 'all',
+  });
 
   // Initialize edit values when project loads
   useEffect(() => {
@@ -614,7 +621,7 @@ export default function ProjectOverview() {
         {/* Tabs Navigation - Sticky to Breadcrumbs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="sticky top-0 z-30 bg-background border-b shadow-sm">
-            <div className="px-6">
+            <div className="px-6 flex items-center justify-between">
               <TabsList className="justify-start rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto no-scrollbar">
                 <TabsTrigger 
                   value="overview" 
@@ -665,12 +672,22 @@ export default function ProjectOverview() {
                   Stages
                 </TabsTrigger>
               </TabsList>
+              {activeTab === "overview" && (
+                <DashboardFilterControls
+                  filters={dashboardFilters}
+                  onFiltersChange={setDashboardFilters}
+                />
+              )}
             </div>
           </div>
 
           <div className="px-6 py-6">
             <TabsContent value="overview" className="mt-0 outline-none">
-              <TimeHorizonDashboard projectId={projectId} />
+              <TimeHorizonDashboard 
+                projectId={projectId}
+                externalFilters={dashboardFilters}
+                onFiltersChange={setDashboardFilters}
+              />
             </TabsContent>
 
             <TabsContent value="timeline" className="h-[700px] mt-0 outline-none">
