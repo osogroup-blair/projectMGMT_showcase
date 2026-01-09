@@ -1664,6 +1664,353 @@ export async function registerRoutes(
     }
   });
 
+  // Dashboard API (Time-Horizon Based)
+  app.get("/api/dashboard", async (req, res) => {
+    try {
+      const range = (req.query.range as string) || 'week';
+      const projectIds = req.query.projectIds 
+        ? (Array.isArray(req.query.projectIds) ? req.query.projectIds : [req.query.projectIds]) as string[]
+        : undefined;
+      const assigneeScope = (req.query.assigneeScope as string) || 'all';
+      const userId = req.query.userId as string | undefined;
+
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      // Calculate date ranges based on range parameter
+      const getWeekStart = (d: Date) => {
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(d.getFullYear(), d.getMonth(), diff);
+      };
+      
+      const thisWeekStart = getWeekStart(startOfToday);
+      const thisWeekEnd = new Date(thisWeekStart);
+      thisWeekEnd.setDate(thisWeekEnd.getDate() + 6);
+      
+      const nextWeekStart = new Date(thisWeekStart);
+      nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+      const nextWeekEnd = new Date(nextWeekStart);
+      nextWeekEnd.setDate(nextWeekEnd.getDate() + 6);
+
+      // Future horizon based on range
+      let futureEndDate = new Date(startOfToday);
+      if (range === '30days') futureEndDate.setDate(futureEndDate.getDate() + 30);
+      else if (range === '60days') futureEndDate.setDate(futureEndDate.getDate() + 60);
+      else if (range === '90days') futureEndDate.setDate(futureEndDate.getDate() + 90);
+      else futureEndDate.setDate(futureEndDate.getDate() + 90); // default for trajectory
+
+      // Fetch all data
+      let allTasks = await storage.getTasks();
+      let allMilestones = await storage.getMilestones();
+      let allProjects = await storage.getProjects();
+      let allStages = await storage.getProjectStages();
+
+      // Filter by project scope
+      if (projectIds && projectIds.length > 0) {
+        allTasks = allTasks.filter(t => projectIds.includes(t.projectId || ''));
+        allMilestones = allMilestones.filter(m => projectIds.includes(m.projectId || ''));
+        allProjects = allProjects.filter(p => projectIds.includes(p.id));
+        allStages = allStages.filter(s => projectIds.includes(s.projectId || ''));
+      }
+
+      // Filter by assignee scope
+      if (assigneeScope === 'me' && userId) {
+        allTasks = allTasks.filter(t => t.assigneeId === userId);
+      }
+
+      // Helper to parse date strings
+      const parseDate = (d: string | null | undefined): Date | null => {
+        if (!d) return null;
+        const parsed = new Date(d);
+        return isNaN(parsed.getTime()) ? null : parsed;
+      };
+
+      // Priority Score calculation
+      const calculatePriorityScore = (task: typeof allTasks[0]): number => {
+        let score = 0;
+        const deadline = parseDate(task.deadline);
+        if (!deadline) return score;
+        
+        const daysUntilDue = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Overdue: +50
+        if (daysUntilDue < 0) score += 50;
+        // Due in 0-2 days: +30
+        else if (daysUntilDue <= 2) score += 30;
+        // Due in 3-7 days: +20
+        else if (daysUntilDue <= 7) score += 20;
+        // Due in 8-14 days: +10
+        else if (daysUntilDue <= 14) score += 10;
+        
+        // In progress: +5
+        if (task.status === 'In Progress') score += 5;
+        // Not started & due ≤7 days: +10
+        if (task.status === 'Todo' && daysUntilDue <= 7) score += 10;
+        
+        // Priority boost
+        if (task.priority === 'High') score += 10;
+        if (task.priority === 'Critical') score += 20;
+        
+        return score;
+      };
+
+      // At-Risk detection
+      const isAtRisk = (task: typeof allTasks[0]): boolean => {
+        if (task.status === 'Done' || task.status === 'Completed') return false;
+        
+        const deadline = parseDate(task.deadline);
+        if (!deadline) return false;
+        
+        const daysUntilDue = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Overdue
+        if (daysUntilDue < 0) return true;
+        // Due in ≤2 days and not In Progress/Done
+        if (daysUntilDue <= 2 && task.status !== 'In Progress') return true;
+        // Blocked
+        if (task.status === 'Blocked') return true;
+        
+        return false;
+      };
+
+      // Filter incomplete tasks
+      const incompleteTasks = allTasks.filter(t => 
+        t.status !== 'Done' && t.status !== 'Completed'
+      );
+
+      // THIS WEEK data
+      const thisWeekTasks = incompleteTasks.filter(t => {
+        const deadline = parseDate(t.deadline);
+        if (!deadline) return false;
+        return deadline >= thisWeekStart && deadline <= thisWeekEnd;
+      });
+
+      const overdueTasks = incompleteTasks.filter(t => {
+        const deadline = parseDate(t.deadline);
+        if (!deadline) return false;
+        return deadline < startOfToday;
+      });
+
+      const blockedTasks = incompleteTasks.filter(t => t.status === 'Blocked');
+
+      const atRiskTasks = incompleteTasks
+        .filter(isAtRisk)
+        .map(t => ({ ...t, priorityScore: calculatePriorityScore(t) }))
+        .sort((a, b) => b.priorityScore - a.priorityScore)
+        .slice(0, 10);
+
+      // My commitments (top 15 this week tasks)
+      const myCommitments = thisWeekTasks
+        .map(t => ({ ...t, priorityScore: calculatePriorityScore(t) }))
+        .sort((a, b) => b.priorityScore - a.priorityScore)
+        .slice(0, 15);
+
+      // Weekly Focus per project
+      const thisWeekMilestones = allMilestones.filter(m => {
+        const targetDate = parseDate(m.targetDate);
+        if (!targetDate) return false;
+        return targetDate >= thisWeekStart && targetDate <= thisWeekEnd && m.status !== 'completed';
+      });
+
+      const weeklyFocusMap = new Map<string, { project: typeof allProjects[0]; milestone?: typeof allMilestones[0]; tasks: typeof allTasks }>();
+      
+      for (const project of allProjects) {
+        const projectMilestones = thisWeekMilestones.filter(m => m.projectId === project.id);
+        const projectTasks = thisWeekTasks
+          .filter(t => t.projectId === project.id)
+          .map(t => ({ ...t, priorityScore: calculatePriorityScore(t) }))
+          .sort((a, b) => b.priorityScore - a.priorityScore)
+          .slice(0, 3);
+        
+        if (projectMilestones.length > 0 || projectTasks.length > 0) {
+          weeklyFocusMap.set(project.id, {
+            project,
+            milestone: projectMilestones[0],
+            tasks: projectTasks
+          });
+        }
+      }
+
+      // NEXT WEEK data
+      const nextWeekTasks = incompleteTasks.filter(t => {
+        const deadline = parseDate(t.deadline);
+        if (!deadline) return false;
+        return deadline >= nextWeekStart && deadline <= nextWeekEnd;
+      });
+
+      const nextWeekMilestones = allMilestones.filter(m => {
+        const targetDate = parseDate(m.targetDate);
+        if (!targetDate) return false;
+        return targetDate >= nextWeekStart && targetDate <= nextWeekEnd && m.status !== 'completed';
+      });
+
+      // Milestone confidence calculation
+      const getMilestoneConfidence = (milestone: typeof allMilestones[0]) => {
+        const linkedTasks = incompleteTasks.filter(t => t.milestoneId === milestone.id);
+        const overdueLinkeds = linkedTasks.filter(t => {
+          const deadline = parseDate(t.deadline);
+          return deadline && deadline < startOfToday;
+        });
+        
+        const targetDate = parseDate(milestone.targetDate);
+        const daysUntilDue = targetDate ? Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : 999;
+        const inProgressCount = linkedTasks.filter(t => t.status === 'In Progress').length;
+        
+        // At risk conditions
+        if (overdueLinkeds.length > 0) return 'at_risk';
+        if (linkedTasks.length > 10 && daysUntilDue <= 7) return 'at_risk';
+        if (daysUntilDue <= 7 && inProgressCount === 0) return 'at_risk';
+        
+        return 'on_track';
+      };
+
+      // Capacity preview (count-based)
+      const notStartedNextWeek = nextWeekTasks.filter(t => t.status === 'Todo').length;
+      let capacityLevel: 'low' | 'medium' | 'high' = 'low';
+      if (notStartedNextWeek > 10) capacityLevel = 'high';
+      else if (notStartedNextWeek > 5) capacityLevel = 'medium';
+
+      // FUTURE (1-3 months) data
+      const futureMilestones = allMilestones
+        .filter(m => {
+          const targetDate = parseDate(m.targetDate);
+          if (!targetDate) return false;
+          return targetDate > nextWeekEnd && targetDate <= futureEndDate && m.status !== 'completed';
+        })
+        .slice(0, 20);
+
+      // Stage progress with health
+      const stageProgress = allStages.map(stage => {
+        const project = allProjects.find(p => p.id === stage.projectId);
+        const stageTasks = incompleteTasks.filter(t => t.stageId === stage.id);
+        
+        let health: 'on_track' | 'at_risk' = 'on_track';
+        // Simple health check based on task count
+        if (stageTasks.length > 10) health = 'at_risk';
+        
+        return {
+          ...stage,
+          projectName: project?.name,
+          openTaskCount: stageTasks.length,
+          health
+        };
+      });
+
+      // Risk Radar
+      const longRunningTasks = incompleteTasks.filter(t => {
+        // Tasks created more than 30 days ago (using deadline as proxy since we don't have createdAt)
+        const deadline = parseDate(t.deadline);
+        if (!deadline) return false;
+        const daysSinceDue = Math.ceil((now.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
+        return daysSinceDue > 30;
+      }).slice(0, 10);
+
+      // Build response
+      const response = {
+        summary: {
+          tasksDue: thisWeekTasks.length,
+          overdue: overdueTasks.length,
+          blocked: blockedTasks.length,
+          milestonesDue: thisWeekMilestones.length,
+          capacityLevel
+        },
+        thisWeek: {
+          myCommitments: myCommitments.map(t => ({
+            id: t.id,
+            title: t.title,
+            projectId: t.projectId,
+            projectName: allProjects.find(p => p.id === t.projectId)?.name,
+            deadline: t.deadline,
+            status: t.status,
+            priority: t.priority,
+            priorityScore: t.priorityScore,
+            isOverdue: parseDate(t.deadline) ? parseDate(t.deadline)! < startOfToday : false,
+            isBlocked: t.status === 'Blocked'
+          })),
+          atRisk: atRiskTasks.map(t => ({
+            id: t.id,
+            title: t.title,
+            projectId: t.projectId,
+            projectName: allProjects.find(p => p.id === t.projectId)?.name,
+            deadline: t.deadline,
+            status: t.status,
+            priority: t.priority,
+            priorityScore: t.priorityScore
+          })),
+          weeklyFocus: Array.from(weeklyFocusMap.values()).map(f => ({
+            projectId: f.project.id,
+            projectName: f.project.name,
+            milestone: f.milestone ? {
+              id: f.milestone.id,
+              name: f.milestone.name,
+              targetDate: f.milestone.targetDate,
+              status: f.milestone.status
+            } : null,
+            topTasks: f.tasks.map(t => ({
+              id: t.id,
+              title: t.title,
+              deadline: t.deadline,
+              status: t.status
+            }))
+          }))
+        },
+        nextWeek: {
+          milestones: nextWeekMilestones.map(m => ({
+            id: m.id,
+            name: m.name,
+            projectId: m.projectId,
+            projectName: allProjects.find(p => p.id === m.projectId)?.name,
+            targetDate: m.targetDate,
+            status: m.status,
+            confidence: getMilestoneConfidence(m)
+          })),
+          rollingTasks: nextWeekTasks
+            .map(t => ({ ...t, priorityScore: calculatePriorityScore(t) }))
+            .sort((a, b) => b.priorityScore - a.priorityScore)
+            .slice(0, 15)
+            .map(t => ({
+              id: t.id,
+              title: t.title,
+              projectId: t.projectId,
+              projectName: allProjects.find(p => p.id === t.projectId)?.name,
+              deadline: t.deadline,
+              status: t.status,
+              priority: t.priority
+            })),
+          capacityPreview: {
+            notStartedCount: notStartedNextWeek,
+            capacityLevel
+          }
+        },
+        future: {
+          milestones: futureMilestones.map(m => ({
+            id: m.id,
+            name: m.name,
+            projectId: m.projectId,
+            projectName: allProjects.find(p => p.id === m.projectId)?.name,
+            targetDate: m.targetDate,
+            status: m.status
+          })),
+          stageProgress: stageProgress.slice(0, 10),
+          risks: longRunningTasks.map(t => ({
+            id: t.id,
+            title: t.title,
+            projectId: t.projectId,
+            projectName: allProjects.find(p => p.id === t.projectId)?.name,
+            type: 'long_running' as const,
+            deadline: t.deadline
+          }))
+        }
+      };
+
+      res.json(response);
+    } catch (error: any) {
+      console.error("Dashboard API error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Day Plans
   app.get("/api/users/:userId/dayplan", async (req, res) => {
     try {
