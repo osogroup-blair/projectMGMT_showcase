@@ -11,7 +11,7 @@ import {
   ChevronRight,
   CheckCircle2,
   List,
-  GanttChart,
+  LayoutGrid,
   ChevronDown,
   Pencil,
   X,
@@ -79,7 +79,7 @@ import { TabToolbar } from "@/components/ui/tab-toolbar";
 // Export content component separately for reuse
 export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
-  const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
+  const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable } = useDeliverables();
@@ -436,7 +436,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         aria-hidden="true"
       />
 
-      <div className="sticky top-40 z-20 bg-background py-3 -mx-6 px-6 border-b">
+      <div className="py-3 border-b">
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -472,17 +472,17 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               List
             </button>
             <button
-              onClick={() => setViewMode("gantt")}
+              onClick={() => setViewMode("card")}
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
-                viewMode === "gantt" 
+                viewMode === "card" 
                   ? "bg-background text-foreground shadow-sm" 
                   : "text-muted-foreground hover:text-foreground"
               )}
-              data-testid="button-view-gantt"
+              data-testid="button-view-card"
             >
-              <GanttChart className="h-4 w-4" />
-              Gantt
+              <LayoutGrid className="h-4 w-4" />
+              Cards
             </button>
           </div>
         </div>
@@ -511,131 +511,104 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               <Button onClick={handleCreateDeliverable} data-testid="button-create-first-deliverable">Create First Deliverable</Button>
             </CardContent>
           </Card>
-        ) : viewMode === "gantt" ? (
-          /* Gantt View */
-          <Card>
-            <CardContent className="p-0">
-              {/* Timeline Header */}
-              <div className="border-b bg-muted/30 px-4 py-2 flex">
-                <div className="w-[280px] shrink-0 text-sm font-medium text-muted-foreground">
-                  Item
-                </div>
-                <div className="flex-1 relative h-6 overflow-hidden">
-                  {getTimelineMonths().map((month, idx) => (
-                    <div 
-                      key={idx}
-                      className="absolute text-xs text-muted-foreground whitespace-nowrap"
-                      style={{ left: month.left }}
-                    >
-                      {month.label}
+        ) : viewMode === "card" ? (
+          /* Card View */
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredDeliverables.map((deliverable: any) => {
+              const epics = getEpicsForDeliverable(deliverable.id);
+              const owner = getOwner(deliverable.ownerId);
+              const progress = getDeliverableProgress(deliverable.id);
+              const taskCounts = getDeliverableTaskCounts(deliverable.id);
+
+              return (
+                <Card 
+                  key={deliverable.id} 
+                  className="hover:shadow-md transition-shadow group"
+                  data-testid={`deliverable-card-${deliverable.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={cn(
+                          "p-2 rounded-lg shrink-0",
+                          deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                          deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                          "bg-slate-100 text-slate-700"
+                        )}>
+                          <Package className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`}>
+                            <h4 className="font-semibold text-sm hover:text-primary truncate">
+                              {deliverable.title}
+                            </h4>
+                          </Link>
+                          {deliverable.description && (
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                              {deliverable.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`}>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
                     </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Gantt Rows */}
-              <div className="divide-y">
-                {filteredDeliverables.map((deliverable: any) => {
-                  const epics = getEpicsForDeliverable(deliverable.id);
-                  const progress = getDeliverableProgress(deliverable.id);
-                  const barStyle = getBarStyle(
-                    deliverable.startDate ? new Date(deliverable.startDate) : new Date(),
-                    deliverable.dueDate ? new Date(deliverable.dueDate) : new Date()
-                  );
-                  
-                  return (
-                    <div key={deliverable.id}>
-                      {/* Deliverable Row */}
-                      <div className="flex items-center hover:bg-muted/30 transition-colors group">
-                        <div className="w-[280px] shrink-0 px-4 py-3 flex items-center gap-2">
-                          <div className={cn(
-                            "p-1.5 rounded",
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium">{taskCounts.done}/{taskCounts.total} tasks</span>
+                      </div>
+                      <Progress value={progress} className="h-1.5" />
+
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge 
+                          variant="secondary"
+                          className={cn(
+                            "text-[10px]",
                             deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
                             deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
                             "bg-slate-100 text-slate-700"
-                          )}>
-                            <Package className="h-4 w-4" />
-                          </div>
-                          <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`} className="flex-1 min-w-0">
-                            <span className="font-medium text-sm truncate block hover:text-primary transition-colors">
-                              {deliverable.title}
-                            </span>
-                          </Link>
+                          )}
+                        >
+                          {deliverable.status}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px]">
+                          {epics.length} epic{epics.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
+                        <div className="flex items-center gap-1.5">
+                          {owner ? (
+                            <>
+                              <Avatar className="h-5 w-5">
+                                <AvatarFallback className="text-[8px]">
+                                  {owner.name?.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="truncate max-w-[80px]">{owner.name?.split(' ')[0]}</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">No owner</span>
+                          )}
                         </div>
-                        <div className="flex-1 relative h-10 bg-muted/10">
-                          {/* Grid lines */}
-                          {getTimelineMonths().map((month, idx) => (
-                            <div 
-                              key={idx}
-                              className="absolute top-0 bottom-0 border-l border-dashed border-muted-foreground/20"
-                              style={{ left: month.left }}
-                            />
-                          ))}
-                          {/* Deliverable Bar */}
-                          <div 
-                            className="absolute top-1/2 -translate-y-1/2 h-6 rounded-md bg-primary/20 border border-primary/40 flex items-center overflow-hidden"
-                            style={barStyle}
-                          >
-                            <div 
-                              className="h-full bg-primary/60 transition-all"
-                              style={{ width: `${progress}%` }}
-                            />
-                            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-primary-foreground mix-blend-difference">
-                              {progress > 0 && `${progress}%`}
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-1">
+                          <CalendarIcon className="h-3 w-3" />
+                          {deliverable.dueDate 
+                            ? new Date(deliverable.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) 
+                            : '—'}
                         </div>
                       </div>
-                      
-                      {/* Epic Rows */}
-                      {epics.map((epic: any) => {
-                        const epicProgress = getEpicProgress(epic.id);
-                        const epicBarStyle = getBarStyle(
-                          epic.startDate ? new Date(epic.startDate) : new Date(),
-                          epic.endDate ? new Date(epic.endDate) : new Date()
-                        );
-                        
-                        return (
-                          <div key={epic.id} className="flex items-center hover:bg-muted/20 transition-colors">
-                            <div className="w-[280px] shrink-0 px-4 py-2 flex items-center gap-2 pl-10">
-                              <div className="p-1 bg-primary/10 text-primary rounded">
-                                <Layers className="h-3 w-3" />
-                              </div>
-                              <Link href={`/projects/${projectId}/epics/${epic.id}`} className="flex-1 min-w-0">
-                                <span className="text-sm truncate block hover:text-primary transition-colors">
-                                  {epic.title}
-                                </span>
-                              </Link>
-                            </div>
-                            <div className="flex-1 relative h-8 bg-muted/5">
-                              {/* Grid lines */}
-                              {getTimelineMonths().map((month, idx) => (
-                                <div 
-                                  key={idx}
-                                  className="absolute top-0 bottom-0 border-l border-dashed border-muted-foreground/10"
-                                  style={{ left: month.left }}
-                                />
-                              ))}
-                              {/* Epic Bar */}
-                              <div 
-                                className="absolute top-1/2 -translate-y-1/2 h-4 rounded bg-blue-200 border border-blue-300 flex items-center overflow-hidden"
-                                style={epicBarStyle}
-                              >
-                                <div 
-                                  className="h-full bg-blue-400 transition-all"
-                                  style={{ width: `${epicProgress}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         ) : (
           /* List View */
           <Accordion type="multiple" defaultValue={[]} className="space-y-4">
