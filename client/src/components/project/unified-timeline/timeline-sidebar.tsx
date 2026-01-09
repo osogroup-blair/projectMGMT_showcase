@@ -21,9 +21,9 @@ const LAYER_CONFIG = [
 
 export function TimelineSidebar({ layers, layerHeights, axisHeight }: TimelineSidebarProps) {
   return (
-    <div className="flex-shrink-0 w-36 border-r bg-background z-20">
+    <div className="flex-shrink-0 w-36 border-r bg-background z-20 flex flex-col">
       <div 
-        className="h-12 border-b flex items-center px-3 bg-muted/30 sticky top-0 z-10"
+        className="h-12 border-b flex items-center px-3 bg-muted/30 sticky top-0 z-10 shrink-0"
         style={{ height: axisHeight }}
       >
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">

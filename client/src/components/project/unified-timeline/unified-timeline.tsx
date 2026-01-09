@@ -166,7 +166,7 @@ export function UnifiedTimeline({
         <div className="flex flex-1 overflow-hidden relative">
           <div 
             ref={sidebarRef}
-            className="flex-shrink-0 w-36 border-r bg-background overflow-hidden relative z-40"
+            className="flex-shrink-0 w-36 border-r bg-background relative z-40 overflow-hidden"
           >
             <div 
               className="h-12 border-b flex items-center px-3 bg-muted/30 sticky top-0 z-50"
