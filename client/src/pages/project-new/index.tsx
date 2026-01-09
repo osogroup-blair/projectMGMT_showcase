@@ -51,7 +51,8 @@ import {
   WizardRole,
   WizardTemplateSnippet,
   WizardRoleType,
-  STEPS 
+  STEPS,
+  CORE_PROJECT_ROLES 
 } from "./types";
 import { StepBasics } from "./step-basics";
 import { StepWorkBreakdown } from "./step-work-breakdown";
@@ -103,7 +104,72 @@ export default function ProjectWizard() {
   const [roles, setRoles] = useState<WizardRole[]>([]);
   const [milestones, setMilestones] = useState<WizardMilestone[]>([]);
 
+  const syncRolesFromStagesAndTasks = () => {
+    const uniqueRoleIds = new Set<string>();
+    
+    stages.forEach(stage => {
+      (stage.defaultRoles || []).forEach((rid: string) => uniqueRoleIds.add(rid));
+      
+      (stage.tasks || []).forEach(task => {
+        if (task.assigneeRoleTypeId) {
+          uniqueRoleIds.add(task.assigneeRoleTypeId);
+        }
+      });
+    });
+
+    const existingTemplateIds = new Set(roles.map(r => r.templateId).filter(Boolean));
+    
+    const coreRoles: WizardRole[] = CORE_PROJECT_ROLES.map(core => {
+      const existingRole = roles.find(r => r.templateId === core.templateId);
+      if (existingRole) return existingRole;
+      
+      return {
+        id: `r-${Date.now()}-${Math.random()}`,
+        templateId: core.templateId,
+        name: core.name,
+        description: core.description,
+        roleType: core.roleType,
+        isCore: true,
+        assigneeId: null
+      };
+    });
+
+    const stageRoles: WizardRole[] = Array.from(uniqueRoleIds)
+      .filter(rid => !existingTemplateIds.has(rid) && !CORE_PROJECT_ROLES.some(c => c.templateId === rid))
+      .map(rid => {
+        const rTemplate = roleTemplates.find((rt: any) => rt.id === rid);
+        if (!rTemplate) return null;
+        
+        const existingRole = roles.find(r => r.templateId === rid);
+        if (existingRole) return existingRole;
+        
+        return {
+          id: `r-${Date.now()}-${Math.random()}`,
+          templateId: rTemplate.id,
+          name: rTemplate.name,
+          description: rTemplate.description,
+          roleType: rTemplate.defaultRoleType,
+          isCore: false,
+          assigneeId: null
+        };
+      })
+      .filter(Boolean) as WizardRole[];
+
+    const existingNonCoreRoles = roles.filter(r => 
+      !r.isCore && 
+      !CORE_PROJECT_ROLES.some(c => c.templateId === r.templateId) &&
+      !stageRoles.some(sr => sr.templateId === r.templateId)
+    );
+
+    const mergedRoles = [...coreRoles, ...stageRoles, ...existingNonCoreRoles];
+    setRoles(mergedRoles);
+  };
+
   const handleNext = () => {
+    if (currentStep === 3) {
+      syncRolesFromStagesAndTasks();
+    }
+    
     if (currentStep < STEPS.length) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -202,8 +268,7 @@ export default function ProjectWizard() {
                      processedDeliverables.get(targetDeliverableName)!.epics.push({
                         id: `e-${Date.now()}-${Math.random()}`,
                         title: epicTitle,
-                        description: description,
-                        tasks: []
+                        description: description
                      });
                 }
             });
@@ -234,8 +299,7 @@ export default function ProjectWizard() {
                             processedDeliverables.get(dName)!.epics.push({
                                 id: `e-${Date.now()}-${Math.random()}`,
                                 title: eName,
-                                description: getRowValue(row, 'Description', 'Epic Description', 'epic_description') || "",
-                                tasks: []
+                                description: getRowValue(row, 'Description', 'Epic Description', 'epic_description') || ""
                             });
                         }
                     }
@@ -608,7 +672,10 @@ export default function ProjectWizard() {
       
       let totalMilestonesCreated = 0;
       for (const milestone of milestones) {
-        const resolvedStageId = milestone.stageId ? stageIdMap.get(milestone.stageId) || null : null;
+        const rule = milestone.rule || { scopeType: 'all', completionMode: 'all_tasks', completionTargetPercent: 100 };
+        const resolvedStageId = rule.scopeType === 'stage' && rule.scopeEntityId 
+          ? stageIdMap.get(rule.scopeEntityId) || null 
+          : null;
         
         await createMilestone({
           id: crypto.randomUUID(),
@@ -620,9 +687,9 @@ export default function ProjectWizard() {
           targetDate: milestone.targetDate,
           status: "planned",
           ownerId: milestone.ownerId,
-          scopeType: milestone.scopeType,
-          completionMode: milestone.completionMode,
-          completionTargetPercent: milestone.completionTargetPercent,
+          scopeType: rule.scopeType,
+          completionMode: rule.completionMode,
+          completionTargetPercent: rule.completionTargetPercent || 100,
           isBillingGate: milestone.isBillingGate,
           tags: []
         });

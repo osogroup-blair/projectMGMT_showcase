@@ -70,6 +70,8 @@ export interface WizardRole {
   description?: string;
   roleType: string;
   roleTypeId?: string;
+  templateId?: string;
+  isCore?: boolean;
   assigneeId: string | null;
 }
 
@@ -128,6 +130,23 @@ export const STEPS = [
 
 export const DEFAULT_SPRINT_DURATION = 2;
 export const DEFAULT_PROJECT_DURATION_WEEKS = 12;
+
+export const CORE_PROJECT_ROLES = [
+  { 
+    templateId: "rt_project_manager", 
+    name: "Project Manager", 
+    description: "Owns overall project execution, timeline, and stakeholder communication",
+    roleType: "Management",
+    isCore: true
+  },
+  { 
+    templateId: "rt_team_member", 
+    name: "Team Member", 
+    description: "General team contributor assigned to project work",
+    roleType: "General",
+    isCore: true
+  }
+];
 
 export function getDefaultDueDate(startDate: string, weeksFromStart: number = DEFAULT_PROJECT_DURATION_WEEKS): string {
   const start = new Date(startDate);
