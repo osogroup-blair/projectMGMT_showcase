@@ -126,6 +126,48 @@ export async function registerRoutes(
     }
   });
 
+  // Project Favorites
+  app.get("/api/favorites", async (req, res) => {
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      const favorites = await storage.getProjectFavoritesByUserId(userId);
+      res.json(favorites);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/favorites/:projectId", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      const favorite = await storage.createProjectFavorite({ userId, projectId });
+      res.status(201).json(favorite);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/favorites/:projectId", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+      await storage.deleteProjectFavorite(userId, projectId);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Deliverables
   app.get("/api/deliverables", async (req, res) => {
     const deliverables = await storage.getDeliverables();

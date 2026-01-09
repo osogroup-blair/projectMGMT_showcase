@@ -2,6 +2,8 @@ import {
   Project
 } from "@/lib/mock-data";
 import { useProjects, useUsers } from "@/hooks/use-nexus-data";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCurrentUser } from "@/context/current-user-context";
 import { 
   Search, 
   Filter, 
@@ -18,7 +20,8 @@ import {
   Trash2,
   X,
   Workflow,
-  Loader2
+  Loader2,
+  Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,10 +93,65 @@ export default function ProjectsList() {
   const { toast } = useToast();
   const { data: projectsData, isLoading, create: createProject, update: updateProject, remove: deleteProject } = useProjects();
   const { data: usersData } = useUsers();
+  const { currentUser } = useCurrentUser();
+  const queryClient = useQueryClient();
+  
+  // Favorites
+  const { data: favorites = [] } = useQuery<{ projectId: string }[]>({
+    queryKey: ['favorites', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return [];
+      const res = await fetch(`/api/favorites?userId=${currentUser.id}`);
+      if (!res.ok) throw new Error('Failed to fetch favorites');
+      return res.json();
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  const favoriteProjectIds = useMemo(() => 
+    new Set(favorites.map(f => f.projectId)), 
+    [favorites]
+  );
+
+  const addFavorite = useMutation({
+    mutationFn: async (projectId: string) => {
+      const res = await fetch(`/api/favorites/${projectId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser?.id }),
+      });
+      if (!res.ok) throw new Error('Failed to add favorite');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorites', currentUser?.id] });
+    },
+  });
+
+  const removeFavorite = useMutation({
+    mutationFn: async (projectId: string) => {
+      const res = await fetch(`/api/favorites/${projectId}?userId=${currentUser?.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to remove favorite');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorites', currentUser?.id] });
+    },
+  });
+
+  const toggleFavorite = (projectId: string) => {
+    if (favoriteProjectIds.has(projectId)) {
+      removeFavorite.mutate(projectId);
+    } else {
+      addFavorite.mutate(projectId);
+    }
+  };
   
   // Filters State
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterRisk, setFilterRisk] = useState<string>("all");
+  const [filterFavorites, setFilterFavorites] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Dialog & Form State
@@ -147,8 +205,9 @@ export default function ProjectsList() {
                           project.client.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || project.status === filterStatus;
     const matchesRisk = filterRisk === "all" || project.riskLevel === filterRisk;
+    const matchesFavorites = !filterFavorites || favoriteProjectIds.has(project.id);
     
-    return matchesSearch && matchesStatus && matchesRisk;
+    return matchesSearch && matchesStatus && matchesRisk && matchesFavorites;
   });
 
   // CRUD Handlers
@@ -335,6 +394,17 @@ export default function ProjectsList() {
                 <SelectItem value="High">High Risk</SelectItem>
               </SelectContent>
             </Select>
+
+            <Button
+              variant={filterFavorites ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterFavorites(!filterFavorites)}
+              className="gap-2"
+              data-testid="filter-favorites-toggle"
+            >
+              <Star className={cn("h-3.5 w-3.5", filterFavorites && "fill-current")} />
+              Favorites
+            </Button>
           </div>
         </div>
 
@@ -377,6 +447,24 @@ export default function ProjectsList() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleFavorite(project.id);
+                          }}
+                          data-testid={`button-favorite-${project.id}`}
+                        >
+                          <Star className={cn(
+                            "h-4 w-4 transition-colors",
+                            favoriteProjectIds.has(project.id) 
+                              ? "fill-yellow-400 text-yellow-400" 
+                              : "text-muted-foreground hover:text-yellow-400"
+                          )} />
+                        </Button>
                         <Link href={`/projects/${project.id}`} className="hover:underline text-primary">
                           {project.name}
                         </Link>
