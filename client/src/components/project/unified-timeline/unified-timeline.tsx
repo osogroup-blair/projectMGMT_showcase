@@ -169,7 +169,7 @@ export function UnifiedTimeline({
             className="flex-shrink-0 w-36 border-r bg-background relative z-40 overflow-hidden"
           >
             <div 
-              className="h-12 border-b flex items-center px-3 bg-muted/30 sticky top-0 z-50"
+              className="h-12 border-b flex items-center px-3 bg-muted/30"
               style={{ height: AXIS_HEIGHT }}
             >
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -235,11 +235,13 @@ export function UnifiedTimeline({
             data-testid="timeline-scroll-container"
           >
             <div style={{ width: totalWidth + 200, minHeight: totalHeight }}>
-              <TimelineAxis
-                viewMode={viewMode}
-                timelineRange={timelineRange}
-                totalWidth={totalWidth}
-              />
+              <div className="sticky top-0 z-30">
+                <TimelineAxis
+                  viewMode={viewMode}
+                  timelineRange={timelineRange}
+                  totalWidth={totalWidth}
+                />
+              </div>
 
               <div className="relative">
                 <TimelineGrid
