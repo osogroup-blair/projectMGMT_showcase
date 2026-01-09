@@ -182,8 +182,9 @@ export function UnifiedTimeline({
               ref={sidebarRef}
               className="flex-1 overflow-y-auto overflow-x-hidden"
               style={{ scrollbarWidth: 'none' }}
+              data-testid="sidebar-scroll-container"
             >
-              <div className="flex flex-col">
+              <div className="flex flex-col" style={{ paddingBottom: 100 }}>
                 {layers.stages && stages.length > 0 && (
                   <div
                     className="flex items-center px-3 border-b bg-emerald-50/30"
