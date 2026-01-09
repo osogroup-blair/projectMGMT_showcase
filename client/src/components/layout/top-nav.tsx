@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import logo from "@assets/image_1765392085901.png";
-import { useCurrentUser } from "@/contexts/current-user-context";
+import { useCurrentUser } from "@/context/current-user-context";
 
 export function TopNav() {
   const { currentUser, users, setCurrentUserId } = useCurrentUser();

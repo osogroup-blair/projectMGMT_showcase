@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRoute, Link, useLocation } from "wouter";
 import { useProject, useTasks, useUsers, useMilestones, useEpics, useProjectStages, useDeliverables } from "@/hooks/use-nexus-data";
-import { TaskCard, LayoutVariant } from "@/components/task/task-card";
+import { TaskCard, LayoutVariant } from "@/features/tasks/task-card";
 import { cn } from "@/lib/utils";
 
 export default function ProjectManagement() {

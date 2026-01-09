@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, Target, Briefcase } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCurrentUser } from "@/contexts/current-user-context";
+import { useCurrentUser } from "@/context/current-user-context";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import {

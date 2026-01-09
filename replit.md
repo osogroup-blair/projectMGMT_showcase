@@ -16,24 +16,25 @@ Nymbl Workspace is an AI-powered project management platform designed for servic
 
 ## Recent Changes
 
-### Architecture Refactoring (January 2026)
-A refactor_workspace folder contains the work-in-progress restructured codebase:
+### Architecture Refactoring Complete (January 2026)
+The codebase has been restructured to follow a feature-first pattern:
 
-**Server Reorganization:**
+**Server Reorganization (Complete):**
 - `server/app/` - Main Express server entry (index.ts, vite.ts, static.ts)
 - `server/api/` - API route definitions
 - `server/db/` - Database connection and seed
 - `server/data/` - Storage layer
 
-**Client Feature-First Structure:**
-- `client/src/features/` - Feature-organized components
+**Client Feature-First Structure (Complete):**
+- `client/src/features/` - Feature-organized components (home, project, tasks, templates, admin)
 - `client/src/context/` - React contexts (renamed from contexts)
-- **AdminHub pattern** - Consolidated admin pages (users, templates, defaults, import-export) into single tabbed interface at `/admin` and `/admin/:section`
+- `client/src/components/` - Global UI primitives (ui/, layout/) only
 
 **Hub Page Pattern:**
-- AdminHub supports both path-based (`/admin/templates`) and query-based (`/admin?tab=templates`) routing
-- Individual admin pages support `embedded` prop for use within hub or standalone
-- ProjectOverview already uses similar tabbed hub pattern for project content
+- Folder-based page structure: `pages/home/`, `pages/project/`, `pages/project-new/`, `pages/project-tools/`, `pages/admin/`, `pages/not-found/`
+- AdminHub: Tabbed interface for Users, Templates, App Defaults, Import/Export at `/admin`
+- ProjectOverview: Tabbed hub for project content (Dashboard, Tasks, Deliverables, Timeline, Milestones, Stages, Sprints)
+- ProjectTools: New hub for import/export functionality at `/project-tools`
 
 ### Sprint Plan Tab Redesign (January 2026)
 - Added sub-navigation within Plan tab: **Tasks** and **Scope Definition** sub-tabs
@@ -105,12 +106,14 @@ All API routes follow the pattern:
 
 ```
 client/src/
-├── components/     # Shared UI components (shadcn/ui, layout)
+├── components/     # Global UI components only
 │   ├── layout/     # Shell, navigation components
 │   └── ui/         # shadcn/ui primitives (button, card, dialog, etc.)
+├── context/        # React context providers
+│   └── current-user-context.tsx
 ├── features/       # Feature-organized domain components
 │   ├── admin/      # Admin hub components
-│   ├── home/       # Home page panels (user-home-page, task-card, etc.)
+│   ├── home/       # Home page panels
 │   │   └── panels/
 │   ├── project/    # Project-related features
 │   │   ├── dashboard/    # Project dashboard
@@ -119,23 +122,32 @@ client/src/
 │   │   ├── stages/       # Stages content
 │   │   ├── tasks/        # Task list, filter modal
 │   │   └── timeline/     # Unified timeline visualization
-│   │       └── unified-timeline/
-│   │           └── layers/
-│   ├── tasks/      # Shared task components
-│   └── templates/  # Template components
+│   ├── tasks/      # Shared task components (task-card)
+│   └── templates/  # Template components (stage-template-editor)
 ├── hooks/          # Custom React hooks
 ├── lib/            # Utilities and mock data
-├── pages/          # Route components
-│   ├── admin/      # Admin pages (AdminHub, user-management, templates, etc.)
-│   └── ...         # Other page components
+├── pages/          # Route components (folder-based structure)
+│   ├── home/       # Home page hub
+│   ├── project/    # Project workspace hub
+│   ├── project-new/    # New project wizard
+│   ├── project-tools/  # Import/export hub
+│   ├── admin/      # Admin hub
+│   └── not-found/  # 404 page
 └── types/          # TypeScript type definitions
 
 server/
-├── index.ts        # Express server entry
-├── routes.ts       # API route definitions
-├── storage.ts      # Database operations
-├── db.ts           # Database connection
-└── seed.ts         # Development data seeding
+├── index.ts        # Express server entry point
+├── app/            # Express app setup
+│   ├── index.ts    # Main Express app
+│   ├── vite.ts     # Vite dev server
+│   └── static.ts   # Production static serving
+├── api/            # API route definitions
+│   └── index.ts
+├── db/             # Database connection
+│   ├── index.ts
+│   └── seed.ts
+└── data/           # Data access layer
+    └── storage.ts
 
 shared/
 └── schema.ts       # Drizzle schema (shared types)

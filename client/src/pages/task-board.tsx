@@ -22,7 +22,7 @@ import {
   Rows3,
   Zap
 } from "lucide-react";
-import { TaskCard, LayoutVariant } from "@/components/task/task-card";
+import { TaskCard, LayoutVariant } from "@/features/tasks/task-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 

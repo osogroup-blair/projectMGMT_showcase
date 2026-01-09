@@ -1,6 +1,6 @@
 import { HomeTask } from "@/types/home";
 import { useProjects, useTasks, useEpics, useProjectStages } from "@/hooks/use-nexus-data";
-import { useCurrentUser } from "@/contexts/current-user-context";
+import { useCurrentUser } from "@/context/current-user-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

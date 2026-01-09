@@ -3,7 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { CurrentUserProvider } from "@/contexts/current-user-context";
+import { CurrentUserProvider } from "@/context/current-user-context";
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
 
@@ -14,7 +14,7 @@ import ProjectImport from "@/pages/project-import";
 import ProjectImportMapping from "@/pages/project-import-mapping";
 
 import ProjectImportPreview from "@/pages/project-import-preview";
-import ProjectOverview from "@/pages/project-overview";
+import ProjectOverview from "@/pages/project";
 import StageDesigner from "@/pages/stage-designer";
 import StageViewSettings from "@/pages/stage-view-settings";
 import MilestonesManagement from "@/pages/milestones-management";
@@ -33,7 +33,7 @@ import DeliverablesList from "@/pages/deliverables";
 import DeliverableDetail from "@/pages/deliverable-detail";
 import EpicDetail from "@/pages/epic-detail";
 import ProjectExport from "@/pages/project-export";
-import ProjectWizard from "@/pages/project-wizard";
+import ProjectWizard from "@/pages/project-new";
 import ProjectManagement from "@/pages/project-management";
 import SprintList from "@/pages/sprint-list";
 import SprintDetail from "@/pages/sprint-detail";
@@ -41,6 +41,7 @@ import AdminTemplates from "@/pages/admin/templates";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import AdminAppDefaults from "@/pages/admin/app-defaults";
 import AdminImportExport from "@/pages/admin/import-export";
+import ProjectTools from "@/pages/project-tools";
 
 function Router() {
   return (
@@ -71,6 +72,7 @@ function Router() {
       <Route path="/projects/:projectId/roles" component={ProjectRoles} />
       <Route path="/projects/:projectId/roles/:roleId/assignments" component={RoleAssignments} />
       <Route path="/projects/:projectId/views" component={SavedViewsGallery} />
+      <Route path="/project-tools" component={ProjectTools} />
       <Route path="/admin" component={AdminHub} />
       <Route path="/admin/:section" component={AdminHub} />
       <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
