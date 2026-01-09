@@ -39,6 +39,14 @@ export const projects = pgTable("projects", {
   riskLevel: text("risk_level"),
 });
 
+// Project Favorites (user favorites for quick access)
+export const projectFavorites = pgTable("project_favorites", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Deliverables
 export const deliverables = pgTable("deliverables", {
   id: varchar("id").primaryKey(),
@@ -436,6 +444,7 @@ export const dayPlans = pgTable("day_plans", {
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true });
+export const insertProjectFavoriteSchema = createInsertSchema(projectFavorites).omit({ id: true, createdAt: true });
 export const insertDeliverableSchema = createInsertSchema(deliverables).omit({ id: true });
 export const insertEpicSchema = createInsertSchema(epics).omit({ id: true });
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });
@@ -478,6 +487,9 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = z.infer<typeof insertProjectSchema>;
+
+export type ProjectFavorite = typeof projectFavorites.$inferSelect;
+export type InsertProjectFavorite = z.infer<typeof insertProjectFavoriteSchema>;
 
 export type Deliverable = typeof deliverables.$inferSelect;
 export type InsertDeliverable = z.infer<typeof insertDeliverableSchema>;

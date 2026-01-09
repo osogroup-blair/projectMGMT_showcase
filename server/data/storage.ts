@@ -36,6 +36,7 @@ import type {
   UserPreferences, InsertUserPreferences,
   WorkBlock, InsertWorkBlock,
   DayPlan, InsertDayPlan,
+  ProjectFavorite, InsertProjectFavorite,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -263,6 +264,12 @@ export interface IStorage {
   createSprintScopeTarget(target: InsertSprintScopeTarget): Promise<SprintScopeTarget>;
   deleteSprintScopeTarget(id: string): Promise<void>;
   deleteSprintScopeTargetsBySprintId(sprintId: string): Promise<void>;
+
+  // Project Favorites
+  getProjectFavoritesByUserId(userId: string): Promise<ProjectFavorite[]>;
+  createProjectFavorite(favorite: InsertProjectFavorite): Promise<ProjectFavorite>;
+  deleteProjectFavorite(userId: string, projectId: string): Promise<void>;
+  isProjectFavorite(userId: string, projectId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1129,6 +1136,27 @@ export class DatabaseStorage implements IStorage {
       and(eq(schema.dayPlans.userId, userId), eq(schema.dayPlans.date, date))
     ).returning();
     return updated;
+  }
+
+  // Project Favorites
+  async getProjectFavoritesByUserId(userId: string): Promise<ProjectFavorite[]> {
+    return await db.select().from(schema.projectFavorites).where(eq(schema.projectFavorites.userId, userId));
+  }
+  async createProjectFavorite(favorite: InsertProjectFavorite): Promise<ProjectFavorite> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.projectFavorites).values({ ...favorite, id }).returning();
+    return created;
+  }
+  async deleteProjectFavorite(userId: string, projectId: string): Promise<void> {
+    await db.delete(schema.projectFavorites).where(
+      and(eq(schema.projectFavorites.userId, userId), eq(schema.projectFavorites.projectId, projectId))
+    );
+  }
+  async isProjectFavorite(userId: string, projectId: string): Promise<boolean> {
+    const [favorite] = await db.select().from(schema.projectFavorites).where(
+      and(eq(schema.projectFavorites.userId, userId), eq(schema.projectFavorites.projectId, projectId))
+    );
+    return !!favorite;
   }
 }
 
