@@ -61,7 +61,7 @@ import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useDeliverables, useEpics, useUsers, useTasks } from "@/hooks/use-nexus-data";
-import { Loader2, User } from "lucide-react";
+import { Loader2, User, ExternalLink } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -593,7 +593,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
           </Card>
         ) : (
           /* List View */
-          <Accordion type="multiple" defaultValue={deliverables.map(d => d.id)} className="space-y-4">
+          <Accordion type="multiple" defaultValue={[]} className="space-y-4">
             {deliverables.map(deliverable => {
               const epics = getEpicsForDeliverable(deliverable.id);
               const owner = getOwner(deliverable.ownerId);
@@ -651,6 +651,12 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                 </Button>
                               </div>
                             )}
+                            <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`} onClick={(e) => e.stopPropagation()}>
+                              <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-deliverable-${deliverable.id}`}>
+                                <ExternalLink className="h-3 w-3" />
+                                Overview
+                              </Button>
+                            </Link>
                             <Badge variant="outline" className={cn(
                               "font-normal",
                               deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :

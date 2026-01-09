@@ -185,7 +185,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
       />
 
       <div className="space-y-4 pt-4">
-        <Accordion type="multiple" defaultValue={stages.map((s: any) => s.id)} className="space-y-4">
+        <Accordion type="multiple" defaultValue={[]} className="space-y-4">
           {stages.map((stage: any) => {
             const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
             const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
@@ -196,7 +196,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
               <AccordionItem 
                 key={stage.id} 
                 value={stage.id} 
-                className="border rounded-lg bg-card px-4 relative" 
+                className="border rounded-lg bg-card px-4" 
                 data-testid={`accordion-stage-${stage.id}`}
               >
                 <AccordionTrigger className="hover:no-underline py-4">
@@ -210,6 +210,12 @@ export function StagesContent({ projectId }: { projectId: string }) {
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="text-lg font-semibold">{stage.name}</h3>
+                        <Link href={`/projects/${projectId}/stages/${stage.id}`} onClick={(e) => e.stopPropagation()}>
+                          <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-workspace-${stage.id}`}>
+                            <ExternalLink className="h-3 w-3" />
+                            Overview
+                          </Button>
+                        </Link>
                         <Badge variant="outline" className={cn("font-normal", statusColorClass)}>
                           {stage.status}
                         </Badge>
@@ -234,15 +240,6 @@ export function StagesContent({ projectId }: { projectId: string }) {
                     </div>
                   </div>
                 </AccordionTrigger>
-
-                <div className="absolute right-12 top-4">
-                  <Link href={`/projects/${projectId}/stages/${stage.id}`}>
-                    <Button variant="outline" size="sm" className="gap-2" data-testid={`open-workspace-${stage.id}`}>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Overview
-                    </Button>
-                  </Link>
-                </div>
 
                 <AccordionContent className="pt-0 pb-4 pl-14">
                   <div className="space-y-3 mt-4">

@@ -14,7 +14,8 @@ import {
   Check,
   X,
   User,
-  Search
+  Search,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -464,6 +465,12 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                 </Button>
                               </div>
                             )}
+                            <Link href={`/projects/${projectId}/milestones/${milestone.id}`} onClick={(e) => e.stopPropagation()}>
+                              <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-milestone-${milestone.id}`}>
+                                <ExternalLink className="h-3 w-3" />
+                                Overview
+                              </Button>
+                            </Link>
                           <Badge variant="outline" className={cn(
                             "font-normal",
                             milestone.status === "achieved" || milestone.status === "Completed" 
