@@ -380,18 +380,15 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Milestones</h2>
-          <p className="text-sm text-muted-foreground">Track key project milestones and their associated tasks.</p>
-        </div>
-        <Button onClick={handleCreateMilestone} className="gap-2" data-testid="button-new-milestone">
-          <Plus className="h-4 w-4" />
-          New Milestone
-        </Button>
-      </div>
+      {/* Hidden trigger for tab-level Add button */}
+      <button 
+        data-testid="button-create-milestones" 
+        onClick={handleCreateMilestone} 
+        className="hidden" 
+        aria-hidden="true"
+      />
 
-      <div className="space-y-6">
+      <div className="space-y-4 pt-4">
         {filteredMilestones.length === 0 ? (
           <Card className="bg-muted/10 border-dashed">
             <CardContent className="flex flex-col items-center justify-center p-12 text-center">

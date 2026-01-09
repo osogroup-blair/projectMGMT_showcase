@@ -256,22 +256,16 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      {/* Header */}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight">Tasks</h2>
-            <p className="text-sm text-muted-foreground">
-              {filteredTasks.length} of {projectTasks.length} tasks
-            </p>
-          </div>
-          <Button onClick={openCreateDialog} className="gap-2" data-testid="button-new-task">
-            <Plus className="h-4 w-4" />
-            New Task
-          </Button>
-        </div>
+      {/* Hidden trigger for tab-level Add button */}
+      <button 
+        data-testid="button-create-tasks" 
+        onClick={openCreateDialog} 
+        className="hidden" 
+        aria-hidden="true"
+      />
 
-        {/* Search and Filter Bar */}
+      {/* Search and Filter Bar */}
+      <div className="flex flex-col gap-4 pt-4">
         <div className="flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

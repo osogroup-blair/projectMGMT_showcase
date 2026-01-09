@@ -132,21 +132,14 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight" data-testid="text-sprints-title">
-            Sprints
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Manage time-boxed iterations for this project
-          </p>
-        </div>
-        <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-sprint">
-          <Plus className="h-4 w-4 mr-2" />
-          New Sprint
-        </Button>
-      </div>
+    <div className="space-y-4 pt-4">
+      {/* Hidden trigger for tab-level Add button */}
+      <button 
+        data-testid="button-create-sprints" 
+        onClick={() => setShowCreateDialog(true)} 
+        className="hidden" 
+        aria-hidden="true"
+      />
 
       <div className="grid gap-4">
         {sprints.length === 0 ? (

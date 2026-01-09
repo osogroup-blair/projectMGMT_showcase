@@ -177,12 +177,14 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Stages</h2>
-        <p className="text-sm text-muted-foreground">View project stages and their associated tasks.</p>
-      </div>
+      {/* Hidden trigger for tab-level Add button (stages are created at project setup) */}
+      <button 
+        data-testid="button-create-stages" 
+        className="hidden" 
+        aria-hidden="true"
+      />
 
-      <div className="space-y-6">
+      <div className="space-y-4 pt-4">
         <Accordion type="multiple" defaultValue={stages.map((s: any) => s.id)} className="space-y-4">
           {stages.map((stage: any) => {
             const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);

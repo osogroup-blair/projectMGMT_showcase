@@ -414,44 +414,42 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Deliverables</h2>
-          <p className="text-sm text-muted-foreground">Manage high-level deliverables and breakdown epics.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center border rounded-lg p-1 bg-muted/30">
-            <button
-              onClick={() => setViewMode("list")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-                viewMode === "list" 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              data-testid="button-view-list"
-            >
-              <List className="h-4 w-4" />
-              List
-            </button>
-            <button
-              onClick={() => setViewMode("gantt")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-                viewMode === "gantt" 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              data-testid="button-view-gantt"
-            >
-              <GanttChart className="h-4 w-4" />
-              Gantt
-            </button>
-          </div>
-          <Button className="gap-2" size="sm" onClick={handleCreateDeliverable} data-testid="button-new-deliverable">
-            <Plus className="h-4 w-4" />
-            New Deliverable
-          </Button>
+      {/* Hidden trigger for tab-level Add button */}
+      <button 
+        data-testid="button-create-deliverables" 
+        onClick={handleCreateDeliverable} 
+        className="hidden" 
+        aria-hidden="true"
+      />
+
+      <div className="flex justify-end items-center gap-3 pt-4 mb-4">
+        <div className="flex items-center border rounded-lg p-1 bg-muted/30">
+          <button
+            onClick={() => setViewMode("list")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+              viewMode === "list" 
+                ? "bg-background text-foreground shadow-sm" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            data-testid="button-view-list"
+          >
+            <List className="h-4 w-4" />
+            List
+          </button>
+          <button
+            onClick={() => setViewMode("gantt")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+              viewMode === "gantt" 
+                ? "bg-background text-foreground shadow-sm" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            data-testid="button-view-gantt"
+          >
+            <GanttChart className="h-4 w-4" />
+            Gantt
+          </button>
         </div>
       </div>
 
