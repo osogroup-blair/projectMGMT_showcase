@@ -29,7 +29,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TaskFilterModal, TaskFilters, emptyFilters, getActiveFilterCount } from "./task-filter-modal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -119,6 +120,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [newTaskEffort, setNewTaskEffort] = useState<number>(3);
   const [newTaskEpicId, setNewTaskEpicId] = useState("");
   const [newTaskStageId, setNewTaskStageId] = useState("");
+  const [newTaskTypeId, setNewTaskTypeId] = useState("");
+  
+  // Task Types
+  const { data: taskTypes } = useResolvedTaskTypes(projectId);
 
   // Filter deliverables for this project
   const projectDeliverables = useMemo(() => {
@@ -326,6 +331,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     setNewTaskEffort(3);
     setNewTaskEpicId(projectEpics[0]?.id || "");
     setNewTaskStageId(stages[0]?.id || "");
+    // Set default task type (first one marked as default, or first available)
+    const defaultTaskType = (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
+    setNewTaskTypeId(defaultTaskType?.id || "");
     setCreateDialogOpen(true);
   };
 
@@ -356,7 +364,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
         priority: newTaskPriority,
         effort: newTaskEffort,
         deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        tags: []
+        tags: [],
+        taskTypeId: newTaskTypeId || null
       });
       
       toast({ title: "Task created", description: "New task has been added to the project." });
@@ -1000,6 +1009,31 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label htmlFor="task-type">Task Type</Label>
+                <Select value={newTaskTypeId} onValueChange={setNewTaskTypeId}>
+                  <SelectTrigger data-testid="select-create-task-type">
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Select type" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(taskTypes || []).map((tt: any) => (
+                      <SelectItem key={tt.id} value={tt.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: tt.color || '#6b7280' }}
+                          />
+                          <span>{tt.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="task-priority">Priority</Label>
                 <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
                   <SelectTrigger data-testid="select-create-task-priority">
@@ -1013,7 +1047,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-effort">Effort</Label>
                 <Select 
