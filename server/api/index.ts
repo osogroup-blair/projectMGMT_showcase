@@ -2681,6 +2681,18 @@ export async function registerRoutes(
                   results[entityType].errors.push(`Epic "${row.title}": No owner available`);
                   continue;
                 }
+                // Ensure stageIds is an array
+                let epicStageIds: string[] = [];
+                if (Array.isArray(row.stageIds)) {
+                  epicStageIds = row.stageIds;
+                } else if (typeof row.stageIds === 'string' && row.stageIds) {
+                  try {
+                    const parsed = JSON.parse(row.stageIds);
+                    epicStageIds = Array.isArray(parsed) ? parsed : [];
+                  } catch {
+                    epicStageIds = row.stageIds.split(',').map((s: string) => s.trim()).filter(Boolean);
+                  }
+                }
                 const epicData = {
                   id: newId,
                   deliverableId: validDeliverableId,
@@ -2691,7 +2703,7 @@ export async function registerRoutes(
                   startDate: row.startDate || defaults?.startDate || new Date().toISOString().split('T')[0],
                   endDate: row.endDate || defaults?.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                   progress: row.progress || 0,
-                  stageIds: row.stageIds || [],
+                  stageIds: epicStageIds,
                   externalRefs: row.externalRefs
                 };
                 await storage.createEpic(epicData);
@@ -2774,6 +2786,18 @@ export async function registerRoutes(
                   console.log(`Import: Task "${row.title}" projectId "${row.projectId}" not found, clearing reference`);
                 }
                 
+                // Ensure tags is an array
+                let taskTags: string[] = [];
+                if (Array.isArray(row.tags)) {
+                  taskTags = row.tags;
+                } else if (typeof row.tags === 'string' && row.tags) {
+                  try {
+                    const parsed = JSON.parse(row.tags);
+                    taskTags = Array.isArray(parsed) ? parsed : [];
+                  } catch {
+                    taskTags = row.tags.split(',').map((s: string) => s.trim()).filter(Boolean);
+                  }
+                }
                 const taskData = {
                   id: newId,
                   title: row.title || 'Imported Task',
@@ -2790,7 +2814,7 @@ export async function registerRoutes(
                   sprintId: validSprintId || null,
                   estimateHours: row.estimateHours,
                   effort: row.effort,
-                  tags: row.tags || [],
+                  tags: taskTags,
                   blocked: row.blocked || false,
                   blockerReason: row.blockerReason,
                   externalRefs: row.externalRefs
