@@ -326,10 +326,6 @@ export const epicTemplates = pgTable("epic_templates", {
   defaultStages: text("default_stages").array().notNull().default([]),
 });
 
-// Task Template Scope - defines how tasks are generated
-export const TASK_TEMPLATE_SCOPES = ["PER_EPIC", "ONCE"] as const;
-export type TaskTemplateScope = typeof TASK_TEMPLATE_SCOPES[number];
-
 // Task Templates
 export const taskTemplates = pgTable("task_templates", {
   id: varchar("id").primaryKey(),
@@ -339,23 +335,6 @@ export const taskTemplates = pgTable("task_templates", {
   defaultEstimateHours: integer("default_estimate_hours").notNull(),
   requiredRole: text("required_role"),
   assignedRoleId: varchar("assigned_role_id"),
-  scope: text("scope").notNull().default("ONCE"), // PER_EPIC or ONCE per stage
-  stageTemplateId: varchar("stage_template_id").references(() => stageTemplates.id),
-});
-
-// Stage Template Tasks (junction table for ordering tasks within stages)
-export const stageTemplateTasks = pgTable("stage_template_tasks", {
-  id: varchar("id").primaryKey(),
-  stageTemplateId: varchar("stage_template_id").notNull().references(() => stageTemplates.id, { onDelete: "cascade" }),
-  taskTemplateId: varchar("task_template_id").notNull().references(() => taskTemplates.id, { onDelete: "cascade" }),
-  order: integer("order").notNull().default(0),
-});
-
-// User Role Eligibility (maps users to eligible role types)
-export const userRoleEligibility = pgTable("user_role_eligibility", {
-  id: varchar("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  roleTypeId: varchar("role_type_id").notNull().references(() => roleTypes.id, { onDelete: "cascade" }),
 });
 
 // Mapping Templates
@@ -449,8 +428,6 @@ export const insertProjectTemplateSchema = createInsertSchema(projectTemplates).
 export const insertDeliverableTemplateSchema = createInsertSchema(deliverableTemplates).omit({ id: true });
 export const insertEpicTemplateSchema = createInsertSchema(epicTemplates).omit({ id: true });
 export const insertTaskTemplateSchema = createInsertSchema(taskTemplates).omit({ id: true });
-export const insertStageTemplateTaskSchema = createInsertSchema(stageTemplateTasks).omit({ id: true });
-export const insertUserRoleEligibilitySchema = createInsertSchema(userRoleEligibility).omit({ id: true });
 export const insertMappingTemplateSchema = createInsertSchema(mappingTemplates).omit({ id: true });
 export const insertStatusOptionSchema = createInsertSchema(statusOptions).omit({ id: true });
 export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
@@ -542,12 +519,6 @@ export type InsertEpicTemplate = z.infer<typeof insertEpicTemplateSchema>;
 
 export type TaskTemplate = typeof taskTemplates.$inferSelect;
 export type InsertTaskTemplate = z.infer<typeof insertTaskTemplateSchema>;
-
-export type StageTemplateTask = typeof stageTemplateTasks.$inferSelect;
-export type InsertStageTemplateTask = z.infer<typeof insertStageTemplateTaskSchema>;
-
-export type UserRoleEligibility = typeof userRoleEligibility.$inferSelect;
-export type InsertUserRoleEligibility = z.infer<typeof insertUserRoleEligibilitySchema>;
 
 export type MappingTemplate = typeof mappingTemplates.$inferSelect;
 export type InsertMappingTemplate = z.infer<typeof insertMappingTemplateSchema>;

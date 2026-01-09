@@ -30,8 +30,6 @@ import type {
   DeliverableTemplate, InsertDeliverableTemplate,
   EpicTemplate, InsertEpicTemplate,
   TaskTemplate, InsertTaskTemplate,
-  StageTemplateTask, InsertStageTemplateTask,
-  UserRoleEligibility, InsertUserRoleEligibility,
   MappingTemplate, InsertMappingTemplate,
   StatusOption, InsertStatusOption,
   RoleType, InsertRoleType,
