@@ -471,15 +471,19 @@ function RiskRadarCard({ risks }: { risks: RiskItem[] }) {
   );
 }
 
-export default function TimeHorizonDashboard() {
+interface TimeHorizonDashboardProps {
+  projectId?: string;
+}
+
+export default function TimeHorizonDashboard({ projectId }: TimeHorizonDashboardProps) {
   const [filters, setFilters] = useState<DashboardFilters>({
     range: 'week',
-    projectIds: [],
+    projectIds: projectId ? [projectId] : [],
     assigneeScope: 'all',
   });
 
   const { data: dashboard, isLoading, error } = useQuery<DashboardData>({
-    queryKey: ['dashboard', filters],
+    queryKey: ['dashboard', filters, projectId],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set('range', filters.range);
@@ -489,7 +493,8 @@ export default function TimeHorizonDashboard() {
       if (filters.userId) {
         params.set('userId', filters.userId);
       }
-      filters.projectIds.forEach(id => params.append('projectIds', id));
+      const projectIdsToUse = projectId ? [projectId] : filters.projectIds;
+      projectIdsToUse.forEach(id => params.append('projectIds', id));
       
       const res = await fetch(`/api/dashboard?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch dashboard');
@@ -505,7 +510,10 @@ export default function TimeHorizonDashboard() {
       if (!res.ok) throw new Error('Failed to fetch projects');
       return res.json();
     },
+    enabled: !projectId,
   });
+
+  const isProjectScoped = !!projectId;
 
   if (isLoading) {
     return (
@@ -525,14 +533,16 @@ export default function TimeHorizonDashboard() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className={cn("space-y-6", !isProjectScoped && "p-6")}>
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">What matters now, what's coming, and where risks are forming</p>
-        </div>
+        {!isProjectScoped && (
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">What matters now, what's coming, and where risks are forming</p>
+          </div>
+        )}
         
-        <div className="flex items-center gap-3">
+        <div className={cn("flex items-center gap-3", isProjectScoped && "ml-auto")}>
           <Select 
             value={filters.range} 
             onValueChange={(value: TimeRange) => setFilters(f => ({ ...f, range: value }))}

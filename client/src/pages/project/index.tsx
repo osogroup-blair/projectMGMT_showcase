@@ -47,6 +47,7 @@ import { UnifiedTimeline } from "@/features/project/timeline/unified-timeline";
 import { useMemo, useState, useEffect } from "react";
 import { ProjectDashboard } from "@/features/project/dashboard/types";
 import { differenceInDays, parseISO } from "date-fns";
+import { TimeHorizonDashboard } from "@/features/dashboard";
 
 // Mock Data Types
 interface TaskStats {
@@ -57,7 +58,6 @@ interface TaskStats {
 }
 
 import { DeliverablesContent } from "@/pages/deliverables";
-import ProjectDashboardPage from "@/features/project/dashboard/project-dashboard-page";
 import { TaskListContent } from "@/features/project/tasks/task-list-content";
 import { MilestonesContent } from "@/features/project/milestones/milestones-content";
 import { StagesContent } from "@/features/project/stages/stages-content";
@@ -560,7 +560,7 @@ export default function ProjectOverview() {
           <div className="mt-6">
             {/* Project Overview Tab Content */}
             <TabsContent value="overview" className="space-y-8">
-               {dashboardData && <ProjectDashboardPage dashboard={dashboardData} />}
+               <TimeHorizonDashboard projectId={projectId} />
             </TabsContent>
 
             {/* Tasks Tab Content */}
