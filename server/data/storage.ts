@@ -351,7 +351,30 @@ export class DatabaseStorage implements IStorage {
   }
   async createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable> {
     const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.deliverables).values({ ...deliverable, id }).returning();
+    
+    // Default dates from parent project if not provided
+    let startDate = deliverable.startDate;
+    let dueDate = deliverable.dueDate;
+    
+    if ((!startDate || !dueDate) && deliverable.projectId) {
+      const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, deliverable.projectId));
+      if (project) {
+        if (!startDate) startDate = project.startDate;
+        if (!dueDate) dueDate = project.deadline;
+      }
+    }
+    
+    // Fallback to today if still no dates
+    const today = new Date().toISOString().split('T')[0];
+    if (!startDate) startDate = today;
+    if (!dueDate) dueDate = today;
+    
+    const [created] = await db.insert(schema.deliverables).values({ 
+      ...deliverable, 
+      id,
+      startDate,
+      dueDate 
+    }).returning();
     return created;
   }
   async updateDeliverable(id: string, deliverable: Partial<Deliverable>): Promise<Deliverable> {
@@ -375,7 +398,30 @@ export class DatabaseStorage implements IStorage {
   }
   async createEpic(epic: InsertEpic): Promise<Epic> {
     const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.epics).values({ ...epic, id }).returning();
+    
+    // Default dates from parent deliverable if not provided
+    let startDate = epic.startDate;
+    let endDate = epic.endDate;
+    
+    if ((!startDate || !endDate) && epic.deliverableId) {
+      const [deliverable] = await db.select().from(schema.deliverables).where(eq(schema.deliverables.id, epic.deliverableId));
+      if (deliverable) {
+        if (!startDate) startDate = deliverable.startDate;
+        if (!endDate) endDate = deliverable.dueDate;
+      }
+    }
+    
+    // Fallback to today if still no dates
+    const today = new Date().toISOString().split('T')[0];
+    if (!startDate) startDate = today;
+    if (!endDate) endDate = today;
+    
+    const [created] = await db.insert(schema.epics).values({ 
+      ...epic, 
+      id,
+      startDate,
+      endDate 
+    }).returning();
     return created;
   }
   async updateEpic(id: string, epic: Partial<Epic>): Promise<Epic> {
