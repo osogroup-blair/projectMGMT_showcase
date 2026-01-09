@@ -23,7 +23,6 @@ interface DeliverablesLayerProps {
 export const DELIVERABLE_ROW_HEIGHT = 48;
 export const EPIC_ROW_HEIGHT = 40;
 export const DELIVERABLES_HEADER_HEIGHT = 32;
-export const DELIVERABLES_CATEGORY_HEIGHT = 36;
 
 export function DeliverablesLayer({
   deliverables,
@@ -54,15 +53,6 @@ export function DeliverablesLayer({
 
   return (
     <div className="border-b">
-      <div 
-        className="flex items-center gap-2 px-3 bg-slate-100 border-b font-medium text-sm text-slate-700"
-        style={{ height: DELIVERABLES_CATEGORY_HEIGHT }}
-        data-testid="timeline-deliverables-category"
-      >
-        <Package className="w-4 h-4 text-slate-500" />
-        <span>Deliverables</span>
-        <span className="text-xs text-slate-500 font-normal">({deliverables.length})</span>
-      </div>
       {deliverablesWithEpics.map((deliverable) => {
         const isExpanded = expandedDeliverables.has(deliverable.id);
         const hasEpics = deliverable.epics.length > 0;
@@ -317,7 +307,7 @@ export function getDeliverablesLayerHeight(
   epics: Epic[],
   expandedDeliverables: Set<string>
 ): number {
-  let height = DELIVERABLES_CATEGORY_HEIGHT + deliverables.length * DELIVERABLE_ROW_HEIGHT;
+  let height = deliverables.length * DELIVERABLE_ROW_HEIGHT;
   
   deliverables.forEach((d) => {
     if (expandedDeliverables.has(d.id)) {
