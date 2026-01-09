@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -169,18 +170,17 @@ export function SprintsContent({ projectId }: { projectId: string }) {
       />
 
       <div className="space-y-4 pt-4">
-        <div className="grid gap-4">
-          {filteredSprints.length === 0 && sprints.length > 0 ? (
-            <Card className="bg-muted/10 border-dashed">
-              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                <Zap className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-                <h3 className="text-lg font-medium">No sprints match your search</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mt-2">
-                  Try adjusting your search terms.
-                </p>
-              </CardContent>
-            </Card>
-          ) : sprints.length === 0 ? (
+        {filteredSprints.length === 0 && sprints.length > 0 ? (
+          <Card className="bg-muted/10 border-dashed">
+            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <Zap className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+              <h3 className="text-lg font-medium">No sprints match your search</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mt-2">
+                Try adjusting your search terms.
+              </p>
+            </CardContent>
+          </Card>
+        ) : sprints.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Zap className="h-12 w-12 text-muted-foreground mb-4" />
@@ -194,108 +194,205 @@ export function SprintsContent({ projectId }: { projectId: string }) {
               </Button>
             </CardContent>
           </Card>
-        ) : (
-          filteredSprints.map((sprint: any) => {
-            const stats = getSprintStats(sprint.id);
-            const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
-            const StatusIcon = statusConfig.icon;
+        ) : viewMode === "list" ? (
+          <div className="border rounded-lg bg-card overflow-x-auto">
+            <Table style={{ minWidth: "800px" }}>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead style={{ width: "25%" }}>Sprint</TableHead>
+                  <TableHead style={{ width: "12%" }}>Status</TableHead>
+                  <TableHead style={{ width: "20%" }}>Dates</TableHead>
+                  <TableHead style={{ width: "10%" }}>Tasks</TableHead>
+                  <TableHead style={{ width: "18%" }}>Progress</TableHead>
+                  <TableHead style={{ width: "15%" }} className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSprints.map((sprint: any) => {
+                  const stats = getSprintStats(sprint.id);
+                  const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
+                  const StatusIcon = statusConfig.icon;
 
-            return (
-              <Card key={sprint.id} className="hover:shadow-md transition-shadow" data-testid={`card-sprint-${sprint.id}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("p-2 rounded-md", statusConfig.bgColor)}>
-                        <Zap className={cn("h-5 w-5", statusConfig.color)} />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
-                          <CardTitle className="text-lg hover:text-primary cursor-pointer" data-testid={`link-sprint-${sprint.id}`}>
-                            {sprint.name}
-                          </CardTitle>
-                        </Link>
-                        <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
-                          <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-sprint-${sprint.id}`}>
-                            <ExternalLink className="h-3 w-3" />
-                            Overview
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0")}>
-                        <StatusIcon className="h-3 w-3 mr-1" />
-                        {statusConfig.label}
-                      </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" data-testid={`button-sprint-menu-${sprint.id}`}>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {sprint.status === "planned" && (
-                            <DropdownMenuItem onClick={() => handleStartSprint(sprint.id)} data-testid={`button-start-sprint-${sprint.id}`}>
-                              <Play className="h-4 w-4 mr-2" />
-                              Start Sprint
-                            </DropdownMenuItem>
+                  return (
+                    <TableRow key={sprint.id} className="hover:bg-muted/50" data-testid={`row-sprint-${sprint.id}`}>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
+                            <span className="font-medium hover:text-primary cursor-pointer">{sprint.name}</span>
+                          </Link>
+                          {sprint.goal && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{sprint.goal}</p>
                           )}
-                          {sprint.status === "active" && (
-                            <DropdownMenuItem onClick={() => handleCloseSprint(sprint.id)} data-testid={`button-close-sprint-${sprint.id}`}>
-                              <Square className="h-4 w-4 mr-2" />
-                              Close Sprint
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => setShowDeleteDialog(sprint.id)} className="text-red-600" data-testid={`button-delete-sprint-${sprint.id}`}>
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Sprint
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                  {sprint.goal && (
-                    <CardDescription className="mt-1">{sprint.goal}</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-6 text-sm text-muted-foreground mb-3">
-                    {sprint.startDate && (
-                      <div className="flex items-center gap-1.5">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>{new Date(sprint.startDate).toLocaleDateString()}</span>
-                        {sprint.endDate && (
-                          <>
-                            <span>→</span>
-                            <span>{new Date(sprint.endDate).toLocaleDateString()}</span>
-                          </>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0 text-xs")}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {statusConfig.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {sprint.startDate ? (
+                          <span>
+                            {new Date(sprint.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            {sprint.endDate && ` → ${new Date(sprint.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
+                          </span>
+                        ) : (
+                          <span className="italic">Not set</span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {stats.total} <span className="text-muted-foreground">({stats.done} done)</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={stats.percent} className="h-2 flex-1" />
+                          <span className="text-xs text-muted-foreground w-8">{stats.percent}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
+                            <Button variant="ghost" size="sm" className="h-7">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {sprint.status === "planned" && (
+                                <DropdownMenuItem onClick={() => handleStartSprint(sprint.id)}>
+                                  <Play className="h-4 w-4 mr-2" />
+                                  Start Sprint
+                                </DropdownMenuItem>
+                              )}
+                              {sprint.status === "active" && (
+                                <DropdownMenuItem onClick={() => handleCloseSprint(sprint.id)}>
+                                  <Square className="h-4 w-4 mr-2" />
+                                  Close Sprint
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => setShowDeleteDialog(sprint.id)} className="text-red-600">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Sprint
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {filteredSprints.map((sprint: any) => {
+              const stats = getSprintStats(sprint.id);
+              const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
+              const StatusIcon = statusConfig.icon;
+
+              return (
+                <Card key={sprint.id} className="hover:shadow-md transition-shadow" data-testid={`card-sprint-${sprint.id}`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("p-2 rounded-md", statusConfig.bgColor)}>
+                          <Zap className={cn("h-5 w-5", statusConfig.color)} />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
+                            <CardTitle className="text-lg hover:text-primary cursor-pointer" data-testid={`link-sprint-${sprint.id}`}>
+                              {sprint.name}
+                            </CardTitle>
+                          </Link>
+                          <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
+                            <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-sprint-${sprint.id}`}>
+                              <ExternalLink className="h-3 w-3" />
+                              Overview
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
-                    )}
-                    <div className="flex items-center gap-1.5">
-                      <Target className="h-4 w-4" />
-                      <span>{stats.total} tasks</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0")}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {statusConfig.label}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" data-testid={`button-sprint-menu-${sprint.id}`}>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {sprint.status === "planned" && (
+                              <DropdownMenuItem onClick={() => handleStartSprint(sprint.id)} data-testid={`button-start-sprint-${sprint.id}`}>
+                                <Play className="h-4 w-4 mr-2" />
+                                Start Sprint
+                              </DropdownMenuItem>
+                            )}
+                            {sprint.status === "active" && (
+                              <DropdownMenuItem onClick={() => handleCloseSprint(sprint.id)} data-testid={`button-close-sprint-${sprint.id}`}>
+                                <Square className="h-4 w-4 mr-2" />
+                                Close Sprint
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => setShowDeleteDialog(sprint.id)} className="text-red-600" data-testid={`button-delete-sprint-${sprint.id}`}>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Sprint
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                    {stats.done > 0 && (
+                    {sprint.goal && (
+                      <CardDescription className="mt-1">{sprint.goal}</CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-6 text-sm text-muted-foreground mb-3">
+                      {sprint.startDate && (
+                        <div className="flex items-center gap-1.5">
+                          <CalendarIcon className="h-4 w-4" />
+                          <span>{new Date(sprint.startDate).toLocaleDateString()}</span>
+                          {sprint.endDate && (
+                            <>
+                              <span>→</span>
+                              <span>{new Date(sprint.endDate).toLocaleDateString()}</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        <span>{stats.done} done</span>
+                        <Target className="h-4 w-4" />
+                        <span>{stats.total} tasks</span>
                       </div>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="font-medium">{stats.percent}%</span>
+                      {stats.done > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <span>{stats.done} done</span>
+                        </div>
+                      )}
                     </div>
-                    <Progress value={stats.percent} className="h-2" />
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium">{stats.percent}%</span>
+                      </div>
+                      <Progress value={stats.percent} className="h-2" />
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
-        </div>
       </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

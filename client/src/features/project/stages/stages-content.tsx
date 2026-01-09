@@ -24,6 +24,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useTasks, useUsers, useEpics, useDeliverables, useProjectStages } from "@/hooks/use-nexus-data";
@@ -213,8 +214,105 @@ export function StagesContent({ projectId }: { projectId: string }) {
       />
 
       <div className="space-y-4 pt-4">
-        <Accordion type="multiple" defaultValue={[]} className="space-y-4">
-          {filteredStages.map((stage: any) => {
+        {filteredStages.length === 0 && stages.length > 0 ? (
+          <Card className="bg-muted/10 border-dashed">
+            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <Layers className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+              <h3 className="text-lg font-medium">No stages match your search</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mt-2">
+                Try adjusting your search terms.
+              </p>
+            </CardContent>
+          </Card>
+        ) : stages.length === 0 ? (
+          <Card className="bg-muted/10 border-dashed">
+            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <Layers className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+              <h3 className="text-lg font-medium">No stages defined</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mt-2">
+                Stages are configured during project setup.
+              </p>
+            </CardContent>
+          </Card>
+        ) : viewMode === "list" ? (
+          <div className="border rounded-lg bg-card overflow-x-auto">
+            <Table style={{ minWidth: "700px" }}>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead style={{ width: "8%" }}>Order</TableHead>
+                  <TableHead style={{ width: "25%" }}>Stage</TableHead>
+                  <TableHead style={{ width: "15%" }}>Status</TableHead>
+                  <TableHead style={{ width: "12%" }}>Tasks</TableHead>
+                  <TableHead style={{ width: "25%" }}>Progress</TableHead>
+                  <TableHead style={{ width: "15%" }} className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredStages.map((stage: any) => {
+                  const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
+                  const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
+                  const progress = getStageProgress(stage.id);
+
+                  return (
+                    <TableRow key={stage.id} className="hover:bg-muted/50" data-testid={`row-stage-${stage.id}`}>
+                      <TableCell>
+                        <div className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold",
+                          statusColorClass
+                        )}>
+                          {stage.order}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <Link href={`/projects/${projectId}/stages/${stage.id}`}>
+                            <span className="font-medium hover:text-primary cursor-pointer">{stage.name}</span>
+                          </Link>
+                          {stage.description && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[180px]">{stage.description}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn("font-normal text-xs", statusColorClass)}>
+                          {stage.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {progress.total} <span className="text-muted-foreground">({progress.done} done)</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={progress.percent} className="h-2 flex-1" />
+                          <span className="text-xs text-muted-foreground w-8">{progress.percent}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Link href={`/projects/${projectId}/stages/${stage.id}`}>
+                            <Button variant="ghost" size="sm" className="h-7">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7"
+                            onClick={() => openAddTaskDialog(stage.id)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <Accordion type="multiple" defaultValue={[]} className="space-y-4">
+            {filteredStages.map((stage: any) => {
             const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
             const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
             const progress = getStageProgress(stage.id);
@@ -353,7 +451,8 @@ export function StagesContent({ projectId }: { projectId: string }) {
               </AccordionItem>
             );
           })}
-        </Accordion>
+          </Accordion>
+        )}
       </div>
 
       {/* Add Task Dialog */}

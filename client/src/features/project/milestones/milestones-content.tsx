@@ -28,6 +28,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProjectStages } from "@/hooks/use-nexus-data";
@@ -417,6 +418,100 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
               </p>
             </CardContent>
           </Card>
+        ) : viewMode === "list" ? (
+          <div className="border rounded-lg bg-card overflow-x-auto">
+            <Table style={{ minWidth: "800px" }}>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead style={{ width: "25%" }}>Milestone</TableHead>
+                  <TableHead style={{ width: "12%" }}>Status</TableHead>
+                  <TableHead style={{ width: "15%" }}>Target Date</TableHead>
+                  <TableHead style={{ width: "15%" }}>Owner</TableHead>
+                  <TableHead style={{ width: "10%" }}>Tasks</TableHead>
+                  <TableHead style={{ width: "15%" }}>Progress</TableHead>
+                  <TableHead style={{ width: "8%" }} className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMilestones.map((milestone: any) => {
+                  const status = STATUS_CONFIG[milestone.status] || STATUS_CONFIG.planned;
+                  const StatusIcon = status.icon;
+                  const owner = getOwner(milestone.ownerId);
+                  const progress = getMilestoneProgress(milestone.id);
+
+                  return (
+                    <TableRow key={milestone.id} className="hover:bg-muted/50" data-testid={`row-milestone-${milestone.id}`}>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <Link href={`/projects/${projectId}/milestones/${milestone.id}`}>
+                            <span className="font-medium hover:text-primary cursor-pointer">{milestone.name}</span>
+                          </Link>
+                          {milestone.description && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{milestone.description}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn(
+                          "font-normal text-xs",
+                          milestone.status === "achieved" || milestone.status === "Completed" 
+                            ? "bg-green-50 text-green-700 border-green-200" 
+                            : milestone.status === "in_progress" || milestone.status === "In Progress"
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            : milestone.status === "slipped" || milestone.status === "Blocked"
+                            ? "bg-red-50 text-red-700 border-red-200"
+                            : "bg-slate-50 text-slate-700 border-slate-200"
+                        )}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {status.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {milestone.targetDate ? (
+                          <div className="flex items-center gap-1.5">
+                            <CalendarIcon className="h-3.5 w-3.5" />
+                            {new Date(milestone.targetDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </div>
+                        ) : (
+                          <span className="italic">Not set</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {owner ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[8px]">
+                                {owner.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs truncate max-w-[80px]">{owner.name?.split(' ')[0]}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {progress.total} <span className="text-muted-foreground">({progress.done} done)</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={progress.percent} className="h-2 flex-1" />
+                          <span className="text-xs text-muted-foreground w-8">{progress.percent}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link href={`/projects/${projectId}/milestones/${milestone.id}`}>
+                          <Button variant="ghost" size="sm" className="h-7">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           <Accordion type="multiple" defaultValue={[]} className="space-y-4">
             {filteredMilestones.map((milestone: any) => {
