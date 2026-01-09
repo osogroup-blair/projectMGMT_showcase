@@ -63,6 +63,7 @@ import { FlowBoard } from "@/features/project/sprints/flow-board";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { PulsePanel } from "@/features/project/sprints/pulse-panel";
 import { SprintSignalsBar } from "@/features/project/sprints/sprint-signals-bar";
+import { SprintInsightsTab } from "@/features/project/sprints/sprint-insights-tab";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useCurrentUser } from "@/context/current-user-context";
@@ -296,10 +297,87 @@ export default function SprintDetail() {
         const err = await response.json();
         throw new Error(err.error);
       }
-      updateSprint({ id: sprintId, updates: { status: "closed" } });
+      updateSprint({ id: sprintId, updates: { status: "closed", closedAt: new Date().toISOString() } });
       toast({ title: "Sprint closed" });
     } catch (error: any) {
       toast({ title: "Failed to close sprint", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCloseSprintWithRollover = async () => {
+    try {
+      const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error);
+      }
+      updateSprint({ id: sprintId, updates: { status: "closed", closedAt: new Date().toISOString() } });
+      queryClient.invalidateQueries({ queryKey: ["sprints"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast({ title: "Sprint closed successfully" });
+      setLocation(`/projects/${projectId}?tab=sprints`);
+    } catch (error: any) {
+      toast({ title: "Failed to close sprint", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleNotesChange = async (notes: string) => {
+    try {
+      await fetch(`/api/sprints/${sprintId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      });
+      updateSprint({ id: sprintId, updates: { notes } });
+      toast({ title: "Sprint notes saved" });
+    } catch (error: any) {
+      toast({ title: "Failed to save notes", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleRolloverTasks = async (decisions: { taskId: string; action: string; targetSprintId?: string }[]) => {
+    try {
+      const nextSprint = projectSprints
+        .filter((s: any) => s.id !== sprintId && s.status === "planned")
+        .sort((a: any, b: any) => (a.startDate || "").localeCompare(b.startDate || ""))[0];
+
+      for (const decision of decisions) {
+        if (decision.action === "next_sprint") {
+          const targetId = decision.targetSprintId || nextSprint?.id;
+          if (targetId) {
+            await fetch(`/api/tasks/${decision.taskId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sprintId: targetId }),
+            });
+            updateTask({ id: decision.taskId, updates: { sprintId: targetId } });
+          } else {
+            await fetch(`/api/tasks/${decision.taskId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sprintId: null }),
+            });
+            updateTask({ id: decision.taskId, updates: { sprintId: null } });
+          }
+        } else if (decision.action === "backlog") {
+          await fetch(`/api/tasks/${decision.taskId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sprintId: null }),
+          });
+          updateTask({ id: decision.taskId, updates: { sprintId: null } });
+        } else if (decision.action === "close") {
+          await fetch(`/api/tasks/${decision.taskId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "Done", sprintId: null }),
+          });
+          updateTask({ id: decision.taskId, updates: { status: "Done", sprintId: null } });
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    } catch (error: any) {
+      toast({ title: "Failed to rollover tasks", description: error.message, variant: "destructive" });
     }
   };
 
@@ -2031,77 +2109,27 @@ export default function SprintDetail() {
           </TabsContent>
 
           <TabsContent value="insights" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Planned vs Actual</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Committed Tasks</span>
-                      <span className="font-medium">{stats.total}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Completed Tasks</span>
-                      <span className="font-medium text-green-600">{stats.done}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Completion Rate</span>
-                      <span className="font-medium">{stats.percent}%</span>
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Committed Effort</span>
-                      <span className="font-medium">{stats.totalEffort} pts</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Delivered Effort</span>
-                      <span className="font-medium text-green-600">{stats.doneEffort} pts</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Sprint Velocity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-center h-40 text-muted-foreground">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Velocity chart coming soon</p>
-                      <p className="text-xs">Compare across sprints to track team capacity</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="text-base">Retrospective</CardTitle>
-                  <CardDescription>Reflect on what worked well and what can be improved</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-                      <h4 className="font-medium text-green-800 mb-2">What went well</h4>
-                      <p className="text-sm text-green-700">Add retrospective notes after sprint completion.</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
-                      <h4 className="font-medium text-amber-800 mb-2">What could improve</h4>
-                      <p className="text-sm text-amber-700">Identify areas for improvement in future sprints.</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                      <h4 className="font-medium text-blue-800 mb-2">Action items</h4>
-                      <p className="text-sm text-blue-700">Track improvement commitments for the next sprint.</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <SprintInsightsTab
+              sprint={sprint}
+              tasks={sprintTasks.map((t: any) => ({
+                id: t.id,
+                title: t.title,
+                status: t.status,
+                priority: t.priority,
+                dueDate: t.dueDate,
+                updatedAt: t.updatedAt,
+                epicId: t.epicId,
+                epicName: getEpic(t.epicId)?.title,
+                blocked: t.blocked,
+                blockerReason: t.blockerReason,
+              }))}
+              projectId={projectId}
+              projectSprints={projectSprints}
+              isReadOnly={isReadOnly}
+              onCloseSprint={handleCloseSprintWithRollover}
+              onNotesChange={handleNotesChange}
+              onRolloverTasks={handleRolloverTasks}
+            />
           </TabsContent>
 
           <TabsContent value="settings" className="mt-6">

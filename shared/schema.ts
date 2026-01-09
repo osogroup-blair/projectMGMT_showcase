@@ -122,6 +122,8 @@ export const sprints = pgTable("sprints", {
   endDate: text("end_date"),
   status: text("status").notNull().default("planned"),
   capacityHours: integer("capacity_hours"),
+  notes: text("notes"),
+  closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
