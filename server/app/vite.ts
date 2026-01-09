@@ -5,6 +5,7 @@ import viteConfig from "../../vite.config";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
+import { setAppReady } from "./readiness";
 
 const viteLogger = createLogger();
 
@@ -30,6 +31,9 @@ export async function setupVite(server: Server, app: Express) {
   });
 
   app.use(vite.middlewares);
+  
+  // Mark app as ready now that Vite middleware is configured
+  setAppReady(true);
 
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;

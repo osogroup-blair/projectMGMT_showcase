@@ -3,6 +3,7 @@ import { registerRoutes } from "../api";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { connectWithRetry, isDatabaseConnected, setDatabaseReady } from "../db";
+import { isApplicationReady } from "./readiness";
 
 const app = express();
 const httpServer = createServer(app);
@@ -73,6 +74,60 @@ app.use((req, res, next) => {
         message: 'Service temporarily unavailable - database connecting',
         retryAfter: 5
       });
+    }
+    next();
+  });
+
+  // Fallback loading page shown during startup before Vite is ready
+  app.use((req, res, next) => {
+    if (isApplicationReady()) {
+      return next();
+    }
+    // Only intercept HTML requests (not assets, API calls, etc.)
+    const acceptHeader = req.headers.accept || '';
+    if (acceptHeader.includes('text/html')) {
+      return res.status(200).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading...</title>
+  <style>
+    body { 
+      margin: 0; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      height: 100vh; 
+      background: #0f172a; 
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .loader { 
+      text-align: center; 
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #334155;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+  <script>
+    setTimeout(() => location.reload(), 1500);
+  </script>
+</head>
+<body>
+  <div class="loader">
+    <div class="spinner"></div>
+    <p>Starting up...</p>
+  </div>
+</body>
+</html>`);
     }
     next();
   });
