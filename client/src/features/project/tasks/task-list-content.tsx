@@ -75,7 +75,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [viewMode, setViewMode] = useState<"list" | "card">("card");
+  const [viewMode, setViewMode] = useState<"list" | "card">("list");
 
   // Bulk selection state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
