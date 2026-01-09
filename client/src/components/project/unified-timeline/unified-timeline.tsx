@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { useSearchParams } from "wouter";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { differenceInDays } from "date-fns";
 import { TimelineHeader } from "./timeline-header";
@@ -112,8 +111,8 @@ export function UnifiedTimeline({
   }, [deliverables, epics, expandedDeliverables]);
 
   const layerHeights = {
-    sprints: layers.sprints ? 48 : 0,
     milestones: layers.milestones ? 64 : 0,
+    sprints: layers.sprints ? 48 : 0,
     stages: layers.stages ? 56 : 0,
     deliverables: layers.deliverables ? 32 + deliverables.length * 48 + expandedEpicsCount * 40 : 0,
   };
@@ -173,9 +172,9 @@ export function UnifiedTimeline({
                 totalHeight={totalHeight}
               />
 
-              {layers.sprints && sprints.length > 0 && (
-                <SprintsLayer
-                  sprints={sprints}
+              {layers.milestones && milestones.length > 0 && (
+                <MilestonesLayer
+                  milestones={milestones}
                   projectId={project.id}
                   viewMode={viewMode}
                   timelineRange={timelineRange}
@@ -183,9 +182,9 @@ export function UnifiedTimeline({
                 />
               )}
 
-              {layers.milestones && milestones.length > 0 && (
-                <MilestonesLayer
-                  milestones={milestones}
+              {layers.sprints && sprints.length > 0 && (
+                <SprintsLayer
+                  sprints={sprints}
                   projectId={project.id}
                   viewMode={viewMode}
                   timelineRange={timelineRange}

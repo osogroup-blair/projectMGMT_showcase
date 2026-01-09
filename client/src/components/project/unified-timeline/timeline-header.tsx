@@ -2,8 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Calendar, Layers } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import type { ViewMode, LayerVisibility, LayerType } from "./types";
 import { VIEW_MODE_CONFIGS } from "./timeline-utils";
@@ -19,11 +18,13 @@ interface TimelineHeaderProps {
 }
 
 const LAYER_LABELS: Record<LayerType, string> = {
-  sprints: "Sprints",
   milestones: "Milestones",
+  sprints: "Sprints",
   stages: "Stages",
   deliverables: "Deliverables & Epics",
 };
+
+const LAYER_ORDER: LayerType[] = ["milestones", "sprints", "stages", "deliverables"];
 
 export function TimelineHeader({
   viewMode,
@@ -45,53 +46,26 @@ export function TimelineHeader({
   };
 
   return (
-    <div className="flex items-center justify-between gap-4 p-4 border-b bg-background sticky top-0 z-20">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={handlePrev} data-testid="btn-timeline-prev">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        
-        <Button variant="outline" onClick={onTodayClick} className="gap-2" data-testid="btn-timeline-today">
-          <Calendar className="h-4 w-4" />
-          Today
-        </Button>
-        
-        <Button variant="outline" size="icon" onClick={handleNext} data-testid="btn-timeline-next">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+    <div className="flex flex-col gap-3 p-4 border-b bg-background sticky top-0 z-20">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={handlePrev} data-testid="btn-timeline-prev">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <Button variant="outline" onClick={onTodayClick} className="gap-2" data-testid="btn-timeline-today">
+            <Calendar className="h-4 w-4" />
+            Today
+          </Button>
+          
+          <Button variant="outline" size="icon" onClick={handleNext} data-testid="btn-timeline-next">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
 
-        <span className="text-sm font-medium text-muted-foreground ml-2" data-testid="text-current-date">
-          {format(currentDate, "MMMM yyyy")}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2" data-testid="btn-layer-toggle">
-              <Layers className="h-4 w-4" />
-              Layers
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-64">
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm">Timeline Layers</h4>
-              {(Object.keys(layers) as LayerType[]).map((layer) => (
-                <div key={layer} className="flex items-center justify-between">
-                  <Label htmlFor={`layer-${layer}`} className="text-sm">
-                    {LAYER_LABELS[layer]}
-                  </Label>
-                  <Switch
-                    id={`layer-${layer}`}
-                    checked={layers[layer]}
-                    onCheckedChange={() => onLayerToggle(layer)}
-                    data-testid={`switch-layer-${layer}`}
-                  />
-                </div>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+          <span className="text-sm font-medium text-muted-foreground ml-2" data-testid="text-current-date">
+            {format(currentDate, "MMMM yyyy")}
+          </span>
+        </div>
 
         <Select value={viewMode} onValueChange={(v) => onViewModeChange(v as ViewMode)}>
           <SelectTrigger className="w-32" data-testid="select-view-mode">
@@ -105,6 +79,27 @@ export function TimelineHeader({
             <SelectItem value="year">Year</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex items-center gap-6 flex-wrap">
+        <span className="text-sm font-medium text-muted-foreground">Show:</span>
+        {LAYER_ORDER.map((layer) => (
+          <div key={layer} className="flex items-center gap-2">
+            <Switch
+              id={`layer-${layer}`}
+              checked={layers[layer]}
+              onCheckedChange={() => onLayerToggle(layer)}
+              data-testid={`switch-layer-${layer}`}
+              className="scale-90"
+            />
+            <Label 
+              htmlFor={`layer-${layer}`} 
+              className="text-sm cursor-pointer whitespace-nowrap"
+            >
+              {LAYER_LABELS[layer]}
+            </Label>
+          </div>
+        ))}
       </div>
     </div>
   );
