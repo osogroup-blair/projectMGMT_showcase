@@ -29,6 +29,7 @@ export interface TaskFilters {
   epicIds: string[];
   assigneeIds: string[];
   sprintIds: string[];
+  taskTypeIds: string[];
   dueDateRange: { from: string; to: string } | null;
 }
 
@@ -52,6 +53,12 @@ interface Sprint {
   name: string;
 }
 
+interface TaskType {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface TaskFilterModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +68,7 @@ interface TaskFilterModalProps {
   epics: Epic[];
   users: User[];
   sprints?: Sprint[];
+  taskTypes?: TaskType[];
 }
 
 const STATUS_OPTIONS = ["Todo", "In Progress", "Review", "Done"];
@@ -75,6 +83,7 @@ export function TaskFilterModal({
   epics,
   users,
   sprints = [],
+  taskTypes = [],
 }: TaskFilterModalProps) {
   const [localFilters, setLocalFilters] = useState<TaskFilters>(filters);
 
@@ -124,6 +133,13 @@ export function TaskFilterModal({
     setLocalFilters({ ...localFilters, sprintIds: updated });
   };
 
+  const handleTaskTypeToggle = (taskTypeId: string) => {
+    const updated = localFilters.taskTypeIds.includes(taskTypeId)
+      ? localFilters.taskTypeIds.filter(t => t !== taskTypeId)
+      : [...localFilters.taskTypeIds, taskTypeId];
+    setLocalFilters({ ...localFilters, taskTypeIds: updated });
+  };
+
   const handleResetFilters = () => {
     setLocalFilters({
       statuses: [],
@@ -132,6 +148,7 @@ export function TaskFilterModal({
       epicIds: [],
       assigneeIds: [],
       sprintIds: [],
+      taskTypeIds: [],
       dueDateRange: null,
     });
   };
@@ -147,6 +164,7 @@ export function TaskFilterModal({
     localFilters.stageIds.length +
     localFilters.epicIds.length +
     localFilters.assigneeIds.length +
+    localFilters.taskTypeIds.length +
     (localFilters.dueDateRange ? 1 : 0);
 
   return (
@@ -211,6 +229,37 @@ export function TaskFilterModal({
               ))}
             </div>
           </div>
+
+          {/* Task Type Filter */}
+          {taskTypes.length > 0 && (
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Task Type</Label>
+              <div className="flex flex-wrap gap-2">
+                {taskTypes.map((taskType) => (
+                  <Badge
+                    key={taskType.id}
+                    variant={localFilters.taskTypeIds.includes(taskType.id) ? "default" : "outline"}
+                    className={cn(
+                      "cursor-pointer transition-colors px-3 py-1.5",
+                      localFilters.taskTypeIds.includes(taskType.id) 
+                        ? "text-white" 
+                        : "hover:bg-muted"
+                    )}
+                    style={{
+                      backgroundColor: localFilters.taskTypeIds.includes(taskType.id) 
+                        ? taskType.color 
+                        : undefined,
+                      borderColor: taskType.color
+                    }}
+                    onClick={() => handleTaskTypeToggle(taskType.id)}
+                    data-testid={`filter-task-type-${taskType.id}`}
+                  >
+                    {taskType.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Stage Filter */}
           <div className="space-y-3">
@@ -407,6 +456,7 @@ export function getActiveFilterCount(filters: TaskFilters): number {
     filters.epicIds.length +
     filters.assigneeIds.length +
     filters.sprintIds.length +
+    filters.taskTypeIds.length +
     (filters.dueDateRange && (filters.dueDateRange.from || filters.dueDateRange.to) ? 1 : 0)
   );
 }
@@ -418,5 +468,6 @@ export const emptyFilters: TaskFilters = {
   epicIds: [],
   assigneeIds: [],
   sprintIds: [],
+  taskTypeIds: [],
   dueDateRange: null,
 };

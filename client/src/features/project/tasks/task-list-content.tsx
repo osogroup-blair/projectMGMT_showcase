@@ -169,6 +169,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const getAssignee = (id?: string) => (users || []).find((u: any) => u.id === id);
   const getEpic = (id?: string) => projectEpics.find((e: any) => e.id === id);
   const getStage = (id?: string) => stages.find((s: any) => s.id === id);
+  const getTaskType = (id?: string) => (taskTypes || []).find((tt: any) => tt.id === id);
 
   // Apply search and filters
   const filteredTasks = useMemo(() => {
@@ -222,6 +223,11 @@ export function TaskListContent({ projectId }: { projectId: string }) {
         } else if (!filters.sprintIds.includes(task.sprintId)) {
           return false;
         }
+      }
+
+      // Task Type filter
+      if (filters.taskTypeIds.length > 0 && !filters.taskTypeIds.includes(task.taskTypeId)) {
+        return false;
       }
 
       // Due date range filter
@@ -630,6 +636,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 const assignee = getAssignee(task.assigneeId);
                 const epic = getEpic(task.epicId);
                 const stage = getStage(task.stageId);
+                const taskType = getTaskType(task.taskTypeId);
                 const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
                 const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.Todo;
                 const isOverdue = new Date(task.deadline) < new Date() && task.status !== "Done";
@@ -679,11 +686,25 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                             {task.title}
                           </div>
                         )}
-                        {epic && (
-                          <div className="text-xs text-muted-foreground">
-                            {epic.title}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {taskType && (
+                            <span 
+                              className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                              style={{ 
+                                backgroundColor: `${taskType.color}20`, 
+                                color: taskType.color 
+                              }}
+                              data-testid={`task-type-badge-${task.id}`}
+                            >
+                              {taskType.name}
+                            </span>
+                          )}
+                          {epic && (
+                            <span className="text-xs text-muted-foreground">
+                              {epic.title}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
 
@@ -841,6 +862,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             const assignee = getAssignee(task.assigneeId);
             const epic = getEpic(task.epicId);
             const stage = getStage(task.stageId);
+            const taskType = getTaskType(task.taskTypeId);
             const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
             const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.Todo;
             const isOverdue = new Date(task.deadline) < new Date() && task.status !== "Done";
@@ -882,6 +904,17 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 mb-3">
+                    {taskType && (
+                      <span 
+                        className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                        style={{ 
+                          backgroundColor: `${taskType.color}20`, 
+                          color: taskType.color 
+                        }}
+                      >
+                        {taskType.name}
+                      </span>
+                    )}
                     <Badge 
                       variant="secondary" 
                       className={cn("text-[10px]", statusConfig.bgColor, statusConfig.color)}
@@ -941,6 +974,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
         epics={projectEpics.map((e: any) => ({ id: e.id, title: e.title }))}
         users={(users || []).map((u: any) => ({ id: u.id, name: u.name }))}
         sprints={projectSprints.map((s: any) => ({ id: s.id, name: s.name }))}
+        taskTypes={(taskTypes || []).map((tt: any) => ({ id: tt.id, name: tt.name, color: tt.color }))}
       />
 
       {/* Create Task Dialog */}
