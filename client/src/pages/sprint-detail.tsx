@@ -264,6 +264,20 @@ export default function SprintDetail() {
     toast({ title: "Sprint dates updated" });
   };
 
+  const handleAutoStartToggle = async (checked: boolean) => {
+    try {
+      await fetch(`/api/sprints/${sprintId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoStart: checked }),
+      });
+      updateSprint({ id: sprintId, updates: { autoStart: checked } });
+      toast({ title: checked ? "Auto-start enabled" : "Auto-start disabled" });
+    } catch (error: any) {
+      toast({ title: "Failed to update auto-start setting", variant: "destructive" });
+    }
+  };
+
   const handleSaveCapacity = () => {
     const hours = parseInt(editCapacity) || null;
     updateSprint({ id: sprintId, updates: { capacityHours: hours } });
@@ -986,6 +1000,56 @@ export default function SprintDetail() {
                   {statusConfig.label}
                 </Badge>
                 <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                {isEditingDates && !isReadOnly ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      <Input
+                        type="date"
+                        value={editStartDate}
+                        onChange={(e) => setEditStartDate(e.target.value)}
+                        className="h-7 w-32 text-xs"
+                        data-testid="input-edit-start-date"
+                      />
+                      <span className="text-xs">–</span>
+                      <Input
+                        type="date"
+                        value={editEndDate}
+                        onChange={(e) => setEditEndDate(e.target.value)}
+                        className="h-7 w-32 text-xs"
+                        data-testid="input-edit-end-date"
+                      />
+                    </div>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveDates} data-testid="button-save-dates">
+                      <Check className="h-3 w-3 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setIsEditingDates(false)} data-testid="button-cancel-dates">
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div 
+                    className={cn(
+                      "flex items-center gap-1.5 group",
+                      !isReadOnly && "cursor-pointer hover:text-primary"
+                    )}
+                    onClick={() => {
+                      if (!isReadOnly) {
+                        setEditStartDate(sprint.startDate || "");
+                        setEditEndDate(sprint.endDate || "");
+                        setIsEditingDates(true);
+                      }
+                    }}
+                    data-testid="text-sprint-dates"
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    <span>
+                      {sprint.startDate ? format(new Date(sprint.startDate), "MMM d") : "No start"} – {sprint.endDate ? format(new Date(sprint.endDate), "MMM d, yyyy") : "No end"}
+                    </span>
+                    {!isReadOnly && <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100" />}
+                  </div>
+                )}
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
                 <Link href={`/projects/${projectId}`} className="hover:text-primary">
                   {project?.name}
                 </Link>
@@ -1008,6 +1072,38 @@ export default function SprintDetail() {
             )}
           </div>
         </div>
+
+        {sprint.status === "planned" && sprint.startDate && new Date(sprint.startDate) <= new Date() && (
+          <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg" data-testid="banner-ready-to-start">
+            <Play className="h-5 w-5 text-blue-600" />
+            <div className="flex-1">
+              <div className="font-medium text-blue-800">Sprint is ready to start</div>
+              <div className="text-sm text-blue-600">
+                The start date ({format(new Date(sprint.startDate), "MMM d, yyyy")}) has been reached. Click "Start Sprint" to begin.
+              </div>
+            </div>
+            <Button size="sm" onClick={handleStartSprint} data-testid="banner-button-start">
+              <Play className="h-4 w-4 mr-1" />
+              Start Now
+            </Button>
+          </div>
+        )}
+
+        {sprint.status === "active" && sprint.endDate && new Date(sprint.endDate) < new Date() && (
+          <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg" data-testid="banner-needs-closure">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <div className="flex-1">
+              <div className="font-medium text-amber-800">Sprint end date has passed</div>
+              <div className="text-sm text-amber-600">
+                This sprint was scheduled to end on {format(new Date(sprint.endDate), "MMM d, yyyy")}. Consider closing it.
+              </div>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => handleTabChange("insights")} data-testid="banner-button-close">
+              <Square className="h-4 w-4 mr-1" />
+              Review & Close
+            </Button>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 bg-muted/30 rounded-lg border">
           <div className="text-center">
@@ -2190,6 +2286,36 @@ export default function SprintDetail() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">No owner assigned</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Automation</CardTitle>
+                  <CardDescription>Configure automatic sprint lifecycle actions</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="auto-start" className="text-sm font-medium">Auto-start sprint</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Automatically start the sprint when the start date is reached
+                      </p>
+                    </div>
+                    <Switch 
+                      id="auto-start"
+                      checked={sprint.autoStart || false}
+                      onCheckedChange={(checked) => handleAutoStartToggle(checked)}
+                      disabled={isReadOnly || sprint.status !== "planned"}
+                      data-testid="switch-auto-start"
+                    />
+                  </div>
+                  {sprint.autoStart && sprint.status === "planned" && (
+                    <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
+                      <CalendarIcon className="h-3 w-3 inline mr-1" />
+                      Will auto-start on {sprint.startDate ? format(new Date(sprint.startDate), "MMM d, yyyy") : "start date (not set)"}
+                    </div>
                   )}
                 </CardContent>
               </Card>
