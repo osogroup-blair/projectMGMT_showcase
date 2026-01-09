@@ -124,6 +124,91 @@ export function useTask(id: string) {
   });
 }
 
+// Sprint Scope Targets Hook
+export function useSprintScopeTargets(sprintId: string) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["sprintScopeTargets", sprintId],
+    queryFn: async () => {
+      if (!sprintId) return [];
+      const response = await fetch(`/api/sprints/${sprintId}/scope-targets`);
+      if (!response.ok) throw new Error("Failed to fetch scope targets");
+      return response.json();
+    },
+    enabled: !!sprintId,
+  });
+
+  const addTarget = useMutation({
+    mutationFn: async (target: { targetType: string; targetId: string; autoSyncTasks?: boolean }) => {
+      const response = await fetch(`/api/sprints/${sprintId}/scope-targets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(target),
+      });
+      if (!response.ok) throw new Error("Failed to add scope target");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sprintScopeTargets", sprintId] });
+      queryClient.invalidateQueries({ queryKey: ["suggestedTasks", sprintId] });
+    },
+  });
+
+  const removeTarget = useMutation({
+    mutationFn: async (targetId: string) => {
+      const response = await fetch(`/api/sprints/${sprintId}/scope-targets/${targetId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to remove scope target");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sprintScopeTargets", sprintId] });
+      queryClient.invalidateQueries({ queryKey: ["suggestedTasks", sprintId] });
+    },
+  });
+
+  const clearAllTargets = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/sprints/${sprintId}/scope-targets`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to clear scope targets");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sprintScopeTargets", sprintId] });
+      queryClient.invalidateQueries({ queryKey: ["suggestedTasks", sprintId] });
+    },
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    addTarget: addTarget.mutate,
+    addTargetAsync: addTarget.mutateAsync,
+    removeTarget: removeTarget.mutate,
+    removeTargetAsync: removeTarget.mutateAsync,
+    clearAllTargets: clearAllTargets.mutate,
+    clearAllTargetsAsync: clearAllTargets.mutateAsync,
+    refetch: query.refetch,
+  };
+}
+
+// Suggested Tasks Hook (based on scope targets)
+export function useSuggestedTasks(sprintId: string) {
+  return useQuery({
+    queryKey: ["suggestedTasks", sprintId],
+    queryFn: async () => {
+      if (!sprintId) return [];
+      const response = await fetch(`/api/sprints/${sprintId}/suggested-tasks`);
+      if (!response.ok) throw new Error("Failed to fetch suggested tasks");
+      return response.json();
+    },
+    enabled: !!sprintId,
+  });
+}
+
 // Helper to get nested data (e.g. project with deliverables)
 export function useProjectDetails(projectId: string) {
   const project = useProject(projectId);
