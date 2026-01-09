@@ -570,12 +570,6 @@ export default function ProjectOverview() {
             
             {/* Timeline Tab Content */}
             <TabsContent value="timeline" className="h-[700px] mt-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <div>
-                  <h2 className="text-xl font-semibold tracking-tight">Timeline</h2>
-                  <p className="text-sm text-muted-foreground">Visualize sprints, milestones, stages, and deliverables over time.</p>
-                </div>
-              </div>
               <UnifiedTimeline 
                 project={project}
                 sprints={projectSprints}
