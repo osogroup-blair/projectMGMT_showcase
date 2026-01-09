@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Plus, 
@@ -13,7 +13,7 @@ import {
   Layers,
   Users
 } from "lucide-react";
-import { useRoleTypes } from "@/hooks/use-nexus-data";
+import { useRoleTypes, useStatusOptions } from "@/hooks/use-nexus-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,11 +54,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  PROJECT_STATUS_OPTIONS, 
-  TASK_STATUS_OPTIONS,
-  StatusOption 
-} from "@/lib/mock-data";
+import type { StatusOption } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
 interface AdminAppDefaultsProps {
@@ -68,12 +64,19 @@ interface AdminAppDefaultsProps {
 export default function AdminAppDefaults({ embedded = false }: AdminAppDefaultsProps) {
   const { toast } = useToast();
   
-  // Database hook for role types
+  // Database hooks
   const { data: roleTypes = [], createAsync: createRoleType, updateAsync: updateRoleType, removeAsync: deleteRoleType, isLoading: roleTypesLoading } = useRoleTypes();
+  const { data: allStatusOptions = [], createAsync: createStatusOption, updateAsync: updateStatusOption, removeAsync: deleteStatusOption, isLoading: statusOptionsLoading } = useStatusOptions();
   
-  // State for Defaults
-  const [projectStatuses, setProjectStatuses] = useState<StatusOption[]>(PROJECT_STATUS_OPTIONS);
-  const [taskStatuses, setTaskStatuses] = useState<StatusOption[]>(TASK_STATUS_OPTIONS);
+  // Filter status options by type
+  const projectStatuses = useMemo(() => 
+    allStatusOptions.filter((s: StatusOption) => s.type === "project").sort((a: StatusOption, b: StatusOption) => (a.order ?? 0) - (b.order ?? 0)),
+    [allStatusOptions]
+  );
+  const taskStatuses = useMemo(() => 
+    allStatusOptions.filter((s: StatusOption) => s.type === "task").sort((a: StatusOption, b: StatusOption) => (a.order ?? 0) - (b.order ?? 0)),
+    [allStatusOptions]
+  );
   
   const [stageTypes, setStageTypes] = useState([
     { id: "st1", label: "Planning", description: "Initial phase for requirements and scoping" },
@@ -120,25 +123,27 @@ export default function AdminAppDefaults({ embedded = false }: AdminAppDefaultsP
         } else {
           await createRoleType(roleData);
         }
-      } else {
+      } else if (currentType === "project" || currentType === "task") {
+        const statusData = {
+          label: formData.label,
+          color: formData.color,
+          type: currentType,
+          order: currentType === "project" ? projectStatuses.length : taskStatuses.length,
+          isDefault: formData.isDefault || false,
+        };
+        if (editingItem) {
+          await updateStatusOption({ id: editingItem.id, updates: statusData });
+        } else {
+          await createStatusOption(statusData);
+        }
+      } else if (currentType === "stage-type") {
         const newItem = {
           ...formData,
-          id: editingItem?.id || `s_${Date.now()}`,
+          id: editingItem?.id || `st_${Date.now()}`,
         };
-
-        if (currentType === "project") {
-          setProjectStatuses(prev => 
-            editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
-          );
-        } else if (currentType === "task") {
-          setTaskStatuses(prev => 
-            editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
-          );
-        } else if (currentType === "stage-type") {
-          setStageTypes(prev => 
-            editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
-          );
-        }
+        setStageTypes(prev => 
+          editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
+        );
       }
 
       setIsEditOpen(false);
@@ -161,10 +166,8 @@ export default function AdminAppDefaults({ embedded = false }: AdminAppDefaultsP
     try {
       if (type === "role-type") {
         await deleteRoleType(id);
-      } else if (type === "project") {
-        setProjectStatuses(prev => prev.filter(i => i.id !== id));
-      } else if (type === "task") {
-        setTaskStatuses(prev => prev.filter(i => i.id !== id));
+      } else if (type === "project" || type === "task") {
+        await deleteStatusOption(id);
       } else if (type === "stage-type") {
         setStageTypes(prev => prev.filter(i => i.id !== id));
       }

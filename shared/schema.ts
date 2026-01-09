@@ -403,13 +403,33 @@ export const mappingTemplates = pgTable("mapping_templates", {
   dataType: text("data_type").notNull(),
 });
 
-// Status Options
+// Status Options (global defaults)
 export const statusOptions = pgTable("status_options", {
   id: varchar("id").primaryKey(),
   label: text("label").notNull(),
   color: text("color").notNull(),
   isDefault: boolean("is_default").default(false),
-  type: text("type").notNull(),
+  type: text("type").notNull(), // "project" | "task"
+  order: integer("order").notNull().default(0),
+});
+
+// Project Task Statuses (project-level overrides)
+export const projectTaskStatuses = pgTable("project_task_statuses", {
+  id: varchar("id").primaryKey(),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  color: text("color").notNull(),
+  isDefault: boolean("is_default").default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Project Settings (for project-level configuration)
+export const projectSettings = pgTable("project_settings", {
+  id: varchar("id").primaryKey(),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }).unique(),
+  useCustomStatuses: boolean("use_custom_statuses").default(false),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Role Types (for role template categorization)
@@ -494,6 +514,8 @@ export const insertTemplateSnippetSchema = createInsertSchema(templateSnippets).
 export const insertUserRoleEligibilitySchema = createInsertSchema(userRoleEligibility).omit({ id: true });
 export const insertMappingTemplateSchema = createInsertSchema(mappingTemplates).omit({ id: true });
 export const insertStatusOptionSchema = createInsertSchema(statusOptions).omit({ id: true });
+export const insertProjectTaskStatusSchema = createInsertSchema(projectTaskStatuses).omit({ id: true, createdAt: true });
+export const insertProjectSettingsSchema = createInsertSchema(projectSettings).omit({ id: true, updatedAt: true });
 export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true });
 export const insertWorkBlockSchema = createInsertSchema(workBlocks).omit({ id: true, createdAt: true, updatedAt: true });
@@ -604,6 +626,12 @@ export type InsertMappingTemplate = z.infer<typeof insertMappingTemplateSchema>;
 
 export type StatusOption = typeof statusOptions.$inferSelect;
 export type InsertStatusOption = z.infer<typeof insertStatusOptionSchema>;
+
+export type ProjectTaskStatus = typeof projectTaskStatuses.$inferSelect;
+export type InsertProjectTaskStatus = z.infer<typeof insertProjectTaskStatusSchema>;
+
+export type ProjectSettings = typeof projectSettings.$inferSelect;
+export type InsertProjectSettings = z.infer<typeof insertProjectSettingsSchema>;
 
 export type RoleType = typeof roleTypes.$inferSelect;
 export type InsertRoleType = z.infer<typeof insertRoleTypeSchema>;

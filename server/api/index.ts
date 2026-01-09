@@ -31,6 +31,8 @@ import {
   insertTaskTemplateSchema,
   insertMappingTemplateSchema,
   insertStatusOptionSchema,
+  insertProjectTaskStatusSchema,
+  insertProjectSettingsSchema,
   insertRoleTypeSchema,
   insertUserPreferencesSchema,
   insertWorkBlockSchema,
@@ -1348,6 +1350,85 @@ export async function registerRoutes(
   app.delete("/api/roleTypes/:id", async (req, res) => {
     await storage.deleteRoleType(req.params.id);
     res.status(204).send();
+  });
+
+  // Project Task Statuses (project-level overrides)
+  app.get("/api/projects/:projectId/task-statuses", async (req, res) => {
+    const statuses = await storage.getProjectTaskStatusesByProjectId(req.params.projectId);
+    res.json(statuses);
+  });
+
+  app.post("/api/projects/:projectId/task-statuses", async (req, res) => {
+    try {
+      const validated = insertProjectTaskStatusSchema.parse({ ...req.body, projectId: req.params.projectId });
+      const status = await storage.createProjectTaskStatus(validated);
+      res.status(201).json(status);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/projects/:projectId/task-statuses/:id", async (req, res) => {
+    try {
+      const status = await storage.updateProjectTaskStatus(req.params.id, req.body);
+      res.json(status);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/projects/:projectId/task-statuses/:id", async (req, res) => {
+    await storage.deleteProjectTaskStatus(req.params.id);
+    res.status(204).send();
+  });
+
+  app.put("/api/projects/:projectId/task-statuses", async (req, res) => {
+    try {
+      const { statuses } = req.body;
+      await storage.deleteProjectTaskStatusesByProjectId(req.params.projectId);
+      const created = [];
+      for (const status of statuses) {
+        const validated = insertProjectTaskStatusSchema.parse({ ...status, projectId: req.params.projectId });
+        const newStatus = await storage.createProjectTaskStatus(validated);
+        created.push(newStatus);
+      }
+      res.json(created);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Project Settings
+  app.get("/api/projects/:projectId/settings", async (req, res) => {
+    const settings = await storage.getProjectSettingsByProjectId(req.params.projectId);
+    res.json(settings || { projectId: req.params.projectId, useCustomStatuses: false });
+  });
+
+  app.put("/api/projects/:projectId/settings", async (req, res) => {
+    try {
+      const settings = await storage.upsertProjectSettings(req.params.projectId, req.body);
+      res.json(settings);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Resolved Task Statuses (project-specific > global fallback)
+  app.get("/api/projects/:projectId/resolved-task-statuses", async (req, res) => {
+    try {
+      const settings = await storage.getProjectSettingsByProjectId(req.params.projectId);
+      if (settings?.useCustomStatuses) {
+        const projectStatuses = await storage.getProjectTaskStatusesByProjectId(req.params.projectId);
+        if (projectStatuses.length > 0) {
+          res.json(projectStatuses);
+          return;
+        }
+      }
+      const globalStatuses = await storage.getStatusOptionsByType("task");
+      res.json(globalStatuses);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
   });
 
   // Sprints

@@ -33,6 +33,8 @@ import type {
   TaskTemplate, InsertTaskTemplate,
   MappingTemplate, InsertMappingTemplate,
   StatusOption, InsertStatusOption,
+  ProjectTaskStatus, InsertProjectTaskStatus,
+  ProjectSettings, InsertProjectSettings,
   RoleType, InsertRoleType,
   UserPreferences, InsertUserPreferences,
   WorkBlock, InsertWorkBlock,
@@ -237,6 +239,23 @@ export interface IStorage {
   createRoleType(roleType: InsertRoleType): Promise<RoleType>;
   updateRoleType(id: string, roleType: Partial<RoleType>): Promise<RoleType>;
   deleteRoleType(id: string): Promise<void>;
+
+  // Project Task Statuses (project-level overrides)
+  getProjectTaskStatuses(): Promise<ProjectTaskStatus[]>;
+  getProjectTaskStatusById(id: string): Promise<ProjectTaskStatus | undefined>;
+  getProjectTaskStatusesByProjectId(projectId: string): Promise<ProjectTaskStatus[]>;
+  createProjectTaskStatus(status: InsertProjectTaskStatus): Promise<ProjectTaskStatus>;
+  updateProjectTaskStatus(id: string, status: Partial<ProjectTaskStatus>): Promise<ProjectTaskStatus>;
+  deleteProjectTaskStatus(id: string): Promise<void>;
+  deleteProjectTaskStatusesByProjectId(projectId: string): Promise<void>;
+
+  // Project Settings
+  getProjectSettings(): Promise<ProjectSettings[]>;
+  getProjectSettingsById(id: string): Promise<ProjectSettings | undefined>;
+  getProjectSettingsByProjectId(projectId: string): Promise<ProjectSettings | undefined>;
+  createProjectSettings(settings: InsertProjectSettings): Promise<ProjectSettings>;
+  updateProjectSettings(id: string, settings: Partial<ProjectSettings>): Promise<ProjectSettings>;
+  upsertProjectSettings(projectId: string, settings: Partial<InsertProjectSettings>): Promise<ProjectSettings>;
 
   // Sprints
   getSprints(): Promise<Sprint[]>;
@@ -945,6 +964,65 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteRoleType(id: string): Promise<void> {
     await db.delete(schema.roleTypes).where(eq(schema.roleTypes.id, id));
+  }
+
+  // Project Task Statuses
+  async getProjectTaskStatuses(): Promise<ProjectTaskStatus[]> {
+    return await db.select().from(schema.projectTaskStatuses).orderBy(schema.projectTaskStatuses.order);
+  }
+  async getProjectTaskStatusById(id: string): Promise<ProjectTaskStatus | undefined> {
+    const [status] = await db.select().from(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.id, id));
+    return status;
+  }
+  async getProjectTaskStatusesByProjectId(projectId: string): Promise<ProjectTaskStatus[]> {
+    return await db.select().from(schema.projectTaskStatuses)
+      .where(eq(schema.projectTaskStatuses.projectId, projectId))
+      .orderBy(schema.projectTaskStatuses.order);
+  }
+  async createProjectTaskStatus(status: InsertProjectTaskStatus): Promise<ProjectTaskStatus> {
+    const id = (arguments[0] as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectTaskStatuses).values({ ...status, id }).returning();
+    return created;
+  }
+  async updateProjectTaskStatus(id: string, status: Partial<ProjectTaskStatus>): Promise<ProjectTaskStatus> {
+    const [updated] = await db.update(schema.projectTaskStatuses).set(status).where(eq(schema.projectTaskStatuses.id, id)).returning();
+    return updated;
+  }
+  async deleteProjectTaskStatus(id: string): Promise<void> {
+    await db.delete(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.id, id));
+  }
+  async deleteProjectTaskStatusesByProjectId(projectId: string): Promise<void> {
+    await db.delete(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.projectId, projectId));
+  }
+
+  // Project Settings
+  async getProjectSettings(): Promise<ProjectSettings[]> {
+    return await db.select().from(schema.projectSettings);
+  }
+  async getProjectSettingsById(id: string): Promise<ProjectSettings | undefined> {
+    const [settings] = await db.select().from(schema.projectSettings).where(eq(schema.projectSettings.id, id));
+    return settings;
+  }
+  async getProjectSettingsByProjectId(projectId: string): Promise<ProjectSettings | undefined> {
+    const [settings] = await db.select().from(schema.projectSettings).where(eq(schema.projectSettings.projectId, projectId));
+    return settings;
+  }
+  async createProjectSettings(settings: InsertProjectSettings): Promise<ProjectSettings> {
+    const id = (arguments[0] as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectSettings).values({ ...settings, id }).returning();
+    return created;
+  }
+  async updateProjectSettings(id: string, settings: Partial<ProjectSettings>): Promise<ProjectSettings> {
+    const [updated] = await db.update(schema.projectSettings).set({ ...settings, updatedAt: new Date() }).where(eq(schema.projectSettings.id, id)).returning();
+    return updated;
+  }
+  async upsertProjectSettings(projectId: string, settings: Partial<InsertProjectSettings>): Promise<ProjectSettings> {
+    const existing = await this.getProjectSettingsByProjectId(projectId);
+    if (existing) {
+      return await this.updateProjectSettings(existing.id, settings);
+    } else {
+      return await this.createProjectSettings({ projectId, ...settings } as InsertProjectSettings);
+    }
   }
 
   // Sprints
