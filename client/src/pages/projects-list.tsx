@@ -11,6 +11,8 @@ import {
   Upload, 
   MoreHorizontal, 
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Calendar,
   AlertTriangle,
   User as UserIcon,
@@ -45,6 +47,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Shell } from "@/components/layout/shell";
 import { Link } from "wouter";
 import { useState, useMemo } from "react";
@@ -156,6 +159,16 @@ export default function ProjectsList() {
   const [filterFavorites, setFilterFavorites] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Sorting State
+  type SortField = "name" | "client" | "status" | "owner" | "startDate" | "riskLevel" | "progress";
+  type SortDirection = "asc" | "desc";
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  // Selection State for Bulk Actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+
   // Dialog & Form State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -202,15 +215,125 @@ export default function ProjectsList() {
   }, [projectsData, usersData]);
 
   // Filter Logic
-  const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          project.client.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === "all" || project.status === filterStatus;
-    const matchesRisk = filterRisk === "all" || project.riskLevel === filterRisk;
-    const matchesFavorites = !filterFavorites || favoriteProjectIds.has(project.id);
-    
-    return matchesSearch && matchesStatus && matchesRisk && matchesFavorites;
-  });
+  const filteredProjects = useMemo(() => {
+    let result = projects.filter(project => {
+      const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            project.client.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = filterStatus === "all" || project.status === filterStatus;
+      const matchesRisk = filterRisk === "all" || project.riskLevel === filterRisk;
+      const matchesFavorites = !filterFavorites || favoriteProjectIds.has(project.id);
+      
+      return matchesSearch && matchesStatus && matchesRisk && matchesFavorites;
+    });
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let aVal: string | number = "";
+      let bVal: string | number = "";
+
+      switch (sortField) {
+        case "name":
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+          break;
+        case "client":
+          aVal = a.client.toLowerCase();
+          bVal = b.client.toLowerCase();
+          break;
+        case "status":
+          aVal = a.status.toLowerCase();
+          bVal = b.status.toLowerCase();
+          break;
+        case "owner":
+          aVal = a.owner.toLowerCase();
+          bVal = b.owner.toLowerCase();
+          break;
+        case "startDate":
+          aVal = a.startDate || "";
+          bVal = b.startDate || "";
+          break;
+        case "riskLevel":
+          const riskOrder = { Low: 1, Medium: 2, High: 3 };
+          aVal = riskOrder[a.riskLevel] || 0;
+          bVal = riskOrder[b.riskLevel] || 0;
+          break;
+        case "progress":
+          aVal = a.progress || 0;
+          bVal = b.progress || 0;
+          break;
+      }
+
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [projects, searchQuery, filterStatus, filterRisk, filterFavorites, favoriteProjectIds, sortField, sortDirection]);
+
+  // Toggle sort for a column
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredProjects.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredProjects.map(p => p.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+    const idsToDelete = Array.from(selectedIds);
+    for (const id of idsToDelete) {
+      await deleteProject(id);
+    }
+    setSelectedIds(new Set());
+    setIsBulkDeleteOpen(false);
+    toast({
+      title: "Projects Deleted",
+      description: `Successfully deleted ${idsToDelete.length} project(s).`,
+    });
+  };
+
+  // Sortable column header component
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      className="-ml-3 h-8 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+      onClick={() => toggleSort(field)}
+      data-testid={`sort-${field}`}
+    >
+      {children}
+      {sortField === field ? (
+        sortDirection === "asc" ? (
+          <ArrowUp className="ml-2 h-3 w-3" />
+        ) : (
+          <ArrowDown className="ml-2 h-3 w-3" />
+        )
+      ) : (
+        <ArrowUpDown className="ml-2 h-3 w-3 opacity-50" />
+      )}
+    </Button>
+  );
 
   // CRUD Handlers
   const handleCreate = () => {
@@ -410,29 +533,88 @@ export default function ProjectsList() {
           </div>
         </div>
 
+        {/* Bulk Actions Bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={selectedIds.size === filteredProjects.length}
+                onCheckedChange={toggleSelectAll}
+                data-testid="checkbox-select-all-bar"
+              />
+              <span className="text-sm font-medium">
+                {selectedIds.size} project{selectedIds.size !== 1 ? 's' : ''} selected
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedIds(new Set())}
+                data-testid="button-clear-selection"
+              >
+                Clear Selection
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsBulkDeleteOpen(true)}
+                data-testid="button-bulk-delete"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Selected
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Data Table */}
         <div className="rounded-md border bg-card shadow-sm">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-[250px]">
-                  <Button variant="ghost" size="sm" className="-ml-3 h-8 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Project Name
-                    <ArrowUpDown className="ml-2 h-3 w-3" />
-                  </Button>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={filteredProjects.length > 0 && selectedIds.size === filteredProjects.length}
+                    onCheckedChange={toggleSelectAll}
+                    data-testid="checkbox-select-all"
+                  />
                 </TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Timeline</TableHead>
-                <TableHead>Risk</TableHead>
-                <TableHead className="w-[100px]">Progress</TableHead>
+                <TableHead className="w-[250px]">
+                  <SortableHeader field="name">Project Name</SortableHeader>
+                </TableHead>
+                <TableHead>
+                  <SortableHeader field="client">Client</SortableHeader>
+                </TableHead>
+                <TableHead>
+                  <SortableHeader field="status">Status</SortableHeader>
+                </TableHead>
+                <TableHead>
+                  <SortableHeader field="owner">Owner</SortableHeader>
+                </TableHead>
+                <TableHead>
+                  <SortableHeader field="startDate">Timeline</SortableHeader>
+                </TableHead>
+                <TableHead>
+                  <SortableHeader field="riskLevel">Risk</SortableHeader>
+                </TableHead>
+                <TableHead className="w-[100px]">
+                  <SortableHeader field="progress">Progress</SortableHeader>
+                </TableHead>
                 <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProjects.map((project) => (
-                <TableRow key={project.id} className="group hover:bg-muted/20">
+                <TableRow key={project.id} className={cn("group hover:bg-muted/20", selectedIds.has(project.id) && "bg-primary/5")}>
+                  {/* Checkbox */}
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(project.id)}
+                      onCheckedChange={() => toggleSelectOne(project.id)}
+                      data-testid={`checkbox-project-${project.id}`}
+                    />
+                  </TableCell>
                   {/* Inline Editable Name */}
                   <TableCell className="font-medium">
                     {editingId === project.id && editingField === "name" ? (
@@ -761,6 +943,30 @@ export default function ProjectsList() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
               Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} Project{selectedIds.size !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the selected 
+              {selectedIds.size === 1 ? ' project ' : ` ${selectedIds.size} projects `}
+              and all associated data including deliverables, epics, tasks, and milestones.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkDelete} 
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="button-confirm-bulk-delete"
+            >
+              Delete {selectedIds.size} Project{selectedIds.size !== 1 ? 's' : ''}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
