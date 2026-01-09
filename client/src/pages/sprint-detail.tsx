@@ -305,20 +305,17 @@ export default function SprintDetail() {
   };
 
   const handleCloseSprintWithRollover = async () => {
-    try {
-      const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error);
-      }
-      updateSprint({ id: sprintId, updates: { status: "closed", closedAt: new Date().toISOString() } });
-      queryClient.invalidateQueries({ queryKey: ["sprints"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast({ title: "Sprint closed successfully" });
-      setLocation(`/projects/${projectId}?tab=sprints`);
-    } catch (error: any) {
-      toast({ title: "Failed to close sprint", description: error.message, variant: "destructive" });
+    const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
+    if (!response.ok) {
+      const err = await response.json();
+      toast({ title: "Failed to close sprint", description: err.error, variant: "destructive" });
+      throw new Error(err.error);
     }
+    updateSprint({ id: sprintId, updates: { status: "closed", closedAt: new Date().toISOString() } });
+    queryClient.invalidateQueries({ queryKey: ["sprints"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    toast({ title: "Sprint closed successfully" });
+    setLocation(`/projects/${projectId}?tab=sprints`);
   };
 
   const handleNotesChange = async (notes: string) => {
@@ -336,49 +333,62 @@ export default function SprintDetail() {
   };
 
   const handleRolloverTasks = async (decisions: { taskId: string; action: string; targetSprintId?: string }[]) => {
-    try {
-      const nextSprint = projectSprints
-        .filter((s: any) => s.id !== sprintId && s.status === "planned")
-        .sort((a: any, b: any) => (a.startDate || "").localeCompare(b.startDate || ""))[0];
+    const nextSprint = projectSprints
+      .filter((s: any) => s.id !== sprintId && s.status === "planned")
+      .sort((a: any, b: any) => (a.startDate || "").localeCompare(b.startDate || ""))[0];
 
-      for (const decision of decisions) {
-        if (decision.action === "next_sprint") {
-          const targetId = decision.targetSprintId || nextSprint?.id;
-          if (targetId) {
-            await fetch(`/api/tasks/${decision.taskId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sprintId: targetId }),
-            });
-            updateTask({ id: decision.taskId, updates: { sprintId: targetId } });
-          } else {
-            await fetch(`/api/tasks/${decision.taskId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sprintId: null }),
-            });
-            updateTask({ id: decision.taskId, updates: { sprintId: null } });
+    for (const decision of decisions) {
+      let response: Response;
+      if (decision.action === "next_sprint") {
+        const targetId = decision.targetSprintId || nextSprint?.id;
+        if (targetId) {
+          response = await fetch(`/api/tasks/${decision.taskId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sprintId: targetId }),
+          });
+          if (!response.ok) {
+            toast({ title: "Failed to rollover tasks", description: "Could not move task to next sprint", variant: "destructive" });
+            throw new Error("Failed to move task to next sprint");
           }
-        } else if (decision.action === "backlog") {
-          await fetch(`/api/tasks/${decision.taskId}`, {
+          updateTask({ id: decision.taskId, updates: { sprintId: targetId } });
+        } else {
+          response = await fetch(`/api/tasks/${decision.taskId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sprintId: null }),
           });
+          if (!response.ok) {
+            toast({ title: "Failed to rollover tasks", description: "Could not move task to backlog", variant: "destructive" });
+            throw new Error("Failed to move task to backlog");
+          }
           updateTask({ id: decision.taskId, updates: { sprintId: null } });
-        } else if (decision.action === "close") {
-          await fetch(`/api/tasks/${decision.taskId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "Done", sprintId: null }),
-          });
-          updateTask({ id: decision.taskId, updates: { status: "Done", sprintId: null } });
         }
+      } else if (decision.action === "backlog") {
+        response = await fetch(`/api/tasks/${decision.taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sprintId: null }),
+        });
+        if (!response.ok) {
+          toast({ title: "Failed to rollover tasks", description: "Could not move task to backlog", variant: "destructive" });
+          throw new Error("Failed to move task to backlog");
+        }
+        updateTask({ id: decision.taskId, updates: { sprintId: null } });
+      } else if (decision.action === "close") {
+        response = await fetch(`/api/tasks/${decision.taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "Done", sprintId: null }),
+        });
+        if (!response.ok) {
+          toast({ title: "Failed to rollover tasks", description: "Could not close task", variant: "destructive" });
+          throw new Error("Failed to close task");
+        }
+        updateTask({ id: decision.taskId, updates: { status: "Done", sprintId: null } });
       }
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    } catch (error: any) {
-      toast({ title: "Failed to rollover tasks", description: error.message, variant: "destructive" });
     }
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
   };
 
   const handleAddTasks = async () => {

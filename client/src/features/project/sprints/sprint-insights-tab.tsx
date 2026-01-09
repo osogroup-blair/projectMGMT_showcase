@@ -36,7 +36,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { format, differenceInDays, parseISO, isAfter, isBefore } from "date-fns";
+import { format, differenceInDays, parseISO, isAfter, isBefore, startOfDay } from "date-fns";
 
 interface SprintTask {
   id: string;
@@ -57,9 +57,9 @@ interface SprintInsightsTabProps {
   projectId: string;
   projectSprints: any[];
   isReadOnly: boolean;
-  onCloseSprint: () => void;
+  onCloseSprint: () => Promise<void>;
   onNotesChange?: (notes: string) => void;
-  onRolloverTasks?: (decisions: { taskId: string; action: string; targetSprintId?: string }[]) => void;
+  onRolloverTasks?: (decisions: { taskId: string; action: string; targetSprintId?: string }[]) => Promise<void>;
 }
 
 type RolloverAction = "next_sprint" | "backlog" | "close";
@@ -120,21 +120,25 @@ export function SprintInsightsTab({
   }, [sprint?.startDate, sprint?.endDate]);
 
   const riskSignals = useMemo(() => {
-    const today = new Date();
-    const threeDaysAgo = new Date(today);
+    const todayStart = startOfDay(new Date());
+    const threeDaysAgo = new Date(todayStart);
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
     const overdue = tasks.filter(t => {
       if (!t.dueDate || ["Done", "Completed", "Complete"].some(s => t.status?.toLowerCase() === s.toLowerCase())) return false;
       try {
-        return isBefore(parseISO(t.dueDate), today);
+        const dueDate = parseISO(t.dueDate);
+        if (isAfter(dueDate, new Date())) return false;
+        return isBefore(startOfDay(dueDate), todayStart);
       } catch { return false; }
     });
 
     const stale = tasks.filter(t => {
       if (!t.updatedAt || ["Done", "Completed", "Complete"].some(s => t.status?.toLowerCase() === s.toLowerCase())) return false;
       try {
-        return isBefore(parseISO(t.updatedAt), threeDaysAgo);
+        const updatedDate = parseISO(t.updatedAt);
+        if (isAfter(updatedDate, new Date())) return false;
+        return isBefore(startOfDay(updatedDate), threeDaysAgo);
       } catch { return false; }
     });
 
@@ -180,15 +184,22 @@ export function SprintInsightsTab({
     setRolloverDecisions(newDecisions);
   };
 
-  const handleConfirmClose = () => {
+  const handleConfirmClose = async () => {
     const decisions = Object.entries(rolloverDecisions).map(([taskId, action]) => ({
       taskId,
       action,
       targetSprintId: action === "next_sprint" ? nextPlannedSprint?.id : undefined,
     }));
-    onRolloverTasks?.(decisions);
-    onCloseSprint();
-    setShowCloseDialog(false);
+    
+    try {
+      if (onRolloverTasks && decisions.length > 0) {
+        await onRolloverTasks(decisions);
+      }
+      await onCloseSprint();
+      setShowCloseDialog(false);
+    } catch (error) {
+      console.error("Failed to close sprint:", error);
+    }
   };
 
   const handleSaveNotes = () => {
