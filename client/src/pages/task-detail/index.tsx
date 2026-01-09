@@ -9,16 +9,13 @@ import {
   Loader2,
   Layers,
   Target,
-  Tag
+  Tag,
+  ChevronDown,
+  Settings2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -31,6 +28,11 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -51,6 +53,7 @@ import { TaskOverviewTab } from "./task-overview-tab";
 import { TaskDependenciesTab } from "./task-dependencies-tab";
 import { TaskSubtasksTab } from "./task-subtasks-tab";
 import { TaskActivityTab } from "./task-activity-tab";
+import { TaskCommentsPanel } from "./task-comments-panel";
 
 const PRIORITY_CONFIG = {
   "High": { color: "text-red-600 bg-red-100", label: "High" },
@@ -116,6 +119,7 @@ export default function TaskDetail() {
   const getAssignee = (id?: string | null) => users?.find((u: any) => u.id === id);
   const getMilestone = (id?: string | null) => milestones.find((m: any) => m.id === id);
   const getStage = (id?: string | null) => stages.find((s: any) => s.id === id);
+  const getEpic = (id?: string | null) => allEpics?.find((e: any) => e.id === id);
 
   if (isLoading) {
     return (
@@ -144,7 +148,7 @@ export default function TaskDetail() {
     <Shell>
       <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-6">
             <div className="space-y-4">
               <div className="flex justify-between items-start gap-4">
                 <Input 
@@ -185,6 +189,208 @@ export default function TaskDetail() {
                 ))}
               </div>
             </div>
+
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full justify-between" data-testid="accordion-metadata-trigger">
+                  <span className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4" />
+                    Properties & Relationships
+                  </span>
+                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Task Type</Label>
+                        <Select 
+                          value={task.taskTypeId || ""} 
+                          onValueChange={(v) => handleUpdateTask("taskTypeId", v || null)}
+                        >
+                          <SelectTrigger data-testid="select-task-type">
+                            <div className="flex items-center gap-2">
+                              <Tag className="h-4 w-4 text-muted-foreground" />
+                              <span>{taskType?.name || "Select type"}</span>
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(taskTypes || []).map((tt: any) => (
+                              <SelectItem key={tt.id} value={tt.id}>
+                                <div className="flex items-center gap-2">
+                                  <div 
+                                    className="w-2 h-2 rounded-full" 
+                                    style={{ backgroundColor: tt.color || '#6b7280' }}
+                                  />
+                                  <span>{tt.name}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Status</Label>
+                        <Select 
+                          value={task.status} 
+                          onValueChange={(v) => handleUpdateTask("status", v)}
+                        >
+                          <SelectTrigger data-testid="select-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.map(status => (
+                              <SelectItem key={status} value={status}>{status}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Stage</Label>
+                        <Select 
+                          value={task.stageId || ""} 
+                          onValueChange={(v) => handleUpdateTask("stageId", v)}
+                        >
+                          <SelectTrigger data-testid="select-stage">
+                            <SelectValue placeholder="Select stage" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stages.map((s: any) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Epic</Label>
+                        <Select 
+                          value={task.epicId || ""} 
+                          onValueChange={(v) => handleUpdateTask("epicId", v)}
+                        >
+                          <SelectTrigger data-testid="select-epic">
+                            <SelectValue placeholder="Select epic" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(allEpics || []).map((e: any) => (
+                              <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Assignee</Label>
+                        <Select 
+                          value={task.assigneeId || "unassigned"} 
+                          onValueChange={(v) => handleUpdateTask("assigneeId", v === "unassigned" ? null : v)}
+                        >
+                          <SelectTrigger data-testid="select-assignee">
+                            <div className="flex items-center gap-2">
+                              {task.assigneeId && getAssignee(task.assigneeId) ? (
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-[8px]">{getAssignee(task.assigneeId)?.name.substring(0,2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                              ) : <User className="h-4 w-4" />}
+                              <span className="truncate">{getAssignee(task.assigneeId)?.name || "Unassigned"}</span>
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {(users || []).map((member: any) => (
+                              <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Priority</Label>
+                        <Select 
+                          value={task.priority} 
+                          onValueChange={(v) => handleUpdateTask("priority", v)}
+                        >
+                          <SelectTrigger data-testid="select-priority">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="High">High</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="Low">Low</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Effort (Fibonacci)</Label>
+                        <Select 
+                          value={String(task.effort || "")} 
+                          onValueChange={(v) => handleUpdateTask("effort", parseInt(v))}
+                        >
+                          <SelectTrigger data-testid="select-effort">
+                            <SelectValue placeholder="Select effort" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {EFFORT_VALUES.map(val => (
+                              <SelectItem key={val} value={String(val)}>{val}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Due Date</Label>
+                        <Input 
+                          type="date" 
+                          value={task.deadline || ""}
+                          onChange={(e) => handleUpdateTask("deadline", e.target.value)}
+                          data-testid="input-deadline"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Milestone</Label>
+                        <Select 
+                          value={task.milestoneId || "none"} 
+                          onValueChange={(v) => handleUpdateTask("milestoneId", v === "none" ? null : v)}
+                        >
+                          <SelectTrigger data-testid="select-milestone">
+                            <div className="flex items-center gap-2">
+                              <Flag className="h-4 w-4 text-muted-foreground" />
+                              <span className="truncate">{getMilestone(task.milestoneId)?.name || "No Milestone"}</span>
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {milestones.map((m: any) => (
+                              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Estimate (Hours)</Label>
+                        <div className="relative">
+                          <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input 
+                            type="number" 
+                            className="pl-9"
+                            value={task.estimateHours || 0}
+                            onChange={(e) => handleUpdateTask("estimateHours", parseInt(e.target.value) || 0)}
+                            data-testid="input-estimate-hours"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </CollapsibleContent>
+            </Collapsible>
 
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
@@ -260,197 +466,7 @@ export default function TaskDetail() {
           </div>
 
           <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Task Type</Label>
-                  <Select 
-                    value={task.taskTypeId || ""} 
-                    onValueChange={(v) => handleUpdateTask("taskTypeId", v || null)}
-                  >
-                    <SelectTrigger data-testid="select-task-type">
-                      <div className="flex items-center gap-2">
-                        <Tag className="h-4 w-4 text-muted-foreground" />
-                        <span>{taskType?.name || "Select type"}</span>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(taskTypes || []).map((tt: any) => (
-                        <SelectItem key={tt.id} value={tt.id}>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-2 h-2 rounded-full" 
-                              style={{ backgroundColor: tt.color || '#6b7280' }}
-                            />
-                            <span>{tt.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
-                  <Select 
-                    value={task.status} 
-                    onValueChange={(v) => handleUpdateTask("status", v)}
-                  >
-                    <SelectTrigger data-testid="select-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_OPTIONS.map(status => (
-                        <SelectItem key={status} value={status}>{status}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Stage</Label>
-                  <Select 
-                    value={task.stageId || ""} 
-                    onValueChange={(v) => handleUpdateTask("stageId", v)}
-                  >
-                    <SelectTrigger data-testid="select-stage">
-                      <SelectValue placeholder="Select stage" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stages.map((s: any) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Epic</Label>
-                  <Select 
-                    value={task.epicId || ""} 
-                    onValueChange={(v) => handleUpdateTask("epicId", v)}
-                  >
-                    <SelectTrigger data-testid="select-epic">
-                      <SelectValue placeholder="Select epic" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(allEpics || []).map((e: any) => (
-                        <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Assignee</Label>
-                  <Select 
-                    value={task.assigneeId || "unassigned"} 
-                    onValueChange={(v) => handleUpdateTask("assigneeId", v === "unassigned" ? null : v)}
-                  >
-                    <SelectTrigger data-testid="select-assignee">
-                      <div className="flex items-center gap-2">
-                        {task.assigneeId && getAssignee(task.assigneeId) ? (
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-[8px]">{getAssignee(task.assigneeId)?.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                        ) : <User className="h-4 w-4" />}
-                        <span className="truncate">{getAssignee(task.assigneeId)?.name || "Unassigned"}</span>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {(users || []).map((member: any) => (
-                        <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Priority</Label>
-                  <Select 
-                    value={task.priority} 
-                    onValueChange={(v) => handleUpdateTask("priority", v)}
-                  >
-                    <SelectTrigger data-testid="select-priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Effort (Fibonacci)</Label>
-                  <Select 
-                    value={String(task.effort || "")} 
-                    onValueChange={(v) => handleUpdateTask("effort", parseInt(v))}
-                  >
-                    <SelectTrigger data-testid="select-effort">
-                      <SelectValue placeholder="Select effort" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EFFORT_VALUES.map(val => (
-                        <SelectItem key={val} value={String(val)}>{val}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Due Date</Label>
-                  <Input 
-                    type="date" 
-                    value={task.deadline || ""}
-                    onChange={(e) => handleUpdateTask("deadline", e.target.value)}
-                    data-testid="input-deadline"
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Milestone</Label>
-                  <Select 
-                    value={task.milestoneId || "none"} 
-                    onValueChange={(v) => handleUpdateTask("milestoneId", v === "none" ? null : v)}
-                  >
-                    <SelectTrigger data-testid="select-milestone">
-                      <div className="flex items-center gap-2">
-                        <Flag className="h-4 w-4 text-muted-foreground" />
-                        <span className="truncate">{getMilestone(task.milestoneId)?.name || "No Milestone"}</span>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {milestones.map((m: any) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Estimate (Hours)</Label>
-                  <div className="relative">
-                    <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      type="number" 
-                      className="pl-9"
-                      value={task.estimateHours || 0}
-                      onChange={(e) => handleUpdateTask("estimateHours", parseInt(e.target.value) || 0)}
-                      data-testid="input-estimate-hours"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <TaskCommentsPanel task={task} projectId={projectId} />
 
             <Card className="bg-muted/10 border-dashed">
               <CardContent className="p-4">
