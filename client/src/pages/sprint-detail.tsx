@@ -32,7 +32,8 @@ import {
   Layers,
   Lock,
   Unlock,
-  CheckSquare
+  CheckSquare,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,7 +150,7 @@ export default function SprintDetail() {
   const [selectedSuggested, setSelectedSuggested] = useState<string[]>([]);
   const [showScopeModeChangeDialog, setShowScopeModeChangeDialog] = useState(false);
   const [pendingScopeMode, setPendingScopeMode] = useState<"epic" | "milestone" | "stage" | null>(null);
-  const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope">("tasks");
+  const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope" | "details">("tasks");
   const [scopeDefSubTab, setScopeDefSubTab] = useState<"manual" | "matrix" | "rules">("manual");
   const [manualScopeSearch, setManualScopeSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
@@ -896,9 +897,45 @@ export default function SprintDetail() {
           </TabsList>
 
           <TabsContent value="plan" className="mt-6">
+            {/* Sprint Goal & Success Criteria - Above tabs */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center justify-between">
+                  Sprint Goal & Success Criteria
+                  {!isEditingGoal && !isReadOnly && (
+                    <Button variant="ghost" size="sm" onClick={() => setIsEditingGoal(true)} data-testid="button-edit-goal">
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isEditingGoal && !isReadOnly ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      ref={goalInputRef}
+                      value={editGoal}
+                      onChange={(e) => setEditGoal(e.target.value)}
+                      placeholder="What do you want to achieve in this sprint? Include success criteria."
+                      className="min-h-[100px]"
+                      data-testid="input-edit-goal"
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSaveGoal} data-testid="button-save-goal">Save</Button>
+                      <Button size="sm" variant="outline" onClick={() => setIsEditingGoal(false)} data-testid="button-cancel-goal">Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground whitespace-pre-wrap">
+                    {sprint.goal || "No goal set for this sprint. Define what you want to achieve."}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Sub-navigation tabs matching Milestone pattern */}
-            <Tabs value={planSubTab} onValueChange={(v) => setPlanSubTab(v as "tasks" | "scope")} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 max-w-md mb-6">
+            <Tabs value={planSubTab} onValueChange={(v) => setPlanSubTab(v as "tasks" | "scope" | "details")} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 max-w-lg mb-6">
                 <TabsTrigger value="tasks" className="gap-2" data-testid="subtab-tasks">
                   <ListTodo className="h-4 w-4" />
                   Tasks
@@ -907,197 +944,203 @@ export default function SprintDetail() {
                   <SlidersHorizontal className="h-4 w-4" />
                   Scope Definition
                 </TabsTrigger>
+                <TabsTrigger value="details" className="gap-2" data-testid="subtab-details">
+                  <FileText className="h-4 w-4" />
+                  Details
+                </TabsTrigger>
               </TabsList>
 
               {/* Tasks Sub-Tab */}
               <TabsContent value="tasks" className="mt-0">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Sprint Backlog</CardTitle>
+                      {!isReadOnly && (
+                        <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks">
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Tasks
+                        </Button>
+                      )}
+                    </div>
+                    <CardDescription>
+                      {stats.total} tasks committed, {stats.totalEffort} story points
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {sprintTasks.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Target className="h-8 w-8 mx-auto mb-2" />
+                        <p>No tasks in this sprint yet.</p>
+                        {!isReadOnly && (
+                          <Button variant="link" onClick={() => setShowAddTasksDialog(true)}>
+                            Add tasks from backlog
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[40%]">Task</TableHead>
+                            <TableHead>Epic</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Effort</TableHead>
+                            <TableHead>Assignee</TableHead>
+                            {!isReadOnly && <TableHead className="w-[50px]"></TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {sprintTasks.map((task: any) => {
+                            const taskStatus = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG["Pending"];
+                            const TaskStatusIcon = taskStatus.icon;
+                            const assignee = getUser(task.assigneeId || task.assignee);
+                            const epic = getEpic(task.epicId);
+
+                            return (
+                              <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
+                                <TableCell>
+                                  <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium hover:text-primary">
+                                    {task.title || task.name}
+                                  </Link>
+                                </TableCell>
+                                <TableCell>
+                                  {epic ? (
+                                    <Link href={`/projects/${projectId}/epics/${epic.id}`}>
+                                      <Badge variant="outline" className="font-normal hover:bg-muted cursor-pointer">
+                                        {epic.title || epic.name}
+                                      </Badge>
+                                    </Link>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>
+                                    <TaskStatusIcon className="h-3 w-3 mr-1" />
+                                    {task.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm">{task.effort || "-"}</span>
+                                </TableCell>
+                                <TableCell>
+                                  {assignee ? (
+                                    <div className="flex items-center gap-2">
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarFallback className="text-xs">
+                                          {assignee.name?.charAt(0) || assignee.username?.charAt(0) || "?"}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm">{assignee.name || assignee.username}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                                {!isReadOnly && (
+                                  <TableCell>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      onClick={() => handleRemoveTask(task.id)}
+                                      data-testid={`button-remove-task-${task.id}`}
+                                    >
+                                      <X className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Details Sub-Tab */}
+              <TabsContent value="details" className="mt-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left column */}
+                  <div className="space-y-6">
+                    {/* Linked Entities */}
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-base flex items-center justify-between">
-                          Sprint Goal & Success Criteria
-                          {!isEditingGoal && !isReadOnly && (
-                            <Button variant="ghost" size="sm" onClick={() => setIsEditingGoal(true)} data-testid="button-edit-goal">
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          )}
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <LinkIcon className="h-4 w-4" />
+                          Linked Entities
                         </CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        {isEditingGoal && !isReadOnly ? (
-                          <div className="space-y-2">
-                            <Textarea
-                              ref={goalInputRef}
-                              value={editGoal}
-                              onChange={(e) => setEditGoal(e.target.value)}
-                              placeholder="What do you want to achieve in this sprint? Include success criteria."
-                              className="min-h-[100px]"
-                              data-testid="input-edit-goal"
-                            />
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={handleSaveGoal} data-testid="button-save-goal">Save</Button>
-                              <Button size="sm" variant="outline" onClick={() => setIsEditingGoal(false)} data-testid="button-cancel-goal">Cancel</Button>
+                      <CardContent className="space-y-4">
+                        {linkedEpics.length > 0 ? (
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Epics</Label>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {linkedEpics.map((epic: any) => (
+                                <Link key={epic.id} href={`/projects/${projectId}/epics/${epic.id}`}>
+                                  <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                                    {epic.title || epic.name}
+                                  </Badge>
+                                </Link>
+                              ))}
                             </div>
                           </div>
                         ) : (
-                          <p className="text-muted-foreground whitespace-pre-wrap">
-                            {sprint.goal || "No goal set for this sprint. Define what you want to achieve."}
-                          </p>
+                          <p className="text-sm text-muted-foreground">No epics linked to sprint tasks.</p>
+                        )}
+                        {linkedMilestones.length > 0 && (
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Milestones</Label>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {linkedMilestones.map((milestone: any) => (
+                                <Link key={milestone.id} href={`/projects/${projectId}/milestones/${milestone.id}`}>
+                                  <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                                    {milestone.name}
+                                  </Badge>
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </CardContent>
                     </Card>
 
+                    {/* Progress */}
                     <Card>
                       <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base">Sprint Backlog</CardTitle>
-                          {!isReadOnly && (
-                            <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks">
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add Tasks
-                            </Button>
-                          )}
-                        </div>
-                        <CardDescription>
-                          {stats.total} tasks committed, {stats.totalEffort} story points
-                        </CardDescription>
+                        <CardTitle className="text-base">Progress</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        {sprintTasks.length === 0 ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Target className="h-8 w-8 mx-auto mb-2" />
-                            <p>No tasks in this sprint yet.</p>
-                            {!isReadOnly && (
-                              <Button variant="link" onClick={() => setShowAddTasksDialog(true)}>
-                                Add tasks from backlog
-                              </Button>
-                            )}
+                      <CardContent className="space-y-4">
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted-foreground">Completion</span>
+                            <span className="font-medium">{stats.percent}%</span>
                           </div>
-                        ) : (
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-[40%]">Task</TableHead>
-                                <TableHead>Epic</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Effort</TableHead>
-                                <TableHead>Assignee</TableHead>
-                                {!isReadOnly && <TableHead className="w-[50px]"></TableHead>}
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {sprintTasks.map((task: any) => {
-                                const taskStatus = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG["Pending"];
-                                const TaskStatusIcon = taskStatus.icon;
-                                const assignee = getUser(task.assigneeId || task.assignee);
-                                const epic = getEpic(task.epicId);
-
-                                return (
-                                  <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
-                                    <TableCell>
-                                      <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium hover:text-primary">
-                                        {task.title || task.name}
-                                      </Link>
-                                    </TableCell>
-                                    <TableCell>
-                                      {epic ? (
-                                        <Link href={`/projects/${projectId}/epics/${epic.id}`}>
-                                          <Badge variant="outline" className="font-normal hover:bg-muted cursor-pointer">
-                                            {epic.title || epic.name}
-                                          </Badge>
-                                        </Link>
-                                      ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>
-                                        <TaskStatusIcon className="h-3 w-3 mr-1" />
-                                        {task.status}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                      <span className="text-sm">{task.effort || "-"}</span>
-                                    </TableCell>
-                                    <TableCell>
-                                      {assignee ? (
-                                        <div className="flex items-center gap-2">
-                                          <Avatar className="h-6 w-6">
-                                            <AvatarFallback className="text-xs">
-                                              {assignee.name?.charAt(0) || assignee.username?.charAt(0) || "?"}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <span className="text-sm">{assignee.name || assignee.username}</span>
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                      )}
-                                    </TableCell>
-                                    {!isReadOnly && (
-                                      <TableCell>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon"
-                                          onClick={() => handleRemoveTask(task.id)}
-                                          data-testid={`button-remove-task-${task.id}`}
-                                        >
-                                          <X className="h-4 w-4 text-muted-foreground" />
-                                        </Button>
-                                      </TableCell>
-                                    )}
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        )}
+                          <Progress value={stats.percent} className="h-2" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                          <div className="p-2 rounded-md bg-slate-50">
+                            <div className="text-lg font-semibold">{stats.total}</div>
+                            <div className="text-xs text-muted-foreground">Total</div>
+                          </div>
+                          <div className="p-2 rounded-md bg-blue-50">
+                            <div className="text-lg font-semibold text-blue-600">{stats.inProgress}</div>
+                            <div className="text-xs text-muted-foreground">In Progress</div>
+                          </div>
+                          <div className="p-2 rounded-md bg-green-50">
+                            <div className="text-lg font-semibold text-green-600">{stats.done}</div>
+                            <div className="text-xs text-muted-foreground">Done</div>
+                          </div>
+                        </div>
                       </CardContent>
                     </Card>
-
-                    {(linkedEpics.length > 0 || linkedMilestones.length > 0) && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <LinkIcon className="h-4 w-4" />
-                            Linked Entities
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {linkedEpics.length > 0 && (
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Epics</Label>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {linkedEpics.map((epic: any) => (
-                                  <Link key={epic.id} href={`/projects/${projectId}/epics/${epic.id}`}>
-                                    <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                                      {epic.title || epic.name}
-                                    </Badge>
-                                  </Link>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {linkedMilestones.length > 0 && (
-                            <div>
-                              <Label className="text-xs text-muted-foreground">Milestones</Label>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {linkedMilestones.map((milestone: any) => (
-                                  <Link key={milestone.id} href={`/projects/${projectId}/milestones/${milestone.id}`}>
-                                    <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                                      {milestone.name}
-                                    </Badge>
-                                  </Link>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
                   </div>
 
+                  {/* Right column */}
                   <div className="space-y-6">
+                    {/* Dates */}
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base flex items-center justify-between">
@@ -1155,6 +1198,7 @@ export default function SprintDetail() {
                       </CardContent>
                     </Card>
 
+                    {/* Team Capacity */}
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base flex items-center justify-between">
@@ -1192,35 +1236,6 @@ export default function SprintDetail() {
                             </div>
                           </div>
                         )}
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Progress</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-muted-foreground">Completion</span>
-                            <span className="font-medium">{stats.percent}%</span>
-                          </div>
-                          <Progress value={stats.percent} className="h-2" />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                          <div className="p-2 rounded-md bg-slate-50">
-                            <div className="text-lg font-semibold">{stats.total}</div>
-                            <div className="text-xs text-muted-foreground">Total</div>
-                          </div>
-                          <div className="p-2 rounded-md bg-blue-50">
-                            <div className="text-lg font-semibold text-blue-600">{stats.inProgress}</div>
-                            <div className="text-xs text-muted-foreground">In Progress</div>
-                          </div>
-                          <div className="p-2 rounded-md bg-green-50">
-                            <div className="text-lg font-semibold text-green-600">{stats.done}</div>
-                            <div className="text-xs text-muted-foreground">Done</div>
-                          </div>
-                        </div>
                       </CardContent>
                     </Card>
                   </div>
