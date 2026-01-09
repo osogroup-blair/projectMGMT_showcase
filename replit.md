@@ -16,6 +16,14 @@ Nymbl Workspace is an AI-powered project management platform designed for servic
 
 ## Recent Changes
 
+### Import/Export Fix (January 2026)
+Fixed critical import functionality issues:
+- **Dependency-Ordered Processing**: Added `IMPORT_ORDER` array ensuring entities are imported in correct dependency order (Users → Templates → Projects → Deliverables → Epics → Tasks → MilestoneTaskLinks)
+- **Field Type Normalization**: Added `normalizeRecord` function to handle serialized JSON fields during import
+  - Array fields (tags, stageIds, defaultStages, etc.) converted from JSON strings back to arrays
+  - Text fields (entryCriteria, exitCriteria) preserved as strings, arrays serialized if needed
+- **Error Handling**: Import now gracefully reports FK constraint violations for cross-referenced data with missing parents
+
 ### Architecture Refactoring Complete (January 2026)
 The codebase has been restructured to follow a feature-first pattern:
 
