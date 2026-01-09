@@ -52,9 +52,29 @@ import {
   useEpics, 
   useDeliverables,
   useMilestones,
-  useProjectStages
+  useProjectStages,
+  useResolvedTaskTypes,
+  useTaskDependencies,
+  useSubtasks
 } from "@/hooks/use-nexus-data";
 import { EFFORT_VALUES } from "@shared/schema";
+import { 
+  Link2, 
+  Link2Off, 
+  Plus, 
+  X as XIcon,
+  GitBranch,
+  Tag
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const PRIORITY_CONFIG = {
   "High": { color: "text-red-600 bg-red-100", label: "High" },
@@ -78,12 +98,32 @@ export default function TaskDetail() {
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
+  
+  // Task Types, Dependencies, and Subtasks
+  const { data: taskTypes, isLoading: isTaskTypesLoading } = useResolvedTaskTypes(projectId);
+  const { 
+    dependsOn, 
+    dependents, 
+    isLoading: isDepsLoading,
+    addDependency,
+    removeDependency
+  } = useTaskDependencies(taskId);
+  const { 
+    data: subtasks, 
+    isLoading: isSubtasksLoading,
+    create: createSubtask
+  } = useSubtasks(taskId);
 
   // Local state for comments
   const [newComment, setNewComment] = useState("");
   const [comments, setComments] = useState([
     { id: "c1", authorName: "Joy Mason", body: "Initial task setup complete.", createdAt: new Date().toISOString() }
   ]);
+  
+  // Local state for subtasks and dependencies dialogs
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [showAddDependency, setShowAddDependency] = useState(false);
+  const [selectedDependencyTaskId, setSelectedDependencyTaskId] = useState("");
 
   // Derive task and related data
   const task = useMemo(() => allTasks?.find((t: any) => t.id === taskId), [allTasks, taskId]);
@@ -97,6 +137,31 @@ export default function TaskDetail() {
   );
   
   const stages = useMemo(() => projectStages || [], [projectStages]);
+  
+  // Get task type for this task
+  const taskType = useMemo(() => 
+    (taskTypes || []).find((tt: any) => tt.id === task?.taskTypeId),
+    [taskTypes, task]
+  );
+  
+  // Available tasks for dependencies (exclude self, already added deps, and subtasks)
+  const availableTasksForDeps = useMemo(() => {
+    const existingDepIds = (dependsOn || []).map((d: any) => d.dependsOnTaskId);
+    const subtaskIds = (subtasks || []).map((s: any) => s.id);
+    return (allTasks || []).filter((t: any) => 
+      t.id !== taskId && 
+      !existingDepIds.includes(t.id) &&
+      !subtaskIds.includes(t.id) &&
+      t.parentTaskId !== taskId // Exclude subtasks of this task
+    );
+  }, [allTasks, taskId, dependsOn, subtasks]);
+  
+  // Subtask progress calculation
+  const subtaskProgress = useMemo(() => {
+    if (!subtasks || subtasks.length === 0) return 0;
+    const completed = subtasks.filter((s: any) => s.status === "Done").length;
+    return Math.round((completed / subtasks.length) * 100);
+  }, [subtasks]);
 
   const isLoading = isProjectLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isMilestonesLoading || isStagesLoading;
 
@@ -133,6 +198,28 @@ export default function TaskDetail() {
   const getAssignee = (id?: string | null) => users?.find((u: any) => u.id === id);
   const getMilestone = (id?: string | null) => milestones.find((m: any) => m.id === id);
   const getStage = (id?: string | null) => stages.find((s: any) => s.id === id);
+  const getTaskById = (id: string) => allTasks?.find((t: any) => t.id === id);
+  
+  const handleCreateSubtask = () => {
+    if (!newSubtaskTitle.trim()) return;
+    createSubtask({
+      title: newSubtaskTitle.trim(),
+      epicId: task.epicId,
+      projectId: projectId
+    });
+    setNewSubtaskTitle("");
+  };
+  
+  const handleAddDependency = () => {
+    if (!selectedDependencyTaskId) return;
+    addDependency(selectedDependencyTaskId);
+    setSelectedDependencyTaskId("");
+    setShowAddDependency(false);
+  };
+  
+  const handleRemoveDependency = (dependencyId: string) => {
+    removeDependency(dependencyId);
+  };
 
   if (isLoading) {
     return (
@@ -216,6 +303,219 @@ export default function TaskDetail() {
                 data-testid="textarea-task-description"
               />
             </div>
+
+            {/* Subtasks Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <ListTodo className="h-4 w-4" />
+                    Subtasks
+                    {subtasks && subtasks.length > 0 && (
+                      <Badge variant="secondary" className="ml-2 font-normal">
+                        {subtasks.filter((s: any) => s.status === "Done").length}/{subtasks.length}
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </div>
+                {subtasks && subtasks.length > 0 && (
+                  <Progress value={subtaskProgress} className="h-1 mt-2" />
+                )}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {subtasks && subtasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {subtasks.map((subtask: any) => (
+                      <Link 
+                        key={subtask.id}
+                        href={`/projects/${projectId}/tasks/${subtask.id}`}
+                        className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors group"
+                        data-testid={`subtask-${subtask.id}`}
+                      >
+                        <Checkbox 
+                          checked={subtask.status === "Done"}
+                          onCheckedChange={(checked) => {
+                            updateTask({ 
+                              id: subtask.id, 
+                              updates: { status: checked ? "Done" : "Todo" } 
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className={cn(
+                          "flex-1 text-sm",
+                          subtask.status === "Done" && "line-through text-muted-foreground"
+                        )}>
+                          {subtask.title}
+                        </span>
+                        <Badge variant="outline" className="text-xs opacity-0 group-hover:opacity-100">
+                          {subtask.status}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No subtasks yet.</p>
+                )}
+                
+                <div className="flex gap-2 pt-2">
+                  <Input 
+                    placeholder="Add a subtask..."
+                    value={newSubtaskTitle}
+                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateSubtask()}
+                    data-testid="input-new-subtask"
+                  />
+                  <Button 
+                    size="sm" 
+                    onClick={handleCreateSubtask}
+                    disabled={!newSubtaskTitle.trim()}
+                    data-testid="button-add-subtask"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Dependencies Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <GitBranch className="h-4 w-4" />
+                    Dependencies
+                  </CardTitle>
+                  <Dialog open={showAddDependency} onOpenChange={setShowAddDependency}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline" data-testid="button-add-dependency">
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Dependency</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <p className="text-sm text-muted-foreground">
+                          Select a task that must be completed before this task can start.
+                        </p>
+                        <Select 
+                          value={selectedDependencyTaskId} 
+                          onValueChange={setSelectedDependencyTaskId}
+                        >
+                          <SelectTrigger data-testid="select-dependency-task">
+                            <SelectValue placeholder="Select a task..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableTasksForDeps.map((t: any) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" onClick={() => setShowAddDependency(false)}>
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={handleAddDependency}
+                            disabled={!selectedDependencyTaskId}
+                            data-testid="button-confirm-add-dependency"
+                          >
+                            Add Dependency
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Blocked By (dependencies this task has) */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <Link2Off className="h-3 w-3" />
+                    Blocked By
+                  </Label>
+                  {dependsOn && dependsOn.length > 0 ? (
+                    <div className="space-y-1">
+                      {dependsOn.map((dep: any) => {
+                        const depTask = getTaskById(dep.dependsOnTaskId);
+                        return (
+                          <div 
+                            key={dep.id} 
+                            className="flex items-center justify-between p-2 rounded-md bg-muted/30 group"
+                            data-testid={`dependency-blocked-by-${dep.id}`}
+                          >
+                            <Link 
+                              href={`/projects/${projectId}/tasks/${dep.dependsOnTaskId}`}
+                              className="flex items-center gap-2 text-sm hover:underline"
+                            >
+                              <span className={cn(
+                                depTask?.status === "Done" && "line-through text-muted-foreground"
+                              )}>
+                                {depTask?.title || "Unknown task"}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {depTask?.status || "Unknown"}
+                              </Badge>
+                            </Link>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="opacity-0 group-hover:opacity-100"
+                              onClick={() => handleRemoveDependency(dep.id)}
+                              data-testid={`button-remove-dependency-${dep.id}`}
+                            >
+                              <XIcon className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No blocking tasks.</p>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Blocking (tasks that depend on this task) */}
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                    <Link2 className="h-3 w-3" />
+                    Blocking
+                  </Label>
+                  {dependents && dependents.length > 0 ? (
+                    <div className="space-y-1">
+                      {dependents.map((dep: any) => {
+                        const depTask = getTaskById(dep.taskId);
+                        return (
+                          <Link 
+                            key={dep.id}
+                            href={`/projects/${projectId}/tasks/${dep.taskId}`}
+                            className="flex items-center justify-between p-2 rounded-md bg-muted/30 hover:bg-muted/50"
+                            data-testid={`dependency-blocking-${dep.id}`}
+                          >
+                            <div className="flex items-center gap-2 text-sm">
+                              <span>{depTask?.title || "Unknown task"}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {depTask?.status || "Unknown"}
+                              </Badge>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Not blocking any tasks.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Tabs: Comments, Attachments, History */}
             <Tabs defaultValue="comments" className="w-full">
@@ -320,6 +620,34 @@ export default function TaskDetail() {
                 <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Task Type</Label>
+                  <Select 
+                    value={task.taskTypeId || ""} 
+                    onValueChange={(v) => handleUpdateTask("taskTypeId", v || null)}
+                  >
+                    <SelectTrigger data-testid="select-task-type">
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-4 w-4 text-muted-foreground" />
+                        <span>{taskType?.name || "Select type"}</span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(taskTypes || []).map((tt: any) => (
+                        <SelectItem key={tt.id} value={tt.id}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-2 h-2 rounded-full" 
+                              style={{ backgroundColor: tt.color || '#6b7280' }}
+                            />
+                            <span>{tt.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Status</Label>
                   <Select 
