@@ -13,6 +13,7 @@ import type {
   Sprint, InsertSprint,
   SprintMember, InsertSprintMember,
   SprintScopeEvent, InsertSprintScopeEvent,
+  SprintScopeTarget, InsertSprintScopeTarget,
   Activity, InsertActivity,
   Comment, InsertComment,
   Attachment, InsertAttachment,
@@ -255,6 +256,13 @@ export interface IStorage {
   getSprintScopeEvents(): Promise<SprintScopeEvent[]>;
   getSprintScopeEventsBySprintId(sprintId: string): Promise<SprintScopeEvent[]>;
   createSprintScopeEvent(event: InsertSprintScopeEvent): Promise<SprintScopeEvent>;
+
+  // Sprint Scope Targets
+  getSprintScopeTargets(): Promise<SprintScopeTarget[]>;
+  getSprintScopeTargetsBySprintId(sprintId: string): Promise<SprintScopeTarget[]>;
+  createSprintScopeTarget(target: InsertSprintScopeTarget): Promise<SprintScopeTarget>;
+  deleteSprintScopeTarget(id: string): Promise<void>;
+  deleteSprintScopeTargetsBySprintId(sprintId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -936,6 +944,25 @@ export class DatabaseStorage implements IStorage {
     const id = (event as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.sprintScopeEvents).values({ ...event, id }).returning();
     return created;
+  }
+
+  // Sprint Scope Targets
+  async getSprintScopeTargets(): Promise<SprintScopeTarget[]> {
+    return await db.select().from(schema.sprintScopeTargets);
+  }
+  async getSprintScopeTargetsBySprintId(sprintId: string): Promise<SprintScopeTarget[]> {
+    return await db.select().from(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.sprintId, sprintId));
+  }
+  async createSprintScopeTarget(target: InsertSprintScopeTarget): Promise<SprintScopeTarget> {
+    const id = (target as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.sprintScopeTargets).values({ ...target, id }).returning();
+    return created;
+  }
+  async deleteSprintScopeTarget(id: string): Promise<void> {
+    await db.delete(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.id, id));
+  }
+  async deleteSprintScopeTargetsBySprintId(sprintId: string): Promise<void> {
+    await db.delete(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.sprintId, sprintId));
   }
 
   // Home Page Data

@@ -138,6 +138,16 @@ export const sprintScopeEvents = pgTable("sprint_scope_events", {
   note: text("note"),
 });
 
+// Sprint Scope Targets (which epics/milestones/stages are in scope for a sprint)
+export const sprintScopeTargets = pgTable("sprint_scope_targets", {
+  id: varchar("id").primaryKey(),
+  sprintId: varchar("sprint_id").notNull().references(() => sprints.id, { onDelete: "cascade" }),
+  targetType: text("target_type").notNull(), // "epic" | "milestone" | "stage"
+  targetId: varchar("target_id").notNull(),
+  autoSyncTasks: boolean("auto_sync_tasks").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Fibonacci sequence values for effort estimation (1-100)
 export const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89] as const;
 export type EffortValue = typeof EFFORT_VALUES[number];
@@ -401,6 +411,7 @@ export const insertMilestoneTaskLinkSchema = createInsertSchema(milestoneTaskLin
 export const insertSprintSchema = createInsertSchema(sprints).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSprintMemberSchema = createInsertSchema(sprintMembers).omit({ id: true });
 export const insertSprintScopeEventSchema = createInsertSchema(sprintScopeEvents).omit({ id: true, occurredAt: true });
+export const insertSprintScopeTargetSchema = createInsertSchema(sprintScopeTargets).omit({ id: true, createdAt: true });
 export const insertActivitySchema = createInsertSchema(activity).omit({ id: true });
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true });
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({ id: true });
@@ -457,6 +468,9 @@ export type InsertSprintMember = z.infer<typeof insertSprintMemberSchema>;
 
 export type SprintScopeEvent = typeof sprintScopeEvents.$inferSelect;
 export type InsertSprintScopeEvent = z.infer<typeof insertSprintScopeEventSchema>;
+
+export type SprintScopeTarget = typeof sprintScopeTargets.$inferSelect;
+export type InsertSprintScopeTarget = z.infer<typeof insertSprintScopeTargetSchema>;
 
 export type Activity = typeof activity.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;

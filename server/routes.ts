@@ -1476,6 +1476,91 @@ export async function registerRoutes(
     res.json(events);
   });
 
+  // Sprint Scope Targets
+  app.get("/api/sprints/:sprintId/scope-targets", async (req, res) => {
+    try {
+      const targets = await storage.getSprintScopeTargetsBySprintId(req.params.sprintId);
+      res.json(targets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/sprints/:sprintId/scope-targets", async (req, res) => {
+    try {
+      const sprint = await storage.getSprintById(req.params.sprintId);
+      if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+      
+      const { targetType, targetId, autoSyncTasks } = req.body;
+      if (!targetType || !targetId) {
+        return res.status(400).json({ error: "targetType and targetId are required" });
+      }
+      if (!["epic", "milestone", "stage"].includes(targetType)) {
+        return res.status(400).json({ error: "targetType must be epic, milestone, or stage" });
+      }
+      
+      const target = await storage.createSprintScopeTarget({
+        sprintId: req.params.sprintId,
+        targetType,
+        targetId,
+        autoSyncTasks: autoSyncTasks || false
+      });
+      res.status(201).json(target);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/sprints/:sprintId/scope-targets/:targetId", async (req, res) => {
+    try {
+      await storage.deleteSprintScopeTarget(req.params.targetId);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Clear all scope targets for a sprint (when switching scope mode)
+  app.delete("/api/sprints/:sprintId/scope-targets", async (req, res) => {
+    try {
+      await storage.deleteSprintScopeTargetsBySprintId(req.params.sprintId);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get suggested tasks based on scope targets
+  app.get("/api/sprints/:sprintId/suggested-tasks", async (req, res) => {
+    try {
+      const targets = await storage.getSprintScopeTargetsBySprintId(req.params.sprintId);
+      const sprint = await storage.getSprintById(req.params.sprintId);
+      if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+
+      // Get all tasks for the project that are not already in this sprint
+      const allTasks = await storage.getTasksByProjectId(sprint.projectId);
+      const availableTasks = allTasks.filter(t => !t.sprintId);
+
+      // Filter tasks based on scope targets
+      const targetedTasks = availableTasks.filter(task => {
+        return targets.some(target => {
+          if (target.targetType === "epic") {
+            return task.epicId === target.targetId;
+          } else if (target.targetType === "milestone") {
+            return task.milestoneId === target.targetId;
+          } else if (target.targetType === "stage") {
+            return task.stageId === target.targetId;
+          }
+          return false;
+        });
+      });
+
+      res.json(targetedTasks);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Home Page APIs
   app.get("/api/home/tasks/:userId", async (req, res) => {
     try {
