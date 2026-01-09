@@ -138,6 +138,8 @@ export default function SprintDetail() {
   const [scopeSearch, setScopeSearch] = useState("");
   const [showSuggestedDrawer, setShowSuggestedDrawer] = useState(false);
   const [selectedSuggested, setSelectedSuggested] = useState<string[]>([]);
+  const [showScopeModeChangeDialog, setShowScopeModeChangeDialog] = useState(false);
+  const [pendingScopeMode, setPendingScopeMode] = useState<"epic" | "milestone" | "stage" | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -368,11 +370,29 @@ export default function SprintDetail() {
 
   // Handle scope mode change
   const handleScopeModeChange = async (newMode: "epic" | "milestone" | "stage") => {
-    if (currentScopeMode && currentScopeMode !== newMode) {
-      // Clear existing targets when switching modes
+    // If there are existing targets and we're switching to a different mode
+    if (currentScopeMode && currentScopeMode !== newMode && scopeTargets.data.length > 0) {
+      // On active sprints, show confirmation dialog
+      if (sprint?.status === "active") {
+        setPendingScopeMode(newMode);
+        setShowScopeModeChangeDialog(true);
+        return;
+      }
+      // On planned sprints, just clear and switch
       await scopeTargets.clearAllTargetsAsync();
     }
     setScopeMode(newMode);
+  };
+
+  // Confirm scope mode change (after dialog confirmation)
+  const handleConfirmScopeModeChange = async () => {
+    if (pendingScopeMode) {
+      await scopeTargets.clearAllTargetsAsync();
+      setScopeMode(pendingScopeMode);
+      setPendingScopeMode(null);
+      setShowScopeModeChangeDialog(false);
+      toast({ title: "Scope mode changed", description: "Previous selections have been cleared." });
+    }
   };
 
   // Handle adding/removing scope target
@@ -1439,6 +1459,41 @@ export default function SprintDetail() {
               data-testid="button-add-suggested"
             >
               Add to Sprint
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Scope Mode Change Confirmation Dialog */}
+      <Dialog open={showScopeModeChangeDialog} onOpenChange={setShowScopeModeChangeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Change Scope Mode?
+            </DialogTitle>
+            <DialogDescription>
+              This sprint is currently <strong>active</strong>. Changing the scope mode will clear your current 
+              {currentScopeMode && ` ${currentScopeMode}`} selections ({scopeTargets.data.length} selected). 
+              Tasks already in the sprint will not be affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowScopeModeChangeDialog(false);
+                setPendingScopeMode(null);
+              }}
+              data-testid="button-cancel-scope-change"
+            >
+              Keep Current Mode
+            </Button>
+            <Button 
+              onClick={handleConfirmScopeModeChange}
+              data-testid="button-confirm-scope-change"
+            >
+              Change to {pendingScopeMode && pendingScopeMode.charAt(0).toUpperCase() + pendingScopeMode.slice(1)}s
             </Button>
           </DialogFooter>
         </DialogContent>
