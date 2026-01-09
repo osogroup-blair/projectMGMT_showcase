@@ -1,12 +1,12 @@
 export interface ProjectData {
   name: string;
   description: string;
-  frameworkId: string;
-  templateId: string;
   startDate: string;
   dueDate: string;
   sprintDurationWeeks: number;
   ownerId?: string;
+  client?: string;
+  templateId?: string;
 }
 
 export interface WizardDeliverable {
@@ -20,7 +20,19 @@ export interface WizardEpic {
   id: string;
   title: string;
   description: string;
-  tasks: any[];
+}
+
+export interface WizardTaskDraft {
+  id: string;
+  templateId?: string;
+  title: string;
+  description: string;
+  priority: string;
+  estimateHours: number;
+  scope: 'once' | 'per_epic';
+  assigneeRoleTypeId?: string;
+  stageId: string;
+  order: number;
 }
 
 export interface WizardStage {
@@ -31,6 +43,7 @@ export interface WizardStage {
   defaultTasks?: string[];
   defaultRoles?: string[];
   type?: string;
+  tasks: WizardTaskDraft[];
 }
 
 export interface WizardMilestone {
@@ -52,7 +65,24 @@ export interface WizardRole {
   name: string;
   description?: string;
   roleType: string;
+  roleTypeId?: string;
   assigneeId: string | null;
+}
+
+export interface WizardTemplateSnippet {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'stage' | 'task' | 'milestone' | 'full';
+  stageTemplateIds: string[];
+  taskTemplateIds: string[];
+  milestoneTemplateIds: string[];
+}
+
+export interface WizardRoleType {
+  id: string;
+  label: string;
+  description?: string;
 }
 
 export interface StepProps {
@@ -66,24 +96,41 @@ export interface StepProps {
   setMilestones: React.Dispatch<React.SetStateAction<WizardMilestone[]>>;
   roles: WizardRole[];
   setRoles: React.Dispatch<React.SetStateAction<WizardRole[]>>;
-  frameworkTemplates: any[];
+  frameworkTemplates?: any[];
   stageTemplates: any[];
   projectTemplatesData: any[];
   deliverableTemplates: any[];
   epicTemplates: any[];
   taskTemplates: any[];
   roleTemplates: any[];
+  milestoneTemplates: any[];
+  templateSnippets: WizardTemplateSnippet[];
+  roleTypes: WizardRoleType[];
   users: any[];
+  eligibleUsers: Map<string, any[]>;
   onTemplateSelect: (templateId: string) => void;
-  onFrameworkSelect: (frameworkId: string) => void;
+  onFrameworkSelect?: (frameworkId: string) => void;
+  onSnippetApply: (snippetId: string) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const STEPS = [
-  { id: 1, title: "Project Basics", description: "Name, framework, and templates" },
-  { id: 2, title: "Work Breakdown", description: "Deliverables, epics, and tasks" },
-  { id: 3, title: "Stage Configuration", description: "Review and customize stages" },
-  { id: 4, title: "Set Milestones", description: "Define key dates and gates" },
-  { id: 5, title: "Team & Roles", description: "Assign team members" },
-  { id: 6, title: "Review", description: "Verify and create" },
+  { id: 1, title: "Project Basics", description: "Name, dates, and basic settings" },
+  { id: 2, title: "Work Breakdown", description: "Define deliverables and epics" },
+  { id: 3, title: "Stage Configuration", description: "Set up stages, tasks, and milestones" },
+  { id: 4, title: "Assignments & Roles", description: "Assign team members by role" },
+  { id: 5, title: "Review & Summary", description: "Preview what will be created" },
 ];
+
+export const DEFAULT_SPRINT_DURATION = 2;
+export const DEFAULT_PROJECT_DURATION_WEEKS = 12;
+
+export function getDefaultDueDate(startDate: string, weeksFromStart: number = DEFAULT_PROJECT_DURATION_WEEKS): string {
+  const start = new Date(startDate);
+  start.setDate(start.getDate() + weeksFromStart * 7);
+  return start.toISOString().split('T')[0];
+}
+
+export function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0];
+}

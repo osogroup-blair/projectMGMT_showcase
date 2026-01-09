@@ -49,16 +49,17 @@ import {
   WizardStage, 
   WizardMilestone, 
   WizardRole,
+  WizardTemplateSnippet,
+  WizardRoleType,
   STEPS 
 } from "./types";
 import { StepBasics } from "./step-basics";
 import { StepWorkBreakdown } from "./step-work-breakdown";
 import { StepStageConfig } from "./step-stage-config";
-import { StepMilestones } from "./step-milestones";
 import { StepTeamRoles } from "./step-team-roles";
 import { StepReview } from "./step-review";
 
-const STEP_ICONS = [Settings, Package, Layers, Flag, Users, Check];
+const STEP_ICONS = [Settings, Package, Layers, Users, Check];
 
 export default function ProjectWizard() {
   const [, setLocation] = useLocation();
@@ -89,11 +90,12 @@ export default function ProjectWizard() {
   const [projectData, setProjectData] = useState<ProjectData>({
     name: "",
     description: "",
-    frameworkId: "",
     templateId: "",
+    client: "",
     startDate: new Date().toISOString().split('T')[0],
     dueDate: "",
     sprintDurationWeeks: 2,
+    ownerId: users[0]?.id || "",
   });
 
   const [deliverables, setDeliverables] = useState<WizardDeliverable[]>([]);
@@ -426,12 +428,14 @@ export default function ProjectWizard() {
       const newProject = await createProject({
         name: projectData.name,
         description: projectData.description,
-        status: "Active",
+        status: "Upcoming",
         startDate: projectData.startDate || null,
         deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-        frameworkId: projectData.frameworkId || null,
+        frameworkId: null,
         progress: 0,
-        sprintDurationWeeks: projectData.sprintDurationWeeks || null
+        sprintDurationWeeks: projectData.sprintDurationWeeks || null,
+        client: projectData.client || null,
+        ownerId: projectData.ownerId || null
       });
       
       if (!newProject?.id) {
@@ -554,47 +558,44 @@ export default function ProjectWizard() {
       
       let totalTasksCreated = 0;
       
-      for (const createdStage of createdStages) {
-        if (createdStage.taskCreationMode === 'none' || !createdStage.defaultTasks?.length) {
-          continue;
-        }
+      for (let i = 0; i < stages.length; i++) {
+        const wizardStage = stages[i];
+        const createdStage = createdStages.find(cs => cs.templateId === wizardStage.id);
+        if (!createdStage) continue;
         
-        for (const taskId of createdStage.defaultTasks) {
-          const taskTemplate = taskTemplates.find((t: any) => t.id === taskId);
-          if (!taskTemplate) continue;
-          
-          if (createdStage.taskCreationMode === 'once') {
+        for (const taskDraft of wizardStage.tasks) {
+          if (taskDraft.scope === 'once') {
             if (productManagementEpicId) {
               await createTask({
                 project: projectData.name,
                 projectId: newProject.id,
-                title: taskTemplate.title,
-                description: taskTemplate.description || "",
+                title: taskDraft.title,
+                description: taskDraft.description || "",
                 status: "Todo",
-                priority: taskTemplate.defaultPriority || "Medium",
+                priority: taskDraft.priority || "Medium",
                 stageId: createdStage.createdStageId,
                 epicId: productManagementEpicId,
                 effort: 1,
                 deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-                estimateHours: taskTemplate.defaultEstimateHours || 0,
+                estimateHours: taskDraft.estimateHours || 0,
                 tags: []
               });
               totalTasksCreated++;
             }
-          } else if (createdStage.taskCreationMode === 'per_epic') {
+          } else if (taskDraft.scope === 'per_epic') {
             for (const businessEpic of businessEpics) {
               await createTask({
                 project: projectData.name,
                 projectId: newProject.id,
-                title: taskTemplate.title,
-                description: taskTemplate.description || "",
+                title: taskDraft.title,
+                description: taskDraft.description || "",
                 status: "Todo",
-                priority: taskTemplate.defaultPriority || "Medium",
+                priority: taskDraft.priority || "Medium",
                 stageId: createdStage.createdStageId,
                 epicId: businessEpic.id,
                 effort: 1,
                 deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-                estimateHours: taskTemplate.defaultEstimateHours || 0,
+                estimateHours: taskDraft.estimateHours || 0,
                 tags: []
               });
               totalTasksCreated++;
@@ -647,6 +648,49 @@ export default function ProjectWizard() {
     }
   };
 
+  const milestoneTemplates: any[] = [];
+  const templateSnippets: WizardTemplateSnippet[] = [];
+  
+  const roleTypes: WizardRoleType[] = [
+    { id: "rt-1", label: "Development", description: "Software development roles" },
+    { id: "rt-2", label: "Design", description: "UI/UX design roles" },
+    { id: "rt-3", label: "Management", description: "Project management roles" },
+    { id: "rt-4", label: "QA", description: "Quality assurance roles" },
+    { id: "rt-5", label: "Analysis", description: "Business analysis roles" },
+  ];
+  
+  const eligibleUsers = new Map<string, any[]>();
+  roleTypes.forEach(rt => {
+    eligibleUsers.set(rt.id, users);
+  });
+
+  const handleSnippetApply = (snippetId: string) => {
+    const snippet = templateSnippets.find(s => s.id === snippetId);
+    if (!snippet) return;
+    
+    const newStages = snippet.stageTemplateIds.map((sid, idx) => {
+      const template = stageTemplates.find((t: any) => t.id === sid);
+      if (!template) return null;
+      return {
+        id: `stage-${Date.now()}-${idx}`,
+        name: template.name,
+        description: template.description || "",
+        taskCreationMode: 'per_epic' as const,
+        defaultTasks: template.defaultTasks || [],
+        defaultRoles: template.defaultRoles || [],
+        type: 'standard' as const,
+        tasks: []
+      };
+    }).filter(Boolean) as WizardStage[];
+    
+    setStages([...stages, ...newStages]);
+    
+    toast({
+      title: "Template Applied",
+      description: `Applied "${snippet.name}" snippet with ${newStages.length} stages.`,
+    });
+  };
+
   const stepProps = {
     projectData,
     setProjectData,
@@ -665,10 +709,15 @@ export default function ProjectWizard() {
     epicTemplates,
     taskTemplates,
     roleTemplates,
+    milestoneTemplates,
+    templateSnippets,
+    roleTypes,
+    eligibleUsers,
     users,
     onTemplateSelect: handleTemplateSelect,
     onFrameworkSelect: handleFrameworkSelect,
     onFileUpload: handleFileUpload,
+    onSnippetApply: handleSnippetApply,
   };
 
   return (
@@ -723,9 +772,8 @@ export default function ProjectWizard() {
                     {currentStep === 1 && <StepBasics {...stepProps} />}
                     {currentStep === 2 && <StepWorkBreakdown {...stepProps} />}
                     {currentStep === 3 && <StepStageConfig {...stepProps} />}
-                    {currentStep === 4 && <StepMilestones {...stepProps} />}
-                    {currentStep === 5 && <StepTeamRoles {...stepProps} />}
-                    {currentStep === 6 && <StepReview {...stepProps} />}
+                    {currentStep === 4 && <StepTeamRoles {...stepProps} />}
+                    {currentStep === 5 && <StepReview {...stepProps} />}
                   </>
                 )}
             </CardContent>

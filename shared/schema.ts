@@ -335,6 +335,40 @@ export const taskTemplates = pgTable("task_templates", {
   defaultEstimateHours: integer("default_estimate_hours").notNull(),
   requiredRole: text("required_role"),
   assignedRoleId: varchar("assigned_role_id"),
+  scope: text("scope").notNull().default("per_epic"),
+  assigneeRoleTypeId: varchar("assignee_role_type_id").references(() => roleTypes.id),
+});
+
+// Milestone Templates
+export const milestoneTemplates = pgTable("milestone_templates", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  phase: text("phase").notNull().default("delivery"),
+  scopeType: text("scope_type").notNull().default("deliverable"),
+  completionMode: text("completion_mode").notNull().default("percentage"),
+  completionTargetPercent: integer("completion_target_percent").default(100),
+  isBillingGate: boolean("is_billing_gate").default(false),
+  offsetDays: integer("offset_days").default(0),
+});
+
+// Template Snippets (bundles of stages/tasks/milestones that can be applied together)
+export const templateSnippets = pgTable("template_snippets", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull(),
+  stageTemplateIds: text("stage_template_ids").array().default([]),
+  taskTemplateIds: text("task_template_ids").array().default([]),
+  milestoneTemplateIds: text("milestone_template_ids").array().default([]),
+  isDefault: boolean("is_default").default(false),
+});
+
+// User Role Eligibility (maps users to role types they can be assigned to)
+export const userRoleEligibility = pgTable("user_role_eligibility", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  roleTypeId: varchar("role_type_id").notNull().references(() => roleTypes.id, { onDelete: "cascade" }),
 });
 
 // Mapping Templates
@@ -428,6 +462,9 @@ export const insertProjectTemplateSchema = createInsertSchema(projectTemplates).
 export const insertDeliverableTemplateSchema = createInsertSchema(deliverableTemplates).omit({ id: true });
 export const insertEpicTemplateSchema = createInsertSchema(epicTemplates).omit({ id: true });
 export const insertTaskTemplateSchema = createInsertSchema(taskTemplates).omit({ id: true });
+export const insertMilestoneTemplateSchema = createInsertSchema(milestoneTemplates).omit({ id: true });
+export const insertTemplateSnippetSchema = createInsertSchema(templateSnippets).omit({ id: true });
+export const insertUserRoleEligibilitySchema = createInsertSchema(userRoleEligibility).omit({ id: true });
 export const insertMappingTemplateSchema = createInsertSchema(mappingTemplates).omit({ id: true });
 export const insertStatusOptionSchema = createInsertSchema(statusOptions).omit({ id: true });
 export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
@@ -519,6 +556,15 @@ export type InsertEpicTemplate = z.infer<typeof insertEpicTemplateSchema>;
 
 export type TaskTemplate = typeof taskTemplates.$inferSelect;
 export type InsertTaskTemplate = z.infer<typeof insertTaskTemplateSchema>;
+
+export type MilestoneTemplate = typeof milestoneTemplates.$inferSelect;
+export type InsertMilestoneTemplate = z.infer<typeof insertMilestoneTemplateSchema>;
+
+export type TemplateSnippet = typeof templateSnippets.$inferSelect;
+export type InsertTemplateSnippet = z.infer<typeof insertTemplateSnippetSchema>;
+
+export type UserRoleEligibility = typeof userRoleEligibility.$inferSelect;
+export type InsertUserRoleEligibility = z.infer<typeof insertUserRoleEligibilitySchema>;
 
 export type MappingTemplate = typeof mappingTemplates.$inferSelect;
 export type InsertMappingTemplate = z.infer<typeof insertMappingTemplateSchema>;

@@ -36,6 +36,22 @@ The codebase has been restructured to follow a feature-first pattern:
 - ProjectOverview: Tabbed hub for project content (Dashboard, Tasks, Deliverables, Timeline, Milestones, Stages, Sprints)
 - ProjectTools: New hub for import/export functionality at `/project-tools`
 
+### Project Wizard Redesign (January 2026)
+Redesigned project creation wizard from 6 steps to 5 steps with improved templating workflow:
+
+**New 5-Step Flow:**
+1. **Project Basics** - Name, description, client, dates, sprint duration, owner (removed framework selection)
+2. **Work Breakdown** - Deliverables and Epics editor with keyboard shortcuts (Enter to add rows, Backspace on empty to remove)
+3. **Stage Configuration** - Templating hub with two tabs: "Apply Templates" (template snippets) and "Build from Scratch" (stages, editable task drafts, milestones)
+4. **Assignments & Roles** - Role-based team assignments with eligibility filtering showing eligible user count per role
+5. **Review & Summary** - Enhanced preview with task count breakdown (ONCE vs PER_EPIC calculations), warnings for large projects (>100 tasks)
+
+**Key Features:**
+- Task drafts have scope: `once` (project-wide) vs `per_epic` (replicated per epic)
+- Role types filter which users are eligible for each role
+- Template snippets bundle stages/tasks/milestones for quick application
+- Batched project creation with single summary notification
+
 ### Sprint Plan Tab Redesign (January 2026)
 - Added sub-navigation within Plan tab: **Tasks** and **Scope Definition** sub-tabs
 - Tasks sub-tab: Sprint Goal card, Sprint Backlog table with add/remove tasks, Linked Entities (derived from sprint tasks' epics/milestones), sidebar cards (Dates, Capacity, Progress)
