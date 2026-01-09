@@ -496,8 +496,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
                       blocked: taskData.blocked ?? false,
                       blockerReason: taskData.blockerReason ?? null,
                       taskTypeId: taskData.taskTypeId ?? null,
-                      parentTaskId: taskData.parentTaskId ?? null,
-                      updatedAt: taskData.updatedAt ?? new Date().toISOString()
+                      parentTaskId: taskData.parentTaskId ?? null
                     };
                     flat.Tasks.push(normalizedTask);
                     
@@ -536,9 +535,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
           startDate: projectDates.startDate,
           endDate: projectDates.deadline,
           status: 'Planned',
-          capacityHours: 40,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          capacityHours: 40
         });
       }
     });
@@ -559,6 +556,42 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
           status: 'pending'
         });
         existingStageIds.add(stageId);
+      }
+    });
+
+    const existingMilestoneIds = new Set(flat.Milestones.map((m: any) => m.id));
+    const referencedMilestoneIds = new Set<string>();
+    flat.MilestoneTaskLinks.forEach((link: any) => {
+      if (link.milestoneId) {
+        referencedMilestoneIds.add(link.milestoneId);
+      }
+    });
+    flat.MilestoneScopeRules.forEach((rule: any) => {
+      if (rule.milestoneId) {
+        referencedMilestoneIds.add(rule.milestoneId);
+      }
+    });
+    
+    referencedMilestoneIds.forEach(milestoneId => {
+      if (!existingMilestoneIds.has(milestoneId)) {
+        const linkWithMilestone = flat.MilestoneTaskLinks.find((l: any) => l.milestoneId === milestoneId);
+        const projectId = linkWithMilestone?.projectId || flat.Projects[0]?.id;
+        const projectDates = projectDatesMap.get(projectId) || {
+          startDate: new Date().toISOString().split('T')[0],
+          deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        };
+        
+        flat.Milestones.push({
+          id: milestoneId,
+          projectId: projectId,
+          name: `Imported Milestone`,
+          description: 'Auto-generated during import',
+          targetDate: projectDates.deadline,
+          status: 'Not Started',
+          scopeType: 'all',
+          completionMode: 'all_tasks'
+        });
+        existingMilestoneIds.add(milestoneId);
       }
     });
 
@@ -646,6 +679,20 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
           normalized[field] = JSON.stringify(normalized[field]);
         } else if (typeof normalized[field] !== 'string') {
           normalized[field] = String(normalized[field]);
+        }
+      }
+    }
+    
+    const dateFields = ["updatedAt", "createdAt", "deadline", "startDate", "endDate", "dueDate", "targetDate", "lastEvaluatedAt", "progressLastCalculatedAt"];
+    for (const field of dateFields) {
+      if (normalized[field] !== undefined && normalized[field] !== null) {
+        if (typeof normalized[field] === 'string') {
+          const parsed = new Date(normalized[field]);
+          if (!isNaN(parsed.getTime())) {
+            normalized[field] = parsed;
+          } else {
+            delete normalized[field];
+          }
         }
       }
     }
