@@ -18,7 +18,8 @@ import {
   Loader2,
   Pencil,
   Check,
-  X
+  X,
+  Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -505,110 +506,118 @@ export default function ProjectOverview() {
 
         {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto">
-            <TabsTrigger 
-              value="overview" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Dashboard
-            </TabsTrigger>
+          <div className="sticky top-28 z-30 bg-background -mx-6 px-6 pb-0">
+            <div className="flex items-center justify-between border-b">
+              <TabsList className="justify-start rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto">
+                <TabsTrigger 
+                  value="overview" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Dashboard
+                </TabsTrigger>
 
-            <TabsTrigger 
-              value="tasks" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Tasks
-            </TabsTrigger>
+                <TabsTrigger 
+                  value="tasks" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Tasks
+                </TabsTrigger>
 
-            <TabsTrigger 
-              value="deliverables" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Deliverables
-            </TabsTrigger>
+                <TabsTrigger 
+                  value="deliverables" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Deliverables
+                </TabsTrigger>
 
-             <TabsTrigger 
-              value="timeline" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Timeline
-            </TabsTrigger>
+                <TabsTrigger 
+                  value="timeline" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Timeline
+                </TabsTrigger>
 
-            <TabsTrigger 
-              value="milestones" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Milestones
-            </TabsTrigger>
+                <TabsTrigger 
+                  value="milestones" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Milestones
+                </TabsTrigger>
 
-            <TabsTrigger 
-              value="stages" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-            >
-              Stages
-            </TabsTrigger>
+                <TabsTrigger 
+                  value="stages" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Stages
+                </TabsTrigger>
 
-            <TabsTrigger 
-              value="sprints" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-              data-testid="tab-sprints"
-            >
-              Sprints
-            </TabsTrigger>
-          </TabsList>
+                <TabsTrigger 
+                  value="sprints" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  data-testid="tab-sprints"
+                >
+                  Sprints
+                </TabsTrigger>
+              </TabsList>
 
-          <div className="mt-6">
-            {/* Project Overview Tab Content */}
-            <TabsContent value="overview" className="space-y-8">
-               <TimeHorizonDashboard projectId={projectId} />
-            </TabsContent>
-
-            {/* Tasks Tab Content */}
-            <TabsContent value="tasks" className="mt-6">
-              <TaskListContent projectId={projectId} />
-            </TabsContent>
-            
-            {/* Timeline Tab Content */}
-            <TabsContent value="timeline" className="h-[700px] mt-6">
-              <UnifiedTimeline 
-                project={project}
-                sprints={projectSprints}
-                milestones={milestones}
-                stages={stages}
-                deliverables={projectDeliverables}
-                epics={projectEpics}
-              />
-            </TabsContent>
-
-            {/* Stages Tab */}
-            <TabsContent value="stages">
-              <div className="mt-6">
-                <StagesContent projectId={projectId} />
-              </div>
-            </TabsContent>
-
-            {/* Deliverables Tab */}
-            <TabsContent value="deliverables">
-              <div className="mt-6">
-                <DeliverablesContent projectId={projectId} />
-              </div>
-            </TabsContent>
-
-            {/* Milestones Tab */}
-            <TabsContent value="milestones">
-              <div className="mt-6">
-                <MilestonesContent projectId={projectId} />
-              </div>
-            </TabsContent>
-
-            {/* Sprints Tab */}
-            <TabsContent value="sprints">
-              <div className="mt-6">
-                <SprintsContent projectId={projectId} />
-              </div>
-            </TabsContent>
-
+              {activeTab !== "overview" && activeTab !== "timeline" && (
+                <Button 
+                  size="sm" 
+                  className="gap-1.5 mb-1"
+                  data-testid={`button-add-${activeTab}`}
+                  onClick={() => {
+                    const addButton = document.querySelector(`[data-testid="button-create-${activeTab}"]`) as HTMLButtonElement;
+                    if (addButton) addButton.click();
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add {activeTab === "tasks" ? "Task" : activeTab === "deliverables" ? "Deliverable" : activeTab === "milestones" ? "Milestone" : activeTab === "stages" ? "Stage" : activeTab === "sprints" ? "Sprint" : ""}
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Project Overview Tab Content */}
+          <TabsContent value="overview" className="space-y-6 mt-0">
+            <TimeHorizonDashboard projectId={projectId} />
+          </TabsContent>
+
+          {/* Tasks Tab Content */}
+          <TabsContent value="tasks" className="mt-0">
+            <TaskListContent projectId={projectId} />
+          </TabsContent>
+          
+          {/* Timeline Tab Content */}
+          <TabsContent value="timeline" className="h-[700px] mt-0">
+            <UnifiedTimeline 
+              project={project}
+              sprints={projectSprints}
+              milestones={milestones}
+              stages={stages}
+              deliverables={projectDeliverables}
+              epics={projectEpics}
+            />
+          </TabsContent>
+
+          {/* Stages Tab */}
+          <TabsContent value="stages" className="mt-0">
+            <StagesContent projectId={projectId} />
+          </TabsContent>
+
+          {/* Deliverables Tab */}
+          <TabsContent value="deliverables" className="mt-0">
+            <DeliverablesContent projectId={projectId} />
+          </TabsContent>
+
+          {/* Milestones Tab */}
+          <TabsContent value="milestones" className="mt-0">
+            <MilestonesContent projectId={projectId} />
+          </TabsContent>
+
+          {/* Sprints Tab */}
+          <TabsContent value="sprints" className="mt-0">
+            <SprintsContent projectId={projectId} />
+          </TabsContent>
         </Tabs>
       </div>
     </Shell>
