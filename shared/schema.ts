@@ -156,6 +156,20 @@ export const sprintScopeTargets = pgTable("sprint_scope_targets", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Sprint Pulse Updates (async standup entries per user per day)
+export const sprintPulseUpdates = pgTable("sprint_pulse_updates", {
+  id: varchar("id").primaryKey(),
+  sprintId: varchar("sprint_id").notNull().references(() => sprints.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),
+  didText: text("did_text"),
+  nextText: text("next_text"),
+  blockersText: text("blockers_text"),
+  referencedTaskIds: text("referenced_task_ids").array().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Fibonacci sequence values for effort estimation (1-100)
 export const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89] as const;
 export type EffortValue = typeof EFFORT_VALUES[number];
@@ -178,6 +192,9 @@ export const tasks = pgTable("tasks", {
   estimateHours: integer("estimate_hours"),
   effort: integer("effort"),
   tags: text("tags").array().default([]),
+  blocked: boolean("blocked").default(false),
+  blockerReason: text("blocker_reason"),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Milestone Scope Rules (stored as JSONB for flexibility)
@@ -455,6 +472,7 @@ export const insertSprintSchema = createInsertSchema(sprints).omit({ id: true, c
 export const insertSprintMemberSchema = createInsertSchema(sprintMembers).omit({ id: true });
 export const insertSprintScopeEventSchema = createInsertSchema(sprintScopeEvents).omit({ id: true, occurredAt: true });
 export const insertSprintScopeTargetSchema = createInsertSchema(sprintScopeTargets).omit({ id: true, createdAt: true });
+export const insertSprintPulseUpdateSchema = createInsertSchema(sprintPulseUpdates).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activity).omit({ id: true });
 export const insertCommentSchema = createInsertSchema(comments).omit({ id: true });
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({ id: true });
@@ -520,6 +538,9 @@ export type InsertSprintScopeEvent = z.infer<typeof insertSprintScopeEventSchema
 
 export type SprintScopeTarget = typeof sprintScopeTargets.$inferSelect;
 export type InsertSprintScopeTarget = z.infer<typeof insertSprintScopeTargetSchema>;
+
+export type SprintPulseUpdate = typeof sprintPulseUpdates.$inferSelect;
+export type InsertSprintPulseUpdate = z.infer<typeof insertSprintPulseUpdateSchema>;
 
 export type Activity = typeof activity.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
