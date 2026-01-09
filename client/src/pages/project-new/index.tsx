@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Shell } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,8 @@ import {
   WizardTemplateSnippet,
   WizardRoleType,
   STEPS,
-  CORE_PROJECT_ROLES 
+  CORE_PROJECT_ROLES,
+  calculateStageDates
 } from "./types";
 import { StepBasics } from "./step-basics";
 import { StepWorkBreakdown } from "./step-work-breakdown";
@@ -100,9 +101,37 @@ export default function ProjectWizard() {
   });
 
   const [deliverables, setDeliverables] = useState<WizardDeliverable[]>([]);
-  const [stages, setStages] = useState<WizardStage[]>([]);
+  const [stages, setStagesRaw] = useState<WizardStage[]>([]);
   const [roles, setRoles] = useState<WizardRole[]>([]);
   const [milestones, setMilestones] = useState<WizardMilestone[]>([]);
+
+  // Wrapper to auto-apply proportional dates when stages change
+  const setStages = (newStages: WizardStage[] | ((prev: WizardStage[]) => WizardStage[])) => {
+    setStagesRaw((prev) => {
+      const resolved = typeof newStages === 'function' ? newStages(prev) : newStages;
+      // Only calculate dates if project has valid start and due dates
+      if (projectData.startDate && projectData.dueDate) {
+        return calculateStageDates(resolved, projectData.startDate, projectData.dueDate);
+      }
+      return resolved;
+    });
+  };
+
+  // Track previous project dates to detect changes
+  const prevDatesRef = useRef({ startDate: projectData.startDate, dueDate: projectData.dueDate });
+  
+  // Recalculate stage dates when project dates change
+  useEffect(() => {
+    const prevDates = prevDatesRef.current;
+    const datesChanged = prevDates.startDate !== projectData.startDate || 
+                         prevDates.dueDate !== projectData.dueDate;
+    
+    if (datesChanged && stages.length > 0 && projectData.startDate && projectData.dueDate) {
+      setStagesRaw(calculateStageDates(stages, projectData.startDate, projectData.dueDate));
+    }
+    
+    prevDatesRef.current = { startDate: projectData.startDate, dueDate: projectData.dueDate };
+  }, [projectData.startDate, projectData.dueDate]);
 
   const syncRolesFromStagesAndTasks = () => {
     const uniqueRoleIds = new Set<string>();

@@ -44,6 +44,46 @@ export interface WizardStage {
   defaultRoles?: string[];
   type?: string;
   tasks: WizardTaskDraft[];
+  startDate?: string;
+  endDate?: string;
+}
+
+/**
+ * Calculate proportional stage dates based on project start/end dates
+ * Distributes stages evenly across the project timeline
+ */
+export function calculateStageDates(
+  stages: WizardStage[],
+  projectStartDate: string,
+  projectDueDate: string
+): WizardStage[] {
+  if (stages.length === 0 || !projectStartDate || !projectDueDate) {
+    return stages;
+  }
+  
+  const start = new Date(projectStartDate);
+  const end = new Date(projectDueDate);
+  const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  const daysPerStage = Math.floor(totalDays / stages.length);
+  
+  return stages.map((stage, index) => {
+    const stageStart = new Date(start);
+    stageStart.setDate(stageStart.getDate() + (index * daysPerStage));
+    
+    const stageEnd = new Date(start);
+    if (index === stages.length - 1) {
+      // Last stage ends on project due date
+      stageEnd.setTime(end.getTime());
+    } else {
+      stageEnd.setDate(stageEnd.getDate() + ((index + 1) * daysPerStage) - 1);
+    }
+    
+    return {
+      ...stage,
+      startDate: stageStart.toISOString().split('T')[0],
+      endDate: stageEnd.toISOString().split('T')[0]
+    };
+  });
 }
 
 export interface WizardMilestoneRule {

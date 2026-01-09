@@ -370,6 +370,11 @@ export function StepStageConfig({
                         <span className="font-medium text-left flex-1">
                           {stage.name || `Stage ${stageIndex + 1}`}
                         </span>
+                        {stage.startDate && stage.endDate && (
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {new Date(stage.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(stage.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
                         <Badge variant="outline" className="shrink-0">
                           {stage.tasks.length} Tasks
                         </Badge>
@@ -398,6 +403,40 @@ export function StepStageConfig({
                           >
                             <Trash2 className="h-4 w-4 mr-1" /> Remove
                           </Button>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm text-muted-foreground shrink-0">Start:</Label>
+                            <Input
+                              type="date"
+                              value={stage.startDate || ""}
+                              onChange={(e) => {
+                                const newStages = [...stages];
+                                newStages[stageIndex].startDate = e.target.value;
+                                setStages(newStages);
+                              }}
+                              className="h-8 w-36"
+                              data-testid={`input-stage-start-${stageIndex}`}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm text-muted-foreground shrink-0">End:</Label>
+                            <Input
+                              type="date"
+                              value={stage.endDate || ""}
+                              onChange={(e) => {
+                                const newStages = [...stages];
+                                newStages[stageIndex].endDate = e.target.value;
+                                setStages(newStages);
+                              }}
+                              className="h-8 w-36"
+                              data-testid={`input-stage-end-${stageIndex}`}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            (Auto-calculated from project dates)
+                          </span>
                         </div>
                         
                         <div className="flex items-center gap-4 py-2 px-3 bg-muted/50 rounded-md">
