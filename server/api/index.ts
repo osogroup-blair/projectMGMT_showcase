@@ -35,6 +35,7 @@ import {
   insertUserPreferencesSchema,
   insertWorkBlockSchema,
   insertDayPlanSchema,
+  insertSprintPulseUpdateSchema,
 } from "@shared/schema";
 
 // Import seed function
@@ -1598,6 +1599,97 @@ export async function registerRoutes(
       });
 
       res.json(targetedTasks);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Sprint Pulse Updates (async standups)
+  app.get("/api/sprints/:sprintId/pulse", async (req, res) => {
+    try {
+      const updates = await storage.getSprintPulseUpdatesBySprintId(req.params.sprintId);
+      res.json(updates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/sprints/:sprintId/pulse", async (req, res) => {
+    try {
+      const sprint = await storage.getSprintById(req.params.sprintId);
+      if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+
+      const { userId, date, didText, nextText, blockersText, referencedTaskIds } = req.body;
+      if (!userId || !date) {
+        return res.status(400).json({ error: "userId and date are required" });
+      }
+
+      const existingUpdate = await storage.getSprintPulseUpdateByUserAndDate(
+        req.params.sprintId,
+        userId,
+        date
+      );
+
+      if (existingUpdate) {
+        const updated = await storage.updateSprintPulseUpdate(existingUpdate.id, {
+          didText: didText ?? existingUpdate.didText,
+          nextText: nextText ?? existingUpdate.nextText,
+          blockersText: blockersText ?? existingUpdate.blockersText,
+          referencedTaskIds: referencedTaskIds ?? existingUpdate.referencedTaskIds,
+        });
+        res.json(updated);
+      } else {
+        const validated = insertSprintPulseUpdateSchema.parse({
+          sprintId: req.params.sprintId,
+          userId,
+          date,
+          didText: didText || null,
+          nextText: nextText || null,
+          blockersText: blockersText || null,
+          referencedTaskIds: referencedTaskIds || [],
+        });
+        const created = await storage.createSprintPulseUpdate(validated);
+        res.status(201).json(created);
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/sprints/:sprintId/pulse/suggestions", async (req, res) => {
+    try {
+      const { userId } = req.query;
+      if (!userId || typeof userId !== "string") {
+        return res.status(400).json({ error: "userId query param required" });
+      }
+
+      const sprint = await storage.getSprintById(req.params.sprintId);
+      if (!sprint) return res.status(404).json({ error: "Sprint not found" });
+
+      const sprintTasks = (await storage.getTasks()).filter(t => t.sprintId === sprint.id);
+      const userTasks = sprintTasks.filter(t => t.assigneeId === userId);
+
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+      const doneTasks = userTasks.filter(t => 
+        t.status === "Done" || t.status === "Completed"
+      );
+      const inProgressTasks = userTasks.filter(t => 
+        t.status === "In Progress" || t.status === "Review"
+      );
+      const blockedTasks = userTasks.filter(t => t.blocked === true);
+
+      res.json({
+        didSuggestions: doneTasks.map(t => ({ id: t.id, title: t.title })),
+        nextSuggestions: inProgressTasks.map(t => ({ id: t.id, title: t.title })),
+        blockerSuggestions: blockedTasks.map(t => ({
+          id: t.id,
+          title: t.title,
+          reason: t.blockerReason
+        }))
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

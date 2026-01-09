@@ -14,6 +14,7 @@ import type {
   SprintMember, InsertSprintMember,
   SprintScopeEvent, InsertSprintScopeEvent,
   SprintScopeTarget, InsertSprintScopeTarget,
+  SprintPulseUpdate, InsertSprintPulseUpdate,
   Activity, InsertActivity,
   Comment, InsertComment,
   Attachment, InsertAttachment,
@@ -264,6 +265,14 @@ export interface IStorage {
   createSprintScopeTarget(target: InsertSprintScopeTarget): Promise<SprintScopeTarget>;
   deleteSprintScopeTarget(id: string): Promise<void>;
   deleteSprintScopeTargetsBySprintId(sprintId: string): Promise<void>;
+
+  // Sprint Pulse Updates
+  getSprintPulseUpdates(): Promise<SprintPulseUpdate[]>;
+  getSprintPulseUpdatesBySprintId(sprintId: string): Promise<SprintPulseUpdate[]>;
+  getSprintPulseUpdateByUserAndDate(sprintId: string, userId: string, date: string): Promise<SprintPulseUpdate | undefined>;
+  createSprintPulseUpdate(update: InsertSprintPulseUpdate): Promise<SprintPulseUpdate>;
+  updateSprintPulseUpdate(id: string, update: Partial<SprintPulseUpdate>): Promise<SprintPulseUpdate>;
+  deleteSprintPulseUpdate(id: string): Promise<void>;
 
   // Project Favorites
   getProjectFavoritesByUserId(userId: string): Promise<ProjectFavorite[]>;
@@ -1016,6 +1025,38 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteSprintScopeTargetsBySprintId(sprintId: string): Promise<void> {
     await db.delete(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.sprintId, sprintId));
+  }
+
+  // Sprint Pulse Updates
+  async getSprintPulseUpdates(): Promise<SprintPulseUpdate[]> {
+    return await db.select().from(schema.sprintPulseUpdates);
+  }
+  async getSprintPulseUpdatesBySprintId(sprintId: string): Promise<SprintPulseUpdate[]> {
+    return await db.select().from(schema.sprintPulseUpdates).where(eq(schema.sprintPulseUpdates.sprintId, sprintId));
+  }
+  async getSprintPulseUpdateByUserAndDate(sprintId: string, userId: string, date: string): Promise<SprintPulseUpdate | undefined> {
+    const [update] = await db.select().from(schema.sprintPulseUpdates)
+      .where(and(
+        eq(schema.sprintPulseUpdates.sprintId, sprintId),
+        eq(schema.sprintPulseUpdates.userId, userId),
+        eq(schema.sprintPulseUpdates.date, date)
+      ));
+    return update;
+  }
+  async createSprintPulseUpdate(update: InsertSprintPulseUpdate): Promise<SprintPulseUpdate> {
+    const id = (update as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.sprintPulseUpdates).values({ ...update, id }).returning();
+    return created;
+  }
+  async updateSprintPulseUpdate(id: string, update: Partial<SprintPulseUpdate>): Promise<SprintPulseUpdate> {
+    const [updated] = await db.update(schema.sprintPulseUpdates)
+      .set({ ...update, updatedAt: new Date() })
+      .where(eq(schema.sprintPulseUpdates.id, id))
+      .returning();
+    return updated;
+  }
+  async deleteSprintPulseUpdate(id: string): Promise<void> {
+    await db.delete(schema.sprintPulseUpdates).where(eq(schema.sprintPulseUpdates.id, id));
   }
 
   // Home Page Data
