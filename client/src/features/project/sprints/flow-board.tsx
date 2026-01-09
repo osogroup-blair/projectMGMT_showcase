@@ -33,6 +33,7 @@ interface Task {
   status: string;
   effort?: number;
   assigneeId?: string;
+  epicId?: string;
   deadline?: string;
   blocked?: boolean;
   blockerReason?: string;
@@ -44,9 +45,15 @@ interface User {
   name: string;
 }
 
+interface Epic {
+  id: string;
+  title: string;
+}
+
 interface FlowBoardProps {
   tasks: Task[];
   users: User[];
+  epics: Epic[];
   projectId: string;
   isReadOnly?: boolean;
   signalFilter?: "blocked" | "overdue" | "stale" | null;
@@ -90,6 +97,7 @@ function DroppableColumn({
 function SortableTaskCard({ 
   task, 
   user, 
+  epic,
   projectId,
   columnId,
   isOverdue,
@@ -97,6 +105,7 @@ function SortableTaskCard({
 }: { 
   task: Task; 
   user?: User; 
+  epic?: Epic;
   projectId: string;
   columnId: string;
   isOverdue: boolean;
@@ -140,6 +149,11 @@ function SortableTaskCard({
             <GripVertical className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
+            {epic && (
+              <p className="text-[10px] text-muted-foreground mb-0.5 truncate">
+                {epic.title}
+              </p>
+            )}
             <Link 
               href={`/projects/${projectId}/tasks/${task.id}`} 
               className="font-medium text-sm hover:text-primary line-clamp-2"
@@ -185,9 +199,10 @@ function SortableTaskCard({
   );
 }
 
-function TaskCard({ task, user, projectId, isOverdue, isStale }: { 
+function TaskCard({ task, user, epic, projectId, isOverdue, isStale }: { 
   task: Task; 
   user?: User; 
+  epic?: Epic;
   projectId: string;
   isOverdue: boolean;
   isStale: boolean;
@@ -200,6 +215,11 @@ function TaskCard({ task, user, projectId, isOverdue, isStale }: {
       isStale && !task.blocked && !isOverdue && "border-l-4 border-l-orange-400"
     )}>
       <div className="flex-1 min-w-0">
+        {epic && (
+          <p className="text-[10px] text-muted-foreground mb-0.5 truncate">
+            {epic.title}
+          </p>
+        )}
         <Link 
           href={`/projects/${projectId}/tasks/${task.id}`} 
           className="font-medium text-sm hover:text-primary line-clamp-2"
@@ -235,6 +255,7 @@ function TaskCard({ task, user, projectId, isOverdue, isStale }: {
 export function FlowBoard({ 
   tasks, 
   users, 
+  epics,
   projectId, 
   isReadOnly,
   signalFilter,
@@ -255,6 +276,7 @@ export function FlowBoard({
   );
 
   const getUser = (userId?: string) => users.find(u => u.id === userId);
+  const getEpic = (epicId?: string) => epicId ? epics?.find(e => e.id === epicId) : undefined;
 
   const isTaskOverdue = (task: Task) => {
     if (!task.deadline) return false;
@@ -378,6 +400,7 @@ export function FlowBoard({
                         key={task.id}
                         task={task}
                         user={getUser(task.assigneeId)}
+                        epic={getEpic(task.epicId)}
                         projectId={projectId}
                         columnId={col.id}
                         isOverdue={isTaskOverdue(task)}
@@ -397,6 +420,7 @@ export function FlowBoard({
           <TaskCard
             task={activeTask}
             user={getUser(activeTask.assigneeId)}
+            epic={getEpic(activeTask.epicId)}
             projectId={projectId}
             isOverdue={isTaskOverdue(activeTask)}
             isStale={isTaskStale(activeTask)}

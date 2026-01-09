@@ -33,7 +33,10 @@ import {
   Lock,
   Unlock,
   CheckSquare,
-  FileText
+  FileText,
+  PanelRightClose,
+  PanelRightOpen,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -170,6 +173,7 @@ export default function SprintDetail() {
   const [blockerDialogOpen, setBlockerDialogOpen] = useState(false);
   const [pendingBlockerTaskId, setPendingBlockerTaskId] = useState<string | null>(null);
   const [signalFilter, setSignalFilter] = useState<"blocked" | "overdue" | "stale" | null>(null);
+  const [pulseCollapsed, setPulseCollapsed] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -1961,19 +1965,36 @@ export default function SprintDetail() {
 
           <TabsContent value="run" className="mt-6">
             <div className="flex gap-4 h-[calc(100vh-280px)]" data-testid="run-tab-container">
-              <div className="flex-[65] min-w-0">
+              <div className={cn("min-w-0 transition-all", pulseCollapsed ? "flex-1" : "flex-[65]")}>
                 <Card className="h-full flex flex-col overflow-hidden">
                   <CardHeader className="py-2 px-4 flex-row items-center justify-between border-b">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                       <Layers className="h-4 w-4" />
                       Flow Board
                     </CardTitle>
-                    {!isReadOnly && (
-                      <Button size="sm" variant="outline" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks-run">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Tasks
+                    <div className="flex items-center gap-2">
+                      {!isReadOnly && (
+                        <Button size="sm" variant="outline" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks-run">
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Tasks
+                        </Button>
+                      )}
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => setPulseCollapsed(!pulseCollapsed)}
+                        data-testid="button-toggle-pulse"
+                      >
+                        {pulseCollapsed ? (
+                          <>
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            <PanelRightOpen className="h-4 w-4" />
+                          </>
+                        ) : (
+                          <PanelRightClose className="h-4 w-4" />
+                        )}
                       </Button>
-                    )}
+                    </div>
                   </CardHeader>
                   <SprintSignalsBar
                     tasks={sprintTasks}
@@ -1984,6 +2005,7 @@ export default function SprintDetail() {
                     <FlowBoard
                       tasks={sprintTasks}
                       users={users || []}
+                      epics={allEpics || []}
                       projectId={projectId}
                       isReadOnly={isReadOnly}
                       signalFilter={signalFilter}
@@ -1993,16 +2015,18 @@ export default function SprintDetail() {
                   </CardContent>
                 </Card>
               </div>
-              <div className="flex-[35] min-w-0">
-                <PulsePanel
-                  tasks={sprintTasks}
-                  users={users || []}
-                  pulseUpdates={pulseUpdates}
-                  currentUserId={currentUser?.id || ""}
-                  sprintId={sprintId}
-                  onPostPulse={(data) => postPulseMutation.mutate(data)}
-                />
-              </div>
+              {!pulseCollapsed && (
+                <div className="flex-[35] min-w-0">
+                  <PulsePanel
+                    tasks={sprintTasks}
+                    users={users || []}
+                    pulseUpdates={pulseUpdates}
+                    currentUserId={currentUser?.id || ""}
+                    sprintId={sprintId}
+                    onPostPulse={(data) => postPulseMutation.mutate(data)}
+                  />
+                </div>
+              )}
             </div>
           </TabsContent>
 
