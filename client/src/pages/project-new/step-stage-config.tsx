@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,21 +13,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Plus, 
   Trash2, 
-  ChevronDown, 
-  ChevronRight, 
   Layers, 
   ListTodo,
   Target,
   LayoutTemplate,
-  Wrench
+  PanelRightOpen
 } from "lucide-react";
 import { StepProps, WizardStage, WizardTaskDraft, WizardMilestone } from "./types";
 
@@ -40,21 +46,12 @@ export function StepStageConfig({
   frameworkTemplates,
   stageTemplates,
   taskTemplates,
-  milestoneTemplates,
   users,
 }: StepProps) {
-  const [activeTab, setActiveTab] = useState<'apply' | 'build'>('build');
-  const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
-
-  const toggleStageExpanded = (stageId: string) => {
-    const newExpanded = new Set(expandedStages);
-    if (newExpanded.has(stageId)) {
-      newExpanded.delete(stageId);
-    } else {
-      newExpanded.add(stageId);
-    }
-    setExpandedStages(newExpanded);
-  };
+  const [activeTab, setActiveTab] = useState<'stages' | 'milestones'>('stages');
+  const [expandedStages, setExpandedStages] = useState<string[]>([]);
+  const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
+  const [frameworkPanelOpen, setFrameworkPanelOpen] = useState(false);
 
   const addStage = () => {
     const newStage: WizardStage = {
@@ -68,7 +65,7 @@ export function StepStageConfig({
       tasks: []
     };
     setStages([...stages, newStage]);
-    setExpandedStages(new Set([...Array.from(expandedStages), newStage.id]));
+    setExpandedStages([...expandedStages, newStage.id]);
   };
 
   const removeStage = (index: number) => {
@@ -146,6 +143,7 @@ export function StepStageConfig({
       isBillingGate: false
     };
     setMilestones([...milestones, newMilestone]);
+    setExpandedMilestones([...expandedMilestones, newMilestone.id]);
   };
 
   const removeMilestone = (index: number) => {
@@ -184,7 +182,7 @@ export function StepStageConfig({
       }).filter(Boolean)
     };
     setStages([...stages, newStage]);
-    setExpandedStages(new Set([...Array.from(expandedStages), newStage.id]));
+    setExpandedStages([...expandedStages, newStage.id]);
   };
 
   const applyFramework = (frameworkId: string) => {
@@ -226,8 +224,8 @@ export function StepStageConfig({
       .filter(Boolean) as WizardStage[];
 
     setStages(frameworkStages);
-    const expandedIds = frameworkStages.map(s => s.id);
-    setExpandedStages(new Set(expandedIds));
+    setExpandedStages(frameworkStages.map(s => s.id));
+    setFrameworkPanelOpen(false);
   };
 
   return (
@@ -237,393 +235,423 @@ export function StepStageConfig({
           <div>
             <h3 className="text-lg font-medium">Stage Configuration</h3>
             <p className="text-sm text-muted-foreground">
-              Define stages, tasks, and milestones. Apply templates or build from scratch.
+              Configure stages and milestones for your project workflow.
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={addMilestone} data-testid="button-add-milestone">
-              <Target className="h-4 w-4 mr-2" /> Add Milestone
-            </Button>
+          <Sheet open={frameworkPanelOpen} onOpenChange={setFrameworkPanelOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-apply-framework">
+                <LayoutTemplate className="h-4 w-4 mr-2" /> Apply Framework
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-[400px] sm:w-[540px]">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <LayoutTemplate className="h-5 w-5" /> Apply Framework
+                </SheetTitle>
+                <SheetDescription>
+                  Select a framework to pre-populate stages and tasks. This will replace your current configuration.
+                </SheetDescription>
+              </SheetHeader>
+              <ScrollArea className="h-[calc(100vh-180px)] mt-6">
+                <div className="space-y-3 pr-4">
+                  {frameworkTemplates && frameworkTemplates.length > 0 ? (
+                    <>
+                      {frameworkTemplates.map((framework: any) => (
+                        <Card 
+                          key={framework.id} 
+                          className="cursor-pointer hover:border-primary transition-colors"
+                          onClick={() => applyFramework(framework.id)}
+                          data-testid={`card-framework-${framework.id}`}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="font-medium">{framework.name}</div>
+                                <div className="text-sm text-muted-foreground mt-1">{framework.description}</div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                              {framework.defaultStages?.length > 0 && (
+                                <Badge variant="secondary">
+                                  {framework.defaultStages.length} stages
+                                </Badge>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      
+                      <div className="pt-4 border-t mt-4">
+                        <p className="text-sm font-medium mb-3">Or add individual stage templates:</p>
+                        <Select onValueChange={applyStageTemplate}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a stage template..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stageTemplates.map((template: any) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.name} ({template.defaultTasks?.length || 0} tasks)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center p-6 text-muted-foreground border-2 border-dashed rounded-lg">
+                      <LayoutTemplate className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No frameworks available.</p>
+                      <p className="text-xs mt-1">Add stages manually using the Stages tab.</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'stages' | 'milestones')} className="flex-1">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="stages" className="flex items-center gap-2">
+            <Layers className="h-4 w-4" /> Stages ({stages.length})
+          </TabsTrigger>
+          <TabsTrigger value="milestones" className="flex items-center gap-2">
+            <Target className="h-4 w-4" /> Milestones ({milestones.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="stages" className="mt-0">
+          <div className="flex justify-end mb-3">
             <Button size="sm" onClick={addStage} data-testid="button-add-stage">
               <Plus className="h-4 w-4 mr-2" /> Add Stage
             </Button>
           </div>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'apply' | 'build')} className="flex-1">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="apply" className="flex items-center gap-2">
-            <LayoutTemplate className="h-4 w-4" /> Apply Frameworks
-          </TabsTrigger>
-          <TabsTrigger value="build" className="flex items-center gap-2">
-            <Wrench className="h-4 w-4" /> Build from Scratch
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="apply" className="mt-0">
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Project Frameworks</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Select a framework to apply its pre-configured stages, tasks, and workflow.
-                </p>
-              </CardHeader>
-              <CardContent>
-                {frameworkTemplates && frameworkTemplates.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {frameworkTemplates.map((framework: any) => (
-                      <Card 
-                        key={framework.id} 
-                        className="cursor-pointer hover:border-primary transition-colors"
-                        onClick={() => applyFramework(framework.id)}
-                        data-testid={`card-framework-${framework.id}`}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <div className="font-medium text-sm">{framework.name}</div>
-                              <div className="text-xs text-muted-foreground mt-1">{framework.description}</div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2 mt-2">
-                            {framework.defaultStages?.length > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {framework.defaultStages.length} stages
-                              </Badge>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center p-6 text-muted-foreground border-2 border-dashed rounded-lg">
-                    <LayoutTemplate className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No frameworks available.</p>
-                    <p className="text-xs mt-1">Use the "Build from Scratch" tab to create stages manually.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Add Individual Stage Templates</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Select onValueChange={applyStageTemplate}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select a stage template to add..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stageTemplates.map((template: any) => (
-                        <SelectItem key={template.id} value={template.id}>
-                          {template.name} ({template.defaultTasks?.length || 0} tasks)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="build" className="mt-0">
-          <ScrollArea className="h-[450px] pr-4">
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Layers className="h-4 w-4" /> Stages ({stages.length})
-                  </h4>
-                </div>
-
-                {stages.length === 0 ? (
-                  <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
-                    <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No stages defined yet.</p>
-                    <Button variant="link" onClick={addStage}>Add your first stage</Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {stages.map((stage, stageIndex) => (
-                      <Card key={stage.id}>
-                        <Collapsible 
-                          open={expandedStages.has(stage.id)} 
-                          onOpenChange={() => toggleStageExpanded(stage.id)}
-                        >
-                          <CardHeader className="p-4 pb-2">
-                            <div className="flex items-center gap-3">
-                              <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
-                                  {expandedStages.has(stage.id) ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </CollapsibleTrigger>
-                              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs">
-                                {stageIndex + 1}
+          
+          <ScrollArea className="h-[400px] pr-4">
+            {stages.length === 0 ? (
+              <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
+                <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No stages defined yet.</p>
+                <p className="text-sm mt-1">Click "Add Stage" or use "Apply Framework" to get started.</p>
+              </div>
+            ) : (
+              <Accordion 
+                type="multiple" 
+                value={expandedStages}
+                onValueChange={setExpandedStages}
+                className="space-y-2"
+              >
+                {stages.map((stage, stageIndex) => (
+                  <AccordionItem 
+                    key={stage.id} 
+                    value={stage.id}
+                    className="border rounded-lg px-4"
+                  >
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-3 flex-1 mr-4">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs shrink-0">
+                          {stageIndex + 1}
+                        </div>
+                        <span className="font-medium text-left flex-1">
+                          {stage.name || `Stage ${stageIndex + 1}`}
+                        </span>
+                        <Badge variant="outline" className="shrink-0">
+                          {stage.tasks.length} Tasks
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4">
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-3">
+                          <Label className="text-sm shrink-0">Stage Name:</Label>
+                          <Input
+                            value={stage.name}
+                            onChange={(e) => {
+                              const newStages = [...stages];
+                              newStages[stageIndex].name = e.target.value;
+                              setStages(newStages);
+                            }}
+                            className="h-8 flex-1"
+                            placeholder="Enter stage name..."
+                            data-testid={`input-stage-name-${stageIndex}`}
+                          />
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-destructive shrink-0"
+                            onClick={() => removeStage(stageIndex)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" /> Remove
+                          </Button>
+                        </div>
+                        
+                        <div className="flex items-center gap-4 py-2 px-3 bg-muted/50 rounded-md">
+                          <Label className="text-sm text-muted-foreground shrink-0">Task Creation Mode:</Label>
+                          <div className="flex items-center gap-4">
+                            {(['none', 'once', 'per_epic'] as const).map((mode) => (
+                              <div key={mode} className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  id={`stage-${mode}-${stage.id}`}
+                                  name={`stage-mode-${stage.id}`}
+                                  checked={stage.taskCreationMode === mode}
+                                  onChange={() => {
+                                    const newStages = [...stages];
+                                    newStages[stageIndex].taskCreationMode = mode;
+                                    setStages(newStages);
+                                  }}
+                                  className="h-4 w-4"
+                                />
+                                <Label htmlFor={`stage-${mode}-${stage.id}`} className="text-sm cursor-pointer capitalize">
+                                  {mode === 'per_epic' ? 'Per Epic' : mode === 'none' ? 'None' : 'Once'}
+                                </Label>
                               </div>
-                              <Input
-                                value={stage.name}
-                                onChange={(e) => {
-                                  const newStages = [...stages];
-                                  newStages[stageIndex].name = e.target.value;
-                                  setStages(newStages);
-                                }}
-                                className="h-8 flex-1 font-medium"
-                                placeholder="Enter stage name..."
-                                data-testid={`input-stage-name-${stageIndex}`}
-                              />
-                              <Badge variant="outline" className="shrink-0">
-                                {stage.tasks.length} Tasks
-                              </Badge>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-destructive"
-                                onClick={() => removeStage(stageIndex)}
-                              >
-                                <Trash2 className="h-4 w-4" />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm flex items-center gap-2">
+                              <ListTodo className="h-4 w-4" /> Tasks
+                            </Label>
+                            <div className="flex gap-2">
+                              <Select onValueChange={(templateId) => applyTaskTemplate(stageIndex, templateId)}>
+                                <SelectTrigger className="h-8 w-48">
+                                  <SelectValue placeholder="Add from template..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {taskTemplates.map((template: any) => (
+                                    <SelectItem key={template.id} value={template.id}>
+                                      {template.title}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
+                                <Plus className="h-3 w-3 mr-1" /> Custom
                               </Button>
                             </div>
-                          </CardHeader>
-                          <CollapsibleContent>
-                            <CardContent className="pt-0 pb-4 px-4">
-                              <div className="ml-12 space-y-4">
-                                <div className="flex items-center gap-4 py-2 border-t">
-                                  <Label className="text-sm text-muted-foreground shrink-0">Task Creation:</Label>
-                                  <div className="flex items-center gap-4">
-                                    {(['none', 'once', 'per_epic'] as const).map((mode) => (
-                                      <div key={mode} className="flex items-center gap-2">
-                                        <input
-                                          type="radio"
-                                          id={`stage-${mode}-${stage.id}`}
-                                          name={`stage-mode-${stage.id}`}
-                                          checked={stage.taskCreationMode === mode}
-                                          onChange={() => {
-                                            const newStages = [...stages];
-                                            newStages[stageIndex].taskCreationMode = mode;
-                                            setStages(newStages);
-                                          }}
-                                          className="h-4 w-4"
-                                        />
-                                        <Label htmlFor={`stage-${mode}-${stage.id}`} className="text-sm cursor-pointer capitalize">
-                                          {mode === 'per_epic' ? 'Per Epic' : mode}
-                                        </Label>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
+                          </div>
 
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <Label className="text-sm flex items-center gap-2">
-                                      <ListTodo className="h-4 w-4" /> Tasks
-                                    </Label>
-                                    <div className="flex gap-2">
-                                      <Select onValueChange={(templateId) => applyTaskTemplate(stageIndex, templateId)}>
-                                        <SelectTrigger className="h-8 w-48">
-                                          <SelectValue placeholder="Add from template..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {taskTemplates.map((template: any) => (
-                                            <SelectItem key={template.id} value={template.id}>
-                                              {template.title}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
-                                        <Plus className="h-3 w-3 mr-1" /> Custom
+                          {stage.tasks.length === 0 ? (
+                            <div className="text-center p-4 border border-dashed rounded text-muted-foreground text-sm">
+                              No tasks defined. Add from templates or create custom tasks.
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {stage.tasks.map((task, taskIndex) => (
+                                <Card key={task.id} className="bg-muted/30">
+                                  <CardContent className="p-3">
+                                    <div className="flex items-start gap-3">
+                                      <div className="flex-1 space-y-2">
+                                        <Input
+                                          value={task.title}
+                                          onChange={(e) => updateTask(stageIndex, taskIndex, { title: e.target.value })}
+                                          className="h-8"
+                                          placeholder="Task title..."
+                                        />
+                                        <div className="grid grid-cols-3 gap-2">
+                                          <Select
+                                            value={task.scope}
+                                            onValueChange={(v) => updateTask(stageIndex, taskIndex, { scope: v as 'once' | 'per_epic' })}
+                                          >
+                                            <SelectTrigger className="h-8">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="once">Once</SelectItem>
+                                              <SelectItem value="per_epic">Per Epic</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          <Select
+                                            value={task.priority}
+                                            onValueChange={(v) => updateTask(stageIndex, taskIndex, { priority: v })}
+                                          >
+                                            <SelectTrigger className="h-8">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="Low">Low</SelectItem>
+                                              <SelectItem value="Medium">Medium</SelectItem>
+                                              <SelectItem value="High">High</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          <Input
+                                            type="number"
+                                            value={task.estimateHours}
+                                            onChange={(e) => updateTask(stageIndex, taskIndex, { estimateHours: parseInt(e.target.value) || 0 })}
+                                            className="h-8"
+                                            placeholder="Hours"
+                                          />
+                                        </div>
+                                      </div>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className="h-8 w-8"
+                                        onClick={() => removeTaskFromStage(stageIndex, taskIndex)}
+                                      >
+                                        <Trash2 className="h-4 w-4 text-muted-foreground" />
                                       </Button>
                                     </div>
-                                  </div>
-
-                                  {stage.tasks.length === 0 ? (
-                                    <div className="text-center p-4 border border-dashed rounded text-muted-foreground text-sm">
-                                      No tasks defined. Add from templates or create custom tasks.
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-2">
-                                      {stage.tasks.map((task, taskIndex) => (
-                                        <Card key={task.id} className="bg-muted/30">
-                                          <CardContent className="p-3">
-                                            <div className="flex items-start gap-3">
-                                              <div className="flex-1 space-y-2">
-                                                <Input
-                                                  value={task.title}
-                                                  onChange={(e) => updateTask(stageIndex, taskIndex, { title: e.target.value })}
-                                                  className="h-8"
-                                                  placeholder="Task title..."
-                                                />
-                                                <div className="grid grid-cols-3 gap-2">
-                                                  <Select
-                                                    value={task.scope}
-                                                    onValueChange={(v) => updateTask(stageIndex, taskIndex, { scope: v as 'once' | 'per_epic' })}
-                                                  >
-                                                    <SelectTrigger className="h-8">
-                                                      <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                      <SelectItem value="once">Once</SelectItem>
-                                                      <SelectItem value="per_epic">Per Epic</SelectItem>
-                                                    </SelectContent>
-                                                  </Select>
-                                                  <Select
-                                                    value={task.priority}
-                                                    onValueChange={(v) => updateTask(stageIndex, taskIndex, { priority: v })}
-                                                  >
-                                                    <SelectTrigger className="h-8">
-                                                      <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                      <SelectItem value="Low">Low</SelectItem>
-                                                      <SelectItem value="Medium">Medium</SelectItem>
-                                                      <SelectItem value="High">High</SelectItem>
-                                                    </SelectContent>
-                                                  </Select>
-                                                  <Input
-                                                    type="number"
-                                                    value={task.estimateHours}
-                                                    onChange={(e) => updateTask(stageIndex, taskIndex, { estimateHours: parseInt(e.target.value) || 0 })}
-                                                    className="h-8"
-                                                    placeholder="Hours"
-                                                  />
-                                                </div>
-                                              </div>
-                                              <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-8 w-8"
-                                                onClick={() => removeTaskFromStage(stageIndex, taskIndex)}
-                                              >
-                                                <Trash2 className="h-4 w-4 text-muted-foreground" />
-                                              </Button>
-                                            </div>
-                                          </CardContent>
-                                        </Card>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3 pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Target className="h-4 w-4" /> Milestones ({milestones.length})
-                  </h4>
-                  <Button size="sm" variant="outline" onClick={addMilestone}>
-                    <Plus className="h-3 w-3 mr-1" /> Add Milestone
-                  </Button>
-                </div>
-
-                {milestones.length === 0 ? (
-                  <div className="text-center p-6 border-2 border-dashed rounded-lg text-muted-foreground">
-                    <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No milestones defined yet.</p>
-                    <p className="text-xs mt-1">Milestones are optional but help track key deliverables.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {milestones.map((milestone, index) => (
-                      <Card key={milestone.id} className="bg-muted/30">
-                        <CardContent className="p-3">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 space-y-2">
-                              <div className="grid grid-cols-2 gap-2">
-                                <Input
-                                  value={milestone.name}
-                                  onChange={(e) => {
-                                    const newMs = [...milestones];
-                                    newMs[index].name = e.target.value;
-                                    setMilestones(newMs);
-                                  }}
-                                  className="h-8"
-                                  placeholder="Milestone name..."
-                                />
-                                <Input
-                                  type="date"
-                                  value={milestone.targetDate}
-                                  onChange={(e) => {
-                                    const newMs = [...milestones];
-                                    newMs[index].targetDate = e.target.value;
-                                    setMilestones(newMs);
-                                  }}
-                                  className="h-8"
-                                />
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <Select
-                                  value={milestone.stageId}
-                                  onValueChange={(v) => {
-                                    const newMs = [...milestones];
-                                    newMs[index].stageId = v;
-                                    setMilestones(newMs);
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8">
-                                    <SelectValue placeholder="Select stage..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {stages.length > 0 ? (
-                                      stages.map((s) => (
-                                        <SelectItem key={s.id} value={s.id}>{s.name || `Stage ${stages.indexOf(s) + 1}`}</SelectItem>
-                                      ))
-                                    ) : (
-                                      <div className="text-sm text-muted-foreground px-2 py-1.5">No stages defined</div>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    id={`billing-gate-${milestone.id}`}
-                                    checked={milestone.isBillingGate}
-                                    onChange={(e) => {
-                                      const newMs = [...milestones];
-                                      newMs[index].isBillingGate = e.target.checked;
-                                      setMilestones(newMs);
-                                    }}
-                                    className="h-4 w-4"
-                                  />
-                                  <Label htmlFor={`billing-gate-${milestone.id}`} className="text-sm">
-                                    Billing Gate
-                                  </Label>
-                                </div>
-                              </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8"
-                              onClick={() => removeMilestone(index)}
-                            >
-                              <Trash2 className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+                          )}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="milestones" className="mt-0">
+          <div className="flex justify-end mb-3">
+            <Button size="sm" onClick={addMilestone} data-testid="button-add-milestone">
+              <Plus className="h-4 w-4 mr-2" /> Add Milestone
+            </Button>
+          </div>
+          
+          <ScrollArea className="h-[400px] pr-4">
+            {milestones.length === 0 ? (
+              <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
+                <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No milestones defined yet.</p>
+                <p className="text-sm mt-1">Milestones are optional but help track key deliverables.</p>
               </div>
-            </div>
+            ) : (
+              <Accordion 
+                type="multiple" 
+                value={expandedMilestones}
+                onValueChange={setExpandedMilestones}
+                className="space-y-2"
+              >
+                {milestones.map((milestone, index) => (
+                  <AccordionItem 
+                    key={milestone.id} 
+                    value={milestone.id}
+                    className="border rounded-lg px-4"
+                  >
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-3 flex-1 mr-4">
+                        <Target className="h-4 w-4 text-primary shrink-0" />
+                        <span className="font-medium text-left flex-1">
+                          {milestone.name || `Milestone ${index + 1}`}
+                        </span>
+                        {milestone.isBillingGate && (
+                          <Badge variant="secondary" className="shrink-0">
+                            Billing Gate
+                          </Badge>
+                        )}
+                        {milestone.targetDate && (
+                          <Badge variant="outline" className="shrink-0">
+                            {new Date(milestone.targetDate).toLocaleDateString()}
+                          </Badge>
+                        )}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4">
+                      <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-sm">Milestone Name</Label>
+                            <Input
+                              value={milestone.name}
+                              onChange={(e) => {
+                                const newMs = [...milestones];
+                                newMs[index].name = e.target.value;
+                                setMilestones(newMs);
+                              }}
+                              className="h-9"
+                              placeholder="Enter milestone name..."
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-sm">Target Date</Label>
+                            <Input
+                              type="date"
+                              value={milestone.targetDate}
+                              onChange={(e) => {
+                                const newMs = [...milestones];
+                                newMs[index].targetDate = e.target.value;
+                                setMilestones(newMs);
+                              }}
+                              className="h-9"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-sm">Linked Stage</Label>
+                            <Select
+                              value={milestone.stageId}
+                              onValueChange={(v) => {
+                                const newMs = [...milestones];
+                                newMs[index].stageId = v;
+                                setMilestones(newMs);
+                              }}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select stage..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {stages.length > 0 ? (
+                                  stages.map((s, idx) => (
+                                    <SelectItem key={s.id} value={s.id}>
+                                      {s.name || `Stage ${idx + 1}`}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <div className="text-sm text-muted-foreground px-2 py-1.5">No stages defined</div>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-sm">Options</Label>
+                            <div className="flex items-center gap-3 h-9 px-3 border rounded-md bg-background">
+                              <input
+                                type="checkbox"
+                                id={`billing-gate-${milestone.id}`}
+                                checked={milestone.isBillingGate}
+                                onChange={(e) => {
+                                  const newMs = [...milestones];
+                                  newMs[index].isBillingGate = e.target.checked;
+                                  setMilestones(newMs);
+                                }}
+                                className="h-4 w-4"
+                              />
+                              <Label htmlFor={`billing-gate-${milestone.id}`} className="text-sm cursor-pointer">
+                                Billing Gate
+                              </Label>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-end pt-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => removeMilestone(index)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" /> Remove Milestone
+                          </Button>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
           </ScrollArea>
         </TabsContent>
       </Tabs>
@@ -636,7 +664,7 @@ export function StepStageConfig({
             <span>{milestones.length} milestone{milestones.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="text-xs">
-            Tasks will be created based on the scope (Once vs Per Epic) when the project is finalized.
+            Tasks will be created based on scope (Once vs Per Epic) when the project is finalized.
           </div>
         </div>
       </div>

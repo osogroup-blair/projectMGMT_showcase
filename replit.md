@@ -42,7 +42,7 @@ Redesigned project creation wizard from 6 steps to 5 steps with improved templat
 **New 5-Step Flow:**
 1. **Project Basics** - Name, description, client, dates, sprint duration, owner (removed framework selection)
 2. **Work Breakdown** - Deliverables and Epics editor with keyboard shortcuts (Enter to add rows, Backspace on empty to remove)
-3. **Stage Configuration** - Templating hub with two tabs: "Apply Frameworks" (pre-configured frameworks with bundled stages/tasks) and "Build from Scratch" (stages, editable task drafts, milestones)
+3. **Stage Configuration** - Main tabs for Stages and Milestones (both in accordions), with "Apply Framework" side panel for loading pre-configured frameworks
 4. **Assignments & Roles** - Role-based team assignments with eligibility filtering showing eligible user count per role
 5. **Review & Summary** - Enhanced preview with task count breakdown (ONCE vs PER_EPIC calculations), warnings for large projects (>100 tasks)
 
