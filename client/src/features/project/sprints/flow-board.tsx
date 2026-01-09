@@ -9,6 +9,7 @@ import {
   useSensors,
   DragStartEvent,
   DragEndEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -59,6 +60,29 @@ const COLUMNS = [
   { id: "blocked", title: "Blocked", statuses: ["Blocked"], icon: AlertOctagon, color: "text-amber-600", bgColor: "bg-amber-50", borderColor: "border-amber-300" },
   { id: "done", title: "Done", statuses: ["Done", "Completed"], icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-50", borderColor: "border-green-200" },
 ];
+
+function DroppableColumn({ 
+  id, 
+  children 
+}: { 
+  id: string; 
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  
+  return (
+    <div 
+      ref={setNodeRef} 
+      className={cn(
+        "space-y-2 min-h-[150px] p-1 rounded transition-colors",
+        isOver && "bg-primary/10 ring-2 ring-primary/30"
+      )}
+      data-column={id}
+    >
+      {children}
+    </div>
+  );
+}
 
 function SortableTaskCard({ 
   task, 
@@ -334,7 +358,7 @@ export function FlowBoard({
                   strategy={verticalListSortingStrategy}
                   id={col.id}
                 >
-                  <div className="space-y-2 min-h-[150px]" data-column={col.id}>
+                  <DroppableColumn id={col.id}>
                     {colTasks.map((task) => (
                       <SortableTaskCard
                         key={task.id}
@@ -345,7 +369,7 @@ export function FlowBoard({
                         isStale={isTaskStale(task)}
                       />
                     ))}
-                  </div>
+                  </DroppableColumn>
                 </SortableContext>
               </ScrollArea>
             </div>
