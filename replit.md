@@ -26,6 +26,21 @@ The core data model follows a hierarchical structure: Projects, Deliverables, Ep
 
 API routes are RESTful, organized logically around core entities (e.g., `/api/projects`, `/api/users`, `/api/sprints`) and nested resources (e.g., `/api/projects/:projectId/deliverables`). Specific endpoints handle project import workflows and home page data aggregation.
 
+### Import/Export System
+
+The import wizard (`/projects/import`) supports multi-format imports (JSON, Excel/CSV, YAML) with a 6-step workflow:
+1. **Upload File** - File selection with format auto-detection
+2. **Entity Mapping** - Map source fields to target schema
+3. **User Mapping** - Map source users to existing system users
+4. **Status Mapping** - Map source statuses to system statuses
+5. **Preview & Import** - Review data before import
+6. **Results** - View import summary with per-entity breakdowns and error details
+
+Key import features:
+- Array field normalization for `stageIds` and `tags` (handles strings, JSON strings, native arrays)
+- Foreign key validation with fallback chains (e.g., ownerId → defaults.ownerId → first user)
+- External source tracking via `externalRefs` metadata arrays
+
 ### File Structure
 
 The codebase is structured feature-first. The `client/src/` directory contains global UI components (`components/`), React contexts (`context/`), feature-specific components and logic (`features/`), custom hooks (`hooks/`), utilities (`lib/`), and page-level components (`pages/`). The `server/` directory organizes Express application setup, API routes, database connection, and data access layers. Shared types are defined in `shared/schema.ts`.
