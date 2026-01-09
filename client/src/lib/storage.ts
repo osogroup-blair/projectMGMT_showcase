@@ -32,6 +32,7 @@ export interface NexusDB {
   taskStatuses: any[];
   stageTypes: any[];
   roleTypes: any[];
+  taskTypes: any[];
 }
 
 class StorageEngine {

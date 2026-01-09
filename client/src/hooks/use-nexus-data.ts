@@ -106,6 +106,7 @@ export const useMilestoneTaskLinks = () => useCollection("milestoneTaskLinks");
 export const useRoleTypes = () => useCollection("roleTypes");
 export const useSprints = () => useCollection("sprints");
 export const useSprintMembers = () => useCollection("sprintMembers");
+export const useTaskTypes = () => useCollection("taskTypes");
 
 // Single Item Hooks
 export function useProject(id: string) {
@@ -206,6 +207,130 @@ export function useSuggestedTasks(sprintId: string) {
       return response.json();
     },
     enabled: !!sprintId,
+  });
+}
+
+// Task Dependencies Hook
+export function useTaskDependencies(taskId: string) {
+  const queryClient = useQueryClient();
+
+  const dependsOn = useQuery({
+    queryKey: ["taskDependencies", taskId, "dependsOn"],
+    queryFn: async () => {
+      if (!taskId) return [];
+      const response = await fetch(`/api/tasks/${taskId}/dependencies`);
+      if (!response.ok) throw new Error("Failed to fetch dependencies");
+      return response.json();
+    },
+    enabled: !!taskId,
+  });
+
+  const dependents = useQuery({
+    queryKey: ["taskDependencies", taskId, "dependents"],
+    queryFn: async () => {
+      if (!taskId) return [];
+      const response = await fetch(`/api/tasks/${taskId}/dependents`);
+      if (!response.ok) throw new Error("Failed to fetch dependents");
+      return response.json();
+    },
+    enabled: !!taskId,
+  });
+
+  const addDependency = useMutation({
+    mutationFn: async (dependsOnTaskId: string) => {
+      const response = await fetch(`/api/tasks/${taskId}/dependencies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dependsOnTaskId }),
+      });
+      if (!response.ok) throw new Error("Failed to add dependency");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["taskDependencies", taskId] });
+    },
+  });
+
+  const removeDependency = useMutation({
+    mutationFn: async (dependencyId: string) => {
+      const response = await fetch(`/api/tasks/${taskId}/dependencies/${dependencyId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to remove dependency");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["taskDependencies", taskId] });
+    },
+  });
+
+  return {
+    dependsOn: dependsOn.data || [],
+    dependents: dependents.data || [],
+    isLoading: dependsOn.isLoading || dependents.isLoading,
+    addDependency: addDependency.mutate,
+    addDependencyAsync: addDependency.mutateAsync,
+    removeDependency: removeDependency.mutate,
+    removeDependencyAsync: removeDependency.mutateAsync,
+    refetch: () => {
+      dependsOn.refetch();
+      dependents.refetch();
+    },
+  };
+}
+
+// Subtasks Hook
+export function useSubtasks(parentTaskId: string) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const query = useQuery({
+    queryKey: ["subtasks", parentTaskId],
+    queryFn: async () => {
+      if (!parentTaskId) return [];
+      const response = await fetch(`/api/tasks/${parentTaskId}/subtasks`);
+      if (!response.ok) throw new Error("Failed to fetch subtasks");
+      return response.json();
+    },
+    enabled: !!parentTaskId,
+  });
+
+  const create = useMutation({
+    mutationFn: async (subtask: any) => {
+      const response = await fetch(`/api/tasks/${parentTaskId}/subtasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(subtask),
+      });
+      if (!response.ok) throw new Error("Failed to create subtask");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subtasks", parentTaskId] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast({ title: "Subtask created" });
+    },
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    create: create.mutate,
+    createAsync: create.mutateAsync,
+    refetch: query.refetch,
+  };
+}
+
+// Resolved Task Types Hook (project-specific > global fallback)
+export function useResolvedTaskTypes(projectId: string) {
+  return useQuery({
+    queryKey: ["resolvedTaskTypes", projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const response = await fetch(`/api/projects/${projectId}/resolved-task-types`);
+      if (!response.ok) throw new Error("Failed to fetch resolved task types");
+      return response.json();
+    },
+    enabled: !!projectId,
   });
 }
 
