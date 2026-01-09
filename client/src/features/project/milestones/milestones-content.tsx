@@ -107,7 +107,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
   // Milestone search state
   const [milestoneSearchQuery, setMilestoneSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
 
   const milestones = useMemo(() => 
     (allMilestones || []).filter((m: any) => m.projectId === projectId),

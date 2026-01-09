@@ -79,7 +79,7 @@ import { TabToolbar } from "@/components/ui/tab-toolbar";
 // Export content component separately for reuse
 export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
-  const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  const [viewMode, setViewMode] = useState<"list" | "card">("card");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable } = useDeliverables();

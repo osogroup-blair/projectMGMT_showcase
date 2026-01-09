@@ -72,7 +72,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   // Toolbar state
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState("");

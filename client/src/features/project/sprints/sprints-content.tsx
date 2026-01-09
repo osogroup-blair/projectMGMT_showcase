@@ -291,7 +291,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
             </Table>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredSprints.map((sprint: any) => {
               const stats = getSprintStats(sprint.id);
               const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
