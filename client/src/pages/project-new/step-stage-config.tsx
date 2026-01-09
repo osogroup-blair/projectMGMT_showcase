@@ -27,7 +27,7 @@ import {
   Layers, 
   ListTodo,
   Target,
-  Sparkles,
+  LayoutTemplate,
   Wrench
 } from "lucide-react";
 import { StepProps, WizardStage, WizardTaskDraft, WizardMilestone } from "./types";
@@ -37,11 +37,10 @@ export function StepStageConfig({
   setStages,
   milestones,
   setMilestones,
+  frameworkTemplates,
   stageTemplates,
   taskTemplates,
   milestoneTemplates,
-  templateSnippets,
-  onSnippetApply,
   users,
 }: StepProps) {
   const [activeTab, setActiveTab] = useState<'apply' | 'build'>('build');
@@ -188,6 +187,49 @@ export function StepStageConfig({
     setExpandedStages(new Set([...Array.from(expandedStages), newStage.id]));
   };
 
+  const applyFramework = (frameworkId: string) => {
+    const framework = frameworkTemplates?.find((f: any) => f.id === frameworkId);
+    if (!framework) return;
+
+    const frameworkStages = (framework.defaultStages || [])
+      .map((stageId: string, idx: number) => {
+        const stageTemplate = stageTemplates.find((st: any) => st.id === stageId);
+        if (!stageTemplate) return null;
+        
+        const stageUniqueId = `stage-${Date.now()}-${idx}`;
+        return {
+          id: stageUniqueId,
+          name: stageTemplate.name,
+          description: stageTemplate.description || "",
+          taskCreationMode: 'per_epic' as const,
+          defaultTasks: stageTemplate.defaultTasks || [],
+          defaultRoles: stageTemplate.defaultRoles || [],
+          type: stageTemplate.type || 'standard',
+          tasks: (stageTemplate.defaultTasks || []).map((taskId: string, taskIdx: number) => {
+            const taskTemplate = taskTemplates.find((t: any) => t.id === taskId);
+            if (!taskTemplate) return null;
+            return {
+              id: `task-${Date.now()}-${idx}-${taskIdx}`,
+              templateId: taskTemplate.id,
+              title: taskTemplate.title,
+              description: taskTemplate.description || "",
+              priority: taskTemplate.defaultPriority || "Medium",
+              estimateHours: taskTemplate.defaultEstimateHours || 2,
+              scope: taskTemplate.scope || 'per_epic',
+              assigneeRoleTypeId: taskTemplate.assigneeRoleTypeId,
+              stageId: stageUniqueId,
+              order: taskIdx
+            };
+          }).filter(Boolean)
+        };
+      })
+      .filter(Boolean) as WizardStage[];
+
+    setStages(frameworkStages);
+    const expandedIds = frameworkStages.map(s => s.id);
+    setExpandedStages(new Set(expandedIds));
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="sticky top-0 z-10 bg-background pb-4 border-b mb-4">
@@ -212,7 +254,7 @@ export function StepStageConfig({
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'apply' | 'build')} className="flex-1">
         <TabsList className="grid w-full grid-cols-2 mb-4">
           <TabsTrigger value="apply" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" /> Apply Templates
+            <LayoutTemplate className="h-4 w-4" /> Apply Frameworks
           </TabsTrigger>
           <TabsTrigger value="build" className="flex items-center gap-2">
             <Wrench className="h-4 w-4" /> Build from Scratch
@@ -223,44 +265,32 @@ export function StepStageConfig({
           <div className="space-y-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Template Snippets</CardTitle>
+                <CardTitle className="text-sm font-medium">Project Frameworks</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Apply pre-configured bundles of stages, tasks, and milestones.
+                  Select a framework to apply its pre-configured stages, tasks, and workflow.
                 </p>
               </CardHeader>
               <CardContent>
-                {templateSnippets.length > 0 ? (
+                {frameworkTemplates && frameworkTemplates.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {templateSnippets.map((snippet) => (
+                    {frameworkTemplates.map((framework: any) => (
                       <Card 
-                        key={snippet.id} 
+                        key={framework.id} 
                         className="cursor-pointer hover:border-primary transition-colors"
-                        onClick={() => onSnippetApply(snippet.id)}
+                        onClick={() => applyFramework(framework.id)}
+                        data-testid={`card-framework-${framework.id}`}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
                             <div>
-                              <div className="font-medium text-sm">{snippet.name}</div>
-                              <div className="text-xs text-muted-foreground mt-1">{snippet.description}</div>
+                              <div className="font-medium text-sm">{framework.name}</div>
+                              <div className="text-xs text-muted-foreground mt-1">{framework.description}</div>
                             </div>
-                            <Badge variant="outline" className="text-xs">
-                              {snippet.type}
-                            </Badge>
                           </div>
                           <div className="flex gap-2 mt-2">
-                            {snippet.stageTemplateIds.length > 0 && (
+                            {framework.defaultStages?.length > 0 && (
                               <Badge variant="secondary" className="text-xs">
-                                {snippet.stageTemplateIds.length} stages
-                              </Badge>
-                            )}
-                            {snippet.taskTemplateIds.length > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {snippet.taskTemplateIds.length} tasks
-                              </Badge>
-                            )}
-                            {snippet.milestoneTemplateIds.length > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {snippet.milestoneTemplateIds.length} milestones
+                                {framework.defaultStages.length} stages
                               </Badge>
                             )}
                           </div>
@@ -270,8 +300,8 @@ export function StepStageConfig({
                   </div>
                 ) : (
                   <div className="text-center p-6 text-muted-foreground border-2 border-dashed rounded-lg">
-                    <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No template snippets available.</p>
+                    <LayoutTemplate className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No frameworks available.</p>
                     <p className="text-xs mt-1">Use the "Build from Scratch" tab to create stages manually.</p>
                   </div>
                 )}
