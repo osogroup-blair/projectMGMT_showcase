@@ -4,7 +4,6 @@ import { differenceInDays } from "date-fns";
 import { TimelineHeader } from "./timeline-header";
 import { TimelineAxis } from "./timeline-axis";
 import { TimelineGrid } from "./timeline-grid";
-import { TimelineSidebar } from "./timeline-sidebar";
 import { SprintsLayer, getSprintsLayerHeight } from "./layers/sprints-layer";
 import { MilestonesLayer, getMilestonesLayerHeight } from "./layers/milestones-layer";
 import { StagesLayer, getStagesLayerHeight } from "./layers/stages-layer";
@@ -30,7 +29,8 @@ export function UnifiedTimeline({
   highlightItemId,
 }: UnifiedTimelineProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const sidebarRef = useRef<HTMLDivElement>(null);
+  const axisContainerRef = useRef<HTMLDivElement>(null);
+  const sidebarContentRef = useRef<HTMLDivElement>(null);
   
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(() => {
@@ -142,8 +142,13 @@ export function UnifiedTimeline({
   }, [highlightItemId]);
 
   const handleScroll = useCallback(() => {
-    if (scrollContainerRef.current && sidebarRef.current) {
-      sidebarRef.current.scrollTop = scrollContainerRef.current.scrollTop;
+    if (scrollContainerRef.current) {
+      if (axisContainerRef.current) {
+        axisContainerRef.current.scrollLeft = scrollContainerRef.current.scrollLeft;
+      }
+      if (sidebarContentRef.current) {
+        sidebarContentRef.current.scrollTop = scrollContainerRef.current.scrollTop;
+      }
     }
   }, []);
 
@@ -163,143 +168,149 @@ export function UnifiedTimeline({
           onLayerToggle={handleLayerToggle}
         />
 
-        <div className="flex flex-1 overflow-hidden relative">
-          <div 
-            ref={sidebarRef}
-            className="flex-shrink-0 w-36 border-r bg-background relative z-40 overflow-hidden"
-          >
-            <div 
-              className="h-12 border-b flex items-center px-3 bg-muted/30"
-              style={{ height: AXIS_HEIGHT }}
-            >
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex border-b shrink-0" style={{ height: AXIS_HEIGHT }}>
+            <div className="flex-shrink-0 w-36 border-r bg-muted/30 flex items-center px-3">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Layers
               </span>
             </div>
-
-            <div className="flex flex-col">
-              {layers.stages && stages.length > 0 && (
-                <div
-                  className="flex items-center px-3 border-b bg-emerald-50/30"
-                  style={{ height: layerHeights.stages }}
-                  data-testid="sidebar-label-stages"
-                >
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Stages
-                  </span>
-                </div>
-              )}
-
-              {layers.sprints && sprints.length > 0 && (
-                <div
-                  className="flex items-center px-3 border-b bg-slate-50/50"
-                  style={{ height: layerHeights.sprints }}
-                  data-testid="sidebar-label-sprints"
-                >
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Sprints
-                  </span>
-                </div>
-              )}
-
-              {layers.milestones && milestones.length > 0 && (
-                <div
-                  className="flex items-center px-3 border-b bg-amber-50/30"
-                  style={{ height: layerHeights.milestones }}
-                  data-testid="sidebar-label-milestones"
-                >
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Milestones
-                  </span>
-                </div>
-              )}
-              
-              {layers.deliverables && deliverables.length > 0 && (
-                <div
-                  className="flex items-center px-3 border-b bg-blue-50/30"
-                  style={{ height: layerHeights.deliverables }}
-                  data-testid="sidebar-label-deliverables"
-                >
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Deliverables
-                  </span>
-                </div>
-              )}
+            
+            <div 
+              ref={axisContainerRef}
+              className="flex-1 overflow-hidden"
+            >
+              <TimelineAxis
+                viewMode={viewMode}
+                timelineRange={timelineRange}
+                totalWidth={totalWidth}
+              />
             </div>
           </div>
 
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 overflow-auto"
-            onScroll={handleScroll}
-            data-testid="timeline-scroll-container"
-          >
-            <div style={{ width: totalWidth + 200, minHeight: totalHeight }}>
-              <div className="sticky top-0 z-30">
-                <TimelineAxis
-                  viewMode={viewMode}
-                  timelineRange={timelineRange}
-                  totalWidth={totalWidth}
-                />
+          <div className="flex flex-1 overflow-hidden">
+            <div className="flex-shrink-0 w-36 border-r bg-background overflow-hidden">
+              <div 
+                ref={sidebarContentRef}
+                className="h-full overflow-hidden"
+              >
+                <div className="flex flex-col">
+                  {layers.stages && stages.length > 0 && (
+                    <div
+                      className="flex items-center px-3 border-b bg-emerald-50/30 shrink-0"
+                      style={{ height: layerHeights.stages }}
+                      data-testid="sidebar-label-stages"
+                    >
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Stages
+                      </span>
+                    </div>
+                  )}
+
+                  {layers.sprints && sprints.length > 0 && (
+                    <div
+                      className="flex items-center px-3 border-b bg-slate-50/50 shrink-0"
+                      style={{ height: layerHeights.sprints }}
+                      data-testid="sidebar-label-sprints"
+                    >
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Sprints
+                      </span>
+                    </div>
+                  )}
+
+                  {layers.milestones && milestones.length > 0 && (
+                    <div
+                      className="flex items-center px-3 border-b bg-amber-50/30 shrink-0"
+                      style={{ height: layerHeights.milestones }}
+                      data-testid="sidebar-label-milestones"
+                    >
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Milestones
+                      </span>
+                    </div>
+                  )}
+                  
+                  {layers.deliverables && deliverables.length > 0 && (
+                    <div
+                      className="flex items-center px-3 border-b bg-blue-50/30 shrink-0"
+                      style={{ height: layerHeights.deliverables }}
+                      data-testid="sidebar-label-deliverables"
+                    >
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Deliverables
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
 
-              <div className="relative">
-                <TimelineGrid
-                  viewMode={viewMode}
-                  timelineRange={timelineRange}
-                  totalWidth={totalWidth}
-                  totalHeight={totalHeight}
-                />
-
-                {layers.stages && stages.length > 0 && (
-                  <StagesLayer
-                    stages={stages}
-                    projectId={project.id}
-                    projectStartDate={project.startDate}
+            <div
+              ref={scrollContainerRef}
+              className="flex-1 overflow-auto"
+              onScroll={handleScroll}
+              data-testid="timeline-scroll-container"
+            >
+              <div style={{ width: totalWidth + 200, minHeight: totalHeight }}>
+                <div className="relative">
+                  <TimelineGrid
                     viewMode={viewMode}
                     timelineRange={timelineRange}
-                    highlightId={highlightItemId}
+                    totalWidth={totalWidth}
+                    totalHeight={totalHeight}
                   />
-                )}
 
-                {layers.sprints && sprints.length > 0 && (
-                  <SprintsLayer
-                    sprints={sprints}
-                    projectId={project.id}
-                    viewMode={viewMode}
-                    timelineRange={timelineRange}
-                    highlightId={highlightItemId}
-                  />
-                )}
+                  {layers.stages && stages.length > 0 && (
+                    <StagesLayer
+                      stages={stages}
+                      projectId={project.id}
+                      projectStartDate={project.startDate}
+                      viewMode={viewMode}
+                      timelineRange={timelineRange}
+                      highlightId={highlightItemId}
+                    />
+                  )}
 
-                {layers.milestones && milestones.length > 0 && (
-                  <MilestonesLayer
-                    milestones={milestones}
-                    projectId={project.id}
-                    viewMode={viewMode}
-                    timelineRange={timelineRange}
-                    highlightId={highlightItemId}
-                  />
-                )}
+                  {layers.sprints && sprints.length > 0 && (
+                    <SprintsLayer
+                      sprints={sprints}
+                      projectId={project.id}
+                      viewMode={viewMode}
+                      timelineRange={timelineRange}
+                      highlightId={highlightItemId}
+                    />
+                  )}
 
-                {layers.deliverables && deliverables.length > 0 && (
-                  <DeliverablesLayer
-                    deliverables={deliverables}
-                    epics={epics}
-                    projectId={project.id}
-                    viewMode={viewMode}
-                    timelineRange={timelineRange}
-                    highlightId={highlightItemId}
-                    expandedDeliverables={expandedDeliverables}
-                    onToggleDeliverable={handleToggleDeliverable}
-                  />
-                )}
+                  {layers.milestones && milestones.length > 0 && (
+                    <MilestonesLayer
+                      milestones={milestones}
+                      projectId={project.id}
+                      viewMode={viewMode}
+                      timelineRange={timelineRange}
+                      highlightId={highlightItemId}
+                    />
+                  )}
 
-                {!hasAnyLayers && (
-                  <div className="flex items-center justify-center h-64 text-muted-foreground">
-                    <p>No layers selected. Use the toggles above to show timeline content.</p>
-                  </div>
-                )}
+                  {layers.deliverables && deliverables.length > 0 && (
+                    <DeliverablesLayer
+                      deliverables={deliverables}
+                      epics={epics}
+                      projectId={project.id}
+                      viewMode={viewMode}
+                      timelineRange={timelineRange}
+                      highlightId={highlightItemId}
+                      expandedDeliverables={expandedDeliverables}
+                      onToggleDeliverable={handleToggleDeliverable}
+                    />
+                  )}
+
+                  {!hasAnyLayers && (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <p>No layers selected. Use the toggles above to show timeline content.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

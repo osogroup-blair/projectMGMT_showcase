@@ -22,10 +22,10 @@ export function TimelineAxis({ viewMode, timelineRange, totalWidth }: TimelineAx
 
   return (
     <div 
-      className="bg-background border-b"
+      className="bg-background"
       style={{ width: totalWidth }}
     >
-      <div className="relative h-12 flex">
+      <div className="relative h-full flex">
         {ticks.map((tick, idx) => {
           const pos = getPosition(tick, timelineRange.start, config.dayWidth);
           const isToday = isSameDay(tick, today);
