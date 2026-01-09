@@ -110,6 +110,18 @@ export function BreadcrumbNav() {
     staleTime: 60000,
   });
 
+  // Fetch the deliverable for the epic (when viewing epic detail)
+  const { data: epicDeliverable } = useQuery({
+    queryKey: ["/api/deliverables", epic?.deliverableId],
+    queryFn: async () => {
+      const res = await fetch(`/api/deliverables/${epic.deliverableId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!epic?.deliverableId,
+    staleTime: 60000,
+  });
+
   const handleGoBack = () => {
     window.history.back();
   };
@@ -181,6 +193,11 @@ export function BreadcrumbNav() {
     pathSegments[0] === "projects" && 
     pathSegments[2] === "sprints";
 
+  // Check if we're on an epic detail page: /projects/:projectId/epics/:epicId
+  const isEpicDetailPage = pathSegments.length === 4 && 
+    pathSegments[0] === "projects" && 
+    pathSegments[2] === "epics";
+
   // Get project info for task detail breadcrumb
   const projectIdFromPath = pathSegments[1];
   const projectForBreadcrumb = projects?.find((p: any) => p.id === projectIdFromPath);
@@ -224,6 +241,26 @@ export function BreadcrumbNav() {
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
             <span className="font-medium text-foreground truncate max-w-[200px]">
               {sprintForBreadcrumb.name}
+            </span>
+          </>
+        ) : /* Custom breadcrumb for epic detail page: Project > Deliverable > Epic */
+        isEpicDetailPage && epicDeliverable && epic ? (
+          <>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href="/projects" className="hover:text-primary transition-colors truncate max-w-[150px]">
+              Projects
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href={`/projects/${projectIdFromPath}`} className="hover:text-primary transition-colors truncate max-w-[150px]">
+              {projectForBreadcrumb?.name || "Project"}
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <Link href={`/projects/${projectIdFromPath}/deliverables/${epicDeliverable.id}`} className="hover:text-primary transition-colors truncate max-w-[150px]">
+              {epicDeliverable.title}
+            </Link>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+            <span className="font-medium text-foreground truncate max-w-[200px]">
+              {epic.title}
             </span>
           </>
         ) : /* Custom breadcrumb for task detail page: Project > Deliverable > Epic > Task */
