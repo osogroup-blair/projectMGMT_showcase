@@ -71,7 +71,8 @@ const SCHEMA_DEFINITIONS = {
     { sheet: "Deliverables", columns: ["id", "projectId", "title", "description", "status", "ownerId", "dueDate", "progress"] },
     { sheet: "Epics", columns: ["id", "deliverableId", "title", "description", "status", "ownerId", "startDate", "endDate", "progress", "stageIds"] },
     { sheet: "ProjectStages", columns: ["id", "projectId", "name", "description", "order", "type", "status"] },
-    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "estimateHours", "effort", "tags"] },
+    { sheet: "Sprints", columns: ["id", "projectId", "name", "goal", "startDate", "endDate", "status", "capacityHours"] },
+    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "sprintId", "estimateHours", "effort", "tags", "blocked", "blockerReason"] },
     { sheet: "Milestones", columns: ["id", "projectId", "name", "description", "phase", "stageId", "targetDate", "status", "ownerId", "scopeType", "completionMode", "completionTargetPercent", "tags", "createdAt", "updatedAt", "progressTotalTasks", "progressCompletedTasks", "progressPercentComplete", "progressLastCalculatedAt", "progressPercent", "isBillingGate", "requiredCompletionRatio"] },
     { sheet: "MilestoneScopeRules", columns: ["id", "milestoneId", "rules", "lastEvaluatedAt"] },
     { sheet: "MilestoneTaskLinks", columns: ["id", "milestoneId", "taskId", "projectId", "source", "ruleId", "locked", "createdAt", "updatedAt"] },
@@ -100,7 +101,8 @@ const SCHEMA_DEFINITIONS = {
     { sheet: "Deliverables", columns: ["id", "projectId", "title", "description", "status", "ownerId", "dueDate", "progress"] },
     { sheet: "Epics", columns: ["id", "deliverableId", "title", "description", "status", "ownerId", "startDate", "endDate", "progress", "stageIds"] },
     { sheet: "ProjectStages", columns: ["id", "projectId", "name", "description", "order", "type", "status"] },
-    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "estimateHours", "effort", "tags"] },
+    { sheet: "Sprints", columns: ["id", "projectId", "name", "goal", "startDate", "endDate", "status", "capacityHours"] },
+    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "sprintId", "estimateHours", "effort", "tags", "blocked", "blockerReason"] },
     { sheet: "Milestones", columns: ["id", "projectId", "name", "description", "phase", "stageId", "targetDate", "status", "ownerId", "scopeType", "completionMode", "completionTargetPercent", "tags", "createdAt", "updatedAt", "progressTotalTasks", "progressCompletedTasks", "progressPercentComplete", "progressLastCalculatedAt", "progressPercent", "isBillingGate", "requiredCompletionRatio"] },
     { sheet: "MilestoneScopeRules", columns: ["id", "milestoneId", "rules", "lastEvaluatedAt"] },
     { sheet: "MilestoneTaskLinks", columns: ["id", "milestoneId", "taskId", "projectId", "source", "ruleId", "locked", "createdAt", "updatedAt"] },
@@ -160,6 +162,7 @@ const ENTITY_TO_COLLECTION: Record<string, string> = {
   Deliverables: "deliverables",
   Epics: "epics",
   ProjectStages: "projectStages",
+  Sprints: "sprints",
   Tasks: "tasks",
   Milestones: "milestones",
   MilestoneScopeRules: "milestoneScopeRules",
@@ -413,18 +416,40 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
       MilestoneScopeRules: [],
       MilestoneTaskLinks: [],
       ProjectStages: [],
+      Sprints: [],
       Comments: [],
       Attachments: [],
       History: []
     };
 
+    const referencedSprintIds = new Set<string>();
+    const existingSprintIds = new Set<string>();
+    const referencedStageIds = new Set<string>();
+    const existingStageIds = new Set<string>();
+    const projectDatesMap = new Map<string, { startDate: string; deadline: string }>();
+
     if (nested.projects && Array.isArray(nested.projects)) {
       nested.projects.forEach((project: any) => {
-        const { deliverables, milestones, stages, ...projectData } = project;
+        const { deliverables, milestones, stages, sprints, ...projectData } = project;
         flat.Projects.push(projectData);
+        
+        projectDatesMap.set(project.id, {
+          startDate: project.startDate || new Date().toISOString().split('T')[0],
+          deadline: project.deadline || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        });
 
         if (Array.isArray(stages)) {
-          flat.ProjectStages.push(...stages);
+          stages.forEach((stage: any) => {
+            existingStageIds.add(stage.id);
+            flat.ProjectStages.push(stage);
+          });
+        }
+
+        if (Array.isArray(sprints)) {
+          sprints.forEach((sprint: any) => {
+            existingSprintIds.add(sprint.id);
+            flat.Sprints.push(sprint);
+          });
         }
 
         if (Array.isArray(milestones)) {
@@ -450,12 +475,32 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
             if (Array.isArray(epics)) {
               epics.forEach((epic: any) => {
                 const { tasks, ...epicData } = epic;
+                if (epicData.stageIds && Array.isArray(epicData.stageIds)) {
+                  epicData.stageIds.forEach((id: string) => referencedStageIds.add(id));
+                }
                 flat.Epics.push(epicData);
 
                 if (Array.isArray(tasks)) {
                   tasks.forEach((task: any) => {
                     const { comments, attachments, history, ...taskData } = task;
-                    flat.Tasks.push(taskData);
+                    
+                    if (taskData.sprintId) {
+                      referencedSprintIds.add(taskData.sprintId);
+                    }
+                    if (taskData.stageId) {
+                      referencedStageIds.add(taskData.stageId);
+                    }
+                    
+                    const normalizedTask = {
+                      ...taskData,
+                      blocked: taskData.blocked ?? false,
+                      blockerReason: taskData.blockerReason ?? null,
+                      taskTypeId: taskData.taskTypeId ?? null,
+                      parentTaskId: taskData.parentTaskId ?? null,
+                      updatedAt: taskData.updatedAt ?? new Date().toISOString()
+                    };
+                    flat.Tasks.push(normalizedTask);
+                    
                     if (Array.isArray(comments)) {
                       flat.Comments.push(...comments);
                     }
@@ -473,6 +518,49 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
         }
       });
     }
+
+    referencedSprintIds.forEach(sprintId => {
+      if (!existingSprintIds.has(sprintId)) {
+        const taskWithSprint = flat.Tasks.find((t: any) => t.sprintId === sprintId);
+        const projectId = taskWithSprint?.projectId || flat.Projects[0]?.id;
+        const projectDates = projectDatesMap.get(projectId) || {
+          startDate: new Date().toISOString().split('T')[0],
+          deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        };
+        
+        flat.Sprints.push({
+          id: sprintId,
+          projectId: projectId,
+          name: `Imported Sprint`,
+          goal: 'Auto-generated during import',
+          startDate: projectDates.startDate,
+          endDate: projectDates.deadline,
+          status: 'Planned',
+          capacityHours: 40,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+    });
+
+    referencedStageIds.forEach(stageId => {
+      if (!existingStageIds.has(stageId)) {
+        const taskWithStage = flat.Tasks.find((t: any) => t.stageId === stageId);
+        const epicWithStage = flat.Epics.find((e: any) => e.stageIds?.includes(stageId));
+        const projectId = taskWithStage?.projectId || epicWithStage?.projectId || flat.Projects[0]?.id;
+        
+        flat.ProjectStages.push({
+          id: stageId,
+          projectId: projectId,
+          name: `Imported Stage`,
+          description: 'Auto-generated during import',
+          order: flat.ProjectStages.filter((s: any) => s.projectId === projectId).length,
+          type: 'standard',
+          status: 'pending'
+        });
+        existingStageIds.add(stageId);
+      }
+    });
 
     if (nested.templates) {
       Object.entries(nested.templates).forEach(([key, value]) => {
@@ -519,6 +607,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
     "ProjectRoles",
     "RoleAssignments",
     "ProjectStages",
+    "Sprints",
     "Deliverables",
     "Epics",
     "Milestones",
