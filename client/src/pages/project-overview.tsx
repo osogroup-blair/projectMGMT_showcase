@@ -38,12 +38,12 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
-import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates } from "@/hooks/use-nexus-data";
+import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints } from "@/hooks/use-nexus-data";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { TimelineView } from "@/components/project/timeline-view";
+import { UnifiedTimeline } from "@/components/project/unified-timeline";
 import { useMemo, useState, useEffect } from "react";
 import { ProjectDashboard } from "@/types/dashboard";
 import { differenceInDays, parseISO } from "date-fns";
@@ -108,6 +108,7 @@ export default function ProjectOverview() {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: frameworkTemplates, isLoading: isFrameworksLoading } = useFrameworkTemplates();
+  const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
   const { toast } = useToast();
 
   // Inline editing state
@@ -295,6 +296,24 @@ export default function ProjectOverview() {
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [projectStages, projectId]);
 
+  // Filter sprints for this project
+  const projectSprints = useMemo(() => {
+    if (!allSprints) return [];
+    return allSprints.filter((s: any) => s.projectId === projectId);
+  }, [allSprints, projectId]);
+
+  // Filter deliverables and epics for the timeline
+  const projectDeliverables = useMemo(() => {
+    if (!allDeliverables) return [];
+    return allDeliverables.filter((d: any) => d.projectId === projectId);
+  }, [allDeliverables, projectId]);
+
+  const projectEpics = useMemo(() => {
+    if (!allEpics || !projectDeliverables) return [];
+    const deliverableIds = new Set(projectDeliverables.map((d: any) => d.id));
+    return allEpics.filter((e: any) => deliverableIds.has(e.deliverableId));
+  }, [allEpics, projectDeliverables]);
+
   // Get the framework name from the framework ID
   const frameworkName = useMemo(() => {
     if (!project?.frameworkId || !frameworkTemplates) return "Not set";
@@ -302,7 +321,7 @@ export default function ProjectOverview() {
     return framework?.name || "Unknown Framework";
   }, [project?.frameworkId, frameworkTemplates]);
 
-  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isDeliverablesLoading || isEpicsLoading || isStagesLoading || isFrameworksLoading) {
+  if (isProjectLoading || isTasksLoading || isMilestonesLoading || isUsersLoading || isDeliverablesLoading || isEpicsLoading || isStagesLoading || isFrameworksLoading || isSprintsLoading) {
     return (
       <Shell>
         <div className="flex h-[50vh] items-center justify-center">
@@ -554,10 +573,17 @@ export default function ProjectOverview() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
                   <h2 className="text-xl font-semibold tracking-tight">Timeline</h2>
-                  <p className="text-sm text-muted-foreground">Visualize milestones and dependencies over time.</p>
+                  <p className="text-sm text-muted-foreground">Visualize sprints, milestones, stages, and deliverables over time.</p>
                 </div>
               </div>
-               <TimelineView stages={stages} milestones={milestones} project={project} tasks={tasks} />
+              <UnifiedTimeline 
+                project={project}
+                sprints={projectSprints}
+                milestones={milestones}
+                stages={stages}
+                deliverables={projectDeliverables}
+                epics={projectEpics}
+              />
             </TabsContent>
 
             {/* Stages Tab */}
