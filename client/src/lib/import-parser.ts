@@ -476,6 +476,10 @@ export function transformForImport(
       const aliased = applyFieldAliases(row, targetEntityType);
       const transformed = { ...aliased };
       
+      if (row.id) {
+        transformed.sourceId = row.id;
+      }
+      
       if (row.status) {
         transformed.status = statusMappings[row.status] || normalizeStatus(row.status);
       }

@@ -123,17 +123,6 @@ export default function ImportWizard() {
     }
   };
 
-  const ENTITY_TO_ENDPOINT: Record<string, string> = {
-    'Projects': '/api/projects',
-    'ProjectStages': '/api/project-stages',
-    'Deliverables': '/api/deliverables',
-    'Epics': '/api/epics',
-    'Tasks': '/api/tasks',
-    'Milestones': '/api/milestones',
-    'Users': '/api/users',
-    'Sprints': '/api/sprints'
-  };
-
   const handleImport = async () => {
     if (!state.parseResult) return;
     
@@ -146,59 +135,34 @@ export default function ImportWizard() {
         state.entityMappings
       );
       
-      const importOrder = ['Users', 'Projects', 'ProjectStages', 'Deliverables', 'Epics', 'Milestones', 'Sprints', 'Tasks'];
-      const sortedEntities = Object.entries(transformed.entities)
-        .sort(([a], [b]) => importOrder.indexOf(a) - importOrder.indexOf(b));
+      const response = await fetch('/api/imports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entities: transformed.entities,
+          defaults: state.projectDefaults
+        })
+      });
       
-      for (const [entityType, rows] of sortedEntities) {
-        const endpoint = ENTITY_TO_ENDPOINT[entityType] || `/api/${entityType.toLowerCase()}`;
-        
-        for (const row of rows) {
-          const preparedRow = { ...row };
-          
-          if (entityType === 'Projects') {
-            if (!preparedRow.description) preparedRow.description = state.projectDefaults.description || 'Imported project';
-            if (!preparedRow.deadline) preparedRow.deadline = state.projectDefaults.deadline;
-            if (!preparedRow.startDate) preparedRow.startDate = state.projectDefaults.startDate;
-          }
-          
-          if (entityType === 'Deliverables') {
-            if (!preparedRow.title && preparedRow.name) preparedRow.title = preparedRow.name;
-            if (!preparedRow.description) preparedRow.description = preparedRow.name || 'Imported deliverable';
-            if (!preparedRow.dueDate) preparedRow.dueDate = state.projectDefaults.deadline;
-            if (!preparedRow.ownerId) preparedRow.ownerId = state.projectDefaults.ownerId || existingUsers?.[0]?.id;
-          }
-          
-          if (entityType === 'Epics') {
-            if (!preparedRow.title && preparedRow.name) preparedRow.title = preparedRow.name;
-            if (!preparedRow.description) preparedRow.description = preparedRow.name || 'Imported epic';
-            if (!preparedRow.startDate) preparedRow.startDate = state.projectDefaults.startDate;
-            if (!preparedRow.endDate) preparedRow.endDate = state.projectDefaults.deadline;
-            if (!preparedRow.ownerId) preparedRow.ownerId = state.projectDefaults.ownerId || existingUsers?.[0]?.id;
-          }
-          
-          if (entityType === 'Tasks') {
-            if (!preparedRow.project) preparedRow.project = 'Imported';
-            if (!preparedRow.deadline) preparedRow.deadline = state.projectDefaults.deadline;
-          }
-          
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(preparedRow)
-          });
-          
-          if (!response.ok) {
-            const error = await response.json();
-            console.error(`Failed to import ${entityType}:`, error);
-          }
-        }
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Import failed');
       }
       
-      toast({
-        title: "Import Complete",
-        description: `Successfully imported data from ${state.file?.name}`
-      });
+      if (result.success) {
+        toast({
+          title: "Import Complete",
+          description: `Successfully created ${result.summary.totalCreated} records from ${state.file?.name}`
+        });
+      } else {
+        toast({
+          title: "Import Completed with Issues",
+          description: `Created ${result.summary.totalCreated} records. ${result.summary.totalErrors} errors occurred.`,
+          variant: "destructive"
+        });
+        console.log("Import errors:", result.errors);
+      }
       
       setLocation('/projects');
     } catch (error) {

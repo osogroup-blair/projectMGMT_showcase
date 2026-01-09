@@ -45,6 +45,7 @@ import {
 
 // Import seed function
 import { seedDatabase } from "../db/seed";
+import { db } from "../db";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -2423,6 +2424,287 @@ export async function registerRoutes(
       res.status(201).json(created);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Bulk Import Endpoint - handles dependency-ordered entity creation with ID mapping
+  app.post("/api/imports", async (req, res) => {
+    try {
+      const { entities, defaults } = req.body as {
+        entities: Record<string, Record<string, any>[]>;
+        defaults: {
+          description?: string;
+          deadline?: string;
+          startDate?: string;
+          ownerId?: string;
+        };
+      };
+
+      if (!entities || typeof entities !== 'object') {
+        return res.status(400).json({ error: "entities object is required" });
+      }
+
+      const idMappings: Record<string, Record<string, string>> = {
+        Users: {},
+        Projects: {},
+        ProjectStages: {},
+        Deliverables: {},
+        Epics: {},
+        Milestones: {},
+        Sprints: {},
+        Tasks: {}
+      };
+
+      const results: Record<string, { created: number; errors: string[] }> = {};
+      const errors: string[] = [];
+
+      const importOrder = ['Users', 'Projects', 'ProjectStages', 'Deliverables', 'Epics', 'Milestones', 'Sprints', 'Tasks'];
+
+      const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const remapForeignKey = (value: string | undefined, entityType: string): string | undefined => {
+        if (!value) return undefined;
+        return idMappings[entityType]?.[value] || value;
+      };
+
+      for (const entityType of importOrder) {
+        const rows = entities[entityType];
+        if (!rows || rows.length === 0) continue;
+
+        results[entityType] = { created: 0, errors: [] };
+
+        for (const row of rows) {
+          try {
+            const sourceId = row.sourceId || row.id || generateId();
+            const newId = generateId();
+            
+            switch (entityType) {
+              case 'Users': {
+                const userData = {
+                  id: newId,
+                  name: row.name || 'Imported User',
+                  email: row.email || `user_${newId}@import.local`,
+                  role: row.role || 'Team Member',
+                  status: row.status || 'Active'
+                };
+                await storage.createUser(userData);
+                idMappings.Users[sourceId] = newId;
+                results[entityType].created++;
+                break;
+              }
+
+              case 'Projects': {
+                const projectData = {
+                  id: newId,
+                  name: row.name || 'Imported Project',
+                  description: row.description || defaults?.description || 'Imported project',
+                  status: row.status || 'Upcoming',
+                  startDate: row.startDate || defaults?.startDate,
+                  deadline: row.deadline || defaults?.deadline || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  progress: row.progress || 0,
+                  ownerId: remapForeignKey(row.ownerId, 'Users') || defaults?.ownerId,
+                  frameworkId: row.frameworkId,
+                  client: row.client,
+                  riskLevel: row.riskLevel,
+                  externalRefs: row.externalRefs
+                };
+                await storage.createProject(projectData);
+                idMappings.Projects[sourceId] = newId;
+                results[entityType].created++;
+                break;
+              }
+
+              case 'ProjectStages': {
+                const stageData = {
+                  id: newId,
+                  projectId: remapForeignKey(row.projectId, 'Projects'),
+                  name: row.name || 'Imported Stage',
+                  description: row.description,
+                  order: row.order || 0,
+                  type: row.type || 'work',
+                  status: row.status || 'pending',
+                  startDate: row.startDate,
+                  endDate: row.endDate
+                };
+                if (!stageData.projectId) {
+                  results[entityType].errors.push(`Stage "${row.name}": Missing projectId`);
+                  continue;
+                }
+                await storage.createProjectStage(stageData);
+                idMappings.ProjectStages[sourceId] = newId;
+                results[entityType].created++;
+                break;
+              }
+
+              case 'Deliverables': {
+                const mappedProjectId = remapForeignKey(row.projectId, 'Projects');
+                if (!mappedProjectId) {
+                  results[entityType].errors.push(`Deliverable "${row.title}": Missing projectId`);
+                  continue;
+                }
+                let mappedOwnerId = remapForeignKey(row.ownerId, 'Users') || defaults?.ownerId;
+                if (!mappedOwnerId) {
+                  const users = await storage.getUsers();
+                  mappedOwnerId = users[0]?.id;
+                }
+                if (!mappedOwnerId) {
+                  results[entityType].errors.push(`Deliverable "${row.title}": No owner available`);
+                  continue;
+                }
+                const deliverableData = {
+                  id: newId,
+                  projectId: mappedProjectId,
+                  title: row.title || row.name || 'Imported Deliverable',
+                  description: row.description || row.title || 'Imported deliverable',
+                  status: row.status || 'Not Started',
+                  ownerId: mappedOwnerId,
+                  startDate: row.startDate || defaults?.startDate,
+                  dueDate: row.dueDate || defaults?.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  progress: row.progress || 0,
+                  externalRefs: row.externalRefs
+                };
+                await storage.createDeliverable(deliverableData);
+                idMappings.Deliverables[sourceId] = newId;
+                results[entityType].created++;
+                break;
+              }
+
+              case 'Epics': {
+                const mappedDeliverableId = remapForeignKey(row.deliverableId, 'Deliverables');
+                if (!mappedDeliverableId) {
+                  results[entityType].errors.push(`Epic "${row.title}": Missing deliverableId`);
+                  continue;
+                }
+                let epicOwnerId = remapForeignKey(row.ownerId, 'Users') || defaults?.ownerId;
+                if (!epicOwnerId) {
+                  const users = await storage.getUsers();
+                  epicOwnerId = users[0]?.id;
+                }
+                if (!epicOwnerId) {
+                  results[entityType].errors.push(`Epic "${row.title}": No owner available`);
+                  continue;
+                }
+                const epicData = {
+                  id: newId,
+                  deliverableId: mappedDeliverableId,
+                  title: row.title || row.name || 'Imported Epic',
+                  description: row.description || row.title || 'Imported epic',
+                  status: row.status || 'Not Started',
+                  ownerId: epicOwnerId,
+                  startDate: row.startDate || defaults?.startDate || new Date().toISOString().split('T')[0],
+                  endDate: row.endDate || defaults?.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  progress: row.progress || 0,
+                  stageIds: row.stageIds || [],
+                  externalRefs: row.externalRefs
+                };
+                await storage.createEpic(epicData);
+                idMappings.Epics[sourceId] = newId;
+                results[entityType].created++;
+                break;
+              }
+
+              case 'Milestones': {
+                let milestoneOwnerId = remapForeignKey(row.ownerId, 'Users') || defaults?.ownerId;
+                if (!milestoneOwnerId) {
+                  const users = await storage.getUsers();
+                  milestoneOwnerId = users[0]?.id;
+                }
+                if (!milestoneOwnerId) {
+                  results[entityType].errors.push(`Milestone "${row.name}": No owner available`);
+                  continue;
+                }
+                const milestoneData = {
+                  id: newId,
+                  projectId: remapForeignKey(row.projectId, 'Projects'),
+                  name: row.name || 'Imported Milestone',
+                  description: row.description || 'Imported milestone',
+                  phase: row.phase || 'Planning',
+                  targetDate: row.targetDate || defaults?.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  status: row.status || 'planned',
+                  ownerId: milestoneOwnerId,
+                  scopeType: row.scopeType || 'all',
+                  completionMode: row.completionMode || 'all_tasks'
+                };
+                await storage.createMilestone(milestoneData);
+                idMappings.Milestones[sourceId] = newId;
+                results[entityType].created++;
+                break;
+              }
+
+              case 'Sprints': {
+                const mappedSprintProjectId = remapForeignKey(row.projectId, 'Projects');
+                if (!mappedSprintProjectId) {
+                  results[entityType].errors.push(`Sprint "${row.name}": Missing projectId`);
+                  continue;
+                }
+                const sprintData = {
+                  id: newId,
+                  projectId: mappedSprintProjectId,
+                  name: row.name || 'Imported Sprint',
+                  goal: row.goal,
+                  startDate: row.startDate || defaults?.startDate,
+                  endDate: row.endDate || defaults?.deadline,
+                  status: row.status || 'Planned',
+                  capacityHours: row.capacityHours || row.capacity
+                };
+                await storage.createSprint(sprintData);
+                idMappings.Sprints[sourceId] = newId;
+                results[entityType].created++;
+                break;
+              }
+
+              case 'Tasks': {
+                const taskData = {
+                  id: newId,
+                  title: row.title || 'Imported Task',
+                  description: row.description,
+                  project: row.project || 'Imported',
+                  projectId: remapForeignKey(row.projectId, 'Projects'),
+                  epicId: remapForeignKey(row.epicId, 'Epics'),
+                  stageId: remapForeignKey(row.stageId, 'ProjectStages'),
+                  status: row.status || 'To Do',
+                  assigneeId: remapForeignKey(row.assigneeId, 'Users'),
+                  deadline: row.deadline || defaults?.deadline || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  priority: row.priority || 'Medium',
+                  milestoneId: remapForeignKey(row.milestoneId, 'Milestones'),
+                  sprintId: remapForeignKey(row.sprintId, 'Sprints'),
+                  estimateHours: row.estimateHours,
+                  effort: row.effort,
+                  tags: row.tags || [],
+                  blocked: row.blocked || false,
+                  blockerReason: row.blockerReason,
+                  externalRefs: row.externalRefs
+                };
+                await storage.createTask(taskData);
+                idMappings.Tasks[sourceId] = newId;
+                results[entityType].created++;
+                break;
+              }
+            }
+          } catch (err: any) {
+            const errorMsg = `${entityType} row ${row.id || row.name || 'unknown'}: ${err.message}`;
+            results[entityType].errors.push(errorMsg);
+            errors.push(errorMsg);
+          }
+        }
+      }
+
+      const totalCreated = Object.values(results).reduce((sum, r) => sum + r.created, 0);
+      const totalErrors = errors.length;
+
+      res.json({
+        success: totalErrors === 0,
+        summary: {
+          totalCreated,
+          totalErrors,
+          byEntity: results
+        },
+        idMappings,
+        errors
+      });
+    } catch (error: any) {
+      console.error("Bulk import error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
