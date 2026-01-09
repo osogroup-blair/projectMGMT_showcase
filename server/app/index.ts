@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "../api";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { testDatabaseConnection } from "../db";
+import { connectWithRetry, isDatabaseConnected, setDatabaseReady } from "../db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -67,6 +67,16 @@ app.use((req, res, next) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
+  app.use('/api', (req, res, next) => {
+    if (!isDatabaseConnected()) {
+      return res.status(503).json({ 
+        message: 'Service temporarily unavailable - database connecting',
+        retryAfter: 5
+      });
+    }
+    next();
+  });
+
   httpServer.listen(
     {
       port,
@@ -76,13 +86,30 @@ app.use((req, res, next) => {
     async () => {
       log(`serving on port ${port}`);
       
-      try {
-        await testDatabaseConnection();
-        log('Database connection established');
-      } catch (error: any) {
-        log(`Database connection failed: ${error.message}`);
-        console.error('FATAL: Cannot connect to database. Exiting...');
-        process.exit(1);
+      const initDatabase = async () => {
+        try {
+          await connectWithRetry(5, 2000);
+          setDatabaseReady(true);
+          log('Database connection established');
+          return true;
+        } catch (error: any) {
+          log(`Database connection failed after retries: ${error.message}`);
+          return false;
+        }
+      };
+
+      let dbConnected = await initDatabase();
+      
+      if (!dbConnected) {
+        log('Starting background database reconnection...');
+        const backgroundRetry = async () => {
+          while (!isDatabaseConnected()) {
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            log('Attempting background database reconnection...');
+            dbConnected = await initDatabase();
+          }
+        };
+        backgroundRetry();
       }
 
       await registerRoutes(httpServer, app);
