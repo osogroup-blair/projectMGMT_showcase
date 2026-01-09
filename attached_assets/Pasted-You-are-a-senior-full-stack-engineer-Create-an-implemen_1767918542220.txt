@@ -1,0 +1,55 @@
+You are a senior full-stack engineer. Create an implementation task list to refactor the “Timeline” tab of my project management app.
+
+Goal
+Refactor the Timeline page so it can show, in ONE unified view, these timeline layers:
+1) Sprints (must appear directly under the date axis and be strictly sequential)
+2) Milestones
+3) Stages
+4) Deliverables (topmost section)
+
+Each layer should be optionally toggled on/off. When multiple layers are enabled, they must visually feel like a single blended timeline (not separate pages/sections) — consistent axis, aligned rows, shared spacing, shared interaction patterns.
+
+Data + Visual Requirements
+- Epics should be displayed under Deliverables via an accordion pattern:
+  - Each Deliverable row can expand/collapse to reveal its Epics.
+  - Epics must be color-coded by their parent Deliverable (consistent mapping).
+- Items must align to the same date scale (start/end dates as bars or points as appropriate).
+- Provide a clear strategy for overlapping items, long ranges, and dense timelines.
+
+Interaction Requirements
+- Everything is clickable and routes to that object’s “Overview/Edit” page:
+  - Clicking a Sprint goes to Sprint overview
+  - Clicking a Milestone goes to Milestone edit/overview
+  - Clicking a Stage goes to Stage edit/overview
+  - Clicking a Deliverable goes to Deliverable overview
+  - Clicking an Epic goes to Epic overview
+- Support deep links (shareable URLs) to a specific object on the timeline.
+- Keep hover, focus, and keyboard accessibility consistent across all layers.
+
+Implementation Output Format
+Return a detailed task list grouped by:
+1) Architecture / Component Design
+2) Data Modeling & API needs
+3) UI / Rendering (timeline + layering)
+4) Interaction & Routing
+5) State Management (filters/toggles/accordion/open state)
+6) Accessibility & UX polish
+7) Performance (virtualization, memoization, large datasets)
+8) Testing (unit/integration/e2e)
+9) Rollout / migration plan
+
+For each task include:
+- Task title
+- Description
+- Acceptance Criteria
+- Dependencies / prerequisites (if any)
+
+Assumptions (make them explicit in your output)
+- The UI already has a “Timeline” tab.
+- We have objects: Deliverables, Epics, Stages, Milestones, Sprints, each with date fields.
+- Routing exists to an overview/edit page per object, but may need new route helpers.
+
+Also include:
+- A recommended component hierarchy (e.g., TimelinePage → TimelineHeader → TimelineAxis → TimelineLayerRow…)
+- A proposed rendering approach (e.g., grid aligned with time scale, SVG/canvas, or DOM-based bars) and why
+- A strategy for color assignment per Deliverable that is stable across sessions
