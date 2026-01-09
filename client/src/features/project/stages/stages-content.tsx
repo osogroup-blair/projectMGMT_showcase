@@ -17,12 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "wouter";
@@ -311,147 +305,79 @@ export function StagesContent({ projectId }: { projectId: string }) {
             </Table>
           </div>
         ) : (
-          <Accordion type="multiple" defaultValue={[]} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredStages.map((stage: any) => {
-            const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
-            const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
-            const progress = getStageProgress(stage.id);
-            const stageTasks = getTasksForStage(stage.id);
+              const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
+              const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
+              const progress = getStageProgress(stage.id);
 
-            return (
-              <AccordionItem 
-                key={stage.id} 
-                value={stage.id} 
-                className="border rounded-lg bg-card px-4" 
-                data-testid={`accordion-stage-${stage.id}`}
-              >
-                <AccordionTrigger className="hover:no-underline py-4">
-                  <div className="flex items-start gap-4 text-left w-full">
-                    <div className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-full border text-sm font-semibold mt-1",
-                      statusColorClass
-                    )}>
-                      {stage.order}
+              return (
+                <Card 
+                  key={stage.id} 
+                  className="hover:shadow-md transition-shadow group"
+                  data-testid={`card-stage-${stage.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-full border text-xs font-semibold shrink-0",
+                          statusColorClass
+                        )}>
+                          {stage.order}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <Link href={`/projects/${projectId}/stages/${stage.id}`}>
+                            <h4 className="font-semibold text-sm hover:text-primary truncate">
+                              {stage.name}
+                            </h4>
+                          </Link>
+                          {stage.description && (
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                              {stage.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Link href={`/projects/${projectId}/stages/${stage.id}`}>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
                     </div>
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold">{stage.name}</h3>
-                        <Link href={`/projects/${projectId}/stages/${stage.id}`} onClick={(e) => e.stopPropagation()}>
-                          <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-workspace-${stage.id}`}>
-                            <ExternalLink className="h-3 w-3" />
-                            Overview
-                          </Button>
-                        </Link>
-                        <Badge variant="outline" className={cn("font-normal", statusColorClass)}>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium">{progress.done}/{progress.total} tasks</span>
+                      </div>
+                      <Progress value={progress.percent} className="h-1.5" />
+
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge 
+                          variant="outline"
+                          className={cn("text-[10px] font-normal", statusColorClass)}
+                        >
                           {stage.status}
                         </Badge>
                       </div>
-                      {stage.description && (
-                        <p className="text-sm text-muted-foreground">{stage.description}</p>
-                      )}
-                      <div className="flex items-center gap-6 pt-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <ListTodo className="h-3.5 w-3.5" />
-                          <span>{progress.total} Tasks</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>{progress.done} Completed</span>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-[100px]">
-                          <Progress value={progress.percent} className="h-1.5 w-16" />
-                          <span>{progress.percent}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </AccordionTrigger>
 
-                <AccordionContent className="pt-0 pb-4 pl-14">
-                  <div className="space-y-3 mt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Tasks ({stageTasks.length})
-                      </span>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="gap-2 h-7"
-                        onClick={() => openAddTaskDialog(stage.id)}
-                        data-testid={`button-add-task-${stage.id}`}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Add Task
-                      </Button>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
+                        <div className="flex items-center gap-1">
+                          <ListTodo className="h-3 w-3" />
+                          <span>{progress.total} tasks</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span>{progress.done} done</span>
+                        </div>
+                      </div>
                     </div>
-                    {stageTasks.length > 0 ? (
-                      <div className="grid gap-3">
-                        {stageTasks.map((task: any) => {
-                          const epic = getEpic(task.epicId);
-                          const assignee = getAssignee(task.assigneeId);
-                          const priorityClass = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
-                          
-                          return (
-                            <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
-                              <div 
-                                className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
-                                data-testid={`stage-task-${task.id}`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="p-1.5 bg-primary/10 text-primary rounded">
-                                    <ListTodo className="h-4 w-4" />
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium group-hover:text-primary transition-colors">{task.title}</h4>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                      {epic && <span>{epic.title}</span>}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <Badge variant="outline" className={cn("font-normal text-xs", priorityClass)}>
-                                    {task.priority}
-                                  </Badge>
-                                  <Badge 
-                                    variant="secondary" 
-                                    className={cn(
-                                      "font-normal text-xs",
-                                      task.status === "Done" ? "bg-green-100 text-green-700" :
-                                      task.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                                      task.status === "Review" ? "bg-amber-100 text-amber-700" :
-                                      "bg-slate-100 text-slate-700"
-                                    )}
-                                  >
-                                    {task.status}
-                                  </Badge>
-                                  {assignee && (
-                                    <Avatar className="h-6 w-6">
-                                      <AvatarFallback className="text-[9px]">
-                                        {assignee.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  )}
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
-                                </div>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="p-6 border border-dashed rounded-md text-center bg-muted/20">
-                        <ListTodo className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          No tasks in this stage yet.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-          </Accordion>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </div>
 

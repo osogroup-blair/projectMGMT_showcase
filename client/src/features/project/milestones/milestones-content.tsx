@@ -21,12 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
@@ -513,322 +507,98 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
             </Table>
           </div>
         ) : (
-          <Accordion type="multiple" defaultValue={[]} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredMilestones.map((milestone: any) => {
               const status = STATUS_CONFIG[milestone.status] || STATUS_CONFIG.planned;
               const StatusIcon = status.icon;
               const owner = getOwner(milestone.ownerId);
               const progress = getMilestoneProgress(milestone.id);
-              const linkedTasks = getTasksForMilestone(milestone.id);
-              const isEditingThis = editingMilestoneId === milestone.id;
 
               return (
-                <AccordionItem 
+                <Card 
                   key={milestone.id} 
-                  value={milestone.id} 
-                  className="border rounded-lg bg-card px-4" 
-                  data-testid={`accordion-milestone-${milestone.id}`}
+                  className="hover:shadow-md transition-shadow group"
+                  data-testid={`card-milestone-${milestone.id}`}
                 >
-                  <AccordionTrigger className="hover:no-underline py-4">
-                    <div className="flex items-start gap-4 text-left w-full justify-between">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className={cn("p-2 rounded-lg mt-1", status.bgColor, status.color)}>
-                          <StatusIcon className="h-5 w-5" />
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={cn("p-2 rounded-lg shrink-0", status.bgColor, status.color)}>
+                          <StatusIcon className="h-4 w-4" />
                         </div>
-                        <div className="space-y-1 flex-1">
-                          <div className="flex items-center gap-3">
-                            {isEditingThis && editingField === "name" ? (
-                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                <Input
-                                  ref={inputRef}
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") saveEdit(milestone.id, "name");
-                                    if (e.key === "Escape") cancelEditing();
-                                  }}
-                                  className="h-8 w-64 text-lg font-semibold"
-                                  data-testid={`input-milestone-name-${milestone.id}`}
-                                />
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveEdit(milestone.id, "name")}>
-                                  <Check className="h-4 w-4 text-green-600" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEditing}>
-                                  <X className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
-                                <h3 className="text-lg font-semibold">
-                                  {milestone.name}
-                                </h3>
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost" 
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => startEditing(milestone.id, "name", milestone.name)}
-                                  data-testid={`button-edit-name-${milestone.id}`}
-                                >
-                                  <Pencil className="h-3 w-3 text-muted-foreground" />
-                                </Button>
-                              </div>
-                            )}
-                            <Link href={`/projects/${projectId}/milestones/${milestone.id}`} onClick={(e) => e.stopPropagation()}>
-                              <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-milestone-${milestone.id}`}>
-                                <ExternalLink className="h-3 w-3" />
-                                Overview
-                              </Button>
-                            </Link>
-                          <Badge variant="outline" className={cn(
-                            "font-normal",
-                            milestone.status === "achieved" || milestone.status === "Completed" 
-                              ? "bg-green-50 text-green-700 border-green-200" 
-                              : milestone.status === "in_progress" || milestone.status === "In Progress"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : milestone.status === "slipped" || milestone.status === "Blocked"
-                              ? "bg-red-50 text-red-700 border-red-200"
-                              : "bg-slate-50 text-slate-700 border-slate-200"
-                          )}>
-                            {status.label}
-                          </Badge>
-                        </div>
-                        
-                        {/* Description - inline editable */}
-                        {isEditingThis && editingField === "description" ? (
-                          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                            <Textarea
-                              ref={textareaRef}
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                              placeholder="Add a description..."
-                              className="min-h-[60px] text-sm"
-                              data-testid={`input-milestone-description-${milestone.id}`}
-                            />
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={() => saveEdit(milestone.id, "description")}>Save</Button>
-                              <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div 
-                            className="flex items-center gap-2 group cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEditing(milestone.id, "description", milestone.description || "");
-                            }}
-                          >
-                            <p className={cn(
-                              "text-sm",
-                              milestone.description ? "text-muted-foreground" : "text-muted-foreground/50 italic"
-                            )}>
-                              {milestone.description || "Click to add description..."}
+                        <div className="flex-1 min-w-0">
+                          <Link href={`/projects/${projectId}/milestones/${milestone.id}`}>
+                            <h4 className="font-semibold text-sm hover:text-primary truncate">
+                              {milestone.name}
+                            </h4>
+                          </Link>
+                          {milestone.description && (
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                              {milestone.description}
                             </p>
-                            <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 text-muted-foreground transition-opacity" />
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-6 pt-2 text-xs text-muted-foreground">
-                          {/* Owner - inline editable */}
-                          {isEditingThis && editingField === "owner" ? (
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <User className="h-3.5 w-3.5" />
-                              <Select 
-                                value={milestone.ownerId || ""} 
-                                onValueChange={(value) => handleOwnerChange(milestone.id, value)}
-                              >
-                                <SelectTrigger className="h-6 text-xs w-32" data-testid={`select-owner-${milestone.id}`}>
-                                  <SelectValue placeholder="Select owner" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {(users || []).map((u: any) => (
-                                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEditing}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div 
-                              className="flex items-center gap-2 cursor-pointer group"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEditing(milestone.id, "owner", milestone.ownerId || "");
-                              }}
-                            >
-                              <Avatar className="h-5 w-5">
-                                <AvatarFallback className="text-[9px]">{owner?.name?.charAt(0) || "?"}</AvatarFallback>
-                              </Avatar>
-                              <span>Owner: {owner?.name || "Unassigned"}</span>
-                              <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity" />
-                            </div>
                           )}
-
-                          {/* Target Date - inline editable */}
-                          {isEditingThis && editingField === "targetDate" ? (
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                              <Input
-                                ref={inputRef}
-                                type="date"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") saveEdit(milestone.id, "targetDate");
-                                  if (e.key === "Escape") cancelEditing();
-                                }}
-                                className="h-6 text-xs w-32"
-                                data-testid={`input-milestone-date-${milestone.id}`}
-                              />
-                              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => saveEdit(milestone.id, "targetDate")}>
-                                <Check className="h-3 w-3 text-green-600" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEditing}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div 
-                              className="flex items-center gap-1.5 cursor-pointer group"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEditing(milestone.id, "targetDate", milestone.targetDate || "");
-                              }}
-                            >
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                              <span>Target: {milestone.targetDate || "Not set"}</span>
-                              <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity" />
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>{progress.done}/{progress.total} Tasks</span>
-                          </div>
-                          <div className="flex items-center gap-2 min-w-[100px]">
-                            <Progress value={progress.percent} className="h-1.5 w-16" />
-                            <span>{progress.percent}%</span>
-                          </div>
                         </div>
                       </div>
-                      </div>
-                      <Link href={`/projects/${projectId}/milestones/${milestone.id}`} onClick={(e) => e.stopPropagation()}>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="gap-2"
-                          data-testid={`button-milestone-overview-${milestone.id}`}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                          Overview
+                      <Link href={`/projects/${projectId}/milestones/${milestone.id}`}>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100">
+                          <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
                       </Link>
                     </div>
-                  </AccordionTrigger>
 
-                  <AccordionContent className="pt-0 pb-4 pl-[3.25rem]">
-                    <div className="space-y-3 mt-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Linked Tasks ({linkedTasks.length})
-                        </span>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="gap-2 h-7"
-                          onClick={() => openAddTaskDialog(milestone.id)}
-                          data-testid={`button-add-task-${milestone.id}`}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Add Tasks
-                        </Button>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium">{progress.done}/{progress.total} tasks</span>
                       </div>
-                      {linkedTasks.length > 0 ? (
-                        <div className="grid gap-3">
-                          {linkedTasks.map((task: any) => {
-                            const epic = getEpic(task.epicId);
-                            const assignee = getAssignee(task.assigneeId);
-                            const priorityClass = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
-                            
-                            return (
-                              <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
-                                <div 
-                                  className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
-                                  data-testid={`milestone-task-${task.id}`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="p-1.5 bg-primary/10 text-primary rounded">
-                                      <ListTodo className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                      <h4 className="font-medium group-hover:text-primary transition-colors">{task.title}</h4>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        {epic && <span>{epic.title}</span>}
-                                        {task.stageId && (
-                                          <span className="px-1.5 py-0.5 rounded bg-muted">
-                                            {task.stageId}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    <Badge variant="outline" className={cn("font-normal text-xs", priorityClass)}>
-                                      {task.priority}
-                                    </Badge>
-                                    <Badge 
-                                      variant="secondary" 
-                                      className={cn(
-                                        "font-normal text-xs",
-                                        task.status === "Done" ? "bg-green-100 text-green-700" :
-                                        task.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                                        "bg-slate-100 text-slate-700"
-                                      )}
-                                    >
-                                      {task.status}
-                                    </Badge>
-                                    {assignee && (
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarFallback className="text-[9px]">
-                                          {assignee.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    )}
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
-                                  </div>
-                                </div>
-                              </Link>
-                            );
-                          })}
+                      <Progress value={progress.percent} className="h-1.5" />
+
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge 
+                          variant="secondary"
+                          className={cn(
+                            "text-[10px]",
+                            milestone.status === "achieved" || milestone.status === "Completed" 
+                              ? "bg-green-100 text-green-700" 
+                              : milestone.status === "in_progress" || milestone.status === "In Progress"
+                              ? "bg-blue-100 text-blue-700"
+                              : milestone.status === "slipped" || milestone.status === "Blocked"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-slate-100 text-slate-700"
+                          )}
+                        >
+                          {status.label}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
+                        <div className="flex items-center gap-1.5">
+                          {owner ? (
+                            <>
+                              <Avatar className="h-5 w-5">
+                                <AvatarFallback className="text-[8px]">
+                                  {owner.name?.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="truncate max-w-[80px]">{owner.name?.split(' ')[0]}</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">No owner</span>
+                          )}
                         </div>
-                      ) : (
-                        <div className="p-6 border border-dashed rounded-md text-center bg-muted/20">
-                          <ListTodo className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground mb-3">
-                            No tasks linked to this milestone yet.
-                          </p>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="gap-2"
-                            onClick={() => openAddTaskDialog(milestone.id)}
-                            data-testid={`button-add-task-empty-${milestone.id}`}
-                          >
-                            <Plus className="h-4 w-4" />
-                            Add Tasks
-                          </Button>
+                        <div className="flex items-center gap-1">
+                          <CalendarIcon className="h-3 w-3" />
+                          {milestone.targetDate 
+                            ? new Date(milestone.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) 
+                            : '—'}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
+                  </CardContent>
+                </Card>
               );
             })}
-          </Accordion>
+          </div>
         )}
       </div>
 
