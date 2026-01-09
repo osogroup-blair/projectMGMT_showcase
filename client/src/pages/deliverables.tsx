@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   ArrowLeft, 
@@ -12,7 +12,10 @@ import {
   CheckCircle2,
   List,
   GanttChart,
-  ChevronDown
+  ChevronDown,
+  Pencil,
+  X,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,17 +61,39 @@ import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useDeliverables, useEpics, useUsers, useTasks } from "@/hooks/use-nexus-data";
-import { Loader2 } from "lucide-react";
+import { Loader2, User } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Export content component separately for reuse
 export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"list" | "gantt">("list");
 
-  const { data: allDeliverables, isLoading: isDeliverablesLoading, create: createDeliverable } = useDeliverables();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+
+  // Inline editing state
+  const [editingDeliverableId, setEditingDeliverableId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deliverableToDelete, setDeliverableToDelete] = useState<{ id: string; title: string } | null>(null);
 
   const deliverables = allDeliverables.filter((d: any) => d.projectId === projectId);
   const getEpicsForDeliverable = (deliverableId: string) => allEpics.filter((e: any) => e.deliverableId === deliverableId);
@@ -170,6 +195,104 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     });
     setIsCreateEpicOpen(false);
   };
+
+  // Create Deliverable handler
+  const handleCreateDeliverable = async () => {
+    try {
+      const newDeliverable = await createDeliverableAsync({
+        projectId: projectId,
+        title: "New Deliverable",
+        description: "",
+        status: "Not Started",
+        startDate: new Date().toISOString().split('T')[0],
+        dueDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        ownerId: users?.[0]?.id || undefined
+      });
+
+      if (newDeliverable?.id) {
+        toast({ title: "Deliverable Created", description: "New deliverable has been added." });
+        // Start editing the title immediately
+        setEditingDeliverableId(newDeliverable.id);
+        setEditingField("title");
+        setEditValue("New Deliverable");
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create deliverable.", variant: "destructive" });
+    }
+  };
+
+  // Delete Deliverable handlers
+  const openDeleteDialog = (id: string, title: string) => {
+    setDeliverableToDelete({ id, title });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (deliverableToDelete) {
+      deleteDeliverable(deliverableToDelete.id);
+      toast({ title: "Deleted", description: `${deliverableToDelete.title} has been deleted.` });
+    }
+    setDeleteDialogOpen(false);
+    setDeliverableToDelete(null);
+  };
+
+  // Inline editing handlers
+  const startEditing = (deliverableId: string, field: string, currentValue: string) => {
+    setEditingDeliverableId(deliverableId);
+    setEditingField(field);
+    setEditValue(currentValue || "");
+  };
+
+  const cancelEditing = () => {
+    setEditingDeliverableId(null);
+    setEditingField(null);
+    setEditValue("");
+  };
+
+  const saveEdit = async (deliverableId: string, field: string) => {
+    const deliverable = deliverables.find((d: any) => d.id === deliverableId);
+    if (!deliverable) return;
+
+    const updates: Record<string, any> = {};
+    if (field === "title" && editValue.trim()) {
+      updates.title = editValue.trim();
+    } else if (field === "description") {
+      updates.description = editValue;
+    } else if (field === "startDate") {
+      updates.startDate = editValue;
+    } else if (field === "dueDate") {
+      updates.dueDate = editValue;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      try {
+        await updateDeliverableAsync({ id: deliverableId, updates });
+        // Toast is handled by the hook's onSuccess
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to update.", variant: "destructive" });
+      }
+    }
+    cancelEditing();
+  };
+
+  const handleOwnerChange = async (deliverableId: string, newOwnerId: string) => {
+    try {
+      await updateDeliverableAsync({ id: deliverableId, updates: { ownerId: newOwnerId } });
+      // Toast is handled by the hook's onSuccess
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update owner.", variant: "destructive" });
+    }
+    cancelEditing();
+  };
+
+  useEffect(() => {
+    if (editingField === "title" || editingField === "startDate" || editingField === "dueDate") {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    } else if (editingField === "description") {
+      textareaRef.current?.focus();
+    }
+  }, [editingField]);
 
   if (isDeliverablesLoading || isEpicsLoading || isUsersLoading || isTasksLoading) {
     return (
@@ -325,7 +448,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               Gantt
             </button>
           </div>
-          <Button className="gap-2" size="sm">
+          <Button className="gap-2" size="sm" onClick={handleCreateDeliverable} data-testid="button-new-deliverable">
             <Plus className="h-4 w-4" />
             New Deliverable
           </Button>
@@ -342,7 +465,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">
                 Start by defining the major outcomes for this project to organize your epics and tasks.
               </p>
-              <Button>Create First Deliverable</Button>
+              <Button onClick={handleCreateDeliverable} data-testid="button-create-first-deliverable">Create First Deliverable</Button>
             </CardContent>
           </Card>
         ) : viewMode === "gantt" ? (
@@ -478,52 +601,250 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               const owner = getOwner(deliverable.ownerId);
               const progress = getDeliverableProgress(deliverable.id);
               const taskCounts = getDeliverableTaskCounts(deliverable.id);
+              const isEditingThis = editingDeliverableId === deliverable.id;
 
               return (
                 <AccordionItem key={deliverable.id} value={deliverable.id} className="border rounded-lg bg-card px-4" data-testid={`accordion-deliverable-${deliverable.id}`}>
                   <AccordionTrigger className="hover:no-underline py-4">
-                    <div className="flex items-start gap-4 text-left w-full">
-                      <div className={cn(
-                        "p-2 rounded-lg mt-1",
-                        deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
-                        deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                        "bg-slate-100 text-slate-700"
-                      )}>
-                        <Package className="h-5 w-5" />
+                    <div className="flex items-start gap-4 text-left w-full justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className={cn(
+                          "p-2 rounded-lg mt-1",
+                          deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                          deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                          "bg-slate-100 text-slate-700"
+                        )}>
+                          <Package className="h-5 w-5" />
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-3">
+                            {/* Title - inline editable */}
+                            {isEditingThis && editingField === "title" ? (
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Input
+                                  ref={inputRef}
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveEdit(deliverable.id, "title");
+                                    if (e.key === "Escape") cancelEditing();
+                                  }}
+                                  className="h-8 w-64 text-lg font-semibold"
+                                  data-testid={`input-deliverable-title-${deliverable.id}`}
+                                />
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveEdit(deliverable.id, "title")}>
+                                  <Check className="h-4 w-4 text-green-600" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEditing}>
+                                  <X className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
+                                <h3 className="text-lg font-semibold">{deliverable.title}</h3>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => startEditing(deliverable.id, "title", deliverable.title)}
+                                  data-testid={`button-edit-title-${deliverable.id}`}
+                                >
+                                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            )}
+                            <Badge variant="outline" className={cn(
+                              "font-normal",
+                              deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
+                              deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                              "bg-slate-50 text-slate-700 border-slate-200"
+                            )}>
+                              {deliverable.status}
+                            </Badge>
+                          </div>
+                          
+                          {/* Description - inline editable */}
+                          {isEditingThis && editingField === "description" ? (
+                            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                              <Textarea
+                                ref={textareaRef}
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                placeholder="Add a description..."
+                                className="min-h-[60px] text-sm"
+                                data-testid={`input-deliverable-description-${deliverable.id}`}
+                              />
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={() => saveEdit(deliverable.id, "description")}>Save</Button>
+                                <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div 
+                              className="flex items-center gap-2 group cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditing(deliverable.id, "description", deliverable.description || "");
+                              }}
+                            >
+                              <p className={cn(
+                                "text-sm",
+                                deliverable.description ? "text-muted-foreground" : "text-muted-foreground/50 italic"
+                              )}>
+                                {deliverable.description || "Click to add description..."}
+                              </p>
+                              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 text-muted-foreground transition-opacity" />
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-6 pt-2 text-xs text-muted-foreground">
+                            {/* Owner - inline editable */}
+                            {isEditingThis && editingField === "owner" ? (
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <User className="h-3.5 w-3.5" />
+                                <Select 
+                                  value={deliverable.ownerId || ""} 
+                                  onValueChange={(value) => handleOwnerChange(deliverable.id, value)}
+                                >
+                                  <SelectTrigger className="h-6 text-xs w-32" data-testid={`select-owner-${deliverable.id}`}>
+                                    <SelectValue placeholder="Select owner" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(users || []).map((u: any) => (
+                                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEditing}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="flex items-center gap-2 cursor-pointer group"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditing(deliverable.id, "owner", deliverable.ownerId || "");
+                                }}
+                              >
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-[9px]">{owner?.name?.charAt(0) || "?"}</AvatarFallback>
+                                </Avatar>
+                                <span>Owner: {owner?.name || "Unassigned"}</span>
+                                <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity" />
+                              </div>
+                            )}
+
+                            {/* Start Date - inline editable */}
+                            {isEditingThis && editingField === "startDate" ? (
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                                <Input
+                                  ref={inputRef}
+                                  type="date"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveEdit(deliverable.id, "startDate");
+                                    if (e.key === "Escape") cancelEditing();
+                                  }}
+                                  className="h-6 text-xs w-32"
+                                  data-testid={`input-deliverable-startdate-${deliverable.id}`}
+                                />
+                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => saveEdit(deliverable.id, "startDate")}>
+                                  <Check className="h-3 w-3 text-green-600" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEditing}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="flex items-center gap-1.5 cursor-pointer group"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditing(deliverable.id, "startDate", deliverable.startDate || "");
+                                }}
+                              >
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                                <span>Start: {deliverable.startDate || "Not set"}</span>
+                                <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity" />
+                              </div>
+                            )}
+
+                            {/* Due Date - inline editable */}
+                            {isEditingThis && editingField === "dueDate" ? (
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                                <Input
+                                  ref={inputRef}
+                                  type="date"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveEdit(deliverable.id, "dueDate");
+                                    if (e.key === "Escape") cancelEditing();
+                                  }}
+                                  className="h-6 text-xs w-32"
+                                  data-testid={`input-deliverable-duedate-${deliverable.id}`}
+                                />
+                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => saveEdit(deliverable.id, "dueDate")}>
+                                  <Check className="h-3 w-3 text-green-600" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEditing}>
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div 
+                                className="flex items-center gap-1.5 cursor-pointer group"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditing(deliverable.id, "dueDate", deliverable.dueDate || "");
+                                }}
+                              >
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                                <span>Due: {deliverable.dueDate || "Not set"}</span>
+                                <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity" />
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>{taskCounts.done}/{taskCounts.total} Tasks</span>
+                            </div>
+                            <div className="flex items-center gap-2 min-w-[100px]">
+                              <Progress value={progress} className="h-1.5 w-16" />
+                              <span>{progress}%</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold">{deliverable.title}</h3>
-                          <Badge variant="outline" className={cn(
-                            "font-normal",
-                            deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
-                            deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                            "bg-slate-50 text-slate-700 border-slate-200"
-                          )}>
-                            {deliverable.status}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{deliverable.description}</p>
-                        <div className="flex items-center gap-6 pt-2 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-5 w-5">
-                              <AvatarFallback className="text-[9px]">{owner?.name?.charAt(0) || "?"}</AvatarFallback>
-                            </Avatar>
-                            <span>Owner: {owner?.name || "Unassigned"}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <CalendarIcon className="h-3.5 w-3.5" />
-                            <span>Due: {deliverable.dueDate}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>{taskCounts.done}/{taskCounts.total} Tasks</span>
-                          </div>
-                          <div className="flex items-center gap-2 min-w-[100px]">
-                            <Progress value={progress} className="h-1.5 w-16" />
-                            <span>{progress}%</span>
-                          </div>
-                        </div>
+                      {/* Overview button and delete */}
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`}>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="gap-2"
+                            data-testid={`button-deliverable-overview-${deliverable.id}`}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                            Overview
+                          </Button>
+                        </Link>
+                        <Button 
+                          size="icon" 
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => openDeleteDialog(deliverable.id, deliverable.title)}
+                          data-testid={`button-delete-deliverable-${deliverable.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </AccordionTrigger>
@@ -535,17 +856,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                           Associated Epics ({epics.length})
                         </span>
                         <div className="flex items-center gap-2">
-                          <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`}>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="gap-1.5 text-muted-foreground"
-                              data-testid={`button-view-deliverable-${deliverable.id}`}
-                            >
-                              View Details
-                              <ChevronRight className="h-3.5 w-3.5" />
-                            </Button>
-                          </Link>
                           <Button 
                             variant="outline" 
                             size="sm" 
@@ -701,6 +1011,29 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Deliverable</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deliverableToDelete?.title}"? This action cannot be undone. 
+              Any associated epics will remain but will no longer be linked to this deliverable.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-deliverable"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
