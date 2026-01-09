@@ -527,11 +527,25 @@ export const insertProjectSchema = createInsertSchema(projects).omit({ id: true 
 export const insertProjectFavoriteSchema = createInsertSchema(projectFavorites).omit({ id: true, createdAt: true });
 export const insertDeliverableSchema = createInsertSchema(deliverables).omit({ id: true });
 export const insertEpicSchema = createInsertSchema(epics).omit({ id: true });
-export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });
-export const insertMilestoneSchema = createInsertSchema(milestones).omit({ id: true });
-export const insertMilestoneScopeRuleSchema = createInsertSchema(milestoneScopeRules).omit({ id: true });
-export const insertMilestoneTaskLinkSchema = createInsertSchema(milestoneTaskLinks).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertSprintSchema = createInsertSchema(sprints).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true }).extend({
+  updatedAt: z.coerce.date().optional(),
+});
+export const insertMilestoneSchema = createInsertSchema(milestones).omit({ id: true }).extend({
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  progressLastCalculatedAt: z.coerce.date().optional(),
+});
+export const insertMilestoneScopeRuleSchema = createInsertSchema(milestoneScopeRules).omit({ id: true }).extend({
+  lastEvaluatedAt: z.coerce.date().optional(),
+});
+export const insertMilestoneTaskLinkSchema = createInsertSchema(milestoneTaskLinks).omit({ id: true }).extend({
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+export const insertSprintSchema = createInsertSchema(sprints).omit({ id: true }).extend({
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
 export const insertSprintMemberSchema = createInsertSchema(sprintMembers).omit({ id: true });
 export const insertSprintScopeEventSchema = createInsertSchema(sprintScopeEvents).omit({ id: true, occurredAt: true });
 export const insertSprintScopeTargetSchema = createInsertSchema(sprintScopeTargets).omit({ id: true, createdAt: true });
