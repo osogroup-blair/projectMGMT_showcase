@@ -134,3 +134,49 @@ export const formatDateRange = (start: Date, end?: Date): string => {
   
   return `${format(start, "MMM d, yyyy")} - ${format(end, "MMM d, yyyy")}`;
 };
+
+export interface PositionedItem {
+  id: string;
+  left: number;
+  width: number;
+}
+
+export interface ItemWithLane<T> {
+  item: T;
+  lane: number;
+}
+
+export function assignLanes<T extends PositionedItem>(items: T[]): ItemWithLane<T>[] {
+  if (items.length === 0) return [];
+  
+  const sortedItems = [...items].sort((a, b) => a.left - b.left);
+  const result: ItemWithLane<T>[] = [];
+  const laneEnds: number[] = [];
+  
+  for (const item of sortedItems) {
+    let assignedLane = -1;
+    
+    for (let i = 0; i < laneEnds.length; i++) {
+      if (item.left >= laneEnds[i]) {
+        assignedLane = i;
+        laneEnds[i] = item.left + item.width;
+        break;
+      }
+    }
+    
+    if (assignedLane === -1) {
+      assignedLane = laneEnds.length;
+      laneEnds.push(item.left + item.width);
+    }
+    
+    result.push({ item, lane: assignedLane });
+  }
+  
+  return result;
+}
+
+export function getLaneCount<T extends PositionedItem>(items: T[]): number {
+  const withLanes = assignLanes(items);
+  if (withLanes.length === 0) return 1;
+  return Math.max(...withLanes.map(i => i.lane)) + 1;
+}

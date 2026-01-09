@@ -5,9 +5,9 @@ import { TimelineHeader } from "./timeline-header";
 import { TimelineAxis } from "./timeline-axis";
 import { TimelineGrid } from "./timeline-grid";
 import { TimelineSidebar } from "./timeline-sidebar";
-import { SprintsLayer, SPRINTS_LAYER_HEIGHT } from "./layers/sprints-layer";
-import { MilestonesLayer, MILESTONES_LAYER_HEIGHT } from "./layers/milestones-layer";
-import { StagesLayer, STAGES_LAYER_HEIGHT } from "./layers/stages-layer";
+import { SprintsLayer, getSprintsLayerHeight } from "./layers/sprints-layer";
+import { MilestonesLayer, getMilestonesLayerHeight } from "./layers/milestones-layer";
+import { StagesLayer, getStagesLayerHeight } from "./layers/stages-layer";
 import { DeliverablesLayer, getDeliverablesLayerHeight } from "./layers/deliverables-layer";
 import { VIEW_MODE_CONFIGS, calculateTimelineRange, parseDate } from "./timeline-utils";
 import type { 
@@ -105,13 +105,19 @@ export function UnifiedTimeline({
   const totalWidth = totalDays * config.dayWidth;
 
   const layerHeights = useMemo(() => ({
-    milestones: layers.milestones && milestones.length > 0 ? MILESTONES_LAYER_HEIGHT : 0,
-    sprints: layers.sprints && sprints.length > 0 ? SPRINTS_LAYER_HEIGHT : 0,
-    stages: layers.stages && stages.length > 0 ? STAGES_LAYER_HEIGHT : 0,
+    stages: layers.stages && stages.length > 0 
+      ? getStagesLayerHeight(stages, project.startDate, timelineRange, config.dayWidth)
+      : 0,
+    sprints: layers.sprints && sprints.length > 0 
+      ? getSprintsLayerHeight(sprints, timelineRange, config.dayWidth)
+      : 0,
+    milestones: layers.milestones && milestones.length > 0 
+      ? getMilestonesLayerHeight(milestones, timelineRange, config.dayWidth)
+      : 0,
     deliverables: layers.deliverables && deliverables.length > 0 
       ? getDeliverablesLayerHeight(deliverables, epics, expandedDeliverables) 
       : 0,
-  }), [layers, milestones, sprints, stages, deliverables, epics, expandedDeliverables]);
+  }), [layers, milestones, sprints, stages, deliverables, epics, expandedDeliverables, timelineRange, config.dayWidth, project.startDate]);
 
   const totalHeight = Object.values(layerHeights).reduce((a, b) => a + b, 0) + 100;
 
