@@ -116,9 +116,11 @@ export default function ProjectOverview() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingStartDate, setIsEditingStartDate] = useState(false);
+  const [isEditingDeadline, setIsEditingDeadline] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
+  const [editDeadline, setEditDeadline] = useState("");
 
   // Initialize edit values when project loads
   useEffect(() => {
@@ -126,6 +128,7 @@ export default function ProjectOverview() {
       setEditTitle(project.name || "");
       setEditDescription(project.description || "");
       setEditStartDate(project.startDate || "");
+      setEditDeadline(project.deadline || "");
     }
   }, [project]);
 
@@ -151,6 +154,13 @@ export default function ProjectOverview() {
     updateProject({ id: projectId, updates: { startDate: editStartDate } });
     setIsEditingStartDate(false);
     toast({ title: "Updated", description: "Start date has been updated." });
+    refetchProject();
+  };
+
+  const handleSaveDeadline = () => {
+    updateProject({ id: projectId, updates: { deadline: editDeadline } });
+    setIsEditingDeadline(false);
+    toast({ title: "Updated", description: "Due date has been updated." });
     refetchProject();
   };
 
@@ -482,10 +492,43 @@ export default function ProjectOverview() {
                   </div>
                 )}
                 <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4" />
-                  Due {project.deadline}
-                </span>
+                {isEditingDeadline ? (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <Input
+                      type="date"
+                      value={editDeadline}
+                      onChange={(e) => setEditDeadline(e.target.value)}
+                      className="h-7 w-36 text-sm"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveDeadline();
+                        if (e.key === "Escape") { setIsEditingDeadline(false); setEditDeadline(project.deadline || ""); }
+                      }}
+                      data-testid="input-edit-deadline"
+                    />
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveDeadline} data-testid="button-save-deadline">
+                      <Check className="h-3 w-3 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setIsEditingDeadline(false); setEditDeadline(project.deadline || ""); }} data-testid="button-cancel-deadline">
+                      <X className="h-3 w-3 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 group">
+                    <Calendar className="h-4 w-4" />
+                    <span data-testid="text-deadline">Due {project.deadline || "Not set"}</span>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5" 
+                      onClick={() => setIsEditingDeadline(true)}
+                      data-testid="button-edit-deadline"
+                    >
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -517,6 +560,27 @@ export default function ProjectOverview() {
                 </TabsTrigger>
 
                 <TabsTrigger 
+                  value="timeline" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Timeline
+                </TabsTrigger>
+
+                <TabsTrigger 
+                  value="sprints" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Sprints
+                </TabsTrigger>
+
+                <TabsTrigger 
+                  value="milestones" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                >
+                  Milestones
+                </TabsTrigger>
+
+                <TabsTrigger 
                   value="tasks" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
                 >
@@ -531,32 +595,10 @@ export default function ProjectOverview() {
                 </TabsTrigger>
 
                 <TabsTrigger 
-                  value="timeline" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-                >
-                  Timeline
-                </TabsTrigger>
-
-                <TabsTrigger 
-                  value="milestones" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-                >
-                  Milestones
-                </TabsTrigger>
-
-                <TabsTrigger 
                   value="stages" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
                 >
                   Stages
-                </TabsTrigger>
-
-                <TabsTrigger 
-                  value="sprints" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-                  data-testid="tab-sprints"
-                >
-                  Sprints
                 </TabsTrigger>
               </TabsList>
 
@@ -582,11 +624,6 @@ export default function ProjectOverview() {
             <TimeHorizonDashboard projectId={projectId} />
           </TabsContent>
 
-          {/* Tasks Tab Content */}
-          <TabsContent value="tasks" className="mt-0">
-            <TaskListContent projectId={projectId} />
-          </TabsContent>
-          
           {/* Timeline Tab Content */}
           <TabsContent value="timeline" className="h-[700px] mt-0">
             <UnifiedTimeline 
@@ -599,14 +636,9 @@ export default function ProjectOverview() {
             />
           </TabsContent>
 
-          {/* Stages Tab */}
-          <TabsContent value="stages" className="mt-0">
-            <StagesContent projectId={projectId} />
-          </TabsContent>
-
-          {/* Deliverables Tab */}
-          <TabsContent value="deliverables" className="mt-0">
-            <DeliverablesContent projectId={projectId} />
+          {/* Sprints Tab */}
+          <TabsContent value="sprints" className="mt-0">
+            <SprintsContent projectId={projectId} />
           </TabsContent>
 
           {/* Milestones Tab */}
@@ -614,9 +646,19 @@ export default function ProjectOverview() {
             <MilestonesContent projectId={projectId} />
           </TabsContent>
 
-          {/* Sprints Tab */}
-          <TabsContent value="sprints" className="mt-0">
-            <SprintsContent projectId={projectId} />
+          {/* Tasks Tab Content */}
+          <TabsContent value="tasks" className="mt-0">
+            <TaskListContent projectId={projectId} />
+          </TabsContent>
+          
+          {/* Deliverables Tab */}
+          <TabsContent value="deliverables" className="mt-0">
+            <DeliverablesContent projectId={projectId} />
+          </TabsContent>
+
+          {/* Stages Tab */}
+          <TabsContent value="stages" className="mt-0">
+            <StagesContent projectId={projectId} />
           </TabsContent>
         </Tabs>
       </div>
