@@ -16,6 +16,15 @@ Nymbl Workspace is an AI-powered project management platform designed for servic
 
 ## Recent Changes
 
+### Import/Export Sprint Enhancement (January 2026)
+Added full Sprint support to import/export system with legacy data migration:
+- **Sprint Export**: Sprints now included in full system export, project export (selective and full), with proper serialization
+- **Legacy Import Handling**: `flattenNestedImport` extracts sprints from nested project exports
+- **Auto-Generation of Missing Entities**: When tasks reference non-existent sprintIds or stageIds, placeholder records are auto-created with reasonable defaults (name='Imported Sprint/Stage', dates from project)
+- **Task Field Normalization**: Tasks normalized with defaults: `blocked=false`, `blockerReason=null`, `taskTypeId=null`, `parentTaskId=null`, `updatedAt=now`
+- **Dependency Order**: `IMPORT_ORDER` updated to include Sprints after ProjectStages, before Tasks to prevent FK violations
+- **Schema Updates**: SCHEMA_DEFINITIONS and ENTITY_TO_COLLECTION include Sprints and updated Task fields (sprintId, blocked, blockerReason)
+
 ### Import/Export Fix (January 2026)
 Fixed critical import functionality issues:
 - **Dependency-Ordered Processing**: Added `IMPORT_ORDER` array ensuring entities are imported in correct dependency order (Users → Templates → Projects → Deliverables → Epics → Tasks → MilestoneTaskLinks)

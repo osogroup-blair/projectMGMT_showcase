@@ -774,6 +774,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
     const allMilestoneScopeRules = await db.getAll("milestoneScopeRules");
     const allMilestoneTaskLinks = await db.getAll("milestoneTaskLinks");
     const allProjectStages = await db.getAll("projectStages");
+    const allSprints = await db.getAll("sprints");
     const allComments = await db.getAll("comments");
     const allAttachments = await db.getAll("attachments");
     const allHistory = await db.getAll("history");
@@ -797,6 +798,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
     const filteredMilestoneScopeRules = allMilestoneScopeRules.filter((r: any) => milestoneIds.has(r.milestoneId || r.milestone_id));
     const filteredMilestoneTaskLinks = allMilestoneTaskLinks.filter((l: any) => milestoneIds.has(l.milestoneId || l.milestone_id));
     const filteredProjectStages = allProjectStages.filter((s: any) => projectIdSet.has(s.projectId || s.project_id));
+    const filteredSprints = allSprints.filter((s: any) => projectIdSet.has(s.projectId || s.project_id));
     
     const filteredComments = allComments.filter((c: any) => taskIds.has(c.taskId || c.task_id));
     const filteredAttachments = allAttachments.filter((a: any) => taskIds.has(a.taskId || a.task_id));
@@ -811,6 +813,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
       milestoneScopeRules: filteredMilestoneScopeRules,
       milestoneTaskLinks: filteredMilestoneTaskLinks,
       projectStages: filteredProjectStages,
+      sprints: filteredSprints,
       comments: filteredComments,
       attachments: filteredAttachments,
       history: filteredHistory,
@@ -827,6 +830,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
          Deliverables: serialize(await db.getAll("deliverables")),
          Epics: serialize(await db.getAll("epics")),
          ProjectStages: serialize(await db.getAll("projectStages")),
+         Sprints: serialize(await db.getAll("sprints")),
          Tasks: serialize(await db.getAll("tasks")),
          Milestones: serialize(await db.getAll("milestones")),
          MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
@@ -859,6 +863,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
           Deliverables: serialize(filtered.deliverables),
           Epics: serialize(filtered.epics),
           ProjectStages: serialize(filtered.projectStages),
+          Sprints: serialize(filtered.sprints),
           Tasks: serialize(filtered.tasks),
           Milestones: serialize(filtered.milestones),
           MilestoneScopeRules: serialize(filtered.milestoneScopeRules),
@@ -874,6 +879,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
           Deliverables: serialize(await db.getAll("deliverables")),
           Epics: serialize(await db.getAll("epics")),
           ProjectStages: serialize(await db.getAll("projectStages")),
+          Sprints: serialize(await db.getAll("sprints")),
           Tasks: serialize(await db.getAll("tasks")),
           Milestones: serialize(await db.getAll("milestones")),
           MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
