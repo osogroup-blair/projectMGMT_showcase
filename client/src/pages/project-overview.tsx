@@ -43,7 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { UnifiedTimeline } from "@/components/project/unified-timeline";
+import { UnifiedTimeline } from "@/features/project/timeline/unified-timeline";
 import { useMemo, useState, useEffect } from "react";
 import { ProjectDashboard } from "@/types/dashboard";
 import { differenceInDays, parseISO } from "date-fns";
@@ -57,11 +57,11 @@ interface TaskStats {
 }
 
 import { DeliverablesContent } from "@/pages/deliverables";
-import ProjectDashboardPage from "@/components/project/project-dashboard-page";
-import { TaskListContent } from "@/components/project/task-list-content";
-import { MilestonesContent } from "@/components/project/milestones-content";
-import { StagesContent } from "@/components/project/stages-content";
-import { SprintsContent } from "@/components/project/sprints-content";
+import ProjectDashboardPage from "@/features/project/dashboard/project-dashboard-page";
+import { TaskListContent } from "@/features/project/tasks/task-list-content";
+import { MilestonesContent } from "@/features/project/milestones/milestones-content";
+import { StagesContent } from "@/features/project/stages/stages-content";
+import { SprintsContent } from "@/features/project/sprints/sprints-content";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");

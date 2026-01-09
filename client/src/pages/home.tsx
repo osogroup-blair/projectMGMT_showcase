@@ -1,4 +1,4 @@
-import { UserHomePage } from "@/components/home/user-home-page";
+import { UserHomePage } from "@/features/home/panels/user-home-page";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfToday, addDays, isBefore, isAfter, parseISO, endOfWeek } from "date-fns";
 import type { UserHomeState, HomeTask, HomeMilestoneSummary, DayPlan, WorkBlock } from "@/types/home";
