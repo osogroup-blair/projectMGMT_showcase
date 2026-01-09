@@ -23,6 +23,7 @@ interface DeliverablesLayerProps {
 export const DELIVERABLE_ROW_HEIGHT = 48;
 export const EPIC_ROW_HEIGHT = 40;
 export const DELIVERABLES_HEADER_HEIGHT = 32;
+export const DELIVERABLES_CATEGORY_HEIGHT = 36;
 
 export function DeliverablesLayer({
   deliverables,
@@ -53,6 +54,15 @@ export function DeliverablesLayer({
 
   return (
     <div className="border-b">
+      <div 
+        className="flex items-center gap-2 px-3 bg-slate-100 border-b font-medium text-sm text-slate-700"
+        style={{ height: DELIVERABLES_CATEGORY_HEIGHT }}
+        data-testid="timeline-deliverables-category"
+      >
+        <Package className="w-4 h-4 text-slate-500" />
+        <span>Deliverables</span>
+        <span className="text-xs text-slate-500 font-normal">({deliverables.length})</span>
+      </div>
       {deliverablesWithEpics.map((deliverable) => {
         const isExpanded = expandedDeliverables.has(deliverable.id);
         const hasEpics = deliverable.epics.length > 0;
@@ -129,9 +139,10 @@ function DeliverableRow({
   const start = parseDate(deliverable.startDate);
   const end = parseDate(deliverable.dueDate);
   const isHighlighted = highlightId === deliverable.id;
+  const hasDates = start !== null;
 
-  const left = start ? getPosition(start, timelineRange.start, config.dayWidth) : 0;
-  const width = start && end ? getWidth(start, end, config.dayWidth) : 100;
+  const left = start ? getPosition(start, timelineRange.start, config.dayWidth) : 16;
+  const width = start && end ? getWidth(start, end, config.dayWidth) : 150;
 
   return (
     <div 
@@ -143,64 +154,71 @@ function DeliverableRow({
       }}
     >
       <div className="relative h-full">
-        {start && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <motion.button
-                initial={{ opacity: 0, scaleX: 0.9 }}
-                animate={{ opacity: 1, scaleX: 1 }}
-                className={cn(
-                  "absolute top-2 h-8 rounded-md px-3 flex items-center gap-2 cursor-pointer transition-all shadow-sm",
-                  "hover:ring-2 hover:ring-offset-1 focus:ring-2 focus:ring-primary focus:outline-none",
-                  isHighlighted && "ring-2 ring-primary ring-offset-2"
-                )}
-                style={{
-                  left,
-                  width: Math.max(width, 120),
-                  backgroundColor: deliverable.color,
-                  boxShadow: `0 2px 4px ${deliverable.color}40`,
-                }}
-                onClick={onClick}
-                data-testid={`timeline-deliverable-${deliverable.id}`}
-              >
-                <Package className="w-3.5 h-3.5 text-white/90 shrink-0" />
-                <span className="text-xs font-semibold text-white truncate flex-1">
-                  {deliverable.title}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <motion.button
+              initial={{ opacity: 0, scaleX: 0.9 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              className={cn(
+                "absolute top-2 h-8 rounded-md px-3 flex items-center gap-2 cursor-pointer transition-all shadow-sm",
+                "hover:ring-2 hover:ring-offset-1 focus:ring-2 focus:ring-primary focus:outline-none",
+                isHighlighted && "ring-2 ring-primary ring-offset-2",
+                !hasDates && "border-2 border-dashed"
+              )}
+              style={{
+                left,
+                width: Math.max(width, 120),
+                backgroundColor: hasDates ? deliverable.color : `${deliverable.color}40`,
+                boxShadow: hasDates ? `0 2px 4px ${deliverable.color}40` : undefined,
+                borderColor: !hasDates ? deliverable.color : undefined,
+              }}
+              onClick={onClick}
+              data-testid={`timeline-deliverable-${deliverable.id}`}
+            >
+              <Package className={cn("w-3.5 h-3.5 shrink-0", hasDates ? "text-white/90" : "text-white")} />
+              <span className={cn("text-xs font-semibold truncate flex-1", hasDates ? "text-white" : "text-white")}>
+                {deliverable.title}
+              </span>
+              {!hasDates && (
+                <span className="text-[10px] bg-white/30 px-1.5 py-0.5 rounded text-white font-medium">
+                  No dates
                 </span>
-                {typeof deliverable.progress === "number" && (
-                  <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-medium">
-                    {deliverable.progress}%
-                  </span>
-                )}
-              </motion.button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full shrink-0" 
-                    style={{ backgroundColor: deliverable.color }} 
-                  />
-                  <p className="font-medium">{deliverable.title}</p>
-                </div>
-                <p className="text-xs text-muted-foreground">{deliverable.description}</p>
-                {start && end && (
-                  <p className="text-xs">{formatDateRange(start, end)}</p>
-                )}
-                <p className="text-xs capitalize">Status: {deliverable.status}</p>
-                {typeof deliverable.progress === "number" && (
-                  <div className="space-y-1">
-                    <p className="text-xs">Progress: {deliverable.progress}%</p>
-                    <Progress value={deliverable.progress} className="h-1.5" />
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {deliverable.epics.length} epic{deliverable.epics.length !== 1 ? "s" : ""}
-                </p>
+              )}
+              {hasDates && typeof deliverable.progress === "number" && (
+                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-medium">
+                  {deliverable.progress}%
+                </span>
+              )}
+            </motion.button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-full shrink-0" 
+                  style={{ backgroundColor: deliverable.color }} 
+                />
+                <p className="font-medium">{deliverable.title}</p>
               </div>
-            </TooltipContent>
-          </Tooltip>
-        )}
+              <p className="text-xs text-muted-foreground">{deliverable.description}</p>
+              {start && end ? (
+                <p className="text-xs">{formatDateRange(start, end)}</p>
+              ) : (
+                <p className="text-xs text-amber-600">Dates not set</p>
+              )}
+              <p className="text-xs capitalize">Status: {deliverable.status}</p>
+              {typeof deliverable.progress === "number" && (
+                <div className="space-y-1">
+                  <p className="text-xs">Progress: {deliverable.progress}%</p>
+                  <Progress value={deliverable.progress} className="h-1.5" />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {deliverable.epics.length} epic{deliverable.epics.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
@@ -299,7 +317,7 @@ export function getDeliverablesLayerHeight(
   epics: Epic[],
   expandedDeliverables: Set<string>
 ): number {
-  let height = deliverables.length * DELIVERABLE_ROW_HEIGHT;
+  let height = DELIVERABLES_CATEGORY_HEIGHT + deliverables.length * DELIVERABLE_ROW_HEIGHT;
   
   deliverables.forEach((d) => {
     if (expandedDeliverables.has(d.id)) {
