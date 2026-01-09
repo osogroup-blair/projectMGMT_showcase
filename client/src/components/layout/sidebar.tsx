@@ -1,16 +1,50 @@
 import { 
   Search,
-  ChevronDown
+  ChevronDown,
+  Star,
+  FolderKanban,
+  Home,
+  Settings
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { useCurrentUser } from "@/context/current-user-context";
 import logo from "@assets/image_1765392085901.png";
+
+interface FavoriteProject {
+  projectId: string;
+  projectName: string;
+}
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { currentUser } = useCurrentUser();
+
+  const { data: favoriteProjects = [] } = useQuery<FavoriteProject[]>({
+    queryKey: ['favoriteProjects', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return [];
+      const res = await fetch(`/api/favorites?userId=${currentUser.id}`);
+      if (!res.ok) return [];
+      const favorites = await res.json();
+      
+      const projectsRes = await fetch('/api/projects');
+      if (!projectsRes.ok) return [];
+      const projects = await projectsRes.json();
+      
+      return favorites.map((f: { projectId: string }) => {
+        const project = projects.find((p: { id: string; name: string }) => p.id === f.projectId);
+        return {
+          projectId: f.projectId,
+          projectName: project?.name || 'Unknown Project'
+        };
+      }).filter((f: FavoriteProject) => f.projectName !== 'Unknown Project');
+    },
+    enabled: !!currentUser?.id,
+  });
 
   return (
     <div className="flex h-screen w-[280px] flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -49,7 +83,79 @@ export function Sidebar() {
 
       <ScrollArea className="flex-1 px-4">
         <div className="space-y-6">
-          {/* Navigation items will be added here */}
+          {/* Main Navigation */}
+          <div className="space-y-1">
+            <Link 
+              href="/"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                location === "/" 
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              )}
+              data-testid="nav-home"
+            >
+              <Home className="h-4 w-4" />
+              Home
+            </Link>
+            <Link 
+              href="/projects"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                location === "/projects" || location.startsWith("/projects/")
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              )}
+              data-testid="nav-projects"
+            >
+              <FolderKanban className="h-4 w-4" />
+              All Projects
+            </Link>
+          </div>
+
+          {/* Favorite Projects */}
+          {favoriteProjects.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+                  Favorites
+                </span>
+              </div>
+              {favoriteProjects.map((project) => (
+                <Link 
+                  key={project.projectId}
+                  href={`/projects/${project.projectId}`}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ml-2",
+                    location === `/projects/${project.projectId}`
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  )}
+                  data-testid={`nav-favorite-${project.projectId}`}
+                >
+                  <span className="truncate">{project.projectName}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Admin */}
+          <div className="space-y-1">
+            <Link 
+              href="/admin"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                location === "/admin" || location.startsWith("/admin")
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              )}
+              data-testid="nav-admin"
+            >
+              <Settings className="h-4 w-4" />
+              Admin
+            </Link>
+          </div>
         </div>
       </ScrollArea>
     </div>

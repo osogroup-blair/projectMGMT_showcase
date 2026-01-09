@@ -125,6 +125,7 @@ export default function ProjectsList() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites', currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ['favoriteProjects', currentUser?.id] });
     },
   });
 
@@ -137,6 +138,7 @@ export default function ProjectsList() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites', currentUser?.id] });
+      queryClient.invalidateQueries({ queryKey: ['favoriteProjects', currentUser?.id] });
     },
   });
 
