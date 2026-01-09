@@ -19,11 +19,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Upload, FileText, ArrowRight, FolderPlus, FolderOpen } from "lucide-react";
-import { PROJECTS } from "@/lib/mock-data";
 import { useLocation } from "wouter";
+import { useProjects } from "@/hooks/use-nexus-data";
 
 export default function ProjectImport() {
   const [_, setLocation] = useLocation();
+  const { data: projects } = useProjects();
   const [mode, setMode] = useState<"new" | "existing">("new");
   const [selectedProject, setSelectedProject] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
@@ -120,7 +121,7 @@ export default function ProjectImport() {
                     <SelectValue placeholder="Select a project..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {PROJECTS.map(p => (
+                    {projects.map((p: any) => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
                   </SelectContent>

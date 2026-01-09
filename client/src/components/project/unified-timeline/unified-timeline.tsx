@@ -4,7 +4,6 @@ import { differenceInDays } from "date-fns";
 import { TimelineHeader } from "./timeline-header";
 import { TimelineAxis } from "./timeline-axis";
 import { TimelineGrid } from "./timeline-grid";
-import { TimelineSidebar } from "./timeline-sidebar";
 import { SprintsLayer, getSprintsLayerHeight } from "./layers/sprints-layer";
 import { MilestonesLayer, getMilestonesLayerHeight } from "./layers/milestones-layer";
 import { StagesLayer, getStagesLayerHeight } from "./layers/stages-layer";
