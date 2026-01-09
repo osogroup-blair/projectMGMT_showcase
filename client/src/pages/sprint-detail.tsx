@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   Zap, 
@@ -28,7 +28,11 @@ import {
   Link as LinkIcon,
   ListTodo,
   SlidersHorizontal,
-  RefreshCw
+  RefreshCw,
+  Layers,
+  Lock,
+  Unlock,
+  CheckSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +53,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -144,6 +150,13 @@ export default function SprintDetail() {
   const [showScopeModeChangeDialog, setShowScopeModeChangeDialog] = useState(false);
   const [pendingScopeMode, setPendingScopeMode] = useState<"epic" | "milestone" | "stage" | null>(null);
   const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope">("tasks");
+  const [scopeDefSubTab, setScopeDefSubTab] = useState<"manual" | "matrix" | "rules">("manual");
+  const [manualScopeSearch, setManualScopeSearch] = useState("");
+  const [stageFilter, setStageFilter] = useState<string>("all");
+  const [epicFilter, setEpicFilter] = useState<string>("all");
+  const [showIncludedOnly, setShowIncludedOnly] = useState<boolean | null>(null);
+  const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({});
+  const [sprintScopeRules, setSprintScopeRules] = useState<any[]>([]);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -459,6 +472,228 @@ export default function SprintDetail() {
       return stage?.name || "Unknown Stage";
     }
     return "Unknown";
+  };
+
+  // Get stage name for scope definition
+  const getStageName = (stageId: string) => {
+    const stage = projectStages.find((s: any) => s.id === stageId);
+    return stage?.label || stage?.name || stageId;
+  };
+
+  // Project tasks (for scope definition)
+  const projectTasks = useMemo(() => 
+    (allTasks || []).filter((t: any) => t.projectId === projectId || t.project === projectId),
+    [allTasks, projectId]
+  );
+
+  // Evaluate a scope rule
+  const evaluateRule = useCallback((rule: any): any[] => {
+    if (!rule.active) return [];
+    
+    return projectTasks.filter(task => {
+      if (rule.stage && rule.stage !== "all" && task.stageId !== rule.stage) {
+        return false;
+      }
+      
+      const epic = projectEpics.find((e: any) => e.id === task.epicId);
+      if (rule.epicType && rule.epicType !== "all") {
+        const epicType = epic?.type || epic?.epicType || "";
+        if (epicType !== rule.epicType) {
+          return false;
+        }
+      }
+      
+      if (rule.taskTemplateKey && rule.taskTemplateKey !== "all") {
+        const taskType = task.templateKey || task.type || "";
+        if (!taskType.toLowerCase().includes(rule.taskTemplateKey.toLowerCase())) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [projectTasks, projectEpics]);
+
+  // All matched tasks by rule
+  const allMatchedTasksByRule = useMemo(() => {
+    const result: Record<string, any[]> = {};
+    sprintScopeRules.forEach((rule: any) => {
+      result[rule.id] = evaluateRule(rule);
+    });
+    return result;
+  }, [sprintScopeRules, evaluateRule]);
+
+  // All matched tasks from all rules
+  const allMatchedTasks = useMemo(() => {
+    const taskSet = new Set<string>();
+    Object.values(allMatchedTasksByRule).forEach((matchedTasks: any[]) => {
+      matchedTasks.forEach(t => taskSet.add(t.id));
+    });
+    return projectTasks.filter(t => taskSet.has(t.id));
+  }, [allMatchedTasksByRule, projectTasks]);
+
+  // Tasks in sprint IDs
+  const sprintTaskIds = useMemo(() => 
+    sprintTasks.map((t: any) => t.id),
+    [sprintTasks]
+  );
+
+  // Pending tasks (matched by rules but not in sprint)
+  const pendingRuleTasks = useMemo(() => {
+    return allMatchedTasks.filter(t => !sprintTaskIds.includes(t.id));
+  }, [allMatchedTasks, sprintTaskIds]);
+
+  // Already in sprint from rules
+  const alreadyInSprintFromRules = useMemo(() => {
+    return allMatchedTasks.filter(t => sprintTaskIds.includes(t.id));
+  }, [allMatchedTasks, sprintTaskIds]);
+
+  // Filtered tasks for manual adjustments tab
+  const filteredManualTasks = useMemo(() => {
+    return projectTasks.filter(t => {
+      const epic = projectEpics.find((e: any) => e.id === t.epicId);
+      const epicName = epic?.title || "";
+      const searchLower = manualScopeSearch.toLowerCase();
+      const matchesSearch = !manualScopeSearch || 
+        t.title?.toLowerCase().includes(searchLower) || 
+        epicName.toLowerCase().includes(searchLower);
+      
+      const matchesStage = stageFilter === "all" || t.stageId === stageFilter;
+      const matchesEpic = epicFilter === "all" || t.epicId === epicFilter;
+      
+      const isInSprint = sprintTaskIds.includes(t.id);
+      const matchesIncludedFilter = showIncludedOnly === null || 
+        (showIncludedOnly === true && isInSprint) || 
+        (showIncludedOnly === false && !isInSprint);
+      
+      return matchesSearch && matchesStage && matchesEpic && matchesIncludedFilter;
+    });
+  }, [projectTasks, projectEpics, manualScopeSearch, stageFilter, epicFilter, showIncludedOnly, sprintTaskIds]);
+
+  // Toggle task in/out of sprint
+  const handleToggleTaskInSprint = async (taskId: string) => {
+    const isInSprint = sprintTaskIds.includes(taskId);
+    
+    if (isInSprint) {
+      // Remove from sprint
+      updateTask({ id: taskId, updates: { sprintId: null } });
+      toast({ title: "Task removed from sprint" });
+    } else {
+      // Add to sprint
+      updateTask({ id: taskId, updates: { sprintId } });
+      toast({ title: "Task added to sprint" });
+    }
+  };
+
+  // Toggle all tasks in a cell (epic + stage) for matrix view
+  const handleToggleCellTasks = (epicId: string, stageId: string) => {
+    const cellTasks = projectTasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
+    if (cellTasks.length === 0) return;
+
+    const unlinkedTasks = cellTasks.filter((t: any) => !sprintTaskIds.includes(t.id));
+    
+    if (unlinkedTasks.length > 0) {
+      // Add all to sprint
+      unlinkedTasks.forEach((t: any) => {
+        updateTask({ id: t.id, updates: { sprintId } });
+      });
+      toast({ title: `Added ${unlinkedTasks.length} task(s) to sprint` });
+    } else {
+      // Remove all from sprint
+      cellTasks.forEach((t: any) => {
+        updateTask({ id: t.id, updates: { sprintId: null } });
+      });
+      toast({ title: `Removed ${cellTasks.length} task(s) from sprint` });
+    }
+  };
+
+  // Get cell task counts for matrix view
+  const getCellTaskCounts = (epicId: string, stageId: string) => {
+    const cellTasks = projectTasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
+    const inSprint = cellTasks.filter((t: any) => sprintTaskIds.includes(t.id)).length;
+    return { total: cellTasks.length, inSprint };
+  };
+
+  // Add a new scope rule
+  const handleAddRule = () => {
+    const newRule = {
+      id: `r-${Date.now()}`,
+      label: "New Scope Rule",
+      active: true,
+      stage: "all",
+      epicType: "all",
+      taskTemplateKey: "all"
+    };
+    setSprintScopeRules([...sprintScopeRules, newRule]);
+    setExpandedRules(prev => ({ ...prev, [newRule.id]: true }));
+  };
+
+  // Delete a scope rule
+  const handleDeleteRule = (ruleId: string) => {
+    setSprintScopeRules(sprintScopeRules.filter((r: any) => r.id !== ruleId));
+  };
+
+  // Update a scope rule
+  const handleUpdateRule = (ruleId: string, updates: any) => {
+    setSprintScopeRules(sprintScopeRules.map((r: any) => r.id === ruleId ? { ...r, ...updates } : r));
+  };
+
+  // Toggle rule active state
+  const handleToggleRuleActive = (ruleId: string, newActive: boolean) => {
+    handleUpdateRule(ruleId, { active: newActive });
+    
+    if (!newActive) {
+      const rule = sprintScopeRules.find((r: any) => r.id === ruleId);
+      if (!rule) return;
+      
+      const tasksMatchedByThisRule = evaluateRule({ ...rule, active: true });
+      const tasksMatchedByOtherActiveRules = new Set<string>();
+      
+      sprintScopeRules.forEach((r: any) => {
+        if (r.id !== ruleId && r.active) {
+          evaluateRule(r).forEach(t => tasksMatchedByOtherActiveRules.add(t.id));
+        }
+      });
+      
+      const tasksToRemove = tasksMatchedByThisRule.filter(t => 
+        !tasksMatchedByOtherActiveRules.has(t.id) && sprintTaskIds.includes(t.id)
+      );
+      
+      if (tasksToRemove.length > 0) {
+        tasksToRemove.forEach(t => {
+          updateTask({ id: t.id, updates: { sprintId: null } });
+        });
+        toast({ 
+          title: "Rule Disabled", 
+          description: `Removed ${tasksToRemove.length} task(s) from sprint.` 
+        });
+      }
+    }
+  };
+
+  // Apply all rules - add matched tasks to sprint
+  const handleApplyRules = () => {
+    if (pendingRuleTasks.length === 0) {
+      toast({ 
+        title: "No Changes", 
+        description: "All matched tasks are already in this sprint." 
+      });
+      return;
+    }
+
+    pendingRuleTasks.forEach(t => {
+      updateTask({ id: t.id, updates: { sprintId } });
+    });
+    
+    toast({ 
+      title: "Rules Applied", 
+      description: `Added ${pendingRuleTasks.length} task(s) to sprint.` 
+    });
+  };
+
+  // Toggle rule expanded state
+  const toggleRuleExpanded = (ruleId: string) => {
+    setExpandedRules(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
   };
 
   if (!sprint) {
@@ -952,288 +1187,498 @@ export default function SprintDetail() {
                       </CardContent>
                     </Card>
                   ) : (
-                    <>
-                      {/* Scope Mode Selection */}
-                      <Card data-testid="card-scope-planner">
-                        <CardHeader>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Target className="h-4 w-4" />
-                            Define Sprint Scope
-                          </CardTitle>
-                          <CardDescription>
-                            Select Epics, Milestones, or Stages to define which tasks belong to this sprint's scope
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {/* Mode Toggle */}
-                          <div className="flex gap-2">
-                            <Button
-                              variant={(scopeMode || currentScopeMode) === "epic" ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => handleScopeModeChange("epic")}
-                              data-testid="button-scope-epic"
-                            >
-                              Epics ({projectEpics.length})
-                            </Button>
-                            <Button
-                              variant={(scopeMode || currentScopeMode) === "milestone" ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => handleScopeModeChange("milestone")}
-                              data-testid="button-scope-milestone"
-                            >
-                              Milestones ({projectMilestones.length})
-                            </Button>
-                            <Button
-                              variant={(scopeMode || currentScopeMode) === "stage" ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => handleScopeModeChange("stage")}
-                              data-testid="button-scope-stage"
-                            >
-                              Stages ({projectStages.length})
-                            </Button>
+                    <Tabs value={scopeDefSubTab} onValueChange={(v) => setScopeDefSubTab(v as any)} className="w-full">
+                      <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
+                        <TabsTrigger 
+                          value="manual"
+                          className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+                          data-testid="subtab-manual"
+                        >
+                          <ListTodo className="w-4 h-4 mr-2" />
+                          Manual Adjustments
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="matrix"
+                          className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+                          data-testid="subtab-matrix"
+                        >
+                          <Layers className="w-4 h-4 mr-2" />
+                          Coverage Matrix
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="rules" 
+                          className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+                          data-testid="subtab-rules"
+                        >
+                          <SlidersHorizontal className="w-4 h-4 mr-2" />
+                          Rule-Based Scope
+                          {pendingRuleTasks.length > 0 && (
+                            <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 text-xs">
+                              {pendingRuleTasks.length} pending
+                            </Badge>
+                          )}
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <div className="mt-6">
+                        {/* Manual Adjustments Tab */}
+                        <TabsContent value="manual" className="space-y-4">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                  placeholder="Search by task or epic name..." 
+                                  className="pl-9"
+                                  value={manualScopeSearch}
+                                  onChange={e => setManualScopeSearch(e.target.value)}
+                                  data-testid="input-manual-scope-search"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 items-center">
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground whitespace-nowrap">Stage:</Label>
+                                <Select value={stageFilter} onValueChange={setStageFilter}>
+                                  <SelectTrigger className="h-8 w-[180px]" data-testid="select-stage-filter">
+                                    <SelectValue placeholder="All Stages" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Stages</SelectItem>
+                                    {projectStages.map((stage: any) => (
+                                      <SelectItem key={stage.id} value={stage.id}>{stage.label || stage.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground whitespace-nowrap">Epic:</Label>
+                                <Select value={epicFilter} onValueChange={setEpicFilter}>
+                                  <SelectTrigger className="h-8 w-[180px]" data-testid="select-epic-filter">
+                                    <SelectValue placeholder="All Epics" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Epics</SelectItem>
+                                    {projectEpics.map((epic: any) => (
+                                      <SelectItem key={epic.id} value={epic.id}>{epic.title || epic.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground whitespace-nowrap">Show:</Label>
+                                <Select value={showIncludedOnly === null ? "all" : showIncludedOnly ? "included" : "excluded"} onValueChange={(v) => setShowIncludedOnly(v === "all" ? null : v === "included")}>
+                                  <SelectTrigger className="h-8 w-[130px]" data-testid="select-included-filter">
+                                    <SelectValue placeholder="All Tasks" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Tasks</SelectItem>
+                                    <SelectItem value="included">In Sprint</SelectItem>
+                                    <SelectItem value="excluded">Not In Sprint</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              {(stageFilter !== "all" || epicFilter !== "all" || showIncludedOnly !== null || manualScopeSearch) && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 text-xs"
+                                  onClick={() => {
+                                    setStageFilter("all");
+                                    setEpicFilter("all");
+                                    setShowIncludedOnly(null);
+                                    setManualScopeSearch("");
+                                  }}
+                                  data-testid="button-clear-filters"
+                                >
+                                  Clear Filters
+                                </Button>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Selected Targets Chips */}
-                          {scopeTargets.data.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {scopeTargets.data.map((target: any) => (
-                                <Badge 
-                                  key={target.id} 
-                                  variant="secondary" 
-                                  className="px-2 py-1 flex items-center gap-1"
-                                >
-                                  {getScopeEntityName(target.targetType, target.targetId)}
-                                  <button 
-                                    onClick={() => scopeTargets.removeTarget(target.id)}
-                                    className="ml-1 hover:text-destructive"
-                                    data-testid={`button-remove-target-${target.targetId}`}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
+                          <div className="border rounded-md">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-[50px]"></TableHead>
+                                  <TableHead>Task</TableHead>
+                                  <TableHead>Epic</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead className="text-right">In Sprint</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredManualTasks.slice(0, 20).map((task: any) => {
+                                  const isInSprint = sprintTaskIds.includes(task.id);
+                                  const epic = projectEpics.find((e: any) => e.id === task.epicId);
 
-                          {/* Entity Selector */}
-                          {(scopeMode || currentScopeMode) && (
-                            <div className="border rounded-lg">
-                              <div className="p-2 border-b">
-                                <div className="relative">
-                                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                  <Input
-                                    placeholder={`Search ${scopeMode || currentScopeMode}s...`}
-                                    value={scopeSearch}
-                                    onChange={(e) => setScopeSearch(e.target.value)}
-                                    className="pl-8 h-9"
-                                    data-testid="input-scope-search"
-                                  />
-                                </div>
-                              </div>
-                              <ScrollArea className="h-48">
-                                <div className="p-2 space-y-1">
-                                  {filteredScopeEntities.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground text-center py-4">
-                                      No {scopeMode || currentScopeMode}s found
-                                    </p>
-                                  ) : (
-                                    filteredScopeEntities.map((entity: any) => {
-                                      const isSelected = selectedScopeIds.includes(entity.id);
-                                      return (
-                                        <div 
-                                          key={entity.id}
+                                  return (
+                                    <TableRow key={task.id}>
+                                      <TableCell>
+                                        <CheckSquare 
                                           className={cn(
-                                            "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted",
-                                            isSelected && "bg-muted"
+                                            "h-4 w-4 cursor-pointer transition-colors", 
+                                            isInSprint ? "text-primary" : "text-muted-foreground/30 hover:text-muted-foreground"
                                           )}
-                                          onClick={() => handleToggleScopeTarget(entity.id)}
-                                          data-testid={`scope-entity-${entity.id}`}
-                                        >
-                                          <Checkbox checked={isSelected} />
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">
-                                              {entity.title || entity.name}
-                                            </p>
-                                            {entity.description && (
-                                              <p className="text-xs text-muted-foreground truncate">
-                                                {entity.description}
-                                              </p>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })
-                                  )}
-                                </div>
-                              </ScrollArea>
-                            </div>
-                          )}
-
-                          {/* Empty State */}
-                          {!scopeMode && !currentScopeMode && (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                              Select a scope type above to define which tasks should be included in this sprint
-                            </p>
-                          )}
-                        </CardContent>
-                      </Card>
-
-                      {/* Sync Status Indicator */}
-                      {(scopeMode || currentScopeMode) && scopeTargets.data.length > 0 && (
-                        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                          <CardContent className="py-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                  <Target className="h-5 w-5 text-blue-600" />
-                                  <div>
-                                    <p className="text-sm font-medium">Scope Sync Status</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {suggestedTasks.length + scopedSprintTasks.length} total tasks matching scope
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex gap-4 border-l pl-4">
-                                  <div className="text-center">
-                                    <div className="text-lg font-semibold text-green-600">{scopedSprintTasks.length}</div>
-                                    <div className="text-xs text-muted-foreground">In Sprint</div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-lg font-semibold text-amber-600">{suggestedTasks.length}</div>
-                                    <div className="text-xs text-muted-foreground">To Add</div>
-                                  </div>
-                                </div>
-                              </div>
-                              {suggestedTasks.length > 0 && (
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => {
-                                    setSelectedSuggested(suggestedTasks.map((t: any) => t.id));
-                                    handleAddSuggestedTasks();
-                                  }}
-                                  data-testid="button-sync-all"
-                                >
-                                  <RefreshCw className="h-4 w-4 mr-1" />
-                                  Sync All to Sprint
-                                </Button>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Suggested Tasks - Inline Panel */}
-                      {(scopeMode || currentScopeMode) && (
-                        <Card>
-                          <CardHeader>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <CardTitle className="text-base flex items-center gap-2">
-                                  <RefreshCw className="h-4 w-4" />
-                                  Suggested Tasks
-                                  {suggestedTasks.length > 0 && (
-                                    <Badge variant="secondary">{suggestedTasks.length}</Badge>
-                                  )}
-                                </CardTitle>
-                                <CardDescription>
-                                  Tasks matching your scope definition that are not yet in this sprint
-                                </CardDescription>
-                              </div>
-                              {suggestedTasks.length > 0 && selectedSuggested.length > 0 && (
-                                <Button size="sm" onClick={handleAddSuggestedTasks} data-testid="button-add-selected-suggested">
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Add {selectedSuggested.length} to Sprint
-                                </Button>
-                              )}
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            {loadingSuggested ? (
-                              <div className="flex items-center justify-center py-8">
-                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                              </div>
-                            ) : suggestedTasks.length === 0 ? (
-                              <div className="text-center py-8 text-muted-foreground">
-                                <CheckCircle2 className="h-8 w-8 mx-auto mb-2" />
-                                <p>No suggested tasks found.</p>
-                                <p className="text-sm">All tasks matching your scope are already in this sprint, or no tasks match your scope criteria.</p>
-                              </div>
-                            ) : (
-                              <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                  <Checkbox 
-                                    checked={selectedSuggested.length === suggestedTasks.length && suggestedTasks.length > 0}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        setSelectedSuggested(suggestedTasks.map((t: any) => t.id));
-                                      } else {
-                                        setSelectedSuggested([]);
-                                      }
-                                    }}
-                                    data-testid="checkbox-select-all-suggested"
-                                  />
-                                  <span className="text-sm text-muted-foreground">
-                                    Select all ({suggestedTasks.length} tasks)
-                                  </span>
-                                </div>
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="w-[40px]"></TableHead>
-                                      <TableHead>Task</TableHead>
-                                      <TableHead>Epic</TableHead>
-                                      <TableHead>Effort</TableHead>
+                                          onClick={() => handleToggleTaskInSprint(task.id)}
+                                          data-testid={`toggle-task-${task.id}`}
+                                        />
+                                      </TableCell>
+                                      <TableCell className="font-medium">
+                                        {task.title || task.name}
+                                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">{task.description}</div>
+                                      </TableCell>
+                                      <TableCell className="text-xs text-muted-foreground">
+                                        {epic?.title || epic?.name || "No Epic"}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge variant="outline" className="text-xs font-normal">
+                                          {task.status}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {isInSprint ? (
+                                          <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
+                                            Yes
+                                          </Badge>
+                                        ) : (
+                                          <span className="text-muted-foreground text-xs">-</span>
+                                        )}
+                                      </TableCell>
                                     </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {suggestedTasks.map((task: any) => {
-                                      const epic = getEpic(task.epicId);
-                                      return (
-                                        <TableRow key={task.id}>
-                                          <TableCell>
-                                            <Checkbox 
-                                              checked={selectedSuggested.includes(task.id)}
-                                              onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                  setSelectedSuggested([...selectedSuggested, task.id]);
-                                                } else {
-                                                  setSelectedSuggested(selectedSuggested.filter(id => id !== task.id));
-                                                }
-                                              }}
-                                              data-testid={`checkbox-suggested-${task.id}`}
-                                            />
-                                          </TableCell>
-                                          <TableCell>
-                                            <div className="font-medium">{task.title || task.name}</div>
-                                            {task.description && (
-                                              <p className="text-xs text-muted-foreground truncate max-w-[300px]">
-                                                {task.description}
-                                              </p>
-                                            )}
-                                          </TableCell>
-                                          <TableCell>
-                                            {epic ? (
-                                              <Badge variant="outline" className="font-normal">
-                                                {epic.title || epic.name}
-                                              </Badge>
-                                            ) : (
-                                              <span className="text-muted-foreground">-</span>
-                                            )}
-                                          </TableCell>
-                                          <TableCell>
-                                            <span className="text-sm">{task.effort || "-"} pts</span>
-                                          </TableCell>
-                                        </TableRow>
-                                      );
-                                    })}
-                                  </TableBody>
-                                </Table>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                            {filteredManualTasks.length > 20 && (
+                              <div className="p-2 text-center text-xs text-muted-foreground border-t">
+                                Showing 20 of {filteredManualTasks.length} tasks. Use search to find more.
                               </div>
                             )}
-                          </CardContent>
-                        </Card>
-                      )}
-                    </>
+                            {filteredManualTasks.length === 0 && (
+                              <div className="p-8 text-center text-muted-foreground">
+                                No tasks found matching your filters.
+                              </div>
+                            )}
+                          </div>
+                        </TabsContent>
+
+                        {/* Coverage Matrix Tab */}
+                        <TabsContent value="matrix" className="space-y-4">
+                          <div className="border rounded-md overflow-hidden">
+                            <div className="bg-muted/30 p-4 border-b">
+                              <h4 className="font-medium text-sm">Coverage Matrix</h4>
+                              <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion for that Epic & Stage.</p>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b bg-muted/10">
+                                    <th className="p-3 text-left font-medium min-w-[200px]">Epic</th>
+                                    {projectStages.map((stage: any) => (
+                                      <th key={stage.id} className="p-3 text-center font-medium border-l min-w-[100px]">
+                                        {stage.label || stage.name}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {projectEpics.length === 0 ? (
+                                    <tr>
+                                      <td colSpan={projectStages.length + 1} className="p-8 text-center text-muted-foreground">
+                                        No epics found in this project.
+                                      </td>
+                                    </tr>
+                                  ) : projectStages.length === 0 ? (
+                                    <tr>
+                                      <td colSpan={2} className="p-8 text-center text-muted-foreground">
+                                        No stages found. Tasks must have stages assigned.
+                                      </td>
+                                    </tr>
+                                  ) : (
+                                    projectEpics.map((epic: any) => (
+                                      <tr key={epic.id} className="border-b hover:bg-muted/5">
+                                        <td className="p-3 font-medium">
+                                          <div className="flex items-center gap-2">
+                                            <span className="truncate max-w-[180px]">{epic.title || epic.name}</span>
+                                          </div>
+                                        </td>
+                                        {projectStages.map((stage: any) => {
+                                          const counts = getCellTaskCounts(epic.id, stage.id);
+                                          const allInSprint = counts.total > 0 && counts.inSprint === counts.total;
+                                          const someInSprint = counts.inSprint > 0 && counts.inSprint < counts.total;
+                                          
+                                          return (
+                                            <td 
+                                              key={stage.id} 
+                                              className={cn(
+                                                "p-3 text-center border-l cursor-pointer transition-colors",
+                                                counts.total === 0 && "bg-muted/10",
+                                                allInSprint && "bg-green-50",
+                                                someInSprint && "bg-amber-50"
+                                              )}
+                                              onClick={() => handleToggleCellTasks(epic.id, stage.id)}
+                                              data-testid={`cell-${epic.id}-${stage.id}`}
+                                            >
+                                              {counts.total > 0 ? (
+                                                <div className="flex flex-col items-center gap-0.5">
+                                                  <span className={cn(
+                                                    "text-sm font-medium",
+                                                    allInSprint && "text-green-700",
+                                                    someInSprint && "text-amber-700"
+                                                  )}>
+                                                    {counts.inSprint}/{counts.total}
+                                                  </span>
+                                                  <span className="text-[10px] text-muted-foreground">
+                                                    {allInSprint ? "All in" : someInSprint ? "Partial" : "None"}
+                                                  </span>
+                                                </div>
+                                              ) : (
+                                                <span className="text-muted-foreground/30">-</span>
+                                              )}
+                                            </td>
+                                          );
+                                        })}
+                                      </tr>
+                                    ))
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        {/* Rule-Based Scope Tab */}
+                        <TabsContent value="rules" className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="text-sm font-medium">Definition Rules</h3>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Define criteria to automatically include tasks in this sprint
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              {pendingRuleTasks.length > 0 && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={handleApplyRules}
+                                  className="gap-2 bg-green-600 hover:bg-green-700"
+                                  data-testid="button-apply-rules"
+                                >
+                                  <Zap className="h-4 w-4" /> 
+                                  Apply Rules ({pendingRuleTasks.length} tasks)
+                                </Button>
+                              )}
+                              <Button size="sm" variant="outline" onClick={handleAddRule} className="gap-2" data-testid="button-add-rule">
+                                <Plus className="h-4 w-4" /> Add Rule
+                              </Button>
+                            </div>
+                          </div>
+
+                          {pendingRuleTasks.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-3">
+                              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-amber-800">
+                                  {pendingRuleTasks.length} task{pendingRuleTasks.length !== 1 ? 's' : ''} matched but not yet applied
+                                </p>
+                                <p className="text-xs text-amber-700 mt-0.5">
+                                  Click "Apply Rules" to add these tasks to the sprint.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {alreadyInSprintFromRules.length > 0 && pendingRuleTasks.length === 0 && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-3">
+                              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-green-800">
+                                  All matched tasks are in sprint
+                                </p>
+                                <p className="text-xs text-green-700 mt-0.5">
+                                  {alreadyInSprintFromRules.length} task{alreadyInSprintFromRules.length !== 1 ? 's' : ''} from rules are included in this sprint.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="space-y-3">
+                            {sprintScopeRules.length === 0 ? (
+                               <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground text-sm bg-muted/10">
+                                 No rules defined. Add a rule to automatically include tasks in this sprint.
+                               </div>
+                            ) : (
+                              sprintScopeRules.map((rule: any) => {
+                                const matchedTasks = allMatchedTasksByRule[rule.id] || [];
+                                const inSprintCount = matchedTasks.filter(t => sprintTaskIds.includes(t.id)).length;
+                                const pendingCount = matchedTasks.length - inSprintCount;
+                                const isExpanded = expandedRules[rule.id] || false;
+                                
+                                return (
+                                  <Card key={rule.id} className={cn(
+                                    "relative overflow-hidden transition-all",
+                                    !rule.active && "opacity-60"
+                                  )}>
+                                    <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                                      <div className="flex-1 mr-4">
+                                         <Input 
+                                           value={rule.label} 
+                                           onChange={(e) => handleUpdateRule(rule.id, { label: e.target.value })}
+                                           className="h-8 font-medium border-transparent hover:border-input focus:border-input px-0"
+                                           data-testid={`input-rule-label-${rule.id}`}
+                                         />
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Switch 
+                                          checked={rule.active} 
+                                          onCheckedChange={(c) => handleToggleRuleActive(rule.id, c)} 
+                                          data-testid={`switch-rule-active-${rule.id}`}
+                                        />
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className="h-8 w-8 text-muted-foreground hover:text-destructive" 
+                                          onClick={() => handleDeleteRule(rule.id)}
+                                          data-testid={`button-delete-rule-${rule.id}`}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </CardHeader>
+                                    <CardContent className="p-4 pt-2 text-sm text-muted-foreground space-y-3">
+                                      <div className="grid grid-cols-3 gap-4">
+                                        <div className="space-y-1">
+                                           <Label className="text-xs">Stage</Label>
+                                           <Select 
+                                             value={rule.stage || "all"} 
+                                             onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}
+                                           >
+                                             <SelectTrigger className="h-8" data-testid={`select-rule-stage-${rule.id}`}>
+                                               <SelectValue placeholder="Any Stage" />
+                                             </SelectTrigger>
+                                             <SelectContent>
+                                               <SelectItem value="all">Any Stage</SelectItem>
+                                               {projectStages.map((stage: any) => (
+                                                 <SelectItem key={stage.id} value={stage.id}>
+                                                   {stage.label || stage.name}
+                                                 </SelectItem>
+                                               ))}
+                                             </SelectContent>
+                                           </Select>
+                                        </div>
+                                        <div className="space-y-1">
+                                           <Label className="text-xs">Epic Type</Label>
+                                           <Select 
+                                             value={rule.epicType || "all"} 
+                                             onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}
+                                           >
+                                             <SelectTrigger className="h-8" data-testid={`select-rule-epic-type-${rule.id}`}>
+                                               <SelectValue placeholder="Any Epic Type" />
+                                             </SelectTrigger>
+                                             <SelectContent>
+                                               <SelectItem value="all">Any Epic Type</SelectItem>
+                                               <SelectItem value="use_case">Use Case</SelectItem>
+                                               <SelectItem value="technical">Technical</SelectItem>
+                                             </SelectContent>
+                                           </Select>
+                                        </div>
+                                        <div className="space-y-1">
+                                           <Label className="text-xs">Task Type</Label>
+                                           <Select 
+                                             value={rule.taskTemplateKey || "all"} 
+                                             onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}
+                                           >
+                                             <SelectTrigger className="h-8" data-testid={`select-rule-task-type-${rule.id}`}>
+                                               <SelectValue placeholder="Any Task Type" />
+                                             </SelectTrigger>
+                                             <SelectContent>
+                                               <SelectItem value="all">Any Task Type</SelectItem>
+                                               <SelectItem value="design">Design</SelectItem>
+                                               <SelectItem value="development">Development</SelectItem>
+                                               <SelectItem value="testing">Testing</SelectItem>
+                                             </SelectContent>
+                                           </Select>
+                                        </div>
+                                      </div>
+                                      
+                                      <Collapsible open={isExpanded} onOpenChange={() => toggleRuleExpanded(rule.id)}>
+                                        <CollapsibleTrigger asChild>
+                                          <button className="flex items-center justify-between w-full text-xs hover:text-foreground transition-colors py-2">
+                                            <span className="flex items-center gap-1.5">
+                                              {matchedTasks.length > 0 ? (
+                                                <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                                              ) : (
+                                                <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+                                              )}
+                                              <span>
+                                                Matches <strong>{matchedTasks.length}</strong> task{matchedTasks.length !== 1 ? 's' : ''}
+                                                {matchedTasks.length > 0 && (
+                                                  <span className="text-muted-foreground ml-1">
+                                                    ({inSprintCount} in sprint{pendingCount > 0 && `, ${pendingCount} pending`})
+                                                  </span>
+                                                )}
+                                              </span>
+                                            </span>
+                                            <ChevronDown className={cn(
+                                              "h-4 w-4 transition-transform",
+                                              isExpanded && "rotate-180"
+                                            )} />
+                                          </button>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent>
+                                          {matchedTasks.length > 0 ? (
+                                            <div className="mt-2 border rounded-lg divide-y max-h-[200px] overflow-y-auto">
+                                              {matchedTasks.map((task: any) => {
+                                                const isInSprint = sprintTaskIds.includes(task.id);
+                                                return (
+                                                  <div 
+                                                    key={task.id} 
+                                                    className="px-3 py-2 flex items-center justify-between text-xs hover:bg-muted/30"
+                                                  >
+                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                      {isInSprint ? (
+                                                        <CheckSquare className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                                      ) : (
+                                                        <Circle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+                                                      )}
+                                                      <span className="truncate font-medium">{task.title || task.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                                      <Badge variant="outline" className="text-[10px]">
+                                                        {getStageName(task.stageId)}
+                                                      </Badge>
+                                                      <Badge 
+                                                        variant="secondary" 
+                                                        className={cn(
+                                                          "text-[10px]",
+                                                          isInSprint ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                                                        )}
+                                                      >
+                                                        {isInSprint ? "In Sprint" : "Pending"}
+                                                      </Badge>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          ) : (
+                                            <div className="mt-2 p-4 border rounded-lg text-center text-muted-foreground text-xs">
+                                              No tasks match this rule's criteria
+                                            </div>
+                                          )}
+                                        </CollapsibleContent>
+                                      </Collapsible>
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })
+                            )}
+                          </div>
+                        </TabsContent>
+                      </div>
+                    </Tabs>
                   )}
                 </div>
               </TabsContent>
