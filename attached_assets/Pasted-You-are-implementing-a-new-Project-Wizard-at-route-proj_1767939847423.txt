@@ -1,0 +1,155 @@
+You are implementing a new Project Wizard at route /projects/new, plus related backend + template + user/role assignment improvements. Produce a detailed, robust implementation plan and then implement the features. The plan must include: UX flow, data model changes, API changes, UI components, state management, migration/backfill steps, and acceptance criteria for each feature. Keep changes incremental and safe.
+
+CONTEXT (CURRENT APP)
+- Full-stack: Vite + React client, Express server
+- Shared domain models/validation in shared/schema.ts using Drizzle + Zod
+- Project creation currently can auto-generate many tasks (can cause notification storms)
+- There are “stages” + “tasks” + templates (stage templates/framework templates) in the DB and UI
+
+PRIMARY GOALS
+A) New Project Wizard page at /projects/new.
+B) Allow creating a project WITHOUT set stages initially.
+   - Stages are created/selected in Step 3 of the wizard.
+C) For templated frameworks, user must be able to VIEW and EDIT the templated tasks per stage BEFORE applying them to the project.
+   - Templates should function as placeholders; user can customize (edit/add/remove) prior to creation.
+
+USER FEEDBACK REQUIREMENTS (MUST IMPLEMENT)
+1) Defaults / Auto-population
+- Auto-set end date during project creation.
+- Every field should have a default if the user does not set it.
+- Provide sensible defaults: name placeholder, start date default = today, end date = computed, sprintDuration default, etc.
+- Clearly show defaults in UI and allow override.
+
+2) Work Breakdown Stage UX (epics)
+- New inputs must be empty with placeholders (no prefilled text).
+- Pressing Enter in an epic input creates a new epic input row immediately.
+- Support quick entry: Enter to add, Backspace on empty row to remove (optional but recommended).
+
+3) Sticky Actions for Long Forms
+- When creating long forms (wizard steps with long lists), the primary action buttons (Next/Create) must remain accessible:
+  Option A: sticky top action bar
+  Option B: action bar at both top and bottom
+- Apply at least to Step 3 (Stages/Tasks) and Milestones creation pattern if applicable.
+
+4) Custom Implementation Framework + Editable Template Tasks
+- User can choose:
+  a) “No stages yet” (create project first)
+  b) “Use template framework”
+  c) “Custom framework” (create stages from scratch)
+- For each stage, user can define default tasks that are either:
+  - created once per project stage (stage-level tasks)
+  - created per epic (epic-scoped tasks repeated for each epic)
+- Template tasks must be placeholders and editable before apply:
+  - edit title, description, type/scope (per-epic vs once), estimates/dates if present, assignee role, status
+  - allow add custom tasks
+  - allow remove tasks
+- IMPORTANT: Changes in wizard should NOT mutate the global template definitions unless explicitly saved in admin templates.
+  These are “project-scoped overrides” applied during project creation only.
+
+5) Role-based assignee filtering (requires template/user management work)
+- When selecting a user for a role (or selecting assignee for tasks by role), filter the user list to only people eligible for that role.
+- This requires a mapping table + (optional) permission matrix:
+  - Role types (existing or new): e.g., PM, Engineer, Designer, QA, etc.
+  - User ↔ Role eligibility mapping
+- Update templates so tasks can specify “assignee_role_type_id” (or similar) and during wizard assignment the dropdown filters accordingly.
+- If no mapping exists, show “No eligible users” and allow admin fallback or manual override (define which behavior).
+
+6) Fix notifications triggered after creation (task storm)
+- When creating a project that generates many entities (hundreds of tasks), avoid firing a notification per entity.
+- Replace with a batched summary notification:
+  - “Project created: X stages, Y epics, Z tasks created”
+- Ensure the UI still gets progress/confirmation without spamming.
+
+DELIVERABLES REQUIRED IN YOUR RESPONSE
+1) A robust implementation plan broken into Phases and Tasks, with dependencies.
+2) Data model proposal (Drizzle schema changes) + migrations.
+3) API changes: new endpoints or modifications, payload contracts (request/response).
+4) UI plan: Wizard steps, components, state, validation rules.
+5) Acceptance Criteria list per requirement (testable).
+6) Rollout plan + QA checklist covering full wizard flow and regression risk.
+
+WIZARD FLOW (PROPOSED BASELINE — YOU CAN IMPROVE)
+Step 1: Project Basics
+- name, description, start date, end date (auto default), sprint duration, etc.
+- Defaults always set.
+
+Step 2: Work Breakdown (Epics + optionally Deliverables)
+- Inline epic editor list:
+  - empty placeholder inputs
+  - Enter adds new row
+  - Provide optional quick add for deliverables too if present
+
+Step 3: Implementation Framework (Stages + Tasks)
+- Choose: none / template / custom
+- If template:
+  - select framework template
+  - show stage list from template (editable stage names/order optional)
+  - for each stage show template tasks as placeholders
+  - allow edits/add/remove
+  - allow scope per epic vs once
+- If custom:
+  - create stages list
+  - define default tasks per stage with scope per-epic vs once
+  - tasks editable
+- Review summary (optional sub-step)
+- Create project applies everything in a controlled backend transaction
+
+BACKEND / DATA MODEL REQUIREMENTS (MINIMUM)
+- Ensure project can exist with no stages.
+- Define how stage/task generation occurs after project creation:
+  - either as part of create transaction (wizard Step 3 provided)
+  - or deferred “Apply framework” action post-creation
+- Add or update schema to support:
+  - Task template scope: PER_EPIC or ONCE
+  - Template tasks referencing role type for assignment filtering
+  - User-role eligibility mapping table (UserRoleEligibility or similar)
+- Ensure Zod validation exists for wizard payload.
+
+API REQUIREMENTS (SUGGESTED)
+- POST /api/projects (enhanced payload)
+  payload includes:
+  - project fields (with defaults computed if missing)
+  - epics[] draft
+  - framework_selection: NONE | TEMPLATE | CUSTOM
+  - stages_draft[] with tasks_draft[] (placeholders editable)
+  - mapping: per-epic task generation rules
+- Optional: POST /api/projects/:id/apply-framework (if you decide to create project first, then apply in Step 3)
+- GET /api/templates/frameworks (list)
+- GET /api/templates/frameworks/:id (detail w stages & tasks)
+- GET /api/role-types
+- GET /api/users?roleTypeId=... (filtered)
+- POST /api/user-role-eligibility (admin)
+
+NOTIFICATION REQUIREMENTS
+- Replace per-task notification with a batched event.
+- Add a server-side guard:
+  - if > N entities created in one operation, send summary only
+- Client should show a single toast summary and optionally a link to the project.
+
+IMPLEMENTATION CONSTRAINTS
+- Avoid rewriting unrelated modules.
+- Keep template editing in wizard “project-scoped” only (do not mutate global template definitions).
+- Use transactions for create+generate to avoid partial project creation.
+- Ensure performance: generating tasks across many epics can be heavy; keep efficient inserts.
+
+QA / PARITY CHECKLIST (MUST DO)
+After implementing, you must walk through the app and verify:
+- /projects/new loads and wizard steps work
+- Creating project with NO stages succeeds and project opens
+- Creating project using TEMPLATE:
+  - can view/edit placeholder tasks, add custom tasks, remove tasks
+  - tasks generated correctly (per-epic vs once)
+- Creating project using CUSTOM:
+  - can create stages and tasks, edit prior to apply
+- Epic entry UX: Enter creates new epic row, placeholders present
+- Sticky action bar works for long lists
+- Role-based filtering works (users shown only if eligible)
+- Notifications do not spam when generating many tasks
+- No console errors, no broken routes, API success, and persisted data is correct
+
+OUTPUT FORMAT
+1) First: a detailed plan (Phases -> Tasks -> Acceptance Criteria).
+2) Second: the implementation steps you will take in code (files to change, endpoints, schema).
+3) Third: a QA walkthrough checklist with expected results.
+
+Start by writing the plan before coding.
