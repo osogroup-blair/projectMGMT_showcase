@@ -25,7 +25,10 @@ import {
   Settings,
   Trash2,
   Archive,
-  Link as LinkIcon
+  Link as LinkIcon,
+  ListTodo,
+  SlidersHorizontal,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -140,6 +143,7 @@ export default function SprintDetail() {
   const [selectedSuggested, setSelectedSuggested] = useState<string[]>([]);
   const [showScopeModeChangeDialog, setShowScopeModeChangeDialog] = useState(false);
   const [pendingScopeMode, setPendingScopeMode] = useState<"epic" | "milestone" | "stage" | null>(null);
+  const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope">("tasks");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -428,6 +432,20 @@ export default function SprintDetail() {
     }
   };
 
+  // Calculate sprint tasks that match the current scope
+  const scopedSprintTasks = useMemo(() => {
+    if (!scopeTargets.data.length || !sprintTasks.length) return [];
+    const mode = currentScopeMode;
+    const targetIds = new Set(selectedScopeIds);
+    
+    return sprintTasks.filter((task: any) => {
+      if (mode === "epic") return targetIds.has(task.epicId);
+      if (mode === "milestone") return targetIds.has(task.milestoneId);
+      if (mode === "stage") return targetIds.has(task.stageId);
+      return false;
+    });
+  }, [scopeTargets.data, sprintTasks, currentScopeMode, selectedScopeIds]);
+
   // Get entity name by ID
   const getScopeEntityName = (targetType: string, targetId: string) => {
     if (targetType === "epic") {
@@ -592,459 +610,634 @@ export default function SprintDetail() {
           </TabsList>
 
           <TabsContent value="plan" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center justify-between">
-                      Sprint Goal & Success Criteria
-                      {!isEditingGoal && !isReadOnly && (
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditingGoal(true)} data-testid="button-edit-goal">
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {isEditingGoal && !isReadOnly ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          ref={goalInputRef}
-                          value={editGoal}
-                          onChange={(e) => setEditGoal(e.target.value)}
-                          placeholder="What do you want to achieve in this sprint? Include success criteria."
-                          className="min-h-[100px]"
-                          data-testid="input-edit-goal"
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={handleSaveGoal} data-testid="button-save-goal">Save</Button>
-                          <Button size="sm" variant="outline" onClick={() => setIsEditingGoal(false)} data-testid="button-cancel-goal">Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground whitespace-pre-wrap">
-                        {sprint.goal || "No goal set for this sprint. Define what you want to achieve."}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
+            {/* Sub-navigation tabs matching Milestone pattern */}
+            <Tabs value={planSubTab} onValueChange={(v) => setPlanSubTab(v as "tasks" | "scope")} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 max-w-md mb-6">
+                <TabsTrigger value="tasks" className="gap-2" data-testid="subtab-tasks">
+                  <ListTodo className="h-4 w-4" />
+                  Tasks
+                </TabsTrigger>
+                <TabsTrigger value="scope" className="gap-2" data-testid="subtab-scope">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Scope Definition
+                </TabsTrigger>
+              </TabsList>
 
-                {/* Sprint Scope Planner */}
-                {!isReadOnly && (
-                  <Card data-testid="card-scope-planner">
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4" />
-                          Sprint Scope Planner
-                        </div>
-                        {(scopeMode || currentScopeMode) && suggestedTasks.length > 0 && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => setShowSuggestedDrawer(true)}
-                            data-testid="button-view-suggested"
-                          >
-                            View {suggestedTasks.length} Suggested Tasks
-                            <ArrowRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        )}
-                      </CardTitle>
-                      <CardDescription>
-                        Define sprint scope by selecting Epics, Milestones, or Stages to pull tasks from
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Mode Toggle */}
-                      <div className="flex gap-2">
-                        <Button
-                          variant={(scopeMode || currentScopeMode) === "epic" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handleScopeModeChange("epic")}
-                          data-testid="button-scope-epic"
-                        >
-                          Epics ({projectEpics.length})
-                        </Button>
-                        <Button
-                          variant={(scopeMode || currentScopeMode) === "milestone" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handleScopeModeChange("milestone")}
-                          data-testid="button-scope-milestone"
-                        >
-                          Milestones ({projectMilestones.length})
-                        </Button>
-                        <Button
-                          variant={(scopeMode || currentScopeMode) === "stage" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handleScopeModeChange("stage")}
-                          data-testid="button-scope-stage"
-                        >
-                          Stages ({projectStages.length})
-                        </Button>
-                      </div>
-
-                      {/* Selected Targets Chips */}
-                      {scopeTargets.data.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {scopeTargets.data.map((target: any) => (
-                            <Badge 
-                              key={target.id} 
-                              variant="secondary" 
-                              className="px-2 py-1 flex items-center gap-1"
-                            >
-                              {getScopeEntityName(target.targetType, target.targetId)}
-                              <button 
-                                onClick={() => scopeTargets.removeTarget(target.id)}
-                                className="ml-1 hover:text-destructive"
-                                data-testid={`button-remove-target-${target.targetId}`}
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Entity Selector */}
-                      {(scopeMode || currentScopeMode) && (
-                        <div className="border rounded-lg">
-                          <div className="p-2 border-b">
-                            <div className="relative">
-                              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                placeholder={`Search ${scopeMode || currentScopeMode}s...`}
-                                value={scopeSearch}
-                                onChange={(e) => setScopeSearch(e.target.value)}
-                                className="pl-8 h-9"
-                                data-testid="input-scope-search"
-                              />
+              {/* Tasks Sub-Tab */}
+              <TabsContent value="tasks" className="mt-0">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center justify-between">
+                          Sprint Goal & Success Criteria
+                          {!isEditingGoal && !isReadOnly && (
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditingGoal(true)} data-testid="button-edit-goal">
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {isEditingGoal && !isReadOnly ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              ref={goalInputRef}
+                              value={editGoal}
+                              onChange={(e) => setEditGoal(e.target.value)}
+                              placeholder="What do you want to achieve in this sprint? Include success criteria."
+                              className="min-h-[100px]"
+                              data-testid="input-edit-goal"
+                            />
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={handleSaveGoal} data-testid="button-save-goal">Save</Button>
+                              <Button size="sm" variant="outline" onClick={() => setIsEditingGoal(false)} data-testid="button-cancel-goal">Cancel</Button>
                             </div>
                           </div>
-                          <ScrollArea className="h-48">
-                            <div className="p-2 space-y-1">
-                              {filteredScopeEntities.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-4">
-                                  No {scopeMode || currentScopeMode}s found
-                                </p>
-                              ) : (
-                                filteredScopeEntities.map((entity: any) => {
-                                  const isSelected = selectedScopeIds.includes(entity.id);
-                                  return (
-                                    <div 
-                                      key={entity.id}
-                                      className={cn(
-                                        "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted",
-                                        isSelected && "bg-muted"
-                                      )}
-                                      onClick={() => handleToggleScopeTarget(entity.id)}
-                                      data-testid={`scope-entity-${entity.id}`}
-                                    >
-                                      <Checkbox checked={isSelected} />
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">
-                                          {entity.title || entity.name}
-                                        </p>
-                                        {entity.description && (
-                                          <p className="text-xs text-muted-foreground truncate">
-                                            {entity.description}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })
-                              )}
-                            </div>
-                          </ScrollArea>
-                        </div>
-                      )}
-
-                      {/* Empty State */}
-                      {!scopeMode && !currentScopeMode && (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          Select a scope type above to filter available tasks
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">Sprint Backlog</CardTitle>
-                      {!isReadOnly && (
-                        <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks">
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Tasks
-                        </Button>
-                      )}
-                    </div>
-                    <CardDescription>
-                      {stats.total} tasks committed, {stats.totalEffort} story points
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {sprintTasks.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Target className="h-8 w-8 mx-auto mb-2" />
-                        <p>No tasks in this sprint yet.</p>
-                        {!isReadOnly && (
-                          <Button variant="link" onClick={() => setShowAddTasksDialog(true)}>
-                            Add tasks from backlog
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[40%]">Task</TableHead>
-                            <TableHead>Epic</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Effort</TableHead>
-                            <TableHead>Assignee</TableHead>
-                            {!isReadOnly && <TableHead className="w-[50px]"></TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {sprintTasks.map((task: any) => {
-                            const taskStatus = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG["Pending"];
-                            const TaskStatusIcon = taskStatus.icon;
-                            const assignee = getUser(task.assigneeId || task.assignee);
-                            const epic = getEpic(task.epicId);
-
-                            return (
-                              <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
-                                <TableCell>
-                                  <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium hover:text-primary">
-                                    {task.title || task.name}
-                                  </Link>
-                                </TableCell>
-                                <TableCell>
-                                  {epic ? (
-                                    <Link href={`/projects/${projectId}/epics/${epic.id}`}>
-                                      <Badge variant="outline" className="font-normal hover:bg-muted cursor-pointer">
-                                        {epic.title || epic.name}
-                                      </Badge>
-                                    </Link>
-                                  ) : (
-                                    <span className="text-muted-foreground">-</span>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>
-                                    <TaskStatusIcon className="h-3 w-3 mr-1" />
-                                    {task.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <span className="text-sm">{task.effort || "-"}</span>
-                                </TableCell>
-                                <TableCell>
-                                  {assignee ? (
-                                    <div className="flex items-center gap-2">
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarFallback className="text-xs">
-                                          {assignee.name?.charAt(0) || assignee.username?.charAt(0) || "?"}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-sm">{assignee.name || assignee.username}</span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground">-</span>
-                                  )}
-                                </TableCell>
-                                {!isReadOnly && (
-                                  <TableCell>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      onClick={() => handleRemoveTask(task.id)}
-                                      data-testid={`button-remove-task-${task.id}`}
-                                    >
-                                      <X className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {(linkedEpics.length > 0 || linkedMilestones.length > 0) && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <LinkIcon className="h-4 w-4" />
-                        Linked Entities
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {linkedEpics.length > 0 && (
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Epics</Label>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {linkedEpics.map((epic: any) => (
-                              <Link key={epic.id} href={`/projects/${projectId}/epics/${epic.id}`}>
-                                <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                                  {epic.title || epic.name}
-                                </Badge>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {linkedMilestones.length > 0 && (
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Milestones</Label>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {linkedMilestones.map((milestone: any) => (
-                              <Link key={milestone.id} href={`/projects/${projectId}/milestones/${milestone.id}`}>
-                                <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-                                  {milestone.name}
-                                </Badge>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center justify-between">
-                      Dates
-                      {!isEditingDates && !isPartiallyLocked && !isReadOnly && (
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditingDates(true)} data-testid="button-edit-dates">
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {isEditingDates && !isPartiallyLocked && !isReadOnly ? (
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-xs">Start Date</Label>
-                          <Input
-                            type="date"
-                            value={editStartDate}
-                            onChange={(e) => setEditStartDate(e.target.value)}
-                            data-testid="input-edit-start-date"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">End Date</Label>
-                          <Input
-                            type="date"
-                            value={editEndDate}
-                            onChange={(e) => setEditEndDate(e.target.value)}
-                            data-testid="input-edit-end-date"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={handleSaveDates} data-testid="button-save-dates">Save</Button>
-                          <Button size="sm" variant="outline" onClick={() => setIsEditingDates(false)} data-testid="button-cancel-dates">Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Start</span>
-                          <span>{sprint.startDate ? new Date(sprint.startDate).toLocaleDateString() : "Not set"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">End</span>
-                          <span>{sprint.endDate ? new Date(sprint.endDate).toLocaleDateString() : "Not set"}</span>
-                        </div>
-                        {isPartiallyLocked && (
-                          <p className="text-xs text-muted-foreground italic mt-2">
-                            Dates cannot be changed while sprint is active.
+                        ) : (
+                          <p className="text-muted-foreground whitespace-pre-wrap">
+                            {sprint.goal || "No goal set for this sprint. Define what you want to achieve."}
                           </p>
                         )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center justify-between">
-                      Team Capacity
-                      {!isEditingCapacity && !isReadOnly && (
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditingCapacity(true)} data-testid="button-edit-capacity">
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {isEditingCapacity && !isReadOnly ? (
-                      <div className="space-y-3">
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base">Sprint Backlog</CardTitle>
+                          {!isReadOnly && (
+                            <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks">
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add Tasks
+                            </Button>
+                          )}
+                        </div>
+                        <CardDescription>
+                          {stats.total} tasks committed, {stats.totalEffort} story points
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {sprintTasks.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Target className="h-8 w-8 mx-auto mb-2" />
+                            <p>No tasks in this sprint yet.</p>
+                            {!isReadOnly && (
+                              <Button variant="link" onClick={() => setShowAddTasksDialog(true)}>
+                                Add tasks from backlog
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[40%]">Task</TableHead>
+                                <TableHead>Epic</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Effort</TableHead>
+                                <TableHead>Assignee</TableHead>
+                                {!isReadOnly && <TableHead className="w-[50px]"></TableHead>}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {sprintTasks.map((task: any) => {
+                                const taskStatus = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG["Pending"];
+                                const TaskStatusIcon = taskStatus.icon;
+                                const assignee = getUser(task.assigneeId || task.assignee);
+                                const epic = getEpic(task.epicId);
+
+                                return (
+                                  <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
+                                    <TableCell>
+                                      <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium hover:text-primary">
+                                        {task.title || task.name}
+                                      </Link>
+                                    </TableCell>
+                                    <TableCell>
+                                      {epic ? (
+                                        <Link href={`/projects/${projectId}/epics/${epic.id}`}>
+                                          <Badge variant="outline" className="font-normal hover:bg-muted cursor-pointer">
+                                            {epic.title || epic.name}
+                                          </Badge>
+                                        </Link>
+                                      ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>
+                                        <TaskStatusIcon className="h-3 w-3 mr-1" />
+                                        {task.status}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className="text-sm">{task.effort || "-"}</span>
+                                    </TableCell>
+                                    <TableCell>
+                                      {assignee ? (
+                                        <div className="flex items-center gap-2">
+                                          <Avatar className="h-6 w-6">
+                                            <AvatarFallback className="text-xs">
+                                              {assignee.name?.charAt(0) || assignee.username?.charAt(0) || "?"}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-sm">{assignee.name || assignee.username}</span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                      )}
+                                    </TableCell>
+                                    {!isReadOnly && (
+                                      <TableCell>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon"
+                                          onClick={() => handleRemoveTask(task.id)}
+                                          data-testid={`button-remove-task-${task.id}`}
+                                        >
+                                          <X className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                      </TableCell>
+                                    )}
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {(linkedEpics.length > 0 || linkedMilestones.length > 0) && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <LinkIcon className="h-4 w-4" />
+                            Linked Entities
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {linkedEpics.length > 0 && (
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Epics</Label>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {linkedEpics.map((epic: any) => (
+                                  <Link key={epic.id} href={`/projects/${projectId}/epics/${epic.id}`}>
+                                    <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                                      {epic.title || epic.name}
+                                    </Badge>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {linkedMilestones.length > 0 && (
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Milestones</Label>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {linkedMilestones.map((milestone: any) => (
+                                  <Link key={milestone.id} href={`/projects/${projectId}/milestones/${milestone.id}`}>
+                                    <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                                      {milestone.name}
+                                    </Badge>
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  <div className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center justify-between">
+                          Dates
+                          {!isEditingDates && !isPartiallyLocked && !isReadOnly && (
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditingDates(true)} data-testid="button-edit-dates">
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {isEditingDates && !isPartiallyLocked && !isReadOnly ? (
+                          <div className="space-y-3">
+                            <div>
+                              <Label className="text-xs">Start Date</Label>
+                              <Input
+                                type="date"
+                                value={editStartDate}
+                                onChange={(e) => setEditStartDate(e.target.value)}
+                                data-testid="input-edit-start-date"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">End Date</Label>
+                              <Input
+                                type="date"
+                                value={editEndDate}
+                                onChange={(e) => setEditEndDate(e.target.value)}
+                                data-testid="input-edit-end-date"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={handleSaveDates} data-testid="button-save-dates">Save</Button>
+                              <Button size="sm" variant="outline" onClick={() => setIsEditingDates(false)} data-testid="button-cancel-dates">Cancel</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Start</span>
+                              <span>{sprint.startDate ? new Date(sprint.startDate).toLocaleDateString() : "Not set"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">End</span>
+                              <span>{sprint.endDate ? new Date(sprint.endDate).toLocaleDateString() : "Not set"}</span>
+                            </div>
+                            {isPartiallyLocked && (
+                              <p className="text-xs text-muted-foreground italic mt-2">
+                                Dates cannot be changed while sprint is active.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center justify-between">
+                          Team Capacity
+                          {!isEditingCapacity && !isReadOnly && (
+                            <Button variant="ghost" size="sm" onClick={() => setIsEditingCapacity(true)} data-testid="button-edit-capacity">
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {isEditingCapacity && !isReadOnly ? (
+                          <div className="space-y-3">
+                            <div>
+                              <Label className="text-xs">Capacity (hours)</Label>
+                              <Input
+                                type="number"
+                                value={editCapacity}
+                                onChange={(e) => setEditCapacity(e.target.value)}
+                                placeholder="e.g., 80"
+                                data-testid="input-edit-capacity"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={handleSaveCapacity} data-testid="button-save-capacity">Save</Button>
+                              <Button size="sm" variant="outline" onClick={() => setIsEditingCapacity(false)} data-testid="button-cancel-capacity">Cancel</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Hours</span>
+                              <span>{sprint.capacityHours || "Not set"}</span>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Progress</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
                         <div>
-                          <Label className="text-xs">Capacity (hours)</Label>
-                          <Input
-                            type="number"
-                            value={editCapacity}
-                            onChange={(e) => setEditCapacity(e.target.value)}
-                            placeholder="e.g., 80"
-                            data-testid="input-edit-capacity"
-                          />
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-muted-foreground">Completion</span>
+                            <span className="font-medium">{stats.percent}%</span>
+                          </div>
+                          <Progress value={stats.percent} className="h-2" />
                         </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={handleSaveCapacity} data-testid="button-save-capacity">Save</Button>
-                          <Button size="sm" variant="outline" onClick={() => setIsEditingCapacity(false)} data-testid="button-cancel-capacity">Cancel</Button>
+                        <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                          <div className="p-2 rounded-md bg-slate-50">
+                            <div className="text-lg font-semibold">{stats.total}</div>
+                            <div className="text-xs text-muted-foreground">Total</div>
+                          </div>
+                          <div className="p-2 rounded-md bg-blue-50">
+                            <div className="text-lg font-semibold text-blue-600">{stats.inProgress}</div>
+                            <div className="text-xs text-muted-foreground">In Progress</div>
+                          </div>
+                          <div className="p-2 rounded-md bg-green-50">
+                            <div className="text-lg font-semibold text-green-600">{stats.done}</div>
+                            <div className="text-xs text-muted-foreground">Done</div>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Hours</span>
-                          <span>{sprint.capacityHours || "Not set"}</span>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Progress</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-muted-foreground">Completion</span>
-                        <span className="font-medium">{stats.percent}%</span>
-                      </div>
-                      <Progress value={stats.percent} className="h-2" />
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                      <div className="p-2 rounded-md bg-slate-50">
-                        <div className="text-lg font-semibold">{stats.total}</div>
-                        <div className="text-xs text-muted-foreground">Total</div>
-                      </div>
-                      <div className="p-2 rounded-md bg-blue-50">
-                        <div className="text-lg font-semibold text-blue-600">{stats.inProgress}</div>
-                        <div className="text-xs text-muted-foreground">In Progress</div>
-                      </div>
-                      <div className="p-2 rounded-md bg-green-50">
-                        <div className="text-lg font-semibold text-green-600">{stats.done}</div>
-                        <div className="text-xs text-muted-foreground">Done</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+              {/* Scope Definition Sub-Tab */}
+              <TabsContent value="scope" className="mt-0">
+                <div className="space-y-6">
+                  {isReadOnly ? (
+                    <Card>
+                      <CardContent className="py-8 text-center text-muted-foreground">
+                        <Target className="h-8 w-8 mx-auto mb-2" />
+                        <p>Scope cannot be modified on closed sprints.</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      {/* Scope Mode Selection */}
+                      <Card data-testid="card-scope-planner">
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Target className="h-4 w-4" />
+                            Define Sprint Scope
+                          </CardTitle>
+                          <CardDescription>
+                            Select Epics, Milestones, or Stages to define which tasks belong to this sprint's scope
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* Mode Toggle */}
+                          <div className="flex gap-2">
+                            <Button
+                              variant={(scopeMode || currentScopeMode) === "epic" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleScopeModeChange("epic")}
+                              data-testid="button-scope-epic"
+                            >
+                              Epics ({projectEpics.length})
+                            </Button>
+                            <Button
+                              variant={(scopeMode || currentScopeMode) === "milestone" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleScopeModeChange("milestone")}
+                              data-testid="button-scope-milestone"
+                            >
+                              Milestones ({projectMilestones.length})
+                            </Button>
+                            <Button
+                              variant={(scopeMode || currentScopeMode) === "stage" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleScopeModeChange("stage")}
+                              data-testid="button-scope-stage"
+                            >
+                              Stages ({projectStages.length})
+                            </Button>
+                          </div>
+
+                          {/* Selected Targets Chips */}
+                          {scopeTargets.data.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {scopeTargets.data.map((target: any) => (
+                                <Badge 
+                                  key={target.id} 
+                                  variant="secondary" 
+                                  className="px-2 py-1 flex items-center gap-1"
+                                >
+                                  {getScopeEntityName(target.targetType, target.targetId)}
+                                  <button 
+                                    onClick={() => scopeTargets.removeTarget(target.id)}
+                                    className="ml-1 hover:text-destructive"
+                                    data-testid={`button-remove-target-${target.targetId}`}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Entity Selector */}
+                          {(scopeMode || currentScopeMode) && (
+                            <div className="border rounded-lg">
+                              <div className="p-2 border-b">
+                                <div className="relative">
+                                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    placeholder={`Search ${scopeMode || currentScopeMode}s...`}
+                                    value={scopeSearch}
+                                    onChange={(e) => setScopeSearch(e.target.value)}
+                                    className="pl-8 h-9"
+                                    data-testid="input-scope-search"
+                                  />
+                                </div>
+                              </div>
+                              <ScrollArea className="h-48">
+                                <div className="p-2 space-y-1">
+                                  {filteredScopeEntities.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground text-center py-4">
+                                      No {scopeMode || currentScopeMode}s found
+                                    </p>
+                                  ) : (
+                                    filteredScopeEntities.map((entity: any) => {
+                                      const isSelected = selectedScopeIds.includes(entity.id);
+                                      return (
+                                        <div 
+                                          key={entity.id}
+                                          className={cn(
+                                            "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted",
+                                            isSelected && "bg-muted"
+                                          )}
+                                          onClick={() => handleToggleScopeTarget(entity.id)}
+                                          data-testid={`scope-entity-${entity.id}`}
+                                        >
+                                          <Checkbox checked={isSelected} />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">
+                                              {entity.title || entity.name}
+                                            </p>
+                                            {entity.description && (
+                                              <p className="text-xs text-muted-foreground truncate">
+                                                {entity.description}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              </ScrollArea>
+                            </div>
+                          )}
+
+                          {/* Empty State */}
+                          {!scopeMode && !currentScopeMode && (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              Select a scope type above to define which tasks should be included in this sprint
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Sync Status Indicator */}
+                      {(scopeMode || currentScopeMode) && scopeTargets.data.length > 0 && (
+                        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                          <CardContent className="py-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <Target className="h-5 w-5 text-blue-600" />
+                                  <div>
+                                    <p className="text-sm font-medium">Scope Sync Status</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {suggestedTasks.length + scopedSprintTasks.length} total tasks matching scope
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-4 border-l pl-4">
+                                  <div className="text-center">
+                                    <div className="text-lg font-semibold text-green-600">{scopedSprintTasks.length}</div>
+                                    <div className="text-xs text-muted-foreground">In Sprint</div>
+                                  </div>
+                                  <div className="text-center">
+                                    <div className="text-lg font-semibold text-amber-600">{suggestedTasks.length}</div>
+                                    <div className="text-xs text-muted-foreground">To Add</div>
+                                  </div>
+                                </div>
+                              </div>
+                              {suggestedTasks.length > 0 && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setSelectedSuggested(suggestedTasks.map((t: any) => t.id));
+                                    handleAddSuggestedTasks();
+                                  }}
+                                  data-testid="button-sync-all"
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-1" />
+                                  Sync All to Sprint
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Suggested Tasks - Inline Panel */}
+                      {(scopeMode || currentScopeMode) && (
+                        <Card>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <CardTitle className="text-base flex items-center gap-2">
+                                  <RefreshCw className="h-4 w-4" />
+                                  Suggested Tasks
+                                  {suggestedTasks.length > 0 && (
+                                    <Badge variant="secondary">{suggestedTasks.length}</Badge>
+                                  )}
+                                </CardTitle>
+                                <CardDescription>
+                                  Tasks matching your scope definition that are not yet in this sprint
+                                </CardDescription>
+                              </div>
+                              {suggestedTasks.length > 0 && selectedSuggested.length > 0 && (
+                                <Button size="sm" onClick={handleAddSuggestedTasks} data-testid="button-add-selected-suggested">
+                                  <Plus className="h-4 w-4 mr-1" />
+                                  Add {selectedSuggested.length} to Sprint
+                                </Button>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {loadingSuggested ? (
+                              <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                              </div>
+                            ) : suggestedTasks.length === 0 ? (
+                              <div className="text-center py-8 text-muted-foreground">
+                                <CheckCircle2 className="h-8 w-8 mx-auto mb-2" />
+                                <p>No suggested tasks found.</p>
+                                <p className="text-sm">All tasks matching your scope are already in this sprint, or no tasks match your scope criteria.</p>
+                              </div>
+                            ) : (
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox 
+                                    checked={selectedSuggested.length === suggestedTasks.length && suggestedTasks.length > 0}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedSuggested(suggestedTasks.map((t: any) => t.id));
+                                      } else {
+                                        setSelectedSuggested([]);
+                                      }
+                                    }}
+                                    data-testid="checkbox-select-all-suggested"
+                                  />
+                                  <span className="text-sm text-muted-foreground">
+                                    Select all ({suggestedTasks.length} tasks)
+                                  </span>
+                                </div>
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-[40px]"></TableHead>
+                                      <TableHead>Task</TableHead>
+                                      <TableHead>Epic</TableHead>
+                                      <TableHead>Effort</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {suggestedTasks.map((task: any) => {
+                                      const epic = getEpic(task.epicId);
+                                      return (
+                                        <TableRow key={task.id}>
+                                          <TableCell>
+                                            <Checkbox 
+                                              checked={selectedSuggested.includes(task.id)}
+                                              onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                  setSelectedSuggested([...selectedSuggested, task.id]);
+                                                } else {
+                                                  setSelectedSuggested(selectedSuggested.filter(id => id !== task.id));
+                                                }
+                                              }}
+                                              data-testid={`checkbox-suggested-${task.id}`}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <div className="font-medium">{task.title || task.name}</div>
+                                            {task.description && (
+                                              <p className="text-xs text-muted-foreground truncate max-w-[300px]">
+                                                {task.description}
+                                              </p>
+                                            )}
+                                          </TableCell>
+                                          <TableCell>
+                                            {epic ? (
+                                              <Badge variant="outline" className="font-normal">
+                                                {epic.title || epic.name}
+                                              </Badge>
+                                            ) : (
+                                              <span className="text-muted-foreground">-</span>
+                                            )}
+                                          </TableCell>
+                                          <TableCell>
+                                            <span className="text-sm">{task.effort || "-"} pts</span>
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="run" className="mt-6">
