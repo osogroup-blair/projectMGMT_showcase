@@ -501,19 +501,93 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
     return flat;
   };
 
+  const IMPORT_ORDER = [
+    "Users",
+    "RoleTypes",
+    "StatusOptions",
+    "FrameworkTemplates",
+    "StageTemplates",
+    "TaskTemplates",
+    "RoleTemplates",
+    "DeliverableTemplates",
+    "EpicTemplates",
+    "ProjectTemplates",
+    "MappingTemplates",
+    "GuidanceItems",
+    "SavedViews",
+    "Projects",
+    "ProjectRoles",
+    "RoleAssignments",
+    "ProjectStages",
+    "Deliverables",
+    "Epics",
+    "Milestones",
+    "MilestoneScopeRules",
+    "Tasks",
+    "MilestoneTaskLinks",
+    "Activity",
+    "Comments",
+    "Attachments",
+    "History"
+  ];
+
+  const normalizeRecord = (record: any, entityName: string): any => {
+    const normalized = { ...record };
+    
+    const arrayFields = ["tags", "stageIds", "defaultStages", "defaultEpics", "defaultTasks", "defaultRoles", "defaultPermissions", "defaultDeliverables", "allowedTaskStatuses", "permissions", "rules"];
+    for (const field of arrayFields) {
+      if (normalized[field] !== undefined && normalized[field] !== null) {
+        if (typeof normalized[field] === 'string') {
+          try {
+            normalized[field] = JSON.parse(normalized[field]);
+          } catch {
+            normalized[field] = [];
+          }
+        }
+        if (!Array.isArray(normalized[field])) {
+          normalized[field] = [];
+        }
+      }
+    }
+    
+    const stringFields = ["entryCriteria", "exitCriteria"];
+    for (const field of stringFields) {
+      if (normalized[field] !== undefined && normalized[field] !== null) {
+        if (Array.isArray(normalized[field])) {
+          normalized[field] = JSON.stringify(normalized[field]);
+        } else if (typeof normalized[field] !== 'string') {
+          normalized[field] = String(normalized[field]);
+        }
+      }
+    }
+    
+    return normalized;
+  };
+
   const handleImport = async () => {
     if (!importState.data) return;
 
     setImportState(prev => ({ ...prev, isImporting: true, importProgress: 0 }));
 
-    const entities = Object.entries(importState.data);
-    const totalEntities = entities.length;
+    const orderedEntities: [string, any[]][] = [];
+    for (const entityName of IMPORT_ORDER) {
+      if (importState.data[entityName] && Array.isArray(importState.data[entityName])) {
+        orderedEntities.push([entityName, importState.data[entityName]]);
+      }
+    }
+    for (const [entityName, records] of Object.entries(importState.data)) {
+      if (!IMPORT_ORDER.includes(entityName) && Array.isArray(records)) {
+        orderedEntities.push([entityName, records]);
+      }
+    }
+
+    const totalEntities = orderedEntities.length;
     let processed = 0;
     const importErrors: string[] = [];
     let updatedCount = 0;
     let createdCount = 0;
 
-    for (const [entityName, records] of entities) {
+    for (const [entityName, records] of orderedEntities) {
       const collection = ENTITY_TO_COLLECTION[entityName];
       if (!collection || !Array.isArray(records)) {
         processed++;
@@ -522,18 +596,19 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
 
       for (const record of records) {
         try {
-          if (record.id) {
-            const existing = await db.getById(collection as any, record.id);
+          const normalizedRecord = normalizeRecord(record, entityName);
+          if (normalizedRecord.id) {
+            const existing = await db.getById(collection as any, normalizedRecord.id);
             if (existing) {
-              await db.update(collection as any, record.id, record);
+              await db.update(collection as any, normalizedRecord.id, normalizedRecord);
               updatedCount++;
             } else {
-              const recordWithDefaults = applyDefaultsForNewRecord(record, entityName);
+              const recordWithDefaults = applyDefaultsForNewRecord(normalizedRecord, entityName);
               await db.create(collection as any, recordWithDefaults);
               createdCount++;
             }
           } else {
-            const recordWithDefaults = applyDefaultsForNewRecord(record, entityName);
+            const recordWithDefaults = applyDefaultsForNewRecord(normalizedRecord, entityName);
             await db.create(collection as any, recordWithDefaults);
             createdCount++;
           }
