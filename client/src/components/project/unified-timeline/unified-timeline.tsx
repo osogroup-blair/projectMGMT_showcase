@@ -157,13 +157,13 @@ export function UnifiedTimeline({
           onLayerToggle={handleLayerToggle}
         />
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
           <div 
             ref={sidebarRef}
-            className="flex-shrink-0 w-36 border-r bg-background overflow-hidden"
+            className="flex-shrink-0 w-36 border-r bg-background overflow-hidden relative z-40"
           >
             <div 
-              className="h-12 border-b flex items-center px-3 bg-muted/30"
+              className="h-12 border-b flex items-center px-3 bg-muted/30 sticky top-0 z-50"
               style={{ height: AXIS_HEIGHT }}
             >
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
