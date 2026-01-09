@@ -49,7 +49,8 @@ Redesigned project creation wizard from 6 steps to 5 steps with improved templat
 **Key Features:**
 - Task drafts have scope: `once` (project-wide) vs `per_epic` (replicated per epic)
 - Role types filter which users are eligible for each role
-- Template snippets bundle stages/tasks/milestones for quick application
+- Frameworks bundle stages/tasks for quick application via side panel
+- Milestones configured by scope rules (stage/deliverable/epic/all) with completion modes (all tasks or percentage)
 - Batched project creation with single summary notification
 
 ### Sprint Plan Tab Redesign (January 2026)

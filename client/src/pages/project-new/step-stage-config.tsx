@@ -53,6 +53,17 @@ export function StepStageConfig({
   const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
   const [frameworkPanelOpen, setFrameworkPanelOpen] = useState(false);
 
+  const getDefaultRule = (): WizardMilestone['rule'] => ({
+    scopeType: 'stage',
+    scopeEntityId: stages[0]?.id || "",
+    completionMode: 'all_tasks',
+    completionTargetPercent: 100
+  });
+
+  const getMilestoneRule = (milestone: WizardMilestone): WizardMilestone['rule'] => {
+    return milestone.rule || getDefaultRule();
+  };
+
   const addStage = () => {
     const newStage: WizardStage = {
       id: `stage-${Date.now()}`,
@@ -134,13 +145,15 @@ export function StepStageConfig({
       name: "",
       description: "",
       phase: "delivery",
-      stageId: stages[0]?.id || "",
       targetDate: "",
       ownerId: users[0]?.id || "",
-      scopeType: "deliverable",
-      completionMode: "percentage",
-      completionTargetPercent: 100,
-      isBillingGate: false
+      isBillingGate: false,
+      rule: {
+        scopeType: 'stage',
+        scopeEntityId: stages[0]?.id || "",
+        completionMode: 'all_tasks',
+        completionTargetPercent: 100
+      }
     };
     setMilestones([...milestones, newMilestone]);
     setExpandedMilestones([...expandedMilestones, newMilestone.id]);
@@ -533,7 +546,9 @@ export function StepStageConfig({
                 onValueChange={setExpandedMilestones}
                 className="space-y-2"
               >
-                {milestones.map((milestone, index) => (
+                {milestones.map((milestone, index) => {
+                  const rule = getMilestoneRule(milestone);
+                  return (
                   <AccordionItem 
                     key={milestone.id} 
                     value={milestone.id}
@@ -588,55 +603,164 @@ export function StepStageConfig({
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-sm">Linked Stage</Label>
-                            <Select
-                              value={milestone.stageId}
-                              onValueChange={(v) => {
+                        <Card className="bg-muted/30">
+                          <CardHeader className="pb-2 pt-3 px-4">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                              <Target className="h-4 w-4" /> Scope Rule
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                              Define which tasks must be completed for this milestone
+                            </p>
+                          </CardHeader>
+                          <CardContent className="px-4 pb-4 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Scope Type</Label>
+                                <Select
+                                  value={rule.scopeType}
+                                  onValueChange={(v) => {
+                                    const newMs = [...milestones];
+                                    if (!newMs[index].rule) {
+                                      newMs[index].rule = getDefaultRule();
+                                    }
+                                    newMs[index].rule.scopeType = v as any;
+                                    newMs[index].rule.scopeEntityId = undefined;
+                                    setMilestones(newMs);
+                                  }}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="stage">All tasks in Stage</SelectItem>
+                                    <SelectItem value="deliverable">All tasks in Deliverable</SelectItem>
+                                    <SelectItem value="epic">All tasks in Epic</SelectItem>
+                                    <SelectItem value="all">All project tasks</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              {rule.scopeType === 'stage' && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">Stage</Label>
+                                  <Select
+                                    value={rule.scopeEntityId || ""}
+                                    onValueChange={(v) => {
+                                      const newMs = [...milestones];
+                                      if (!newMs[index].rule) {
+                                        newMs[index].rule = getDefaultRule();
+                                      }
+                                      newMs[index].rule.scopeEntityId = v;
+                                      setMilestones(newMs);
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue placeholder="Select stage..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {stages.length > 0 ? (
+                                        stages.map((s, idx) => (
+                                          <SelectItem key={s.id} value={s.id}>
+                                            {s.name || `Stage ${idx + 1}`}
+                                          </SelectItem>
+                                        ))
+                                      ) : (
+                                        <div className="text-sm text-muted-foreground px-2 py-1.5">No stages defined</div>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
+                              
+                              {rule.scopeType === 'all' && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">Entity</Label>
+                                  <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border rounded-md bg-background">
+                                    All tasks in project
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {(rule.scopeType === 'deliverable' || rule.scopeType === 'epic') && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">
+                                    {rule.scopeType === 'deliverable' ? 'Deliverable' : 'Epic'}
+                                  </Label>
+                                  <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border rounded-md bg-background italic">
+                                    Selected at runtime
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Completion Mode</Label>
+                                <Select
+                                  value={rule.completionMode}
+                                  onValueChange={(v) => {
+                                    const newMs = [...milestones];
+                                    if (!newMs[index].rule) {
+                                      newMs[index].rule = getDefaultRule();
+                                    }
+                                    newMs[index].rule.completionMode = v as any;
+                                    setMilestones(newMs);
+                                  }}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all_tasks">All tasks completed</SelectItem>
+                                    <SelectItem value="percentage">Percentage completed</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              {rule.completionMode === 'percentage' && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">Target %</Label>
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="100"
+                                      value={rule.completionTargetPercent || 100}
+                                      onChange={(e) => {
+                                        const newMs = [...milestones];
+                                        if (!newMs[index].rule) {
+                                          newMs[index].rule = getDefaultRule();
+                                        }
+                                        newMs[index].rule.completionTargetPercent = parseInt(e.target.value) || 100;
+                                        setMilestones(newMs);
+                                      }}
+                                      className="h-9"
+                                    />
+                                    <span className="text-sm text-muted-foreground">%</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                        
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              id={`billing-gate-${milestone.id}`}
+                              checked={milestone.isBillingGate}
+                              onChange={(e) => {
                                 const newMs = [...milestones];
-                                newMs[index].stageId = v;
+                                newMs[index].isBillingGate = e.target.checked;
                                 setMilestones(newMs);
                               }}
-                            >
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder="Select stage..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {stages.length > 0 ? (
-                                  stages.map((s, idx) => (
-                                    <SelectItem key={s.id} value={s.id}>
-                                      {s.name || `Stage ${idx + 1}`}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <div className="text-sm text-muted-foreground px-2 py-1.5">No stages defined</div>
-                                )}
-                              </SelectContent>
-                            </Select>
+                              className="h-4 w-4"
+                            />
+                            <Label htmlFor={`billing-gate-${milestone.id}`} className="text-sm cursor-pointer">
+                              Billing Gate
+                            </Label>
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-sm">Options</Label>
-                            <div className="flex items-center gap-3 h-9 px-3 border rounded-md bg-background">
-                              <input
-                                type="checkbox"
-                                id={`billing-gate-${milestone.id}`}
-                                checked={milestone.isBillingGate}
-                                onChange={(e) => {
-                                  const newMs = [...milestones];
-                                  newMs[index].isBillingGate = e.target.checked;
-                                  setMilestones(newMs);
-                                }}
-                                className="h-4 w-4"
-                              />
-                              <Label htmlFor={`billing-gate-${milestone.id}`} className="text-sm cursor-pointer">
-                                Billing Gate
-                              </Label>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-end pt-2">
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -649,7 +773,7 @@ export function StepStageConfig({
                       </div>
                     </AccordionContent>
                   </AccordionItem>
-                ))}
+                )})}
               </Accordion>
             )}
           </ScrollArea>

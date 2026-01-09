@@ -46,18 +46,22 @@ export interface WizardStage {
   tasks: WizardTaskDraft[];
 }
 
+export interface WizardMilestoneRule {
+  scopeType: 'stage' | 'deliverable' | 'epic' | 'all';
+  scopeEntityId?: string;
+  completionMode: 'all_tasks' | 'percentage' | 'specific_tasks';
+  completionTargetPercent?: number;
+}
+
 export interface WizardMilestone {
   id: string;
   name: string;
   description: string;
   phase: string;
-  stageId: string;
   targetDate: string;
   ownerId: string;
-  scopeType: string;
-  completionMode: string;
-  completionTargetPercent: number;
   isBillingGate: boolean;
+  rule: WizardMilestoneRule;
 }
 
 export interface WizardRole {
