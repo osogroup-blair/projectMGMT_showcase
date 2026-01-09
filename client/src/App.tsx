@@ -24,7 +24,6 @@ import TaskDetail from "@/pages/task-detail";
 import ProjectTeam from "@/pages/project-team";
 import ProjectRoles from "@/pages/project-roles";
 import RoleAssignments from "@/pages/role-assignments";
-import UserManagement from "@/pages/admin/user-management";
 import AdminHub from "@/pages/admin";
 import SavedViewsGallery from "@/pages/saved-views";
 import StageWorkspace from "@/pages/stage-workspace";
@@ -37,10 +36,7 @@ import ProjectWizard from "@/pages/project-wizard";
 import ProjectManagement from "@/pages/project-management";
 import SprintList from "@/pages/sprint-list";
 import SprintDetail from "@/pages/sprint-detail";
-import AdminTemplates from "@/pages/admin/templates";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
-import AdminAppDefaults from "@/pages/admin/app-defaults";
-import AdminImportExport from "@/pages/admin/import-export";
 
 function Router() {
   return (
