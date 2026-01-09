@@ -39,7 +39,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useRoute, useSearch, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables } from "@/hooks/use-nexus-data";
+import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables, useSprintScopeTargets, useSuggestedTasks, useProjectStages } from "@/hooks/use-nexus-data";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -92,6 +94,10 @@ export default function SprintDetail() {
   const { data: allEpics } = useEpics();
   const { data: allMilestones } = useMilestones();
   const { data: allDeliverables } = useDeliverables();
+  const { data: allStages } = useProjectStages();
+
+  const scopeTargets = useSprintScopeTargets(sprintId);
+  const { data: suggestedTasks = [], isLoading: loadingSuggested } = useSuggestedTasks(sprintId);
 
   const sprint = useMemo(() => 
     (allSprints || []).find((s: any) => s.id === sprintId),
@@ -128,6 +134,10 @@ export default function SprintDetail() {
   const [showAddTasksDialog, setShowAddTasksDialog] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [scopeMode, setScopeMode] = useState<"epic" | "milestone" | "stage" | null>(null);
+  const [scopeSearch, setScopeSearch] = useState("");
+  const [showSuggestedDrawer, setShowSuggestedDrawer] = useState(false);
+  const [selectedSuggested, setSelectedSuggested] = useState<string[]>([]);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -310,6 +320,108 @@ export default function SprintDetail() {
     const milestoneIds = new Set(sprintTasks.map((t: any) => t.milestoneId).filter(Boolean));
     return (allMilestones || []).filter((m: any) => milestoneIds.has(m.id));
   }, [sprintTasks, allMilestones]);
+
+  // Scope Planner data
+  const projectEpics = useMemo(() => 
+    (allEpics || []).filter((e: any) => e.projectId === projectId),
+    [allEpics, projectId]
+  );
+
+  const projectMilestones = useMemo(() => 
+    (allMilestones || []).filter((m: any) => m.projectId === projectId),
+    [allMilestones, projectId]
+  );
+
+  const projectStages = useMemo(() => 
+    (allStages || []).filter((s: any) => s.projectId === projectId),
+    [allStages, projectId]
+  );
+
+  // Derive current scope mode from existing targets
+  const currentScopeMode = useMemo(() => {
+    if (scopeTargets.data.length === 0) return null;
+    return scopeTargets.data[0].targetType as "epic" | "milestone" | "stage";
+  }, [scopeTargets.data]);
+
+  // Get selected target IDs for current mode
+  const selectedScopeIds = useMemo(() => 
+    scopeTargets.data.map((t: any) => t.targetId),
+    [scopeTargets.data]
+  );
+
+  // Filter entities based on search
+  const filteredScopeEntities = useMemo(() => {
+    const mode = scopeMode || currentScopeMode;
+    if (!mode) return [];
+
+    let entities: any[] = [];
+    if (mode === "epic") entities = projectEpics;
+    else if (mode === "milestone") entities = projectMilestones;
+    else if (mode === "stage") entities = projectStages;
+
+    if (!scopeSearch) return entities;
+    const q = scopeSearch.toLowerCase();
+    return entities.filter((e: any) => 
+      (e.name || e.title || "").toLowerCase().includes(q)
+    );
+  }, [scopeMode, currentScopeMode, projectEpics, projectMilestones, projectStages, scopeSearch]);
+
+  // Handle scope mode change
+  const handleScopeModeChange = async (newMode: "epic" | "milestone" | "stage") => {
+    if (currentScopeMode && currentScopeMode !== newMode) {
+      // Clear existing targets when switching modes
+      await scopeTargets.clearAllTargetsAsync();
+    }
+    setScopeMode(newMode);
+  };
+
+  // Handle adding/removing scope target
+  const handleToggleScopeTarget = async (targetId: string) => {
+    const mode = scopeMode || currentScopeMode;
+    if (!mode) return;
+
+    const existingTarget = scopeTargets.data.find((t: any) => t.targetId === targetId);
+    if (existingTarget) {
+      await scopeTargets.removeTargetAsync(existingTarget.id);
+    } else {
+      await scopeTargets.addTargetAsync({ targetType: mode, targetId });
+    }
+  };
+
+  // Handle adding suggested tasks to sprint
+  const handleAddSuggestedTasks = async () => {
+    if (selectedSuggested.length === 0) return;
+    try {
+      await fetch(`/api/sprints/${sprintId}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds: selectedSuggested })
+      });
+      selectedSuggested.forEach(taskId => {
+        updateTask({ id: taskId, updates: { sprintId } });
+      });
+      setSelectedSuggested([]);
+      setShowSuggestedDrawer(false);
+      toast({ title: `${selectedSuggested.length} task(s) added to sprint` });
+    } catch (error: any) {
+      toast({ title: "Failed to add tasks", description: error.message, variant: "destructive" });
+    }
+  };
+
+  // Get entity name by ID
+  const getScopeEntityName = (targetType: string, targetId: string) => {
+    if (targetType === "epic") {
+      const epic = projectEpics.find((e: any) => e.id === targetId);
+      return epic?.title || epic?.name || "Unknown Epic";
+    } else if (targetType === "milestone") {
+      const ms = projectMilestones.find((m: any) => m.id === targetId);
+      return ms?.title || ms?.name || "Unknown Milestone";
+    } else if (targetType === "stage") {
+      const stage = projectStages.find((s: any) => s.id === targetId);
+      return stage?.name || "Unknown Stage";
+    }
+    return "Unknown";
+  };
 
   if (!sprint) {
     return (
@@ -496,6 +608,145 @@ export default function SprintDetail() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Sprint Scope Planner */}
+                {!isReadOnly && (
+                  <Card data-testid="card-scope-planner">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          Sprint Scope Planner
+                        </div>
+                        {(scopeMode || currentScopeMode) && suggestedTasks.length > 0 && (
+                          <Button 
+                            size="sm" 
+                            onClick={() => setShowSuggestedDrawer(true)}
+                            data-testid="button-view-suggested"
+                          >
+                            View {suggestedTasks.length} Suggested Tasks
+                            <ArrowRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        Define sprint scope by selecting Epics, Milestones, or Stages to pull tasks from
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Mode Toggle */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant={(scopeMode || currentScopeMode) === "epic" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleScopeModeChange("epic")}
+                          data-testid="button-scope-epic"
+                        >
+                          Epics ({projectEpics.length})
+                        </Button>
+                        <Button
+                          variant={(scopeMode || currentScopeMode) === "milestone" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleScopeModeChange("milestone")}
+                          data-testid="button-scope-milestone"
+                        >
+                          Milestones ({projectMilestones.length})
+                        </Button>
+                        <Button
+                          variant={(scopeMode || currentScopeMode) === "stage" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleScopeModeChange("stage")}
+                          data-testid="button-scope-stage"
+                        >
+                          Stages ({projectStages.length})
+                        </Button>
+                      </div>
+
+                      {/* Selected Targets Chips */}
+                      {scopeTargets.data.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {scopeTargets.data.map((target: any) => (
+                            <Badge 
+                              key={target.id} 
+                              variant="secondary" 
+                              className="px-2 py-1 flex items-center gap-1"
+                            >
+                              {getScopeEntityName(target.targetType, target.targetId)}
+                              <button 
+                                onClick={() => scopeTargets.removeTarget(target.id)}
+                                className="ml-1 hover:text-destructive"
+                                data-testid={`button-remove-target-${target.targetId}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Entity Selector */}
+                      {(scopeMode || currentScopeMode) && (
+                        <div className="border rounded-lg">
+                          <div className="p-2 border-b">
+                            <div className="relative">
+                              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder={`Search ${scopeMode || currentScopeMode}s...`}
+                                value={scopeSearch}
+                                onChange={(e) => setScopeSearch(e.target.value)}
+                                className="pl-8 h-9"
+                                data-testid="input-scope-search"
+                              />
+                            </div>
+                          </div>
+                          <ScrollArea className="h-48">
+                            <div className="p-2 space-y-1">
+                              {filteredScopeEntities.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-4">
+                                  No {scopeMode || currentScopeMode}s found
+                                </p>
+                              ) : (
+                                filteredScopeEntities.map((entity: any) => {
+                                  const isSelected = selectedScopeIds.includes(entity.id);
+                                  return (
+                                    <div 
+                                      key={entity.id}
+                                      className={cn(
+                                        "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted",
+                                        isSelected && "bg-muted"
+                                      )}
+                                      onClick={() => handleToggleScopeTarget(entity.id)}
+                                      data-testid={`scope-entity-${entity.id}`}
+                                    >
+                                      <Checkbox checked={isSelected} />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">
+                                          {entity.title || entity.name}
+                                        </p>
+                                        {entity.description && (
+                                          <p className="text-xs text-muted-foreground truncate">
+                                            {entity.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      )}
+
+                      {/* Empty State */}
+                      {!scopeMode && !currentScopeMode && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Select a scope type above to filter available tasks
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 <Card>
                   <CardHeader>
@@ -1082,6 +1333,112 @@ export default function SprintDetail() {
             </Button>
             <Button onClick={handleAddTasks} disabled={selectedTasks.length === 0} data-testid="button-confirm-add-tasks">
               Add {selectedTasks.length} Task{selectedTasks.length !== 1 ? "s" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suggested Tasks Drawer */}
+      <Dialog open={showSuggestedDrawer} onOpenChange={setShowSuggestedDrawer}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Suggested Tasks</DialogTitle>
+            <DialogDescription>
+              Tasks matching your scope selection ({scopeTargets.data.length} {currentScopeMode}s selected)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {loadingSuggested ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : suggestedTasks.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Target className="h-8 w-8 mx-auto mb-2" />
+                <p>No unassigned tasks match your scope selection</p>
+              </div>
+            ) : (
+              <div className="max-h-[400px] overflow-y-auto border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={selectedSuggested.length === suggestedTasks.length && suggestedTasks.length > 0}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedSuggested(suggestedTasks.map((t: any) => t.id));
+                            } else {
+                              setSelectedSuggested([]);
+                            }
+                          }}
+                          data-testid="checkbox-select-all-suggested"
+                        />
+                      </TableHead>
+                      <TableHead>Task</TableHead>
+                      <TableHead>Epic</TableHead>
+                      <TableHead>Effort</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {suggestedTasks.map((task: any) => {
+                      const epic = getEpic(task.epicId);
+                      return (
+                        <TableRow key={task.id} data-testid={`row-suggested-task-${task.id}`}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedSuggested.includes(task.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedSuggested([...selectedSuggested, task.id]);
+                                } else {
+                                  setSelectedSuggested(selectedSuggested.filter(id => id !== task.id));
+                                }
+                              }}
+                              data-testid={`checkbox-suggested-${task.id}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{task.title || task.name}</div>
+                            {task.description && (
+                              <p className="text-xs text-muted-foreground truncate max-w-[300px]">
+                                {task.description}
+                              </p>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {epic ? (
+                              <Badge variant="outline" className="font-normal">
+                                {epic.title || epic.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{task.effort || "-"} pts</span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <div className="flex items-center gap-2 mr-auto text-sm text-muted-foreground">
+              {selectedSuggested.length} of {suggestedTasks.length} selected
+            </div>
+            <Button variant="outline" onClick={() => setShowSuggestedDrawer(false)} data-testid="button-cancel-suggested">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddSuggestedTasks} 
+              disabled={selectedSuggested.length === 0}
+              data-testid="button-add-suggested"
+            >
+              Add to Sprint
             </Button>
           </DialogFooter>
         </DialogContent>
