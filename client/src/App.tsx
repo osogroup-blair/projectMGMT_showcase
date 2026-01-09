@@ -38,6 +38,7 @@ import SprintList from "@/pages/sprint-list";
 import SprintDetail from "@/pages/sprint-detail";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import ProjectTools from "@/pages/project-tools";
+import ImportWizard from "@/pages/import-wizard";
 
 function Router() {
   return (
@@ -45,7 +46,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/projects" component={ProjectsList} />
       <Route path="/projects/new" component={ProjectWizard} />
-      <Route path="/projects/import" component={ProjectImport} />
+      <Route path="/projects/import" component={ImportWizard} />
       <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
       <Route path="/projects/import/:sessionId/preview" component={ProjectImportPreview} />
       <Route path="/projects/:projectId" component={ProjectOverview} />

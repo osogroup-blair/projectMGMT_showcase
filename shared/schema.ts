@@ -37,6 +37,7 @@ export const projects = pgTable("projects", {
   ownerId: varchar("owner_id").references(() => users.id),
   client: text("client"),
   riskLevel: text("risk_level"),
+  externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
 });
 
 // Project Favorites (user favorites for quick access)
@@ -58,6 +59,7 @@ export const deliverables = pgTable("deliverables", {
   startDate: text("start_date"),
   dueDate: text("due_date").notNull(),
   progress: integer("progress").notNull().default(0),
+  externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
 });
 
 // Epics
@@ -72,6 +74,7 @@ export const epics = pgTable("epics", {
   endDate: text("end_date").notNull(),
   progress: integer("progress").notNull().default(0),
   stageIds: text("stage_ids").array().notNull().default([]),
+  externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
 });
 
 // Project Stages
@@ -203,6 +206,7 @@ export const tasks = pgTable("tasks", {
   // Task Type and Subtask support
   taskTypeId: varchar("task_type_id"),
   parentTaskId: varchar("parent_task_id"),
+  externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
 });
 
 // Milestone Scope Rules (stored as JSONB for flexibility)
