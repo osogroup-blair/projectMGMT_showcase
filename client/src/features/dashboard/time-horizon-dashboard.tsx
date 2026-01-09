@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Link } from "wouter";
+import { useTasks } from "@/hooks/use-nexus-data";
 import { 
   AlertTriangle, 
   CheckCircle2, 
@@ -62,22 +64,59 @@ const formatDeadline = (deadline: string) => {
   return { text: format(date, "MMM d"), className: "text-muted-foreground" };
 };
 
+const STATUS_STYLES: Record<string, string> = {
+  todo: "bg-slate-100 text-slate-700 border-slate-200",
+  "in progress": "bg-blue-100 text-blue-700 border-blue-200",
+  review: "bg-amber-100 text-amber-700 border-amber-200",
+  done: "bg-green-100 text-green-700 border-green-200",
+  blocked: "bg-red-100 text-red-700 border-red-200",
+  planned: "bg-purple-100 text-purple-700 border-purple-200",
+  active: "bg-blue-100 text-blue-700 border-blue-200",
+  completed: "bg-green-100 text-green-700 border-green-200",
+};
+
 const StatusBadge = ({ status }: { status: string }) => {
-  const styles: Record<string, string> = {
-    todo: "bg-slate-100 text-slate-700 border-slate-200",
-    "in progress": "bg-blue-100 text-blue-700 border-blue-200",
-    done: "bg-green-100 text-green-700 border-green-200",
-    blocked: "bg-red-100 text-red-700 border-red-200",
-    planned: "bg-purple-100 text-purple-700 border-purple-200",
-    active: "bg-blue-100 text-blue-700 border-blue-200",
-    completed: "bg-green-100 text-green-700 border-green-200",
-  };
   const normalizeStatus = (s: string) => s.toLowerCase();
-  const className = styles[normalizeStatus(status)] || "bg-gray-100 text-gray-700 border-gray-200";
+  const className = STATUS_STYLES[normalizeStatus(status)] || "bg-gray-100 text-gray-700 border-gray-200";
   return (
     <Badge variant="outline" className={cn("capitalize whitespace-nowrap text-xs", className)}>
       {status}
     </Badge>
+  );
+};
+
+const StatusDropdown = ({ 
+  taskId, 
+  currentStatus, 
+  onStatusChange 
+}: { 
+  taskId: string; 
+  currentStatus: string; 
+  onStatusChange: (taskId: string, newStatus: string) => void;
+}) => {
+  const normalizeStatus = (s: string) => s.toLowerCase();
+  const className = STATUS_STYLES[normalizeStatus(currentStatus)] || "bg-gray-100 text-gray-700 border-gray-200";
+  
+  return (
+    <Select 
+      value={currentStatus} 
+      onValueChange={(value) => onStatusChange(taskId, value)}
+    >
+      <SelectTrigger 
+        className="h-6 w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0"
+        onClick={(e) => e.stopPropagation()}
+        data-testid={`status-dropdown-${taskId}`}
+      >
+        <Badge variant="outline" className={cn("capitalize whitespace-nowrap text-xs cursor-pointer", className)}>
+          {currentStatus}
+        </Badge>
+      </SelectTrigger>
+      <SelectContent>
+        {["Todo", "In Progress", "Review", "Done"].map((s) => (
+          <SelectItem key={s} value={s}>{s}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 };
 
@@ -169,26 +208,73 @@ function SummaryBar({ summary }: { summary: DashboardData["summary"] }) {
   );
 }
 
-function TaskRow({ task, showProject = true }: { task: DashboardTask; showProject?: boolean }) {
+function TaskRow({ 
+  task, 
+  showProject = true, 
+  onStatusChange 
+}: { 
+  task: DashboardTask; 
+  showProject?: boolean;
+  onStatusChange?: (taskId: string, newStatus: string) => void;
+}) {
   const deadline = formatDeadline(task.deadline);
+  const taskLink = task.projectId ? `/projects/${task.projectId}/tasks/${task.id}` : null;
+  const epicLink = task.projectId && task.epicId ? `/projects/${task.projectId}/epics/${task.epicId}` : null;
+  
   return (
     <div 
-      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer"
+      className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
       data-testid={`task-row-${task.id}`}
     >
       <PriorityIndicator priority={task.priority} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-medium truncate">{task.title}</span>
+          {taskLink ? (
+            <Link 
+              href={taskLink}
+              className="font-medium truncate hover:text-primary hover:underline"
+              data-testid={`task-link-${task.id}`}
+            >
+              {task.title}
+            </Link>
+          ) : (
+            <span className="font-medium truncate">{task.title}</span>
+          )}
           {task.isBlocked && <Badge variant="destructive" className="text-[10px] h-4">Blocked</Badge>}
           {task.isOverdue && <Badge variant="destructive" className="text-[10px] h-4">Overdue</Badge>}
         </div>
-        {showProject && task.projectName && (
-          <div className="text-xs text-muted-foreground truncate">{task.projectName}</div>
-        )}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {showProject && task.projectName && (
+            <span className="truncate">{task.projectName}</span>
+          )}
+          {task.epicName && (
+            <>
+              {showProject && task.projectName && <span>•</span>}
+              {epicLink ? (
+                <Link 
+                  href={epicLink}
+                  className="truncate hover:text-primary hover:underline"
+                  data-testid={`epic-link-${task.id}`}
+                >
+                  {task.epicName}
+                </Link>
+              ) : (
+                <span className="truncate">{task.epicName}</span>
+              )}
+            </>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <StatusBadge status={task.status} />
+        {onStatusChange ? (
+          <StatusDropdown 
+            taskId={task.id} 
+            currentStatus={task.status} 
+            onStatusChange={onStatusChange} 
+          />
+        ) : (
+          <StatusBadge status={task.status} />
+        )}
         <span className={cn("text-xs whitespace-nowrap", deadline.className)}>
           <Clock className="inline h-3 w-3 mr-1" />
           {deadline.text}
@@ -198,7 +284,13 @@ function TaskRow({ task, showProject = true }: { task: DashboardTask; showProjec
   );
 }
 
-function MyCommitmentsPanel({ tasks }: { tasks: DashboardTask[] }) {
+function MyCommitmentsPanel({ 
+  tasks, 
+  onStatusChange 
+}: { 
+  tasks: DashboardTask[];
+  onStatusChange?: (taskId: string, newStatus: string) => void;
+}) {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3">
@@ -215,7 +307,7 @@ function MyCommitmentsPanel({ tasks }: { tasks: DashboardTask[] }) {
         <ScrollArea className="h-[350px]">
           <div className="space-y-2 pr-2">
             {tasks.length > 0 ? tasks.map(task => (
-              <TaskRow key={task.id} task={task} />
+              <TaskRow key={task.id} task={task} onStatusChange={onStatusChange} />
             )) : (
               <div className="text-center text-muted-foreground py-8">
                 <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -229,7 +321,13 @@ function MyCommitmentsPanel({ tasks }: { tasks: DashboardTask[] }) {
   );
 }
 
-function AtRiskPanel({ tasks }: { tasks: DashboardTask[] }) {
+function AtRiskPanel({ 
+  tasks,
+  onStatusChange 
+}: { 
+  tasks: DashboardTask[];
+  onStatusChange?: (taskId: string, newStatus: string) => void;
+}) {
   const groupedByProject = tasks.reduce((acc, task) => {
     const key = task.projectName || 'Unknown';
     if (!acc[key]) acc[key] = [];
@@ -258,7 +356,7 @@ function AtRiskPanel({ tasks }: { tasks: DashboardTask[] }) {
                   {project}
                 </div>
                 {projectTasks.map(task => (
-                  <TaskRow key={task.id} task={task} showProject={false} />
+                  <TaskRow key={task.id} task={task} showProject={false} onStatusChange={onStatusChange} />
                 ))}
               </div>
             )) : (
@@ -290,10 +388,19 @@ function WeeklyFocusPanel({ focus }: { focus: WeeklyFocus[] }) {
             <div key={item.projectId} className="p-4 rounded-lg border bg-accent/20">
               <div className="font-semibold mb-3 flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary" />
-                {item.projectName}
+                <Link 
+                  href={`/projects/${item.projectId}`}
+                  className="hover:text-primary hover:underline"
+                >
+                  {item.projectName}
+                </Link>
               </div>
               {item.milestone && (
-                <div className="mb-3 p-2 rounded bg-purple-50 border border-purple-100">
+                <Link 
+                  href={`/projects/${item.projectId}/milestones/${item.milestone.id}`}
+                  className="block mb-3 p-2 rounded bg-purple-50 border border-purple-100 hover:bg-purple-100 transition-colors"
+                  data-testid={`milestone-link-${item.milestone.id}`}
+                >
                   <div className="flex items-center gap-2 text-purple-700">
                     <MilestoneIcon className="h-3 w-3" />
                     <span className="text-xs font-medium">Milestone Due</span>
@@ -302,14 +409,20 @@ function WeeklyFocusPanel({ focus }: { focus: WeeklyFocus[] }) {
                   <div className="text-xs text-muted-foreground mt-1">
                     {format(safeParseDateOrFallback(item.milestone.targetDate), "MMM d")}
                   </div>
-                </div>
+                </Link>
               )}
               <div className="space-y-1.5">
                 {item.topTasks.map(task => {
                   const deadline = formatDeadline(task.deadline);
                   return (
                     <div key={task.id} className="flex items-center justify-between text-sm">
-                      <span className="truncate flex-1">{task.title}</span>
+                      <Link 
+                        href={`/projects/${item.projectId}/tasks/${task.id}`}
+                        className="truncate flex-1 hover:text-primary hover:underline"
+                        data-testid={`focus-task-link-${task.id}`}
+                      >
+                        {task.title}
+                      </Link>
                       <span className={cn("text-xs ml-2 shrink-0", deadline.className)}>
                         {deadline.text}
                       </span>
@@ -332,8 +445,10 @@ function WeeklyFocusPanel({ focus }: { focus: WeeklyFocus[] }) {
 
 function MilestoneCard({ milestone }: { milestone: DashboardMilestone }) {
   const deadline = formatDeadline(milestone.targetDate);
-  return (
-    <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+  const milestoneLink = milestone.projectId ? `/projects/${milestone.projectId}/milestones/${milestone.id}` : null;
+  
+  const content = (
+    <>
       <div className={cn(
         "p-2 rounded-lg",
         milestone.confidence === 'at_risk' ? "bg-red-50" : "bg-green-50"
@@ -355,6 +470,24 @@ function MilestoneCard({ milestone }: { milestone: DashboardMilestone }) {
           {deadline.text}
         </span>
       </div>
+    </>
+  );
+
+  if (milestoneLink) {
+    return (
+      <Link 
+        href={milestoneLink}
+        className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+        data-testid={`milestone-card-${milestone.id}`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
+      {content}
     </div>
   );
 }
@@ -527,6 +660,8 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
     projectIds: projectId ? [projectId] : [],
     assigneeScope: 'all',
   });
+  const queryClient = useQueryClient();
+  const { update: updateTask } = useTasks();
 
   const filters = externalFilters || internalFilters;
   const updateFilters = (newFilters: DashboardFilters) => {
@@ -535,6 +670,11 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
     } else {
       setInternalFilters(newFilters);
     }
+  };
+
+  const handleStatusChange = (taskId: string, newStatus: string) => {
+    updateTask({ id: taskId, updates: { status: newStatus } });
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
   };
 
   const { data: dashboard, isLoading, error } = useQuery<DashboardData>({
@@ -652,8 +792,8 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
 
         <TabsContent value="thisWeek" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <MyCommitmentsPanel tasks={dashboard.thisWeek.myCommitments} />
-            <AtRiskPanel tasks={dashboard.thisWeek.atRisk} />
+            <MyCommitmentsPanel tasks={dashboard.thisWeek.myCommitments} onStatusChange={handleStatusChange} />
+            <AtRiskPanel tasks={dashboard.thisWeek.atRisk} onStatusChange={handleStatusChange} />
           </div>
           <WeeklyFocusPanel focus={dashboard.thisWeek.weeklyFocus} />
         </TabsContent>

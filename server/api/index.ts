@@ -1839,6 +1839,7 @@ export async function registerRoutes(
       let allMilestones = await storage.getMilestones();
       let allProjects = await storage.getProjects();
       let allStages = await storage.getProjectStages();
+      const allEpics = await storage.getEpics();
 
       // Filter by project scope
       if (projectIds && projectIds.length > 0) {
@@ -2050,28 +2051,38 @@ export async function registerRoutes(
           capacityLevel
         },
         thisWeek: {
-          myCommitments: myCommitments.map(t => ({
-            id: t.id,
-            title: t.title,
-            projectId: t.projectId,
-            projectName: allProjects.find(p => p.id === t.projectId)?.name,
-            deadline: t.deadline,
-            status: t.status,
-            priority: t.priority,
-            priorityScore: t.priorityScore,
-            isOverdue: parseDate(t.deadline) ? parseDate(t.deadline)! < startOfToday : false,
-            isBlocked: t.status === 'Blocked'
-          })),
-          atRisk: atRiskTasks.map(t => ({
-            id: t.id,
-            title: t.title,
-            projectId: t.projectId,
-            projectName: allProjects.find(p => p.id === t.projectId)?.name,
-            deadline: t.deadline,
-            status: t.status,
-            priority: t.priority,
-            priorityScore: t.priorityScore
-          })),
+          myCommitments: myCommitments.map(t => {
+            const epic = allEpics.find(e => e.id === t.epicId);
+            return {
+              id: t.id,
+              title: t.title,
+              projectId: t.projectId,
+              projectName: allProjects.find(p => p.id === t.projectId)?.name,
+              epicId: t.epicId,
+              epicName: epic?.title,
+              deadline: t.deadline,
+              status: t.status,
+              priority: t.priority,
+              priorityScore: t.priorityScore,
+              isOverdue: parseDate(t.deadline) ? parseDate(t.deadline)! < startOfToday : false,
+              isBlocked: t.status === 'Blocked'
+            };
+          }),
+          atRisk: atRiskTasks.map(t => {
+            const epic = allEpics.find(e => e.id === t.epicId);
+            return {
+              id: t.id,
+              title: t.title,
+              projectId: t.projectId,
+              projectName: allProjects.find(p => p.id === t.projectId)?.name,
+              epicId: t.epicId,
+              epicName: epic?.title,
+              deadline: t.deadline,
+              status: t.status,
+              priority: t.priority,
+              priorityScore: t.priorityScore
+            };
+          }),
           weeklyFocus: Array.from(weeklyFocusMap.values()).map(f => ({
             projectId: f.project.id,
             projectName: f.project.name,

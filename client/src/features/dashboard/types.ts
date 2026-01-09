@@ -25,6 +25,8 @@ export interface DashboardTask {
   title: string;
   projectId: string | null;
   projectName?: string;
+  epicId?: string | null;
+  epicName?: string;
   deadline: string;
   status: string;
   priority: string;
