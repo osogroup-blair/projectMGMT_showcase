@@ -77,6 +77,17 @@ Two-pane layout (65/35 split) for active sprint execution:
 - DashboardFilterControls exported as reusable component
 - TimeHorizonDashboard accepts external filters for controlled state from parent components
 
+### Task Detail Page Restructure (January 2026)
+Modular folder structure at `pages/task-detail/`:
+- **index.tsx** - Main container with header (editable title, badges), 4-tab layout, sidebar with property selects (Task Type, Status, Stage, Epic, Assignee, Priority, Effort, Due Date, Milestone, Estimate)
+- **task-overview-tab.tsx** - Description editing
+- **task-dependencies-tab.tsx** - Enhanced dependency linking with 3 modes:
+  - **Manual Selection**: Searchable/filterable task list with checkboxes
+  - **Coverage Matrix**: Epic × Stage grid showing linked/total counts per cell, click cells to bulk toggle
+  - **Rule-Based**: Configurable auto-suggestion rules (by stage, epic) with "Apply Rules" button
+- **task-subtasks-tab.tsx** - Subtask list with progress, add/complete/toggle functionality
+- **task-activity-tab.tsx** - Comments, attachments, history sub-tabs
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
