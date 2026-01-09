@@ -8,7 +8,9 @@ import { TimelineSidebar } from "./timeline-sidebar";
 import { SprintsLayer, getSprintsLayerHeight } from "./layers/sprints-layer";
 import { MilestonesLayer, getMilestonesLayerHeight } from "./layers/milestones-layer";
 import { StagesLayer, getStagesLayerHeight } from "./layers/stages-layer";
-import { DeliverablesLayer, getDeliverablesLayerHeight } from "./layers/deliverables-layer";
+import { DeliverablesLayer, getDeliverablesLayerHeight, DELIVERABLE_ROW_HEIGHT, EPIC_ROW_HEIGHT } from "./layers/deliverables-layer";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { getDeliverableColor } from "./types";
 import { VIEW_MODE_CONFIGS, calculateTimelineRange, parseDate } from "./timeline-utils";
 import type { 
   UnifiedTimelineProps, 
@@ -165,11 +167,10 @@ export function UnifiedTimeline({
 
         <div className="flex flex-1 overflow-hidden relative">
           <div 
-            ref={sidebarRef}
-            className="flex-shrink-0 w-36 border-r bg-background relative z-40 overflow-hidden"
+            className="flex-shrink-0 w-48 border-r bg-background relative z-40 flex flex-col"
           >
             <div 
-              className="h-12 border-b flex items-center px-3 bg-muted/30"
+              className="h-12 border-b flex items-center px-3 bg-muted/30 shrink-0"
               style={{ height: AXIS_HEIGHT }}
             >
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -177,54 +178,118 @@ export function UnifiedTimeline({
               </span>
             </div>
 
-            <div className="flex flex-col">
-              {layers.stages && stages.length > 0 && (
-                <div
-                  className="flex items-center px-3 border-b bg-emerald-50/30"
-                  style={{ height: layerHeights.stages }}
-                  data-testid="sidebar-label-stages"
-                >
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Stages
-                  </span>
-                </div>
-              )}
+            <div 
+              ref={sidebarRef}
+              className="flex-1 overflow-y-auto overflow-x-hidden"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              <div className="flex flex-col">
+                {layers.stages && stages.length > 0 && (
+                  <div
+                    className="flex items-center px-3 border-b bg-emerald-50/30"
+                    style={{ height: layerHeights.stages }}
+                    data-testid="sidebar-label-stages"
+                  >
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Stages
+                    </span>
+                  </div>
+                )}
 
-              {layers.sprints && sprints.length > 0 && (
-                <div
-                  className="flex items-center px-3 border-b bg-slate-50/50"
-                  style={{ height: layerHeights.sprints }}
-                  data-testid="sidebar-label-sprints"
-                >
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Sprints
-                  </span>
-                </div>
-              )}
+                {layers.sprints && sprints.length > 0 && (
+                  <div
+                    className="flex items-center px-3 border-b bg-slate-50/50"
+                    style={{ height: layerHeights.sprints }}
+                    data-testid="sidebar-label-sprints"
+                  >
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Sprints
+                    </span>
+                  </div>
+                )}
 
-              {layers.milestones && milestones.length > 0 && (
-                <div
-                  className="flex items-center px-3 border-b bg-amber-50/30"
-                  style={{ height: layerHeights.milestones }}
-                  data-testid="sidebar-label-milestones"
-                >
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Milestones
-                  </span>
-                </div>
-              )}
-              
-              {layers.deliverables && deliverables.length > 0 && (
-                <div
-                  className="flex items-center px-3 border-b bg-blue-50/30"
-                  style={{ height: layerHeights.deliverables }}
-                  data-testid="sidebar-label-deliverables"
-                >
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Deliverables
-                  </span>
-                </div>
-              )}
+                {layers.milestones && milestones.length > 0 && (
+                  <div
+                    className="flex items-center px-3 border-b bg-amber-50/30"
+                    style={{ height: layerHeights.milestones }}
+                    data-testid="sidebar-label-milestones"
+                  >
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Milestones
+                    </span>
+                  </div>
+                )}
+                
+                {layers.deliverables && deliverables.length > 0 && (
+                  <div className="bg-blue-50/30" data-testid="sidebar-label-deliverables">
+                    {deliverables.map((deliverable) => {
+                      const isExpanded = expandedDeliverables.has(deliverable.id);
+                      const deliverableEpics = epics.filter((e) => e.deliverableId === deliverable.id);
+                      const hasEpics = deliverableEpics.length > 0;
+                      const color = getDeliverableColor(deliverable.id);
+
+                      return (
+                        <div key={deliverable.id}>
+                          <div
+                            className="flex items-center gap-1 px-2 border-b bg-blue-50/20 hover:bg-blue-50/40 transition-colors cursor-pointer"
+                            style={{ height: DELIVERABLE_ROW_HEIGHT }}
+                            onClick={() => hasEpics && handleToggleDeliverable(deliverable.id)}
+                            data-testid={`sidebar-deliverable-${deliverable.id}`}
+                          >
+                            {hasEpics ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleDeliverable(deliverable.id);
+                                }}
+                                className="p-0.5 hover:bg-muted rounded shrink-0"
+                                data-testid={`btn-sidebar-toggle-${deliverable.id}`}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                                )}
+                              </button>
+                            ) : (
+                              <div className="w-4 shrink-0" />
+                            )}
+                            <div 
+                              className="w-2 h-2 rounded-full shrink-0" 
+                              style={{ backgroundColor: color }} 
+                            />
+                            <span 
+                              className="text-xs font-medium truncate"
+                              style={{ color }}
+                            >
+                              {deliverable.title}
+                            </span>
+                          </div>
+
+                          {isExpanded && hasEpics && deliverableEpics.map((epic) => (
+                            <div
+                              key={epic.id}
+                              className="flex items-center gap-1 pl-7 pr-2 border-b bg-slate-50/50 hover:bg-slate-100/50 transition-colors"
+                              style={{ height: EPIC_ROW_HEIGHT }}
+                              data-testid={`sidebar-epic-${epic.id}`}
+                            >
+                              <div 
+                                className="w-1.5 h-1.5 rounded-full shrink-0" 
+                                style={{ backgroundColor: color }} 
+                              />
+                              <span 
+                                className="text-xs text-muted-foreground truncate"
+                              >
+                                {epic.title}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
