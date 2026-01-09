@@ -56,6 +56,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
+import { FlowBoard } from "@/features/project/sprints/flow-board";
+import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
+import { PulsePanel } from "@/features/project/sprints/pulse-panel";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { useCurrentUser } from "@/context/current-user-context";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -160,8 +166,42 @@ export default function SprintDetail() {
   const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({});
   const [sprintScopeRules, setSprintScopeRules] = useState<any[]>([]);
   const [matrixAxis, setMatrixAxis] = useState<"epics" | "milestones">("epics");
+  const [blockerDialogOpen, setBlockerDialogOpen] = useState(false);
+  const [pendingBlockerTaskId, setPendingBlockerTaskId] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
+  const queryClient = useQueryClient();
+  const { currentUser } = useCurrentUser();
+
+  const { data: pulseUpdates = [] } = useQuery({
+    queryKey: ["sprint-pulse", sprintId],
+    queryFn: async () => {
+      const res = await fetch(`/api/sprints/${sprintId}/pulse`);
+      if (!res.ok) throw new Error("Failed to fetch pulse updates");
+      return res.json();
+    },
+    enabled: !!sprintId,
+  });
+
+  const postPulseMutation = useMutation({
+    mutationFn: async (data: { didText: string; nextText: string; blockersText: string; referencedTaskIds: string[] }) => {
+      const res = await fetch(`/api/sprints/${sprintId}/pulse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUser?.id,
+          date: format(new Date(), "yyyy-MM-dd"),
+          ...data,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to post pulse update");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sprint-pulse", sprintId] });
+      toast({ title: "Pulse update posted" });
+    },
+  });
 
   const isReadOnly = sprint?.status === "closed";
   const isPartiallyLocked = sprint?.status === "active";
@@ -300,6 +340,48 @@ export default function SprintDetail() {
     } catch (error: any) {
       toast({ title: "Failed to delete sprint", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleTaskMove = async (taskId: string, newStatus: string, blockerReason?: string) => {
+    try {
+      const updates: any = { status: newStatus };
+      if (newStatus === "Blocked") {
+        updates.blocked = true;
+        updates.blockerReason = blockerReason || null;
+      } else {
+        updates.blocked = false;
+        updates.blockerReason = null;
+      }
+      updates.updatedAt = new Date().toISOString();
+      
+      await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      updateTask({ id: taskId, updates });
+      toast({ title: `Task moved to ${newStatus}` });
+    } catch (error: any) {
+      toast({ title: "Failed to move task", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleBlockerRequested = (taskId: string) => {
+    setPendingBlockerTaskId(taskId);
+    setBlockerDialogOpen(true);
+  };
+
+  const handleBlockerConfirm = (reason: string) => {
+    if (pendingBlockerTaskId) {
+      handleTaskMove(pendingBlockerTaskId, "Blocked", reason);
+    }
+    setBlockerDialogOpen(false);
+    setPendingBlockerTaskId(null);
+  };
+
+  const handleBlockerCancel = () => {
+    setBlockerDialogOpen(false);
+    setPendingBlockerTaskId(null);
   };
 
   const getUser = (userId?: string) => {
@@ -1876,101 +1958,43 @@ export default function SprintDetail() {
           </TabsContent>
 
           <TabsContent value="run" className="mt-6">
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Active Task Board</CardTitle>
+            <div className="flex gap-4 h-[calc(100vh-280px)]" data-testid="run-tab-container">
+              <div className="flex-[65] min-w-0">
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="py-3 px-4 flex-row items-center justify-between border-b">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Layers className="h-4 w-4" />
+                      Flow Board
+                    </CardTitle>
                     {!isReadOnly && (
-                      <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks-run">
+                      <Button size="sm" variant="outline" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks-run">
                         <Plus className="h-4 w-4 mr-1" />
                         Add Tasks
                       </Button>
                     )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 font-medium text-sm text-slate-600 pb-2 border-b">
-                        <Circle className="h-4 w-4" />
-                        To Do ({stats.toDo})
-                      </div>
-                      <div className="space-y-2 min-h-[200px]">
-                        {sprintTasks.filter((t: any) => t.status === "To Do" || t.status === "Pending").map((task: any) => (
-                          <Card key={task.id} className="p-3">
-                            <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium text-sm hover:text-primary">
-                              {task.title || task.name}
-                            </Link>
-                            <div className="flex items-center justify-between mt-2">
-                              {task.effort && <Badge variant="outline" className="text-xs">{task.effort} pts</Badge>}
-                              {getUser(task.assigneeId) && (
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-xs">
-                                    {getUser(task.assigneeId)?.name?.charAt(0) || "?"}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 font-medium text-sm text-blue-600 pb-2 border-b">
-                        <Clock className="h-4 w-4" />
-                        In Progress ({stats.inProgress})
-                      </div>
-                      <div className="space-y-2 min-h-[200px]">
-                        {sprintTasks.filter((t: any) => t.status === "In Progress").map((task: any) => (
-                          <Card key={task.id} className="p-3 border-l-2 border-l-blue-500">
-                            <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium text-sm hover:text-primary">
-                              {task.title || task.name}
-                            </Link>
-                            <div className="flex items-center justify-between mt-2">
-                              {task.effort && <Badge variant="outline" className="text-xs">{task.effort} pts</Badge>}
-                              {getUser(task.assigneeId) && (
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-xs">
-                                    {getUser(task.assigneeId)?.name?.charAt(0) || "?"}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 font-medium text-sm text-green-600 pb-2 border-b">
-                        <CheckCircle2 className="h-4 w-4" />
-                        Done ({stats.done})
-                      </div>
-                      <div className="space-y-2 min-h-[200px]">
-                        {sprintTasks.filter((t: any) => t.status === "Done" || t.status === "Completed").map((task: any) => (
-                          <Card key={task.id} className="p-3 border-l-2 border-l-green-500 bg-green-50/30">
-                            <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium text-sm hover:text-primary">
-                              {task.title || task.name}
-                            </Link>
-                            <div className="flex items-center justify-between mt-2">
-                              {task.effort && <Badge variant="outline" className="text-xs">{task.effort} pts</Badge>}
-                              {getUser(task.assigneeId) && (
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-xs">
-                                    {getUser(task.assigneeId)?.name?.charAt(0) || "?"}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardHeader>
+                  <CardContent className="flex-1 p-3 overflow-hidden">
+                    <FlowBoard
+                      tasks={sprintTasks}
+                      users={users || []}
+                      projectId={projectId}
+                      isReadOnly={isReadOnly}
+                      onTaskMove={handleTaskMove}
+                      onBlockerRequested={handleBlockerRequested}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="flex-[35] min-w-0">
+                <PulsePanel
+                  tasks={sprintTasks}
+                  users={users || []}
+                  pulseUpdates={pulseUpdates}
+                  currentUserId={currentUser?.id || ""}
+                  sprintId={sprintId}
+                  onPostPulse={(data) => postPulseMutation.mutate(data)}
+                />
+              </div>
             </div>
           </TabsContent>
 
@@ -2185,6 +2209,14 @@ export default function SprintDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BlockerReasonDialog
+        open={blockerDialogOpen}
+        onOpenChange={setBlockerDialogOpen}
+        taskTitle={sprintTasks.find((t: any) => t.id === pendingBlockerTaskId)?.title}
+        onConfirm={handleBlockerConfirm}
+        onCancel={handleBlockerCancel}
+      />
 
       {/* Suggested Tasks Drawer */}
       <Dialog open={showSuggestedDrawer} onOpenChange={setShowSuggestedDrawer}>
