@@ -15,7 +15,10 @@ import {
   X,
   Users,
   Play,
-  CheckCircle2
+  CheckCircle2,
+  List,
+  LayoutGrid,
+  ExternalLink
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -72,6 +75,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "card">("list");
 
   // Bulk selection state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -390,7 +394,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
       {/* Search and Filter Bar */}
       <div className="flex flex-col gap-4">
-        <div className="sticky top-40 z-20 bg-background py-3 -mx-6 px-6 border-b">
+        <div className="py-3 border-b">
           <div className="flex gap-3">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -426,6 +430,34 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               <Plus className="h-4 w-4" />
               Add Task
             </Button>
+            <div className="flex items-center rounded-md bg-muted p-0.5 ml-auto">
+              <button
+                onClick={() => setViewMode("list")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
+                  viewMode === "list" 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                data-testid="button-view-list"
+              >
+                <List className="h-4 w-4" />
+                List
+              </button>
+              <button
+                onClick={() => setViewMode("card")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
+                  viewMode === "card" 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                data-testid="button-view-card"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Cards
+              </button>
+            </div>
           </div>
         </div>
 
@@ -556,12 +588,12 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             )}
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === "list" ? (
         <div className="border rounded-lg bg-card overflow-x-auto">
           <Table style={{ minWidth: "900px" }}>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead style={{ width: "4%" }} className="px-3">
+                <TableHead style={{ width: "3%" }} className="px-3">
                   <Checkbox
                     checked={isAllSelected}
                     ref={(el) => {
@@ -574,13 +606,14 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     data-testid="checkbox-select-all"
                   />
                 </TableHead>
-                <TableHead style={{ width: "23%" }}>Task</TableHead>
-                <TableHead style={{ width: "11%" }}>Stage</TableHead>
-                <TableHead style={{ width: "11%" }}>Status</TableHead>
-                <TableHead style={{ width: "14%" }}>Sprint</TableHead>
-                <TableHead style={{ width: "9%" }}>Priority</TableHead>
-                <TableHead style={{ width: "13%" }}>Assignee</TableHead>
-                <TableHead style={{ width: "11%" }} className="text-right">Due</TableHead>
+                <TableHead style={{ width: "21%" }}>Task</TableHead>
+                <TableHead style={{ width: "10%" }}>Stage</TableHead>
+                <TableHead style={{ width: "10%" }}>Status</TableHead>
+                <TableHead style={{ width: "13%" }}>Sprint</TableHead>
+                <TableHead style={{ width: "8%" }}>Priority</TableHead>
+                <TableHead style={{ width: "12%" }}>Assignee</TableHead>
+                <TableHead style={{ width: "10%" }} className="text-right">Due</TableHead>
+                <TableHead style={{ width: "4%" }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -772,11 +805,120 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                         data-testid={`input-deadline-${task.id}`}
                       />
                     </TableCell>
+
+                    {/* Link to Task Detail */}
+                    <TableCell className="px-2">
+                      <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 w-7 p-0"
+                          data-testid={`link-task-${task.id}`}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
+                    </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
+        </div>
+      ) : (
+        /* Card View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredTasks.map((task: any) => {
+            const assignee = getAssignee(task.assigneeId);
+            const epic = getEpic(task.epicId);
+            const stage = getStage(task.stageId);
+            const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
+            const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.Todo;
+            const isOverdue = new Date(task.deadline) < new Date() && task.status !== "Done";
+
+            return (
+              <Card 
+                key={task.id} 
+                className={cn(
+                  "hover:shadow-md transition-shadow cursor-pointer group",
+                  selectedTaskIds.has(task.id) && "ring-2 ring-primary"
+                )}
+                data-testid={`task-card-${task.id}`}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-start gap-2 flex-1 min-w-0">
+                      <Checkbox
+                        checked={selectedTaskIds.has(task.id)}
+                        onCheckedChange={() => toggleSelectTask(task.id)}
+                        aria-label={`Select task ${task.title}`}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                          <h4 className="font-medium text-sm hover:text-primary truncate">
+                            {task.title}
+                          </h4>
+                        </Link>
+                        {epic && (
+                          <p className="text-xs text-muted-foreground truncate">{epic.title}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <Badge 
+                      variant="secondary" 
+                      className={cn("text-[10px]", statusConfig.bgColor, statusConfig.color)}
+                    >
+                      {task.status}
+                    </Badge>
+                    <Badge 
+                      variant="secondary"
+                      className={cn("text-[10px]", priorityConfig.bgColor, priorityConfig.color)}
+                    >
+                      {task.priority}
+                    </Badge>
+                    {stage && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {stage.name}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      {assignee ? (
+                        <>
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-[8px]">
+                              {assignee.name?.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate max-w-[80px]">{assignee.name?.split(' ')[0]}</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Unassigned</span>
+                      )}
+                    </div>
+                    <div className={cn(
+                      "flex items-center gap-1",
+                      isOverdue && "text-red-600 font-medium"
+                    )}>
+                      <Calendar className="h-3 w-3" />
+                      {task.deadline ? new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
