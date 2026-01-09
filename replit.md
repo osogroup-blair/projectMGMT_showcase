@@ -105,23 +105,29 @@ All API routes follow the pattern:
 
 ```
 client/src/
-├── components/     # Reusable UI components
-│   └── project/
-│       └── unified-timeline/  # Timeline visualization component
-│           ├── unified-timeline.tsx   # Main component
-│           ├── timeline-header.tsx    # Controls (view mode, layers, navigation)
-│           ├── timeline-axis.tsx      # Date axis with ticks
-│           ├── timeline-grid.tsx      # Grid container for layers
-│           ├── types.ts               # TypeScript interfaces
-│           ├── timeline-utils.ts      # Date calculations and positioning
-│           └── layers/                # Individual layer components
-│               ├── sprints-layer.tsx
-│               ├── milestones-layer.tsx
-│               ├── stages-layer.tsx
-│               └── deliverables-layer.tsx
+├── components/     # Shared UI components (shadcn/ui, layout)
+│   ├── layout/     # Shell, navigation components
+│   └── ui/         # shadcn/ui primitives (button, card, dialog, etc.)
+├── features/       # Feature-organized domain components
+│   ├── admin/      # Admin hub components
+│   ├── home/       # Home page panels (user-home-page, task-card, etc.)
+│   │   └── panels/
+│   ├── project/    # Project-related features
+│   │   ├── dashboard/    # Project dashboard
+│   │   ├── milestones/   # Milestones content
+│   │   ├── sprints/      # Sprints content
+│   │   ├── stages/       # Stages content
+│   │   ├── tasks/        # Task list, filter modal
+│   │   └── timeline/     # Unified timeline visualization
+│   │       └── unified-timeline/
+│   │           └── layers/
+│   ├── tasks/      # Shared task components
+│   └── templates/  # Template components
 ├── hooks/          # Custom React hooks
 ├── lib/            # Utilities and mock data
 ├── pages/          # Route components
+│   ├── admin/      # Admin pages (AdminHub, user-management, templates, etc.)
+│   └── ...         # Other page components
 └── types/          # TypeScript type definitions
 
 server/
