@@ -372,34 +372,70 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteProject(id: string): Promise<void> {
     // Cascade delete all related entities in a transaction for atomicity
-    // Order: milestone_task_links → tasks (which cascade to comments, attachments) → 
-    //        milestones (which cascade to scope_rules) → epics → deliverables → project
+    // Order: sprint-related → milestone_task_links → tasks → milestones → 
+    //        epics → deliverables → stages → assignments → project
     
     await db.transaction(async (tx) => {
-      // 1. Delete milestone task links for this project
+      // 1. Get sprints for this project to delete related sprint data
+      const sprints = await tx.select().from(schema.sprints).where(eq(schema.sprints.projectId, id));
+      const sprintIds = sprints.map(s => s.id);
+      
+      // 2. Delete sprint-related entities
+      if (sprintIds.length > 0) {
+        for (const sprintId of sprintIds) {
+          // Sprint pulse updates
+          await tx.delete(schema.sprintPulseUpdates).where(eq(schema.sprintPulseUpdates.sprintId, sprintId));
+          // Sprint scope targets
+          await tx.delete(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.sprintId, sprintId));
+          // Sprint scope events
+          await tx.delete(schema.sprintScopeEvents).where(eq(schema.sprintScopeEvents.sprintId, sprintId));
+          // Sprint members
+          await tx.delete(schema.sprintMembers).where(eq(schema.sprintMembers.sprintId, sprintId));
+        }
+      }
+      
+      // 3. Delete sprints for this project
+      await tx.delete(schema.sprints).where(eq(schema.sprints.projectId, id));
+      
+      // 4. Delete milestone task links for this project
       await tx.delete(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.projectId, id));
       
-      // 2. Delete tasks for this project (comments, attachments, history cascade automatically)
+      // 5. Delete tasks for this project (comments, attachments, history cascade automatically)
       await tx.delete(schema.tasks).where(eq(schema.tasks.projectId, id));
       
-      // 3. Delete milestones for this project (scope rules cascade automatically)
+      // 6. Delete milestones for this project (scope rules cascade automatically)
       await tx.delete(schema.milestones).where(eq(schema.milestones.projectId, id));
       
-      // 4. Get deliverables for this project to find epics
+      // 7. Get deliverables for this project to find epics
       const deliverables = await tx.select().from(schema.deliverables).where(eq(schema.deliverables.projectId, id));
       const deliverableIds = deliverables.map(d => d.id);
       
-      // 5. Delete epics belonging to these deliverables
+      // 8. Delete epics belonging to these deliverables
       if (deliverableIds.length > 0) {
         for (const deliverableId of deliverableIds) {
           await tx.delete(schema.epics).where(eq(schema.epics.deliverableId, deliverableId));
         }
       }
       
-      // 6. Delete deliverables for this project
+      // 9. Delete deliverables for this project
       await tx.delete(schema.deliverables).where(eq(schema.deliverables.projectId, id));
       
-      // 7. Finally delete the project itself
+      // 10. Delete project stages for this project
+      await tx.delete(schema.projectStages).where(eq(schema.projectStages.projectId, id));
+      
+      // 11. Delete project assignments for this project
+      await tx.delete(schema.projectAssignments).where(eq(schema.projectAssignments.projectId, id));
+      
+      // 12. Delete project task types for this project
+      await tx.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, id));
+      
+      // 13. Delete project task statuses for this project
+      await tx.delete(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.projectId, id));
+      
+      // 14. Delete project settings for this project
+      await tx.delete(schema.projectSettings).where(eq(schema.projectSettings.projectId, id));
+      
+      // 15. Finally delete the project itself
       await tx.delete(schema.projects).where(eq(schema.projects.id, id));
     });
   }
