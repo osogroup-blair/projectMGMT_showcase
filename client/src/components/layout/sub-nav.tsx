@@ -1,10 +1,11 @@
-import { Home, Layers, Settings, LayoutTemplate, Sliders, Users, Download } from "lucide-react";
+import { Home, Layers, Settings, LayoutTemplate, Sliders, Users, Download, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Layers, label: "Projects", href: "/projects" },
 ];
 

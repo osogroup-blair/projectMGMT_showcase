@@ -38,11 +38,13 @@ import SprintList from "@/pages/sprint-list";
 import SprintDetail from "@/pages/sprint-detail";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import ProjectTools from "@/pages/project-tools";
+import DashboardPage from "@/pages/dashboard";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/dashboard" component={DashboardPage} />
       <Route path="/projects" component={ProjectsList} />
       <Route path="/projects/new" component={ProjectWizard} />
       <Route path="/projects/import" component={ProjectImport} />
