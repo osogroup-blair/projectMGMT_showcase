@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { 
   Plus, 
   Search, 
@@ -10,7 +10,9 @@ import {
   Loader2,
   SlidersHorizontal,
   ListTodo,
-  Zap
+  Zap,
+  Check,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +68,37 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+
+  // Inline editing state
+  const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when editing title
+  useEffect(() => {
+    if (editingCell?.field === "title" && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [editingCell]);
+
+  const startEditingTitle = (taskId: string, currentValue: string) => {
+    setEditingCell({ taskId, field: "title" });
+    setEditValue(currentValue);
+  };
+
+  const saveTitle = (taskId: string) => {
+    if (editValue.trim()) {
+      updateTask({ id: taskId, updates: { title: editValue.trim() } });
+    }
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const cancelEdit = () => {
+    setEditingCell(null);
+    setEditValue("");
+  };
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -394,15 +427,36 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 return (
                   <TableRow 
                     key={task.id} 
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleTaskClick(task.id)}
+                    className="hover:bg-muted/50 transition-colors"
                     data-testid={`task-row-${task.id}`}
                   >
-                    <TableCell>
+                    {/* Title - Inline Editable */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="space-y-1">
-                        <div className="font-medium flex items-center gap-2">
-                          {task.title}
-                        </div>
+                        {editingCell?.taskId === task.id && editingCell?.field === "title" ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              ref={titleInputRef}
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveTitle(task.id);
+                                if (e.key === "Escape") cancelEdit();
+                              }}
+                              onBlur={() => saveTitle(task.id)}
+                              className="h-7 text-sm"
+                              data-testid={`input-title-${task.id}`}
+                            />
+                          </div>
+                        ) : (
+                          <div 
+                            className="font-medium flex items-center gap-2 cursor-pointer hover:text-primary"
+                            onClick={() => startEditingTitle(task.id, task.title)}
+                            data-testid={`edit-title-${task.id}`}
+                          >
+                            {task.title}
+                          </div>
+                        )}
                         {epic && (
                           <div className="text-xs text-muted-foreground">
                             {epic.title}
@@ -410,25 +464,56 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-normal text-xs">
-                        {stage?.name || "—"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="secondary" 
-                        className={cn("font-normal text-xs", statusConfig.bgColor, statusConfig.color)}
+
+                    {/* Stage - Inline Dropdown */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select 
+                        value={task.stageId || "none"} 
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { stageId: v === "none" ? null : v } })}
                       >
-                        {task.status}
-                      </Badge>
+                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2" data-testid={`select-stage-${task.id}`}>
+                          <SelectValue placeholder="—">
+                            {stage?.name || "—"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">—</SelectItem>
+                          {stages.map((s: any) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
+
+                    {/* Status - Inline Dropdown */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select 
+                        value={task.status} 
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { status: v } })}
+                      >
+                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2" data-testid={`select-status-${task.id}`}>
+                          <Badge 
+                            variant="secondary" 
+                            className={cn("font-normal text-xs", statusConfig.bgColor, statusConfig.color)}
+                          >
+                            {task.status}
+                          </Badge>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["Todo", "In Progress", "Review", "Done"].map((s) => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
+                    {/* Sprint - Inline Dropdown (already working) */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select 
                         value={task.sprintId || "backlog"} 
-                        onValueChange={(v) => updateTask({ id: task.id, updates: { sprintId: v === "backlog" ? undefined : v } })}
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { sprintId: v === "backlog" ? null : v } })}
                       >
-                        <SelectTrigger className="h-8 w-full" data-testid={`select-sprint-${task.id}`}>
+                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2" data-testid={`select-sprint-${task.id}`}>
                           <SelectValue placeholder="Backlog" />
                         </SelectTrigger>
                         <SelectContent>
@@ -439,41 +524,73 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <span className={cn(
-                        "text-xs font-medium px-2 py-1 rounded-full",
-                        priorityConfig.bgColor,
-                        priorityConfig.color
-                      )}>
-                        {task.priority}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {assignee ? (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-[9px]">
-                              {assignee.name?.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm truncate max-w-[80px]">
-                            {assignee.name?.split(' ')[0]}
+
+                    {/* Priority - Inline Dropdown */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select 
+                        value={task.priority} 
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { priority: v } })}
+                      >
+                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-1" data-testid={`select-priority-${task.id}`}>
+                          <span className={cn(
+                            "text-xs font-medium px-2 py-0.5 rounded-full",
+                            priorityConfig.bgColor,
+                            priorityConfig.color
+                          )}>
+                            {task.priority}
                           </span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground italic">—</span>
-                      )}
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["Low", "Medium", "High", "Critical"].map((p) => (
+                            <SelectItem key={p} value={p}>{p}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <span className={cn(
-                        "text-sm",
-                        isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"
-                      )}>
-                        {new Date(task.deadline).toLocaleDateString(undefined, { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </span>
+
+                    {/* Assignee - Inline Dropdown */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Select 
+                        value={task.assigneeId || "unassigned"} 
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { assigneeId: v === "unassigned" ? null : v } })}
+                      >
+                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2" data-testid={`select-assignee-${task.id}`}>
+                          {assignee ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                <AvatarFallback className="text-[8px]">
+                                  {assignee.name?.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs truncate max-w-[60px]">
+                                {assignee.name?.split(' ')[0]}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          {(users || []).map((u: any) => (
+                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
+                    {/* Due Date - Inline Input */}
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <Input
+                        type="date"
+                        value={task.deadline ? task.deadline.split('T')[0] : ''}
+                        onChange={(e) => updateTask({ id: task.id, updates: { deadline: e.target.value } })}
+                        className={cn(
+                          "h-7 w-full border-0 bg-transparent hover:bg-muted/50 text-right text-xs px-1",
+                          isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"
+                        )}
+                        data-testid={`input-deadline-${task.id}`}
+                      />
                     </TableCell>
                   </TableRow>
                 );
