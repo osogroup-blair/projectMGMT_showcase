@@ -59,6 +59,24 @@ Redesigned project creation wizard from 6 steps to 5 steps with improved templat
 - Scope Definition sub-tab: Scope mode toggle (Epics/Milestones/Stages), searchable entity multi-select, scope sync indicator showing tasks matching scope vs in sprint with "Sync All to Sprint" button, inline Suggested Tasks panel with bulk selection
 - Pattern matches Milestone page sub-navigation for UI consistency
 
+### Sprint Run Tab Refactor (January 2026)
+Two-pane layout (65/35 split) for active sprint execution:
+- **FlowBoard** (left pane): Drag-and-drop kanban with 4 columns (To Do, In Progress, Blocked, Done)
+  - Visual indicators for overdue (red) and stale (yellow) tasks
+  - Blocker workflow: Moving to Blocked column triggers BlockerReasonDialog requiring a reason
+  - Uses dnd-kit for smooth drag-and-drop interactions
+- **PulsePanel** (right pane): Sprint Signals and async standup feed
+  - Sprint Signals: Real-time counts for blocked, overdue, and stale tasks (3+ days inactive)
+  - PulseComposer: Structured daily updates with "did/next/blockers" prompts
+  - Auto-suggestions based on recent task activity for quick standup entries
+- Database: `sprintPulseUpdates` table for standup entries, `blockerReason` field on tasks
+
+### Dashboard Tab Improvements (January 2026)
+- Removed SummaryBar from project-scoped dashboard (metrics were duplicated in summary cards)
+- Moved filter controls (time range, assignee scope) to the project tab row when Overview is active
+- DashboardFilterControls exported as reusable component
+- TimeHorizonDashboard accepts external filters for controlled state from parent components
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
