@@ -4,6 +4,19 @@ export async function seedDatabase() {
   try {
     console.log('Starting database seed...');
     
+    // Seed Task Types (global defaults)
+    const taskTypes = [
+      { id: "tt_feature", name: "Feature", color: "#3b82f6", icon: "Sparkles", isDefault: true, order: 1 },
+      { id: "tt_bug", name: "Bug", color: "#ef4444", icon: "Bug", isDefault: false, order: 2 },
+      { id: "tt_chore", name: "Chore", color: "#6b7280", icon: "Wrench", isDefault: false, order: 3 },
+      { id: "tt_research", name: "Research", color: "#8b5cf6", icon: "Search", isDefault: false, order: 4 },
+      { id: "tt_spike", name: "Spike", color: "#f59e0b", icon: "Zap", isDefault: false, order: 5 },
+    ];
+    for (const taskType of taskTypes) {
+      await storage.createTaskType(taskType);
+    }
+    console.log('Task types seeded');
+    
     // Seed Framework Templates
     await storage.createFrameworkTemplate({
       id: "ft_impl",

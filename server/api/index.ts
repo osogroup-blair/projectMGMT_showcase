@@ -38,6 +38,9 @@ import {
   insertWorkBlockSchema,
   insertDayPlanSchema,
   insertSprintPulseUpdateSchema,
+  insertTaskTypeSchema,
+  insertProjectTaskTypeSchema,
+  insertTaskDependencySchema,
 } from "@shared/schema";
 
 // Import seed function
@@ -1350,6 +1353,148 @@ export async function registerRoutes(
   app.delete("/api/roleTypes/:id", async (req, res) => {
     await storage.deleteRoleType(req.params.id);
     res.status(204).send();
+  });
+
+  // Task Types (global defaults)
+  app.get("/api/taskTypes", async (req, res) => {
+    const taskTypes = await storage.getTaskTypes();
+    res.json(taskTypes);
+  });
+
+  app.get("/api/taskTypes/:id", async (req, res) => {
+    const taskType = await storage.getTaskTypeById(req.params.id);
+    if (!taskType) return res.status(404).json({ error: "Task type not found" });
+    res.json(taskType);
+  });
+
+  app.post("/api/taskTypes", async (req, res) => {
+    try {
+      const validated = insertTaskTypeSchema.parse(req.body);
+      const taskType = await storage.createTaskType(validated);
+      res.status(201).json(taskType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/taskTypes/:id", async (req, res) => {
+    try {
+      const taskType = await storage.updateTaskType(req.params.id, req.body);
+      res.json(taskType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/taskTypes/:id", async (req, res) => {
+    await storage.deleteTaskType(req.params.id);
+    res.status(204).send();
+  });
+
+  // Project Task Types (project-level overrides)
+  app.get("/api/projects/:projectId/task-types", async (req, res) => {
+    const projectTaskTypes = await storage.getProjectTaskTypesByProjectId(req.params.projectId);
+    res.json(projectTaskTypes);
+  });
+
+  app.post("/api/projects/:projectId/task-types", async (req, res) => {
+    try {
+      const validated = insertProjectTaskTypeSchema.parse({ ...req.body, projectId: req.params.projectId });
+      const projectTaskType = await storage.createProjectTaskType(validated);
+      res.status(201).json(projectTaskType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/projects/:projectId/task-types/:id", async (req, res) => {
+    try {
+      const projectTaskType = await storage.updateProjectTaskType(req.params.id, req.body);
+      res.json(projectTaskType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/projects/:projectId/task-types/:id", async (req, res) => {
+    await storage.deleteProjectTaskType(req.params.id);
+    res.status(204).send();
+  });
+
+  app.put("/api/projects/:projectId/task-types", async (req, res) => {
+    try {
+      const { taskTypes } = req.body;
+      await storage.deleteProjectTaskTypesByProjectId(req.params.projectId);
+      const created = [];
+      for (const taskType of taskTypes) {
+        const validated = insertProjectTaskTypeSchema.parse({ ...taskType, projectId: req.params.projectId });
+        const newTaskType = await storage.createProjectTaskType(validated);
+        created.push(newTaskType);
+      }
+      res.json(created);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Resolved Task Types (project-specific > global fallback)
+  app.get("/api/projects/:projectId/resolved-task-types", async (req, res) => {
+    try {
+      const settings = await storage.getProjectSettingsByProjectId(req.params.projectId);
+      if (settings?.useCustomTaskTypes) {
+        const projectTaskTypes = await storage.getProjectTaskTypesByProjectId(req.params.projectId);
+        if (projectTaskTypes.length > 0) {
+          res.json(projectTaskTypes);
+          return;
+        }
+      }
+      const globalTaskTypes = await storage.getTaskTypes();
+      res.json(globalTaskTypes);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Task Dependencies
+  app.get("/api/tasks/:taskId/dependencies", async (req, res) => {
+    const dependencies = await storage.getTaskDependenciesByTaskId(req.params.taskId);
+    res.json(dependencies);
+  });
+
+  app.get("/api/tasks/:taskId/dependents", async (req, res) => {
+    const dependents = await storage.getDependentTasksByTaskId(req.params.taskId);
+    res.json(dependents);
+  });
+
+  app.post("/api/tasks/:taskId/dependencies", async (req, res) => {
+    try {
+      const validated = insertTaskDependencySchema.parse({ ...req.body, taskId: req.params.taskId });
+      const dependency = await storage.createTaskDependency(validated);
+      res.status(201).json(dependency);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/tasks/:taskId/dependencies/:id", async (req, res) => {
+    await storage.deleteTaskDependency(req.params.id);
+    res.status(204).send();
+  });
+
+  // Subtasks
+  app.get("/api/tasks/:taskId/subtasks", async (req, res) => {
+    const subtasks = await storage.getSubtasksByParentId(req.params.taskId);
+    res.json(subtasks);
+  });
+
+  app.post("/api/tasks/:taskId/subtasks", async (req, res) => {
+    try {
+      const validated = insertTaskSchema.parse({ ...req.body, parentTaskId: req.params.taskId });
+      const subtask = await storage.createTask(validated);
+      res.status(201).json(subtask);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
   });
 
   // Project Task Statuses (project-level overrides)

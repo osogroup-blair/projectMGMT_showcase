@@ -466,6 +466,7 @@ export const projectSettings = pgTable("project_settings", {
   id: varchar("id").primaryKey(),
   projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }).unique(),
   useCustomStatuses: boolean("use_custom_statuses").default(false),
+  useCustomTaskTypes: boolean("use_custom_task_types").default(false),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
