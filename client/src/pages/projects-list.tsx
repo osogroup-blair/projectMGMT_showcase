@@ -1,7 +1,7 @@
 import { 
   Project
 } from "@/lib/mock-data";
-import { useProjects, useUsers } from "@/hooks/use-nexus-data";
+import { useProjects, useUsers, useTasks } from "@/hooks/use-nexus-data";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/context/current-user-context";
 import { 
@@ -96,6 +96,7 @@ export default function ProjectsList() {
   const { toast } = useToast();
   const { data: projectsData, isLoading, create: createProject, update: updateProject, remove: deleteProject } = useProjects();
   const { data: usersData } = useUsers();
+  const { data: tasksData } = useTasks();
   const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
   
@@ -199,6 +200,17 @@ export default function ProjectsList() {
     const user = usersData.find((u: any) => u.id === userId);
     return user?.name || "—";
   };
+
+  // Task count by project
+  const taskCountByProject = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (tasksData || []).forEach((task: any) => {
+      if (task.projectId) {
+        counts[task.projectId] = (counts[task.projectId] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [tasksData]);
 
   // Enrich Data Memo
   const projects = useMemo(() => {
@@ -601,6 +613,9 @@ export default function ProjectsList() {
                 <TableHead className="w-[100px]">
                   <SortableHeader field="progress">Progress</SortableHeader>
                 </TableHead>
+                <TableHead className="w-[80px]">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tasks</span>
+                </TableHead>
                 <TableHead className="w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -762,6 +777,12 @@ export default function ProjectsList() {
                         <span className="text-xs text-muted-foreground">{project.progress || 0}%</span>
                       </div>
                     )}
+                  </TableCell>
+                  {/* Tasks Count (Read-only) */}
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground" data-testid={`task-count-${project.id}`}>
+                      {taskCountByProject[project.id] || 0}
+                    </span>
                   </TableCell>
                   {/* Visible Action Buttons */}
                   <TableCell>
