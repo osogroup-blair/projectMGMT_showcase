@@ -172,18 +172,18 @@ export function UnifiedTimeline({
             </div>
 
             <div className="flex flex-col">
-              {layers.milestones && milestones.length > 0 && (
+              {layers.stages && stages.length > 0 && (
                 <div
-                  className="flex items-center px-3 border-b bg-amber-50/30"
-                  style={{ height: layerHeights.milestones }}
-                  data-testid="sidebar-label-milestones"
+                  className="flex items-center px-3 border-b bg-emerald-50/30"
+                  style={{ height: layerHeights.stages }}
+                  data-testid="sidebar-label-stages"
                 >
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Milestones
+                    Stages
                   </span>
                 </div>
               )}
-              
+
               {layers.sprints && sprints.length > 0 && (
                 <div
                   className="flex items-center px-3 border-b bg-slate-50/50"
@@ -195,15 +195,15 @@ export function UnifiedTimeline({
                   </span>
                 </div>
               )}
-              
-              {layers.stages && stages.length > 0 && (
+
+              {layers.milestones && milestones.length > 0 && (
                 <div
-                  className="flex items-center px-3 border-b bg-emerald-50/30"
-                  style={{ height: layerHeights.stages }}
-                  data-testid="sidebar-label-stages"
+                  className="flex items-center px-3 border-b bg-amber-50/30"
+                  style={{ height: layerHeights.milestones }}
+                  data-testid="sidebar-label-milestones"
                 >
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Stages
+                    Milestones
                   </span>
                 </div>
               )}
@@ -243,10 +243,11 @@ export function UnifiedTimeline({
                   totalHeight={totalHeight}
                 />
 
-                {layers.milestones && milestones.length > 0 && (
-                  <MilestonesLayer
-                    milestones={milestones}
+                {layers.stages && stages.length > 0 && (
+                  <StagesLayer
+                    stages={stages}
                     projectId={project.id}
+                    projectStartDate={project.startDate}
                     viewMode={viewMode}
                     timelineRange={timelineRange}
                     highlightId={highlightItemId}
@@ -263,11 +264,10 @@ export function UnifiedTimeline({
                   />
                 )}
 
-                {layers.stages && stages.length > 0 && (
-                  <StagesLayer
-                    stages={stages}
+                {layers.milestones && milestones.length > 0 && (
+                  <MilestonesLayer
+                    milestones={milestones}
                     projectId={project.id}
-                    projectStartDate={project.startDate}
                     viewMode={viewMode}
                     timelineRange={timelineRange}
                     highlightId={highlightItemId}
