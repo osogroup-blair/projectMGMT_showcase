@@ -154,9 +154,11 @@ export default function SprintDetail() {
   const [manualScopeSearch, setManualScopeSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [epicFilter, setEpicFilter] = useState<string>("all");
+  const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
   const [showIncludedOnly, setShowIncludedOnly] = useState<boolean | null>(null);
   const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({});
   const [sprintScopeRules, setSprintScopeRules] = useState<any[]>([]);
+  const [matrixAxis, setMatrixAxis] = useState<"epics" | "milestones">("epics");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -480,6 +482,13 @@ export default function SprintDetail() {
     return stage?.label || stage?.name || stageId;
   };
 
+  // Get milestone name
+  const getMilestoneName = (milestoneId?: string) => {
+    if (!milestoneId) return "No Milestone";
+    const milestone = projectMilestones.find((m: any) => m.id === milestoneId);
+    return milestone?.title || milestone?.name || "Unknown Milestone";
+  };
+
   // Project tasks (for scope definition)
   const projectTasks = useMemo(() => 
     (allTasks || []).filter((t: any) => t.projectId === projectId || t.project === projectId),
@@ -492,6 +501,11 @@ export default function SprintDetail() {
     
     return projectTasks.filter(task => {
       if (rule.stage && rule.stage !== "all" && task.stageId !== rule.stage) {
+        return false;
+      }
+      
+      // Filter by milestone
+      if (rule.milestone && rule.milestone !== "all" && task.milestoneId !== rule.milestone) {
         return false;
       }
       
@@ -553,22 +567,26 @@ export default function SprintDetail() {
     return projectTasks.filter(t => {
       const epic = projectEpics.find((e: any) => e.id === t.epicId);
       const epicName = epic?.title || "";
+      const milestone = projectMilestones.find((m: any) => m.id === t.milestoneId);
+      const milestoneName = milestone?.title || milestone?.name || "";
       const searchLower = manualScopeSearch.toLowerCase();
       const matchesSearch = !manualScopeSearch || 
         t.title?.toLowerCase().includes(searchLower) || 
-        epicName.toLowerCase().includes(searchLower);
+        epicName.toLowerCase().includes(searchLower) ||
+        milestoneName.toLowerCase().includes(searchLower);
       
       const matchesStage = stageFilter === "all" || t.stageId === stageFilter;
       const matchesEpic = epicFilter === "all" || t.epicId === epicFilter;
+      const matchesMilestone = milestoneFilter === "all" || t.milestoneId === milestoneFilter;
       
       const isInSprint = sprintTaskIds.includes(t.id);
       const matchesIncludedFilter = showIncludedOnly === null || 
         (showIncludedOnly === true && isInSprint) || 
         (showIncludedOnly === false && !isInSprint);
       
-      return matchesSearch && matchesStage && matchesEpic && matchesIncludedFilter;
+      return matchesSearch && matchesStage && matchesEpic && matchesMilestone && matchesIncludedFilter;
     });
-  }, [projectTasks, projectEpics, manualScopeSearch, stageFilter, epicFilter, showIncludedOnly, sprintTaskIds]);
+  }, [projectTasks, projectEpics, projectMilestones, manualScopeSearch, stageFilter, epicFilter, milestoneFilter, showIncludedOnly, sprintTaskIds]);
 
   // Toggle task in/out of sprint
   const handleToggleTaskInSprint = async (taskId: string) => {
@@ -607,11 +625,43 @@ export default function SprintDetail() {
     }
   };
 
-  // Get cell task counts for matrix view
-  const getCellTaskCounts = (epicId: string, stageId: string) => {
-    const cellTasks = projectTasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
+  // Get cell task counts for matrix view (supports both epic and milestone axis)
+  const getCellTaskCounts = (rowId: string, stageId: string, axis: "epics" | "milestones" = "epics") => {
+    const cellTasks = projectTasks.filter((t: any) => {
+      if (axis === "epics") {
+        return t.epicId === rowId && t.stageId === stageId;
+      } else {
+        return t.milestoneId === rowId && t.stageId === stageId;
+      }
+    });
     const inSprint = cellTasks.filter((t: any) => sprintTaskIds.includes(t.id)).length;
     return { total: cellTasks.length, inSprint };
+  };
+
+  // Toggle all tasks in a cell for matrix view (supports both epic and milestone axis)
+  const handleToggleCellTasksGeneric = (rowId: string, stageId: string, axis: "epics" | "milestones") => {
+    const cellTasks = projectTasks.filter((t: any) => {
+      if (axis === "epics") {
+        return t.epicId === rowId && t.stageId === stageId;
+      } else {
+        return t.milestoneId === rowId && t.stageId === stageId;
+      }
+    });
+    if (cellTasks.length === 0) return;
+
+    const unlinkedTasks = cellTasks.filter((t: any) => !sprintTaskIds.includes(t.id));
+    
+    if (unlinkedTasks.length > 0) {
+      unlinkedTasks.forEach((t: any) => {
+        updateTask({ id: t.id, updates: { sprintId } });
+      });
+      toast({ title: `Added ${unlinkedTasks.length} task(s) to sprint` });
+    } else {
+      cellTasks.forEach((t: any) => {
+        updateTask({ id: t.id, updates: { sprintId: null } });
+      });
+      toast({ title: `Removed ${cellTasks.length} task(s) from sprint` });
+    }
   };
 
   // Add a new scope rule
@@ -621,6 +671,7 @@ export default function SprintDetail() {
       label: "New Scope Rule",
       active: true,
       stage: "all",
+      milestone: "all",
       epicType: "all",
       taskTemplateKey: "all"
     };
@@ -1228,7 +1279,7 @@ export default function SprintDetail() {
                               <div className="relative flex-1">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input 
-                                  placeholder="Search by task or epic name..." 
+                                  placeholder="Search by task, epic, or milestone name..." 
                                   className="pl-9"
                                   value={manualScopeSearch}
                                   onChange={e => setManualScopeSearch(e.target.value)}
@@ -1266,6 +1317,20 @@ export default function SprintDetail() {
                                 </Select>
                               </div>
                               <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground whitespace-nowrap">Milestone:</Label>
+                                <Select value={milestoneFilter} onValueChange={setMilestoneFilter}>
+                                  <SelectTrigger className="h-8 w-[180px]" data-testid="select-milestone-filter">
+                                    <SelectValue placeholder="All Milestones" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="all">All Milestones</SelectItem>
+                                    {projectMilestones.map((ms: any) => (
+                                      <SelectItem key={ms.id} value={ms.id}>{ms.title || ms.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex items-center gap-2">
                                 <Label className="text-xs text-muted-foreground whitespace-nowrap">Show:</Label>
                                 <Select value={showIncludedOnly === null ? "all" : showIncludedOnly ? "included" : "excluded"} onValueChange={(v) => setShowIncludedOnly(v === "all" ? null : v === "included")}>
                                   <SelectTrigger className="h-8 w-[130px]" data-testid="select-included-filter">
@@ -1278,7 +1343,7 @@ export default function SprintDetail() {
                                   </SelectContent>
                                 </Select>
                               </div>
-                              {(stageFilter !== "all" || epicFilter !== "all" || showIncludedOnly !== null || manualScopeSearch) && (
+                              {(stageFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all" || showIncludedOnly !== null || manualScopeSearch) && (
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 
@@ -1286,6 +1351,7 @@ export default function SprintDetail() {
                                   onClick={() => {
                                     setStageFilter("all");
                                     setEpicFilter("all");
+                                    setMilestoneFilter("all");
                                     setShowIncludedOnly(null);
                                     setManualScopeSearch("");
                                   }}
@@ -1304,6 +1370,7 @@ export default function SprintDetail() {
                                   <TableHead className="w-[50px]"></TableHead>
                                   <TableHead>Task</TableHead>
                                   <TableHead>Epic</TableHead>
+                                  <TableHead>Milestone</TableHead>
                                   <TableHead>Status</TableHead>
                                   <TableHead className="text-right">In Sprint</TableHead>
                                 </TableRow>
@@ -1331,6 +1398,9 @@ export default function SprintDetail() {
                                       </TableCell>
                                       <TableCell className="text-xs text-muted-foreground">
                                         {epic?.title || epic?.name || "No Epic"}
+                                      </TableCell>
+                                      <TableCell className="text-xs text-muted-foreground">
+                                        {getMilestoneName(task.milestoneId)}
                                       </TableCell>
                                       <TableCell>
                                         <Badge variant="outline" className="text-xs font-normal">
@@ -1367,15 +1437,33 @@ export default function SprintDetail() {
                         {/* Coverage Matrix Tab */}
                         <TabsContent value="matrix" className="space-y-4">
                           <div className="border rounded-md overflow-hidden">
-                            <div className="bg-muted/30 p-4 border-b">
-                              <h4 className="font-medium text-sm">Coverage Matrix</h4>
-                              <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion for that Epic & Stage.</p>
+                            <div className="bg-muted/30 p-4 border-b flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-sm">Coverage Matrix</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  Click on cells to toggle task inclusion for {matrixAxis === "epics" ? "Epic" : "Milestone"} & Stage.
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground">View by:</Label>
+                                <Select value={matrixAxis} onValueChange={(v) => setMatrixAxis(v as "epics" | "milestones")}>
+                                  <SelectTrigger className="h-8 w-[140px]" data-testid="select-matrix-axis">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="epics">Epics</SelectItem>
+                                    <SelectItem value="milestones">Milestones</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
                             <div className="overflow-x-auto">
                               <table className="w-full text-sm">
                                 <thead>
                                   <tr className="border-b bg-muted/10">
-                                    <th className="p-3 text-left font-medium min-w-[200px]">Epic</th>
+                                    <th className="p-3 text-left font-medium min-w-[200px]">
+                                      {matrixAxis === "epics" ? "Epic" : "Milestone"}
+                                    </th>
                                     {projectStages.map((stage: any) => (
                                       <th key={stage.id} className="p-3 text-center font-medium border-l min-w-[100px]">
                                         {stage.label || stage.name}
@@ -1384,64 +1472,127 @@ export default function SprintDetail() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {projectEpics.length === 0 ? (
-                                    <tr>
-                                      <td colSpan={projectStages.length + 1} className="p-8 text-center text-muted-foreground">
-                                        No epics found in this project.
-                                      </td>
-                                    </tr>
-                                  ) : projectStages.length === 0 ? (
-                                    <tr>
-                                      <td colSpan={2} className="p-8 text-center text-muted-foreground">
-                                        No stages found. Tasks must have stages assigned.
-                                      </td>
-                                    </tr>
-                                  ) : (
-                                    projectEpics.map((epic: any) => (
-                                      <tr key={epic.id} className="border-b hover:bg-muted/5">
-                                        <td className="p-3 font-medium">
-                                          <div className="flex items-center gap-2">
-                                            <span className="truncate max-w-[180px]">{epic.title || epic.name}</span>
-                                          </div>
+                                  {matrixAxis === "epics" ? (
+                                    projectEpics.length === 0 ? (
+                                      <tr>
+                                        <td colSpan={projectStages.length + 1} className="p-8 text-center text-muted-foreground">
+                                          No epics found in this project.
                                         </td>
-                                        {projectStages.map((stage: any) => {
-                                          const counts = getCellTaskCounts(epic.id, stage.id);
-                                          const allInSprint = counts.total > 0 && counts.inSprint === counts.total;
-                                          const someInSprint = counts.inSprint > 0 && counts.inSprint < counts.total;
-                                          
-                                          return (
-                                            <td 
-                                              key={stage.id} 
-                                              className={cn(
-                                                "p-3 text-center border-l cursor-pointer transition-colors",
-                                                counts.total === 0 && "bg-muted/10",
-                                                allInSprint && "bg-green-50",
-                                                someInSprint && "bg-amber-50"
-                                              )}
-                                              onClick={() => handleToggleCellTasks(epic.id, stage.id)}
-                                              data-testid={`cell-${epic.id}-${stage.id}`}
-                                            >
-                                              {counts.total > 0 ? (
-                                                <div className="flex flex-col items-center gap-0.5">
-                                                  <span className={cn(
-                                                    "text-sm font-medium",
-                                                    allInSprint && "text-green-700",
-                                                    someInSprint && "text-amber-700"
-                                                  )}>
-                                                    {counts.inSprint}/{counts.total}
-                                                  </span>
-                                                  <span className="text-[10px] text-muted-foreground">
-                                                    {allInSprint ? "All in" : someInSprint ? "Partial" : "None"}
-                                                  </span>
-                                                </div>
-                                              ) : (
-                                                <span className="text-muted-foreground/30">-</span>
-                                              )}
-                                            </td>
-                                          );
-                                        })}
                                       </tr>
-                                    ))
+                                    ) : projectStages.length === 0 ? (
+                                      <tr>
+                                        <td colSpan={2} className="p-8 text-center text-muted-foreground">
+                                          No stages found. Tasks must have stages assigned.
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      projectEpics.map((epic: any) => (
+                                        <tr key={epic.id} className="border-b hover:bg-muted/5">
+                                          <td className="p-3 font-medium">
+                                            <div className="flex items-center gap-2">
+                                              <span className="truncate max-w-[180px]">{epic.title || epic.name}</span>
+                                            </div>
+                                          </td>
+                                          {projectStages.map((stage: any) => {
+                                            const counts = getCellTaskCounts(epic.id, stage.id, "epics");
+                                            const allInSprint = counts.total > 0 && counts.inSprint === counts.total;
+                                            const someInSprint = counts.inSprint > 0 && counts.inSprint < counts.total;
+                                            
+                                            return (
+                                              <td 
+                                                key={stage.id} 
+                                                className={cn(
+                                                  "p-3 text-center border-l cursor-pointer transition-colors",
+                                                  counts.total === 0 && "bg-muted/10",
+                                                  allInSprint && "bg-green-50",
+                                                  someInSprint && "bg-amber-50"
+                                                )}
+                                                onClick={() => handleToggleCellTasksGeneric(epic.id, stage.id, "epics")}
+                                                data-testid={`cell-epic-${epic.id}-${stage.id}`}
+                                              >
+                                                {counts.total > 0 ? (
+                                                  <div className="flex flex-col items-center gap-0.5">
+                                                    <span className={cn(
+                                                      "text-sm font-medium",
+                                                      allInSprint && "text-green-700",
+                                                      someInSprint && "text-amber-700"
+                                                    )}>
+                                                      {counts.inSprint}/{counts.total}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground">
+                                                      {allInSprint ? "All in" : someInSprint ? "Partial" : "None"}
+                                                    </span>
+                                                  </div>
+                                                ) : (
+                                                  <span className="text-muted-foreground/30">-</span>
+                                                )}
+                                              </td>
+                                            );
+                                          })}
+                                        </tr>
+                                      ))
+                                    )
+                                  ) : (
+                                    projectMilestones.length === 0 ? (
+                                      <tr>
+                                        <td colSpan={projectStages.length + 1} className="p-8 text-center text-muted-foreground">
+                                          No milestones found in this project.
+                                        </td>
+                                      </tr>
+                                    ) : projectStages.length === 0 ? (
+                                      <tr>
+                                        <td colSpan={2} className="p-8 text-center text-muted-foreground">
+                                          No stages found. Tasks must have stages assigned.
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      projectMilestones.map((milestone: any) => (
+                                        <tr key={milestone.id} className="border-b hover:bg-muted/5">
+                                          <td className="p-3 font-medium">
+                                            <div className="flex items-center gap-2">
+                                              <Target className="h-4 w-4 text-muted-foreground" />
+                                              <span className="truncate max-w-[180px]">{milestone.title || milestone.name}</span>
+                                            </div>
+                                          </td>
+                                          {projectStages.map((stage: any) => {
+                                            const counts = getCellTaskCounts(milestone.id, stage.id, "milestones");
+                                            const allInSprint = counts.total > 0 && counts.inSprint === counts.total;
+                                            const someInSprint = counts.inSprint > 0 && counts.inSprint < counts.total;
+                                            
+                                            return (
+                                              <td 
+                                                key={stage.id} 
+                                                className={cn(
+                                                  "p-3 text-center border-l cursor-pointer transition-colors",
+                                                  counts.total === 0 && "bg-muted/10",
+                                                  allInSprint && "bg-green-50",
+                                                  someInSprint && "bg-amber-50"
+                                                )}
+                                                onClick={() => handleToggleCellTasksGeneric(milestone.id, stage.id, "milestones")}
+                                                data-testid={`cell-milestone-${milestone.id}-${stage.id}`}
+                                              >
+                                                {counts.total > 0 ? (
+                                                  <div className="flex flex-col items-center gap-0.5">
+                                                    <span className={cn(
+                                                      "text-sm font-medium",
+                                                      allInSprint && "text-green-700",
+                                                      someInSprint && "text-amber-700"
+                                                    )}>
+                                                      {counts.inSprint}/{counts.total}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground">
+                                                      {allInSprint ? "All in" : someInSprint ? "Partial" : "None"}
+                                                    </span>
+                                                  </div>
+                                                ) : (
+                                                  <span className="text-muted-foreground/30">-</span>
+                                                )}
+                                              </td>
+                                            );
+                                          })}
+                                        </tr>
+                                      ))
+                                    )
                                   )}
                                 </tbody>
                               </table>
@@ -1548,7 +1699,7 @@ export default function SprintDetail() {
                                       </div>
                                     </CardHeader>
                                     <CardContent className="p-4 pt-2 text-sm text-muted-foreground space-y-3">
-                                      <div className="grid grid-cols-3 gap-4">
+                                      <div className="grid grid-cols-4 gap-4">
                                         <div className="space-y-1">
                                            <Label className="text-xs">Stage</Label>
                                            <Select 
@@ -1563,6 +1714,25 @@ export default function SprintDetail() {
                                                {projectStages.map((stage: any) => (
                                                  <SelectItem key={stage.id} value={stage.id}>
                                                    {stage.label || stage.name}
+                                                 </SelectItem>
+                                               ))}
+                                             </SelectContent>
+                                           </Select>
+                                        </div>
+                                        <div className="space-y-1">
+                                           <Label className="text-xs">Milestone</Label>
+                                           <Select 
+                                             value={rule.milestone || "all"} 
+                                             onValueChange={(v) => handleUpdateRule(rule.id, { milestone: v })}
+                                           >
+                                             <SelectTrigger className="h-8" data-testid={`select-rule-milestone-${rule.id}`}>
+                                               <SelectValue placeholder="Any Milestone" />
+                                             </SelectTrigger>
+                                             <SelectContent>
+                                               <SelectItem value="all">Any Milestone</SelectItem>
+                                               {projectMilestones.map((ms: any) => (
+                                                 <SelectItem key={ms.id} value={ms.id}>
+                                                   {ms.title || ms.name}
                                                  </SelectItem>
                                                ))}
                                              </SelectContent>
@@ -1649,6 +1819,11 @@ export default function SprintDetail() {
                                                       <Badge variant="outline" className="text-[10px]">
                                                         {getStageName(task.stageId)}
                                                       </Badge>
+                                                      {task.milestoneId && (
+                                                        <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                                                          {getMilestoneName(task.milestoneId)}
+                                                        </Badge>
+                                                      )}
                                                       <Badge 
                                                         variant="secondary" 
                                                         className={cn(
