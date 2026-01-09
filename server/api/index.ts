@@ -270,7 +270,14 @@ export async function registerRoutes(
 
   app.patch("/api/tasks/:id", async (req, res) => {
     try {
-      const task = await storage.updateTask(req.params.id, req.body);
+      const updates = { ...req.body };
+      if (updates.updatedAt && typeof updates.updatedAt === 'string') {
+        updates.updatedAt = new Date(updates.updatedAt);
+      }
+      if (updates.dueDate && typeof updates.dueDate === 'string') {
+        updates.dueDate = new Date(updates.dueDate);
+      }
+      const task = await storage.updateTask(req.params.id, updates);
       res.json(task);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

@@ -68,7 +68,10 @@ function DroppableColumn({
   id: string; 
   children: React.ReactNode;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
+  const { setNodeRef, isOver } = useDroppable({ 
+    id: `column-${id}`,
+    data: { type: 'column', columnId: id }
+  });
   
   return (
     <div 
@@ -88,12 +91,14 @@ function SortableTaskCard({
   task, 
   user, 
   projectId,
+  columnId,
   isOverdue,
   isStale
 }: { 
   task: Task; 
   user?: User; 
   projectId: string;
+  columnId: string;
   isOverdue: boolean;
   isStale: boolean;
 }) {
@@ -104,7 +109,10 @@ function SortableTaskCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: task.id });
+  } = useSortable({ 
+    id: task.id,
+    data: { type: 'task', columnId }
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -303,11 +311,17 @@ export function FlowBoard({
 
     const activeTaskId = active.id as string;
     const overId = over.id as string;
+    const overData = over.data.current as { type?: string; columnId?: string } | undefined;
 
     const sourceColumn = findColumnByTaskId(activeTaskId);
-    let targetColumn = COLUMNS.find(c => c.id === overId)?.id;
     
-    if (!targetColumn) {
+    let targetColumn: string | undefined;
+    
+    if (overData?.columnId) {
+      targetColumn = overData.columnId;
+    } else if (overId.startsWith('column-')) {
+      targetColumn = overId.replace('column-', '');
+    } else {
       targetColumn = findColumnByTaskId(overId);
     }
 
@@ -365,6 +379,7 @@ export function FlowBoard({
                         task={task}
                         user={getUser(task.assigneeId)}
                         projectId={projectId}
+                        columnId={col.id}
                         isOverdue={isTaskOverdue(task)}
                         isStale={isTaskStale(task)}
                       />
