@@ -111,12 +111,13 @@ client/src/
 │   └── ui/         # shadcn/ui primitives (button, card, dialog, etc.)
 ├── context/        # React context providers
 │   └── current-user-context.tsx
-├── features/       # Feature-organized domain components
+├── features/       # Feature-organized domain components (includes types)
 │   ├── admin/      # Admin hub components
-│   ├── home/       # Home page panels
-│   │   └── panels/
+│   ├── home/       # Home page panels + types.ts
+│   │   ├── panels/
+│   │   └── types.ts    # HomeTask, WorkBlock, DayPlan, etc.
 │   ├── project/    # Project-related features
-│   │   ├── dashboard/    # Project dashboard
+│   │   ├── dashboard/    # Project dashboard + types.ts
 │   │   ├── milestones/   # Milestones content
 │   │   ├── sprints/      # Sprints content
 │   │   ├── stages/       # Stages content
@@ -126,14 +127,13 @@ client/src/
 │   └── templates/  # Template components (stage-template-editor)
 ├── hooks/          # Custom React hooks
 ├── lib/            # Utilities and mock data
-├── pages/          # Route components (folder-based structure)
-│   ├── home/       # Home page hub
-│   ├── project/    # Project workspace hub
-│   ├── project-new/    # New project wizard
-│   ├── project-tools/  # Import/export hub
-│   ├── admin/      # Admin hub
-│   └── not-found/  # 404 page
-└── types/          # TypeScript type definitions
+└── pages/          # Route components (folder-based structure)
+    ├── home/       # Home page hub
+    ├── project/    # Project workspace hub
+    ├── project-new/    # New project wizard
+    ├── project-tools/  # Import/export hub
+    ├── admin/      # Admin hub
+    └── not-found/  # 404 page
 
 server/
 ├── index.ts        # Express server entry point
