@@ -8,9 +8,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
-import { useTasks } from "@/hooks/use-nexus-data";
+import { useTasks, useSprints } from "@/hooks/use-nexus-data";
 import { 
   AlertTriangle, 
   CheckCircle2, 
@@ -27,7 +28,10 @@ import {
   Filter,
   CalendarDays,
   Milestone as MilestoneIcon,
-  Gauge
+  Gauge,
+  Zap,
+  Plus,
+  ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO, isValid, differenceInDays } from "date-fns";
@@ -604,6 +608,237 @@ function RiskRadarCard({ risks }: { risks: RiskItem[] }) {
   );
 }
 
+interface SprintTask {
+  id: string;
+  title: string;
+  status: string;
+  priority?: string;
+  epicName?: string;
+}
+
+interface CurrentSprintWidgetProps {
+  projectId: string;
+  sprint: any;
+  tasks: SprintTask[];
+  onStatusChange?: (taskId: string, newStatus: string) => void;
+}
+
+function CurrentSprintWidget({ projectId, sprint, tasks, onStatusChange }: CurrentSprintWidgetProps) {
+  if (!sprint) {
+    return (
+      <Card className="h-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Zap className="h-5 w-5 text-blue-600" />
+            Current Sprint
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <Zap className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-40" />
+            <p className="text-sm text-muted-foreground mb-3">No active sprint</p>
+            <Link href={`/projects/${projectId}?tab=sprints`}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Start Sprint
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const todoTasks = tasks.filter(t => ["To Do", "Todo", "Pending", "Backlog"].some(s => t.status?.toLowerCase() === s.toLowerCase()));
+  const inProgressTasks = tasks.filter(t => ["In Progress", "Review", "In Review"].some(s => t.status?.toLowerCase() === s.toLowerCase()));
+  const doneTasks = tasks.filter(t => ["Done", "Completed", "Complete"].some(s => t.status?.toLowerCase() === s.toLowerCase()));
+  const blockedTasks = tasks.filter(t => t.status?.toLowerCase() === "blocked");
+  
+  const totalTasks = tasks.length;
+  const completedCount = doneTasks.length;
+  const progressPercent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+  
+  const daysRemaining = sprint.endDate 
+    ? Math.max(0, differenceInDays(safeParseDateOrFallback(sprint.endDate), new Date()))
+    : null;
+
+  const renderTaskItem = (task: SprintTask) => (
+    <div key={task.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-accent/50 group">
+      <div className="flex-1 min-w-0">
+        <Link 
+          href={`/projects/${projectId}/tasks/${task.id}`}
+          className="text-sm truncate hover:text-primary hover:underline block"
+        >
+          {task.title}
+        </Link>
+        {task.epicName && (
+          <span className="text-[10px] text-muted-foreground">{task.epicName}</span>
+        )}
+      </div>
+      {onStatusChange && (
+        <Select 
+          value={task.status} 
+          onValueChange={(value) => onStatusChange(task.id, value)}
+        >
+          <SelectTrigger 
+            className="h-6 w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "capitalize whitespace-nowrap text-[10px] cursor-pointer",
+                STATUS_STYLES[task.status?.toLowerCase()] || "bg-gray-100 text-gray-700"
+              )}
+            >
+              {task.status}
+            </Badge>
+          </SelectTrigger>
+          <SelectContent>
+            {["To Do", "In Progress", "Blocked", "Done"].map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+
+  return (
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Zap className="h-5 w-5 text-blue-600" />
+            Current Sprint
+          </CardTitle>
+          <Link href={`/projects/${projectId}/sprints/${sprint.id}?tab=run`}>
+            <Button variant="ghost" size="sm" className="gap-1 h-7 text-xs">
+              Open
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+          </Link>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="font-medium text-sm">{sprint.name}</span>
+          <Badge variant="secondary" className="text-[10px]">Active</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 min-h-0 flex flex-col">
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          <div className="text-center p-2 rounded-lg bg-slate-50">
+            <div className="text-lg font-bold text-slate-700">{todoTasks.length}</div>
+            <div className="text-[10px] text-muted-foreground">To Do</div>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-blue-50">
+            <div className="text-lg font-bold text-blue-700">{inProgressTasks.length}</div>
+            <div className="text-[10px] text-muted-foreground">In Progress</div>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-red-50">
+            <div className="text-lg font-bold text-red-700">{blockedTasks.length}</div>
+            <div className="text-[10px] text-muted-foreground">Blocked</div>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-green-50">
+            <div className="text-lg font-bold text-green-700">{doneTasks.length}</div>
+            <div className="text-[10px] text-muted-foreground">Done</div>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-xs text-muted-foreground">Progress</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium">{progressPercent}%</span>
+              {daysRemaining !== null && (
+                <span className="text-[10px] text-muted-foreground">
+                  {daysRemaining}d left
+                </span>
+              )}
+            </div>
+          </div>
+          <Progress value={progressPercent} className="h-2" />
+        </div>
+
+        <div className="flex-1 min-h-0">
+          <ScrollArea className="h-[180px]">
+            <Accordion type="multiple" className="w-full">
+              {inProgressTasks.length > 0 && (
+                <AccordionItem value="in-progress" className="border-b-0">
+                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      In Progress ({inProgressTasks.length})
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-2">
+                    <div className="space-y-0.5">
+                      {inProgressTasks.map(renderTaskItem)}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+              {todoTasks.length > 0 && (
+                <AccordionItem value="todo" className="border-b-0">
+                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-slate-400" />
+                      To Do ({todoTasks.length})
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-2">
+                    <div className="space-y-0.5">
+                      {todoTasks.map(renderTaskItem)}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+              {blockedTasks.length > 0 && (
+                <AccordionItem value="blocked" className="border-b-0">
+                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      Blocked ({blockedTasks.length})
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-2">
+                    <div className="space-y-0.5">
+                      {blockedTasks.map(renderTaskItem)}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+              {doneTasks.length > 0 && (
+                <AccordionItem value="done" className="border-b-0">
+                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      Done ({doneTasks.length})
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-2">
+                    <div className="space-y-0.5">
+                      {doneTasks.map(renderTaskItem)}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+            </Accordion>
+          </ScrollArea>
+        </div>
+
+        <div className="pt-3 border-t mt-2">
+          <Link href={`/projects/${projectId}/sprints/${sprint.id}?tab=plan`}>
+            <Button variant="outline" size="sm" className="w-full gap-2">
+              <Plus className="h-4 w-4" />
+              Add Tasks to Sprint
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 interface TimeHorizonDashboardProps {
   projectId?: string;
   externalFilters?: DashboardFilters;
@@ -661,7 +896,8 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
     assigneeScope: 'all',
   });
   const queryClient = useQueryClient();
-  const { update: updateTask } = useTasks();
+  const { data: allTasks, update: updateTask } = useTasks();
+  const { data: allSprints } = useSprints();
 
   const filters = externalFilters || internalFilters;
   const updateFilters = (newFilters: DashboardFilters) => {
@@ -675,6 +911,8 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
   const handleStatusChange = (taskId: string, newStatus: string) => {
     updateTask({ id: taskId, updates: { status: newStatus } });
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['sprints'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
   };
 
   const { data: dashboard, isLoading, error } = useQuery<DashboardData>({
@@ -709,6 +947,20 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
   });
 
   const isProjectScoped = !!projectId;
+
+  const activeSprint = isProjectScoped && allSprints
+    ? allSprints.find((s: any) => s.projectId === projectId && s.status?.toLowerCase() === 'active')
+    : null;
+
+  const sprintTasks = activeSprint && allTasks
+    ? allTasks.filter((t: any) => t.sprintId === activeSprint.id).map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        epicName: t.epicName || undefined,
+      }))
+    : [];
 
   if (isLoading) {
     return (
@@ -791,11 +1043,77 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
         </TabsList>
 
         <TabsContent value="thisWeek" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <MyCommitmentsPanel tasks={dashboard.thisWeek.myCommitments} onStatusChange={handleStatusChange} />
-            <AtRiskPanel tasks={dashboard.thisWeek.atRisk} onStatusChange={handleStatusChange} />
-          </div>
-          <WeeklyFocusPanel focus={dashboard.thisWeek.weeklyFocus} />
+          {isProjectScoped ? (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <Card className="h-full">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        Tasks Due This Week
+                      </CardTitle>
+                      <CardDescription>Priority items due within this week</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[350px]">
+                        <div className="space-y-2 pr-2">
+                          {dashboard.thisWeek.myCommitments.length > 0 ? dashboard.thisWeek.myCommitments.map(task => (
+                            <TaskRow key={task.id} task={task} showProject={false} onStatusChange={handleStatusChange} />
+                          )) : (
+                            <div className="text-center text-muted-foreground py-8">
+                              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm">No tasks due this week</p>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </div>
+                <CurrentSprintWidget 
+                  projectId={projectId!}
+                  sprint={activeSprint}
+                  tasks={sprintTasks}
+                  onStatusChange={handleStatusChange}
+                />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <StageProgressCard stages={dashboard.future.stageProgress} />
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <MilestoneIcon className="h-5 w-5 text-purple-600" />
+                      Upcoming Milestones
+                    </CardTitle>
+                    <CardDescription>Key dates approaching</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-2 pr-2">
+                        {dashboard.nextWeek.milestones.length > 0 ? dashboard.nextWeek.milestones.slice(0, 5).map(m => (
+                          <MilestoneCard key={m.id} milestone={m} />
+                        )) : (
+                          <div className="text-center text-muted-foreground py-4">
+                            <MilestoneIcon className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No upcoming milestones</p>
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <MyCommitmentsPanel tasks={dashboard.thisWeek.myCommitments} onStatusChange={handleStatusChange} />
+                <AtRiskPanel tasks={dashboard.thisWeek.atRisk} onStatusChange={handleStatusChange} />
+              </div>
+              <WeeklyFocusPanel focus={dashboard.thisWeek.weeklyFocus} />
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="nextWeek" className="space-y-6">
@@ -887,9 +1205,9 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
             </CardContent>
           </Card>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className={cn("grid gap-6", isProjectScoped ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
             <StageProgressCard stages={dashboard.future.stageProgress} />
-            <RiskRadarCard risks={dashboard.future.risks} />
+            {!isProjectScoped && <RiskRadarCard risks={dashboard.future.risks} />}
           </div>
         </TabsContent>
       </Tabs>

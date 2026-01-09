@@ -1,0 +1,163 @@
+# Sprint Insights Tab — Product Spec
+
+This document defines the purpose, behavior, and structure of the **Sprint Insights** tab.  
+This tab is focused on **decision-making, sprint health, and safe sprint closure**, not day-to-day execution.
+
+---
+
+## 🎯 Core Job of the Sprint Insights Tab
+
+> **“Help me understand how the sprint is going, decide what to do next, and safely close it.”**
+
+This page must clearly answer:
+- Are we on track?
+- What’s blocked or unfinished?
+- What happens to leftover work?
+- Is this sprint ready to close?
+
+This is a **reflection and decision surface**, not an execution surface.
+
+---
+
+## 1️⃣ Sprint Close & Backlog Rollover (Primary Feature)
+
+### A) Close Sprint Action
+- Primary CTA: **Close Sprint**
+- Must be clearly visible and intentional
+- Not hidden behind menus
+
+---
+
+### B) Sprint Close Flow (Required)
+
+#### Step 1 — Sprint Summary Review (Auto-generated)
+Show a read-only summary:
+- Sprint name and dates
+- Sprint goal
+- Task counts:
+  - Completed
+  - In Progress
+  - Not Started
+  - Blocked
+- Completion percentage
+
+Purpose: confirm what actually happened before closing.
+
+---
+
+#### Step 2 — Backlog Rollover (Critical)
+For all unfinished tasks, present options:
+
+- ✅ Move to next sprint (**default**)
+- ⏸ Move to project backlog (unscheduled)
+- ❌ Close / cancel task (optional, gated)
+- 🔁 Reassign to another sprint (optional v1.1)
+
+Behavior:
+- Default selection = Move to next sprint
+- Bulk selection supported
+- Show task counts per choice
+
+This step ensures **no work is lost**.
+
+---
+
+#### Step 3 — Confirm & Execute
+- Final confirmation summary:
+  - “X tasks moved to Sprint N+1”
+  - “Y tasks moved to backlog”
+- Close sprint atomically
+- Optionally auto-create next sprint if none exists
+
+---
+
+### C) After Close Behavior
+- Sprint status becomes **Closed**
+- Run tab becomes read-only
+- Insights tab becomes historical
+- Redirect user to:
+  - Next sprint, or
+  - Sprint list
+
+---
+
+## 2️⃣ Sprint Health & Progress (Before Closing)
+
+### A) Sprint Progress Overview
+Show:
+- Sprint goal
+- Progress bar (% tasks completed)
+- Days elapsed vs total sprint duration
+- Velocity proxy (simple):
+  - Tasks completed / tasks planned
+
+---
+
+### B) Completion Breakdown
+Show a clear breakdown:
+- Done
+- In Progress
+- Not Started
+- Blocked
+
+Each category is clickable to drill into tasks.
+
+---
+
+### C) Risk & Signals (Actionable Only)
+Show:
+- 🚨 Blocked tasks count
+- ⚠️ Overdue tasks
+- 🔄 Tasks untouched for N days
+- 📉 Sprint slipping indicator (rule-based)
+
+Avoid heavy charts; show only signals that require action.
+
+---
+
+## 3️⃣ Additional Content That Belongs Here
+
+### A) Scope Changes (Optional but Valuable)
+If task history exists:
+- Tasks added mid-sprint
+- Tasks removed mid-sprint
+
+This explains why outcomes differ from the plan.
+
+---
+
+### B) Sprint Notes / Retrospective Seed
+Optional lightweight notes section:
+- Free-text “Sprint Notes”
+- Used to capture:
+  - What went well
+  - What didn’t
+  - Context for future retros
+
+Not a full retro tool.
+
+---
+
+### C) Historical Snapshot (After Close)
+Once closed:
+- All data becomes read-only
+- Acts as a permanent record of sprint outcome
+- Supports future analysis and retrospectives
+
+---
+
+## 4️⃣ What Should NOT Be on This Page
+
+Do NOT include:
+- Drag-and-drop boards
+- Task editing
+- Async standups (Run tab responsibility)
+- Heavy analytics or charts
+- Time tracking details
+
+If it’s about *doing work*, it does not belong here.
+
+---
+
+## 5️⃣ Suggested Page Structure
+
