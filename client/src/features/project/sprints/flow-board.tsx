@@ -48,6 +48,7 @@ interface FlowBoardProps {
   users: User[];
   projectId: string;
   isReadOnly?: boolean;
+  signalFilter?: "blocked" | "overdue" | "stale" | null;
   onTaskMove: (taskId: string, newStatus: string, blockerReason?: string) => void;
   onBlockerRequested: (taskId: string) => void;
 }
@@ -204,6 +205,7 @@ export function FlowBoard({
   users, 
   projectId, 
   isReadOnly,
+  signalFilter,
   onTaskMove,
   onBlockerRequested
 }: FlowBoardProps) {
@@ -236,12 +238,22 @@ export function FlowBoard({
     return updated < threeDaysAgo && task.status === "In Progress";
   };
 
+  const filteredTasks = useMemo(() => {
+    if (!signalFilter) return tasks;
+    return tasks.filter(t => {
+      if (signalFilter === "blocked") return t.blocked;
+      if (signalFilter === "overdue") return isTaskOverdue(t);
+      if (signalFilter === "stale") return isTaskStale(t);
+      return true;
+    });
+  }, [tasks, signalFilter]);
+
   const columnTasks = useMemo(() => {
     return COLUMNS.reduce((acc, col) => {
-      acc[col.id] = tasks.filter(t => col.statuses.includes(t.status));
+      acc[col.id] = filteredTasks.filter(t => col.statuses.includes(t.status));
       return acc;
     }, {} as Record<string, Task[]>);
-  }, [tasks]);
+  }, [filteredTasks]);
 
   const activeTask = activeId ? tasks.find(t => t.id === activeId) : null;
 

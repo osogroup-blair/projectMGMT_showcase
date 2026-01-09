@@ -59,6 +59,7 @@ import { Switch } from "@/components/ui/switch";
 import { FlowBoard } from "@/features/project/sprints/flow-board";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { PulsePanel } from "@/features/project/sprints/pulse-panel";
+import { SprintSignalsBar } from "@/features/project/sprints/sprint-signals-bar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useCurrentUser } from "@/context/current-user-context";
@@ -168,6 +169,7 @@ export default function SprintDetail() {
   const [matrixAxis, setMatrixAxis] = useState<"epics" | "milestones">("epics");
   const [blockerDialogOpen, setBlockerDialogOpen] = useState(false);
   const [pendingBlockerTaskId, setPendingBlockerTaskId] = useState<string | null>(null);
+  const [signalFilter, setSignalFilter] = useState<"blocked" | "overdue" | "stale" | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -1960,8 +1962,8 @@ export default function SprintDetail() {
           <TabsContent value="run" className="mt-6">
             <div className="flex gap-4 h-[calc(100vh-280px)]" data-testid="run-tab-container">
               <div className="flex-[65] min-w-0">
-                <Card className="h-full flex flex-col">
-                  <CardHeader className="py-3 px-4 flex-row items-center justify-between border-b">
+                <Card className="h-full flex flex-col overflow-hidden">
+                  <CardHeader className="py-2 px-4 flex-row items-center justify-between border-b">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
                       <Layers className="h-4 w-4" />
                       Flow Board
@@ -1973,12 +1975,18 @@ export default function SprintDetail() {
                       </Button>
                     )}
                   </CardHeader>
+                  <SprintSignalsBar
+                    tasks={sprintTasks}
+                    activeFilter={signalFilter}
+                    onFilterChange={setSignalFilter}
+                  />
                   <CardContent className="flex-1 p-3 overflow-hidden">
                     <FlowBoard
                       tasks={sprintTasks}
                       users={users || []}
                       projectId={projectId}
                       isReadOnly={isReadOnly}
+                      signalFilter={signalFilter}
                       onTaskMove={handleTaskMove}
                       onBlockerRequested={handleBlockerRequested}
                     />
