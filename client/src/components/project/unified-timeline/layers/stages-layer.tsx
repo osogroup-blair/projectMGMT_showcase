@@ -55,12 +55,8 @@ export function StagesLayer({ stages, projectId, projectStartDate, viewMode, tim
   };
 
   return (
-    <div className="relative h-14 border-b bg-emerald-50/30">
-      <div className="absolute left-0 top-0 h-full w-32 bg-background border-r flex items-center px-3 z-10">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Stages</span>
-      </div>
-      
-      <div className="ml-32 relative h-full">
+    <div className="relative border-b bg-emerald-50/30" style={{ height: 56 }}>
+      <div className="relative h-full">
         {stagesWithDates.map((stage) => {
           const left = getPosition(stage.startDate, timelineRange.start, config.dayWidth);
           const width = getWidth(stage.startDate, stage.endDate, config.dayWidth);
@@ -104,3 +100,5 @@ export function StagesLayer({ stages, projectId, projectStartDate, viewMode, tim
     </div>
   );
 }
+
+export const STAGES_LAYER_HEIGHT = 56;

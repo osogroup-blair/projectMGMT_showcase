@@ -36,12 +36,8 @@ export function SprintsLayer({ sprints, projectId, viewMode, timelineRange, high
   };
 
   return (
-    <div className="relative h-12 border-b bg-slate-50/50">
-      <div className="absolute left-0 top-0 h-full w-32 bg-background border-r flex items-center px-3 z-10">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sprints</span>
-      </div>
-      
-      <div className="ml-32 relative h-full">
+    <div className="relative border-b bg-slate-50/50" style={{ height: 48 }}>
+      <div className="relative h-full">
         {sortedSprints.map((sprint) => {
           const start = parseDate(sprint.startDate);
           const end = parseDate(sprint.endDate);
@@ -94,3 +90,5 @@ export function SprintsLayer({ sprints, projectId, viewMode, timelineRange, high
     </div>
   );
 }
+
+export const SPRINTS_LAYER_HEIGHT = 48;

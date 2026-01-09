@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
@@ -20,6 +18,10 @@ interface DeliverablesLayerProps {
   expandedDeliverables: Set<string>;
   onToggleDeliverable: (id: string) => void;
 }
+
+export const DELIVERABLE_ROW_HEIGHT = 48;
+export const EPIC_ROW_HEIGHT = 40;
+export const DELIVERABLES_HEADER_HEIGHT = 32;
 
 export function DeliverablesLayer({
   deliverables,
@@ -49,13 +51,7 @@ export function DeliverablesLayer({
   };
 
   return (
-    <div className="border-b">
-      <div className="sticky left-0 top-0 h-8 bg-background border-b flex items-center px-3 z-10">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Deliverables & Epics
-        </span>
-      </div>
-
+    <div className="border-b bg-blue-50/30">
       {deliverablesWithEpics.map((deliverable) => {
         const isExpanded = expandedDeliverables.has(deliverable.id);
         const hasEpics = deliverable.epics.length > 0;
@@ -137,30 +133,11 @@ function DeliverableRow({
   const width = start && end ? getWidth(start, end, config.dayWidth) : 100;
 
   return (
-    <div className="relative h-12 border-b bg-blue-50/20 hover:bg-blue-50/40 transition-colors">
-      <div className="absolute left-0 top-0 h-full w-32 bg-background border-r flex items-center gap-1 px-2 z-10">
-        {hasEpics && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle();
-            }}
-            className="p-0.5 hover:bg-muted rounded"
-            data-testid={`btn-toggle-deliverable-${deliverable.id}`}
-          >
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
-          </button>
-        )}
-        <span className="text-xs font-medium truncate" style={{ color: deliverable.color }}>
-          {deliverable.title}
-        </span>
-      </div>
-
-      <div className="ml-32 relative h-full">
+    <div 
+      className="relative border-b bg-blue-50/20 hover:bg-blue-50/40 transition-colors"
+      style={{ height: DELIVERABLE_ROW_HEIGHT }}
+    >
+      <div className="relative h-full">
         {start && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -241,13 +218,11 @@ function EpicRow({
   const width = start && end ? getWidth(start, end, config.dayWidth) : 60;
 
   return (
-    <div className="relative h-10 border-b bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
-      <div className="absolute left-0 top-0 h-full w-32 bg-background border-r flex items-center gap-1 pl-8 pr-2 z-10">
-        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-        <span className="text-xs text-muted-foreground truncate">{epic.title}</span>
-      </div>
-
-      <div className="ml-32 relative h-full">
+    <div 
+      className="relative border-b bg-slate-50/50 hover:bg-slate-100/50 transition-colors"
+      style={{ height: EPIC_ROW_HEIGHT }}
+    >
+      <div className="relative h-full">
         {start && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -291,4 +266,21 @@ function EpicRow({
       </div>
     </div>
   );
+}
+
+export function getDeliverablesLayerHeight(
+  deliverables: Deliverable[],
+  epics: Epic[],
+  expandedDeliverables: Set<string>
+): number {
+  let height = deliverables.length * DELIVERABLE_ROW_HEIGHT;
+  
+  deliverables.forEach((d) => {
+    if (expandedDeliverables.has(d.id)) {
+      const epicCount = epics.filter((e) => e.deliverableId === d.id).length;
+      height += epicCount * EPIC_ROW_HEIGHT;
+    }
+  });
+  
+  return height;
 }

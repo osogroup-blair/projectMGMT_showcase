@@ -40,12 +40,8 @@ export function MilestonesLayer({ milestones, projectId, viewMode, timelineRange
   });
 
   return (
-    <div className="relative h-16 border-b bg-amber-50/30">
-      <div className="absolute left-0 top-0 h-full w-32 bg-background border-r flex items-center px-3 z-10">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Milestones</span>
-      </div>
-      
-      <div className="ml-32 relative h-full">
+    <div className="relative border-b bg-amber-50/30" style={{ height: 64 }}>
+      <div className="relative h-full">
         {sortedMilestones.map((milestone, idx) => {
           const date = parseDate(milestone.targetDate);
           if (!date) return null;
@@ -98,3 +94,5 @@ export function MilestonesLayer({ milestones, projectId, viewMode, timelineRange
     </div>
   );
 }
+
+export const MILESTONES_LAYER_HEIGHT = 64;
