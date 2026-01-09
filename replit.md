@@ -12,6 +12,15 @@ Nymbl Workspace is an AI-powered project management platform designed for servic
 - **Customizable Views**: Saved views with configurable layouts (Kanban, Table, Timeline)
 - **Stage-based Workflow**: Configurable delivery stages with entry/exit criteria
 - **Unified Timeline**: Interactive visualization showing Sprints, Milestones, Stages, and Deliverables/Epics with layer toggles, accordion patterns, and multiple view modes (day/week/month/quarter/year)
+- **Sprint Planning**: Sprint detail page with Plan/Run/Insights/Settings tabs, including scope definition with sync indicators
+
+## Recent Changes
+
+### Sprint Plan Tab Redesign (January 2026)
+- Added sub-navigation within Plan tab: **Tasks** and **Scope Definition** sub-tabs
+- Tasks sub-tab: Sprint Goal card, Sprint Backlog table with add/remove tasks, Linked Entities (derived from sprint tasks' epics/milestones), sidebar cards (Dates, Capacity, Progress)
+- Scope Definition sub-tab: Scope mode toggle (Epics/Milestones/Stages), searchable entity multi-select, scope sync indicator showing tasks matching scope vs in sprint with "Sync All to Sprint" button, inline Suggested Tasks panel with bulk selection
+- Pattern matches Milestone page sub-navigation for UI consistency
 
 ## User Preferences
 
