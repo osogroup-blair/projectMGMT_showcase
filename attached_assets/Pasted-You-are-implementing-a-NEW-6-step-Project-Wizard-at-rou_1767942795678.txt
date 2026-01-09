@@ -1,0 +1,128 @@
+You are implementing a NEW 6-step Project Wizard at route /projects/new. Keep the wizard as SIX steps. IMPORTANT: Do NOT ask the user to select an “implementation framework” in Step 1. Framework/templating decisions must be deferred until Step 3 (Stage Configuration). In Step 3, the user can optionally “pre-apply” stages with templated tasks and milestones OR create new stages/tasks/milestones manually, including adding templated tasks without selecting a named framework.
+
+Your job: produce a detailed, robust implementation plan and then implement it. The plan must include: UX flow, data model changes (Drizzle), API changes (Express), UI components/state, validation rules, batching/performance/transactions, migration/backfill, and acceptance criteria per requirement. After changes, you MUST walk through the entire app to ensure operational parity and fix broken flows.
+
+CORE REQUIREMENTS (MUST IMPLEMENT)
+1) Defaults / Auto-population
+- Auto-set project end date when creating.
+- Every field must have a default if not set (start date default today, end date computed, sprint duration default, etc.).
+- UI must show placeholders for text fields; no hardcoded text in inputs.
+
+2) Work Breakdown UX (epics)
+- Epic inputs start empty with placeholder text.
+- Pressing Enter in an epic input adds a new epic row.
+- Recommended: Backspace on empty row removes the row (optional but good).
+
+3) Sticky actions for long forms
+- Provide sticky top action bar OR actions at both top and bottom for long steps (especially Step 3).
+- Must solve “scroll to top to click Create/Next” issues.
+
+4) Stage Configuration (Step 3) is where templating happens (NO framework selection earlier)
+- Step 3 must support two paths:
+  A) “Pre-apply templated content”:
+     - User can apply a set of stages + templated tasks + milestones in one shot (like a “starter pack”).
+     - This can come from:
+       - an existing framework template (optional), OR
+       - selecting “template snippets” (stages/tasks/milestones bundles) without choosing a full framework.
+  B) “Build from scratch”:
+     - User creates stages manually.
+     - User can add templated tasks (snippets) to any stage without selecting a full framework.
+     - User can add milestones manually, and/or apply milestone templates without selecting a framework.
+
+- Templated tasks MUST be editable BEFORE apply:
+  - edit title/description, scope (PER_EPIC vs ONCE), status, optional role assignment, ordering
+  - add custom tasks
+  - remove template tasks
+- These edits are PROJECT-SCOPED only (do NOT mutate global template definitions).
+
+5) Role-based assignee filtering
+- When choosing an assignee for a task or role, filter user options to only people eligible for that role.
+- Requires a mapping table: User ↔ RoleType eligibility (and/or a permission matrix).
+- Templates can specify assigneeRoleTypeId; UI filters users based on that mapping.
+
+6) Fix notifications for large creations
+- Creating a project that generates hundreds of tasks must NOT trigger hundreds of notifications/toasts.
+- Replace with ONE batched summary notification:
+  “Project created: X stages, Y epics, Z tasks, W milestones”
+- Add server-side batching guard for any bulk operation.
+
+WIZARD MUST BE EXACTLY 6 STEPS (DEFINE CLEARLY)
+Step 1 — Project Basics (NO frameworks here)
+- name, description, start date, end date (auto), sprint duration, etc.
+- defaults applied
+
+Step 2 — Work Breakdown
+- epics list editor (Enter adds row, placeholders)
+- optionally deliverables if they exist in the product model
+
+Step 3 — Stage Configuration (templating + manual build lives here)
+- Create stages manually OR pre-apply templated stages/tasks/milestones
+- Add templated tasks to stage without choosing a framework
+- Edit templated tasks prior to apply
+- Add/edit milestones (manual or templated)
+
+Step 4 — Assignments & Roles
+- Assign project roles and/or default assignees
+- User selection filtered by eligible roles
+- Define role eligibility mapping behavior if missing
+
+Step 5 — Review & Summary
+- Full preview: project fields + epics + stages + tasks generation (per-epic/once) + milestones + assignments
+- Show counts and warnings (e.g., “this will create 240 tasks”)
+
+Step 6 — Create
+- Execute create as a transaction (project + epics + stages + tasks + milestones + assignments)
+- Show progress and a single final summary toast/notification
+- Redirect to project workspace
+
+DATA MODEL REQUIREMENTS (MINIMUM)
+- Project can exist with zero stages (valid state).
+- Support templated task scope: PER_EPIC vs ONCE.
+- Support template task association to role type (assigneeRoleTypeId).
+- Support milestone templates/snippets.
+- Add user-role eligibility mapping table.
+
+SUGGESTED TEMPLATE MODEL (YOU MAY ADAPT)
+- Framework templates are OPTIONAL; do not force selection.
+- Introduce “Template Snippets” concept:
+  - StageSnippet: stages + tasks
+  - TaskSnippet: tasks only
+  - MilestoneSnippet: milestones only
+These can be applied independently in Step 3.
+
+API REQUIREMENTS (SUGGESTED)
+- GET /api/templates/snippets (stages/tasks/milestones bundles)
+- GET /api/templates/frameworks (optional, if exists)
+- POST /api/projects (enhanced payload) includes:
+  - project fields (defaults if missing)
+  - epics[]
+  - stageDrafts[] (manual + applied templates)
+  - milestoneDrafts[]
+  - taskDrafts[] with scope (PER_EPIC/ONCE) and optional assigneeRoleTypeId
+  - assignments/roles selections
+- GET /api/role-types
+- GET /api/users?eligibleForRoleTypeId=...
+- Admin endpoints to manage eligibility mapping (if needed)
+
+IMPLEMENTATION CONSTRAINTS
+- Avoid rewriting unrelated logic.
+- Template edits in wizard are project-scoped only; do not mutate global templates.
+- Use transactions + bulk inserts for performance.
+- Ensure imports/routes updated, no broken pages.
+
+DELIVERABLES REQUIRED IN YOUR RESPONSE
+1) A detailed implementation plan: Phases -> Tasks -> Dependencies -> Acceptance Criteria.
+2) A UI specification for each of the 6 steps (fields, components, state, validation).
+3) Data model + migration plan.
+4) API contracts (request/response payloads).
+5) A QA walkthrough checklist verifying:
+   - create project with no stages
+   - manual stage build
+   - apply templated stages/tasks/milestones without selecting a framework
+   - edit template tasks before apply
+   - per-epic vs once generation is correct
+   - sticky actions work
+   - role-based filtering works
+   - notifications are batched (no spam)
+
+Start by writing the plan before coding. Ensure the wizard remains SIX steps and all templating decisions occur ONLY in Step 3.
