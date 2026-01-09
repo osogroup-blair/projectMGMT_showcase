@@ -55,7 +55,11 @@ import {
 import { TEAM, TeamMember } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 
-export default function UserManagement() {
+interface UserManagementProps {
+  embedded?: boolean;
+}
+
+export default function UserManagement({ embedded = false }: UserManagementProps) {
   const { toast } = useToast();
   const [users, setUsers] = useState<TeamMember[]>(TEAM);
   const [searchQuery, setSearchQuery] = useState("");
@@ -128,13 +132,19 @@ export default function UserManagement() {
     });
   };
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : Shell;
+
   return (
-    <Shell>
+    <Wrapper>
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-primary">User Management</h1>
-            <p className="text-muted-foreground">Manage system users, roles, and access permissions.</p>
+            {!embedded && (
+              <>
+                <h1 className="text-2xl font-bold tracking-tight text-primary">User Management</h1>
+                <p className="text-muted-foreground">Manage system users, roles, and access permissions.</p>
+              </>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="gap-2">
@@ -301,6 +311,6 @@ export default function UserManagement() {
           </DialogContent>
         </Dialog>
       </div>
-    </Shell>
+    </Wrapper>
   );
 }

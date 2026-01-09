@@ -99,7 +99,11 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 
-export default function AdminTemplates() {
+interface AdminTemplatesProps {
+  embedded?: boolean;
+}
+
+export default function AdminTemplates({ embedded = false }: AdminTemplatesProps) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -548,25 +552,29 @@ export default function AdminTemplates() {
     </Card>
   );
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : Shell;
+
   if (isLoading) {
     return (
-      <Shell>
+      <Wrapper>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </Shell>
+      </Wrapper>
     );
   }
 
   return (
-    <Shell>
+    <Wrapper>
       <div className="space-y-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-primary">Template Management</h1>
-              <p className="text-muted-foreground">Manage and configure templates for projects, deliverables, epics, and tasks.</p>
-            </div>
+            {!embedded && (
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-primary">Template Management</h1>
+                <p className="text-muted-foreground">Manage and configure templates for projects, deliverables, epics, and tasks.</p>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
@@ -1484,6 +1492,6 @@ export default function AdminTemplates() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Shell>
+    </Wrapper>
   );
 }

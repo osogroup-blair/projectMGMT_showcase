@@ -61,7 +61,11 @@ import {
 } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
-export default function AdminAppDefaults() {
+interface AdminAppDefaultsProps {
+  embedded?: boolean;
+}
+
+export default function AdminAppDefaults({ embedded = false }: AdminAppDefaultsProps) {
   const { toast } = useToast();
   
   // Database hook for role types
@@ -112,7 +116,7 @@ export default function AdminAppDefaults() {
       if (currentType === "role-type") {
         const roleData = { label: formData.label, description: formData.description || "" };
         if (editingItem) {
-          await updateRoleType({ id: editingItem.id, ...roleData });
+          await updateRoleType({ id: editingItem.id, updates: roleData });
         } else {
           await createRoleType(roleData);
         }
@@ -206,15 +210,19 @@ export default function AdminAppDefaults() {
     );
   };
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : Shell;
+
   return (
-    <Shell>
+    <Wrapper>
       <div className="space-y-8">
-        <div className="flex flex-col gap-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-primary">App Defaults</h1>
-            <p className="text-muted-foreground">Configure global application settings and default options.</p>
+        {!embedded && (
+          <div className="flex flex-col gap-6">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-primary">App Defaults</h1>
+              <p className="text-muted-foreground">Configure global application settings and default options.</p>
+            </div>
           </div>
-        </div>
+        )}
 
         <Tabs defaultValue="status" className="w-full">
           <TabsList>
@@ -487,6 +495,6 @@ export default function AdminAppDefaults() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Shell>
+    </Wrapper>
   );
 }

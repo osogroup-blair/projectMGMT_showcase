@@ -217,7 +217,11 @@ const applyDefaultsForNewRecord = (record: any, entityName: string): any => {
   return updated;
 };
 
-export default function AdminImportExport() {
+interface AdminImportExportProps {
+  embedded?: boolean;
+}
+
+export default function AdminImportExport({ embedded = false }: AdminImportExportProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("all");
@@ -941,15 +945,19 @@ export default function AdminImportExport() {
     </div>
   );
 
+  const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : Shell;
+
   return (
-    <Shell>
+    <Wrapper>
       <div className="space-y-8">
-        <div className="flex flex-col gap-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-primary">Import & Export</h1>
-            <p className="text-muted-foreground">Manage data portability across projects, templates, defaults, and users.</p>
+        {!embedded && (
+          <div className="flex flex-col gap-6">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-primary">Import & Export</h1>
+              <p className="text-muted-foreground">Manage data portability across projects, templates, defaults, and users.</p>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <TabCard value="all" icon={Database} title="Full System" description="Complete data backup of all entities" />
@@ -1329,6 +1337,6 @@ export default function AdminImportExport() {
             </Card>
         )}
       </div>
-    </Shell>
+    </Wrapper>
   );
 }

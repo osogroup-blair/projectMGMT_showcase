@@ -16,6 +16,25 @@ Nymbl Workspace is an AI-powered project management platform designed for servic
 
 ## Recent Changes
 
+### Architecture Refactoring (January 2026)
+A refactor_workspace folder contains the work-in-progress restructured codebase:
+
+**Server Reorganization:**
+- `server/app/` - Main Express server entry (index.ts, vite.ts, static.ts)
+- `server/api/` - API route definitions
+- `server/db/` - Database connection and seed
+- `server/data/` - Storage layer
+
+**Client Feature-First Structure:**
+- `client/src/features/` - Feature-organized components
+- `client/src/context/` - React contexts (renamed from contexts)
+- **AdminHub pattern** - Consolidated admin pages (users, templates, defaults, import-export) into single tabbed interface at `/admin` and `/admin/:section`
+
+**Hub Page Pattern:**
+- AdminHub supports both path-based (`/admin/templates`) and query-based (`/admin?tab=templates`) routing
+- Individual admin pages support `embedded` prop for use within hub or standalone
+- ProjectOverview already uses similar tabbed hub pattern for project content
+
 ### Sprint Plan Tab Redesign (January 2026)
 - Added sub-navigation within Plan tab: **Tasks** and **Scope Definition** sub-tabs
 - Tasks sub-tab: Sprint Goal card, Sprint Backlog table with add/remove tasks, Linked Entities (derived from sprint tasks' epics/milestones), sidebar cards (Dates, Capacity, Progress)
