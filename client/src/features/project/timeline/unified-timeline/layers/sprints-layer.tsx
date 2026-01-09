@@ -1,11 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import type { Sprint } from "@shared/schema";
 import type { ViewMode, TimelineRange } from "../types";
-import { getPosition, getWidth, parseDate, formatDateRange, VIEW_MODE_CONFIGS, assignLanes, getLaneCount, type PositionedItem } from "../timeline-utils";
+import { getPosition, getWidth, parseDate, VIEW_MODE_CONFIGS, assignLanes, getLaneCount, type PositionedItem } from "../timeline-utils";
+import { TimelineBar } from "../components/timeline-bar";
+import { useToast } from "@/hooks/use-toast";
 
 interface SprintsLayerProps {
   sprints: Sprint[];
@@ -28,27 +29,54 @@ const BAR_HEIGHT = 32;
 interface SprintWithPosition extends PositionedItem {
   sprint: Sprint;
   start: Date;
-  end: Date | null;
+  end: Date;
 }
 
 export function SprintsLayer({ sprints, projectId, viewMode, timelineRange, highlightId }: SprintsLayerProps) {
   const [, navigate] = useLocation();
   const config = VIEW_MODE_CONFIGS[viewMode];
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const handleClick = (sprintId: string) => {
+  const updateSprintMutation = useMutation({
+    mutationFn: async ({ sprintId, startDate, endDate }: { sprintId: string; startDate: string; endDate: string }) => {
+      const res = await fetch(`/api/sprints/${sprintId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startDate, endDate }),
+      });
+      if (!res.ok) throw new Error("Failed to update sprint dates");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/sprints`] });
+      toast({ title: "Sprint Updated", description: "Sprint dates have been updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update sprint dates.", variant: "destructive" });
+    },
+  });
+
+  const handleClick = useCallback((sprintId: string) => {
     navigate(`/projects/${projectId}/sprints/${sprintId}`);
-  };
+  }, [navigate, projectId]);
+
+  const handleDateChange = useCallback((sprintId: string, startDate: Date, endDate: Date) => {
+    updateSprintMutation.mutate({
+      sprintId,
+      startDate: format(startDate, "yyyy-MM-dd"),
+      endDate: format(endDate, "yyyy-MM-dd"),
+    });
+  }, [updateSprintMutation]);
 
   const sprintsWithPositions = useMemo(() => {
     return sprints
       .map((sprint) => {
         const start = parseDate(sprint.startDate);
         const end = parseDate(sprint.endDate);
-        if (!start) return null;
+        if (!start || !end) return null;
         const left = getPosition(start, timelineRange.start, config.dayWidth);
-        const width = end 
-          ? getWidth(start, end, config.dayWidth) 
-          : config.dayWidth * 14;
+        const width = getWidth(start, end, config.dayWidth);
         return {
           id: sprint.id,
           left,
@@ -74,37 +102,24 @@ export function SprintsLayer({ sprints, projectId, viewMode, timelineRange, high
           const top = VERTICAL_PADDING + lane * LANE_HEIGHT + (LANE_HEIGHT - BAR_HEIGHT) / 2;
 
           return (
-            <Tooltip key={item.sprint.id}>
-              <TooltipTrigger asChild>
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className={cn(
-                    "absolute rounded-md px-2 flex items-center gap-1 cursor-pointer transition-all",
-                    "hover:ring-2 hover:ring-primary/50 focus:ring-2 focus:ring-primary focus:outline-none",
-                    statusColor,
-                    isHighlighted && "ring-2 ring-primary ring-offset-2"
-                  )}
-                  style={{ left: item.left, width: item.width, top, height: BAR_HEIGHT }}
-                  onClick={() => handleClick(item.sprint.id)}
-                  data-testid={`timeline-sprint-${item.sprint.id}`}
-                >
-                  <span className="text-xs font-medium text-white truncate">
-                    {item.sprint.name}
-                  </span>
-                </motion.button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs">
-                <div className="space-y-1">
-                  <p className="font-medium">{item.sprint.name}</p>
-                  {item.sprint.goal && <p className="text-xs text-muted-foreground">{item.sprint.goal}</p>}
-                  <p className="text-xs">
-                    {item.start && item.end ? formatDateRange(item.start, item.end) : "No dates set"}
-                  </p>
-                  <p className="text-xs capitalize">Status: {item.sprint.status}</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
+            <TimelineBar
+              key={item.sprint.id}
+              id={item.sprint.id}
+              name={item.sprint.name}
+              description={item.sprint.goal}
+              startDate={item.start}
+              endDate={item.end}
+              left={item.left}
+              width={item.width}
+              top={top}
+              height={BAR_HEIGHT}
+              dayWidth={config.dayWidth}
+              colorClass={statusColor}
+              isHighlighted={isHighlighted}
+              onClick={() => handleClick(item.sprint.id)}
+              onDateChange={handleDateChange}
+              testId={`timeline-sprint-${item.sprint.id}`}
+            />
           );
         })}
       </div>

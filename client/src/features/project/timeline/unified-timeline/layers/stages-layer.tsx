@@ -1,12 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { format, addWeeks } from "date-fns";
 import type { ProjectStage } from "@shared/schema";
 import type { ViewMode, TimelineRange } from "../types";
-import { getPosition, getWidth, parseDate, formatDateRange, VIEW_MODE_CONFIGS, assignLanes, getLaneCount, type PositionedItem } from "../timeline-utils";
-import { addWeeks } from "date-fns";
+import { getPosition, getWidth, parseDate, VIEW_MODE_CONFIGS, assignLanes, getLaneCount, type PositionedItem } from "../timeline-utils";
+import { TimelineBar } from "../components/timeline-bar";
+import { useToast } from "@/hooks/use-toast";
 
 interface StagesLayerProps {
   stages: ProjectStage[];
@@ -18,7 +18,7 @@ interface StagesLayerProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-slate-300",
+  pending: "bg-slate-400",
   active: "bg-emerald-500",
   completed: "bg-emerald-700",
 };
@@ -28,8 +28,8 @@ const VERTICAL_PADDING = 8;
 const BAR_HEIGHT = 32;
 
 interface StageWithDates extends ProjectStage {
-  startDate: Date;
-  endDate: Date;
+  computedStartDate: Date;
+  computedEndDate: Date;
 }
 
 interface StageWithPosition extends PositionedItem {
@@ -37,41 +37,77 @@ interface StageWithPosition extends PositionedItem {
 }
 
 const generateStageDates = (stages: ProjectStage[], projectStartDate?: string | null): StageWithDates[] => {
-  const start = projectStartDate ? parseDate(projectStartDate) : new Date();
-  if (!start) return [];
+  const projectStart = projectStartDate ? parseDate(projectStartDate) : new Date();
+  if (!projectStart) return [];
   
-  let currentStart = start;
+  let currentStart = projectStart;
   
   return stages
     .sort((a, b) => a.order - b.order)
     .map((stage) => {
+      const stageStart = stage.startDate ? parseDate(stage.startDate) : null;
+      const stageEnd = stage.endDate ? parseDate(stage.endDate) : null;
+
+      if (stageStart && stageEnd) {
+        return { ...stage, computedStartDate: stageStart, computedEndDate: stageEnd };
+      }
+      
       let durationWeeks = 4;
       if (stage.name.toLowerCase().includes("develop")) {
         durationWeeks = 16;
       }
       
-      const startDate = currentStart;
-      const endDate = addWeeks(startDate, durationWeeks);
-      currentStart = addWeeks(endDate, 0);
+      const startDate = stageStart || currentStart;
+      const endDate = stageEnd || addWeeks(startDate, durationWeeks);
+      currentStart = endDate;
 
-      return { ...stage, startDate, endDate };
+      return { ...stage, computedStartDate: startDate, computedEndDate: endDate };
     });
 };
 
 export function StagesLayer({ stages, projectId, projectStartDate, viewMode, timelineRange, highlightId }: StagesLayerProps) {
   const [, navigate] = useLocation();
   const config = VIEW_MODE_CONFIGS[viewMode];
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const updateStageMutation = useMutation({
+    mutationFn: async ({ stageId, startDate, endDate }: { stageId: string; startDate: string; endDate: string }) => {
+      const res = await fetch(`/api/projects/${projectId}/stages/${stageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startDate, endDate }),
+      });
+      if (!res.ok) throw new Error("Failed to update stage dates");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/stages`] });
+      toast({ title: "Stage Updated", description: "Stage dates have been updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update stage dates.", variant: "destructive" });
+    },
+  });
 
   const stagesWithDates = useMemo(() => generateStageDates(stages, projectStartDate), [stages, projectStartDate]);
 
-  const handleClick = (stageId: string) => {
+  const handleClick = useCallback((stageId: string) => {
     navigate(`/projects/${projectId}/stages/${stageId}`);
-  };
+  }, [navigate, projectId]);
+
+  const handleDateChange = useCallback((stageId: string, startDate: Date, endDate: Date) => {
+    updateStageMutation.mutate({
+      stageId,
+      startDate: format(startDate, "yyyy-MM-dd"),
+      endDate: format(endDate, "yyyy-MM-dd"),
+    });
+  }, [updateStageMutation]);
 
   const stagesWithPositions = useMemo(() => {
     return stagesWithDates.map((stage) => {
-      const left = getPosition(stage.startDate, timelineRange.start, config.dayWidth);
-      const width = getWidth(stage.startDate, stage.endDate, config.dayWidth);
+      const left = getPosition(stage.computedStartDate, timelineRange.start, config.dayWidth);
+      const width = getWidth(stage.computedStartDate, stage.computedEndDate, config.dayWidth);
       return {
         id: stage.id,
         left,
@@ -94,35 +130,24 @@ export function StagesLayer({ stages, projectId, projectStartDate, viewMode, tim
           const top = VERTICAL_PADDING + lane * LANE_HEIGHT + (LANE_HEIGHT - BAR_HEIGHT) / 2;
 
           return (
-            <Tooltip key={item.stage.id}>
-              <TooltipTrigger asChild>
-                <motion.button
-                  initial={{ opacity: 0, scaleX: 0.8 }}
-                  animate={{ opacity: 1, scaleX: 1 }}
-                  className={cn(
-                    "absolute rounded-md px-3 flex items-center cursor-pointer transition-all",
-                    "hover:ring-2 hover:ring-primary/50 focus:ring-2 focus:ring-primary focus:outline-none",
-                    statusColor,
-                    isHighlighted && "ring-2 ring-primary ring-offset-2"
-                  )}
-                  style={{ left: item.left, width: item.width, top, height: BAR_HEIGHT }}
-                  onClick={() => handleClick(item.stage.id)}
-                  data-testid={`timeline-stage-${item.stage.id}`}
-                >
-                  <span className="text-xs font-medium text-white truncate">
-                    {item.stage.name}
-                  </span>
-                </motion.button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs">
-                <div className="space-y-1">
-                  <p className="font-medium">{item.stage.name}</p>
-                  {item.stage.description && <p className="text-xs text-muted-foreground">{item.stage.description}</p>}
-                  <p className="text-xs">{formatDateRange(item.stage.startDate, item.stage.endDate)}</p>
-                  <p className="text-xs capitalize">Status: {item.stage.status}</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
+            <TimelineBar
+              key={item.stage.id}
+              id={item.stage.id}
+              name={item.stage.name}
+              description={item.stage.description}
+              startDate={item.stage.computedStartDate}
+              endDate={item.stage.computedEndDate}
+              left={item.left}
+              width={item.width}
+              top={top}
+              height={BAR_HEIGHT}
+              dayWidth={config.dayWidth}
+              colorClass={statusColor}
+              isHighlighted={isHighlighted}
+              onClick={() => handleClick(item.stage.id)}
+              onDateChange={handleDateChange}
+              testId={`timeline-stage-${item.stage.id}`}
+            />
           );
         })}
       </div>
@@ -134,8 +159,8 @@ export function getStagesLayerHeight(stages: ProjectStage[], projectStartDate: s
   const stagesWithDates = generateStageDates(stages, projectStartDate);
   
   const stagesWithPositions = stagesWithDates.map((stage) => {
-    const left = getPosition(stage.startDate, timelineRange.start, dayWidth);
-    const width = getWidth(stage.startDate, stage.endDate, dayWidth);
+    const left = getPosition(stage.computedStartDate, timelineRange.start, dayWidth);
+    const width = getWidth(stage.computedStartDate, stage.computedEndDate, dayWidth);
     return { id: stage.id, left, width: Math.max(width, 80) };
   });
 

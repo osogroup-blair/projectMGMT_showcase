@@ -83,6 +83,8 @@ export const projectStages = pgTable("project_stages", {
   order: integer("order").notNull(),
   type: text("type").notNull(),
   status: text("status").notNull().default("pending"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
 });
 
 // Milestones

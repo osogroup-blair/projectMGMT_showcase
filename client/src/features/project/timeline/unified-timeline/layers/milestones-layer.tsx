@@ -1,13 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { Flag } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import type { Milestone } from "@shared/schema";
 import type { ViewMode, TimelineRange } from "../types";
 import { getPosition, parseDate, VIEW_MODE_CONFIGS, assignLanes, getLaneCount, type PositionedItem } from "../timeline-utils";
-import { format } from "date-fns";
+import { MilestoneMarker } from "../components/timeline-bar";
+import { useToast } from "@/hooks/use-toast";
 
 interface MilestonesLayerProps {
   milestones: Milestone[];
@@ -18,11 +17,11 @@ interface MilestonesLayerProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  planned: "text-slate-400 bg-slate-100",
-  "in_progress": "text-amber-500 bg-amber-50",
-  achieved: "text-green-500 bg-green-50",
-  slipped: "text-red-500 bg-red-50",
-  cancelled: "text-gray-400 bg-gray-100",
+  planned: "bg-slate-400",
+  in_progress: "bg-amber-500",
+  achieved: "bg-green-500",
+  slipped: "bg-red-500",
+  cancelled: "bg-gray-400",
 };
 
 const MILESTONE_SIZE = 28;
@@ -37,10 +36,38 @@ interface MilestoneWithPosition extends PositionedItem {
 export function MilestonesLayer({ milestones, projectId, viewMode, timelineRange, highlightId }: MilestonesLayerProps) {
   const [, navigate] = useLocation();
   const config = VIEW_MODE_CONFIGS[viewMode];
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  const handleClick = (milestoneId: string) => {
+  const updateMilestoneMutation = useMutation({
+    mutationFn: async ({ milestoneId, targetDate }: { milestoneId: string; targetDate: string }) => {
+      const res = await fetch(`/api/projects/${projectId}/milestones/${milestoneId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetDate }),
+      });
+      if (!res.ok) throw new Error("Failed to update milestone date");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
+      toast({ title: "Milestone Updated", description: "Milestone date has been updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update milestone date.", variant: "destructive" });
+    },
+  });
+
+  const handleClick = useCallback((milestoneId: string) => {
     navigate(`/projects/${projectId}/milestones/${milestoneId}`);
-  };
+  }, [navigate, projectId]);
+
+  const handleDateChange = useCallback((milestoneId: string, date: Date) => {
+    updateMilestoneMutation.mutate({
+      milestoneId,
+      targetDate: format(date, "yyyy-MM-dd"),
+    });
+  }, [updateMilestoneMutation]);
 
   const milestonesWithPositions = useMemo(() => {
     return milestones
@@ -68,45 +95,25 @@ export function MilestonesLayer({ milestones, projectId, viewMode, timelineRange
       <div className="relative h-full">
         {withLanes.map(({ item, lane }) => {
           const isHighlighted = highlightId === item.milestone.id;
-          const statusStyle = STATUS_COLORS[item.milestone.status] || STATUS_COLORS.planned;
-          const top = VERTICAL_PADDING + lane * LANE_HEIGHT;
+          const statusColor = STATUS_COLORS[item.milestone.status] || STATUS_COLORS.planned;
+          const top = VERTICAL_PADDING + lane * LANE_HEIGHT + (LANE_HEIGHT - MILESTONE_SIZE) / 2;
 
           return (
-            <Tooltip key={item.milestone.id}>
-              <TooltipTrigger asChild>
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={cn(
-                    "absolute flex flex-col items-center cursor-pointer transition-all group",
-                    "hover:scale-110 focus:scale-110 focus:outline-none",
-                    isHighlighted && "scale-110"
-                  )}
-                  style={{ left: item.left - 12, top }}
-                  onClick={() => handleClick(item.milestone.id)}
-                  data-testid={`timeline-milestone-${item.milestone.id}`}
-                >
-                  <div className={cn(
-                    "w-6 h-6 rotate-45 rounded-sm flex items-center justify-center border-2 border-current",
-                    statusStyle,
-                    isHighlighted && "ring-2 ring-primary ring-offset-1"
-                  )}>
-                    <Flag className="w-3 h-3 -rotate-45" />
-                  </div>
-                </motion.button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs">
-                <div className="space-y-1">
-                  <p className="font-medium">{item.milestone.name}</p>
-                  <p className="text-xs text-muted-foreground">{item.milestone.description}</p>
-                  <p className="text-xs">Target: {format(item.date, "MMM d, yyyy")}</p>
-                  <p className="text-xs capitalize">Status: {item.milestone.status.replace("_", " ")}</p>
-                  {typeof item.milestone.progressPercentComplete === "number" && (
-                    <p className="text-xs">Progress: {item.milestone.progressPercentComplete}%</p>
-                  )}
-                </div>
-              </TooltipContent>
-            </Tooltip>
+            <MilestoneMarker
+              key={item.milestone.id}
+              id={item.milestone.id}
+              name={item.milestone.name}
+              description={item.milestone.description}
+              targetDate={item.date}
+              left={item.left}
+              top={top}
+              size={MILESTONE_SIZE}
+              colorClass={statusColor}
+              isHighlighted={isHighlighted}
+              onClick={() => handleClick(item.milestone.id)}
+              onDateChange={handleDateChange}
+              testId={`timeline-milestone-${item.milestone.id}`}
+            />
           );
         })}
       </div>
