@@ -11,6 +11,7 @@ Nymbl Workspace is an AI-powered project management platform designed for servic
 - **Import/Export**: Excel-based data import with field mapping and round-trip export capabilities
 - **Customizable Views**: Saved views with configurable layouts (Kanban, Table, Timeline)
 - **Stage-based Workflow**: Configurable delivery stages with entry/exit criteria
+- **Unified Timeline**: Interactive visualization showing Sprints, Milestones, Stages, and Deliverables/Epics with layer toggles, accordion patterns, and multiple view modes (day/week/month/quarter/year)
 
 ## User Preferences
 
@@ -77,6 +78,19 @@ All API routes follow the pattern:
 ```
 client/src/
 ├── components/     # Reusable UI components
+│   └── project/
+│       └── unified-timeline/  # Timeline visualization component
+│           ├── unified-timeline.tsx   # Main component
+│           ├── timeline-header.tsx    # Controls (view mode, layers, navigation)
+│           ├── timeline-axis.tsx      # Date axis with ticks
+│           ├── timeline-grid.tsx      # Grid container for layers
+│           ├── types.ts               # TypeScript interfaces
+│           ├── timeline-utils.ts      # Date calculations and positioning
+│           └── layers/                # Individual layer components
+│               ├── sprints-layer.tsx
+│               ├── milestones-layer.tsx
+│               ├── stages-layer.tsx
+│               └── deliverables-layer.tsx
 ├── hooks/          # Custom React hooks
 ├── lib/            # Utilities and mock data
 ├── pages/          # Route components
