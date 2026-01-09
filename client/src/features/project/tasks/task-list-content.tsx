@@ -12,8 +12,12 @@ import {
   ListTodo,
   Zap,
   Check,
-  X
+  X,
+  Users,
+  Play,
+  CheckCircle2
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +72,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+
+  // Bulk selection state
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   // Inline editing state
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
@@ -224,6 +232,89 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
   const activeFilterCount = getActiveFilterCount(filters);
 
+  // Bulk selection helpers
+  const isAllSelected = filteredTasks.length > 0 && filteredTasks.every((t: any) => selectedTaskIds.has(t.id));
+  const isPartiallySelected = filteredTasks.some((t: any) => selectedTaskIds.has(t.id)) && !isAllSelected;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(filteredTasks.map((t: any) => t.id)));
+    }
+  };
+
+  const toggleSelectTask = (taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  };
+
+  // Bulk action handlers
+  const handleBulkAssign = async (assigneeId: string | null) => {
+    setIsBulkUpdating(true);
+    try {
+      const updates = Array.from(selectedTaskIds).map(id => 
+        updateTask({ id, updates: { assigneeId } })
+      );
+      await Promise.all(updates);
+      toast({ 
+        title: "Tasks updated", 
+        description: `${selectedTaskIds.size} task(s) assigned successfully.` 
+      });
+      setSelectedTaskIds(new Set());
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to update tasks.", variant: "destructive" });
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    setIsBulkUpdating(true);
+    try {
+      const updates = Array.from(selectedTaskIds).map(id => 
+        updateTask({ id, updates: { status } })
+      );
+      await Promise.all(updates);
+      toast({ 
+        title: "Tasks updated", 
+        description: `${selectedTaskIds.size} task(s) status changed to ${status}.` 
+      });
+      setSelectedTaskIds(new Set());
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to update tasks.", variant: "destructive" });
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkSprint = async (sprintId: string | null) => {
+    setIsBulkUpdating(true);
+    try {
+      const updates = Array.from(selectedTaskIds).map(id => 
+        updateTask({ id, updates: { sprintId } })
+      );
+      await Promise.all(updates);
+      const sprintName = sprintId ? projectSprints.find((s: any) => s.id === sprintId)?.name : "Backlog";
+      toast({ 
+        title: "Tasks updated", 
+        description: `${selectedTaskIds.size} task(s) moved to ${sprintName}.` 
+      });
+      setSelectedTaskIds(new Set());
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to update tasks.", variant: "destructive" });
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   const openCreateDialog = () => {
     setNewTaskTitle("");
     setNewTaskDescription("");
@@ -378,6 +469,70 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             </Button>
           </div>
         )}
+
+        {/* Bulk Action Bar */}
+        {selectedTaskIds.size > 0 && (
+          <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg" data-testid="bulk-action-bar">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">
+                {selectedTaskIds.size} task{selectedTaskIds.size > 1 ? 's' : ''} selected
+              </span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <Select onValueChange={(v) => handleBulkStatus(v)} disabled={isBulkUpdating}>
+                <SelectTrigger className="h-8 w-[130px] text-xs" data-testid="bulk-status-select">
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Set Status</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {["Todo", "In Progress", "Review", "Done"].map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select onValueChange={(v) => handleBulkAssign(v === "unassigned" ? null : v)} disabled={isBulkUpdating}>
+                <SelectTrigger className="h-8 w-[130px] text-xs" data-testid="bulk-assignee-select">
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Assign To</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {(users || []).map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select onValueChange={(v) => handleBulkSprint(v === "backlog" ? null : v)} disabled={isBulkUpdating}>
+                <SelectTrigger className="h-8 w-[140px] text-xs" data-testid="bulk-sprint-select">
+                  <Play className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Add to Sprint</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="backlog">Backlog</SelectItem>
+                  {projectSprints.map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="ml-auto">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setSelectedTaskIds(new Set())}
+                className="h-8 text-xs"
+                data-testid="bulk-clear-selection"
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                Clear
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Task List */}
@@ -406,13 +561,26 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           <Table style={{ minWidth: "900px" }}>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead style={{ width: "25%" }}>Task</TableHead>
-                <TableHead style={{ width: "12%" }}>Stage</TableHead>
-                <TableHead style={{ width: "12%" }}>Status</TableHead>
-                <TableHead style={{ width: "15%" }}>Sprint</TableHead>
-                <TableHead style={{ width: "10%" }}>Priority</TableHead>
-                <TableHead style={{ width: "14%" }}>Assignee</TableHead>
-                <TableHead style={{ width: "12%" }} className="text-right">Due</TableHead>
+                <TableHead style={{ width: "4%" }} className="px-3">
+                  <Checkbox
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) {
+                        (el as HTMLButtonElement & { indeterminate: boolean }).indeterminate = isPartiallySelected;
+                      }
+                    }}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all tasks"
+                    data-testid="checkbox-select-all"
+                  />
+                </TableHead>
+                <TableHead style={{ width: "23%" }}>Task</TableHead>
+                <TableHead style={{ width: "11%" }}>Stage</TableHead>
+                <TableHead style={{ width: "11%" }}>Status</TableHead>
+                <TableHead style={{ width: "14%" }}>Sprint</TableHead>
+                <TableHead style={{ width: "9%" }}>Priority</TableHead>
+                <TableHead style={{ width: "13%" }}>Assignee</TableHead>
+                <TableHead style={{ width: "11%" }} className="text-right">Due</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -427,9 +595,21 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 return (
                   <TableRow 
                     key={task.id} 
-                    className="hover:bg-muted/50 transition-colors"
+                    className={cn(
+                      "hover:bg-muted/50 transition-colors",
+                      selectedTaskIds.has(task.id) && "bg-primary/5"
+                    )}
                     data-testid={`task-row-${task.id}`}
                   >
+                    {/* Checkbox */}
+                    <TableCell className="px-3" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedTaskIds.has(task.id)}
+                        onCheckedChange={() => toggleSelectTask(task.id)}
+                        aria-label={`Select task ${task.title}`}
+                        data-testid={`checkbox-task-${task.id}`}
+                      />
+                    </TableCell>
                     {/* Title - Inline Editable */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="space-y-1">
