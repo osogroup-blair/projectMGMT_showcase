@@ -171,16 +171,7 @@ export function StepTaskAlignment({
   if (!hasImportedTasks && allTasks.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ListTodo className="h-5 w-5" />
-            Task-Epic Alignment
-          </CardTitle>
-          <CardDescription>
-            Ensure all tasks are properly assigned to epics
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <Alert>
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle>No Tasks to Align</AlertTitle>
@@ -196,18 +187,8 @@ export function StepTaskAlignment({
   
   return (
     <div className="space-y-6">
-      {false && (
-        <Card>
-          <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ListTodo className="h-5 w-5" />
-            Task-Epic Alignment
-          </CardTitle>
-          <CardDescription>
-            Ensure all imported tasks are properly assigned to epics before creating the project
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Card>
+        <CardContent className="space-y-4 pt-6">
           <div className="grid grid-cols-3 gap-4">
             <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
