@@ -690,34 +690,60 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
   };
 
   const IMPORT_ORDER = [
+    // Users & Roles (base entities)
     "Users",
     "RoleTypes",
     "StatusOptions",
+    "TaskTypes",
+    // Templates (config before data)
     "FrameworkTemplates",
     "StageTemplates",
     "TaskTemplates",
     "RoleTemplates",
+    "MilestoneTemplates",
     "DeliverableTemplates",
     "EpicTemplates",
     "ProjectTemplates",
+    "TemplateSnippets",
     "MappingTemplates",
     "GuidanceItems",
     "SavedViews",
+    // User-related config
+    "UserRoleEligibility",
+    "UserPreferences",
+    // Projects & related config
     "Projects",
+    "ProjectFavorites",
     "ProjectRoles",
     "RoleAssignments",
+    "ProjectSettings",
+    "ProjectTaskTypes",
+    "ProjectTaskStatuses",
     "ProjectStages",
+    // Sprints
     "Sprints",
+    "SprintMembers",
+    "SprintScopeTargets",
+    // Work breakdown
     "Deliverables",
     "Epics",
     "Milestones",
     "MilestoneScopeRules",
+    // Tasks
     "Tasks",
+    "TaskDependencies",
     "MilestoneTaskLinks",
+    // Sprint activity
+    "SprintScopeEvents",
+    "SprintPulseUpdates",
+    // Task activity
     "Activity",
     "Comments",
     "Attachments",
-    "History"
+    "History",
+    // Planning
+    "DayPlans",
+    "WorkBlocks"
   ];
 
   const normalizeRecord = (record: any, entityName: string): any => {
@@ -938,36 +964,69 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
   const generateExportData = async () => {
     let data: any = {};
 
+    const safeGetAll = async (collection: keyof import("@/lib/storage").NexusDB) => {
+      try {
+        return serialize(await db.getAll(collection));
+      } catch {
+        return [];
+      }
+    };
+
     if (activeTab === "all") {
        data = {
-         Projects: serialize(await db.getAll("projects")),
-         Deliverables: serialize(await db.getAll("deliverables")),
-         Epics: serialize(await db.getAll("epics")),
-         ProjectStages: serialize(await db.getAll("projectStages")),
-         Sprints: serialize(await db.getAll("sprints")),
-         Tasks: serialize(await db.getAll("tasks")),
-         Milestones: serialize(await db.getAll("milestones")),
-         MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
-         MilestoneTaskLinks: serialize(await db.getAll("milestoneTaskLinks")),
-         Activity: serialize(await db.getAll("activity")),
-         Comments: serialize(await db.getAll("comments")),
-         Attachments: serialize(await db.getAll("attachments")),
-         History: serialize(await db.getAll("history")),
-         SavedViews: serialize(await db.getAll("savedViews")),
-         ProjectTemplates: serialize(await db.getAll("projectTemplates")),
-         FrameworkTemplates: serialize(await db.getAll("frameworkTemplates")),
-         StageTemplates: serialize(await db.getAll("stageTemplates")),
-         DeliverableTemplates: serialize(await db.getAll("deliverableTemplates")),
-         EpicTemplates: serialize(await db.getAll("epicTemplates")),
-         TaskTemplates: serialize(await db.getAll("taskTemplates")),
-         RoleTemplates: serialize(await db.getAll("roleTemplates")),
-         StatusOptions: serialize(await db.getAll("statusOptions")),
-         RoleTypes: serialize(await db.getAll("roleTypes")),
-         MappingTemplates: serialize(await db.getAll("mappingTemplates")),
-         GuidanceItems: serialize(await db.getAll("guidanceItems")),
-         Users: serialize(await db.getAll("users")),
-         ProjectRoles: serialize(await db.getAll("projectRoles")),
-         RoleAssignments: serialize(await db.getAll("roleAssignments"))
+         // Core Project Entities
+         Projects: await safeGetAll("projects"),
+         Deliverables: await safeGetAll("deliverables"),
+         Epics: await safeGetAll("epics"),
+         ProjectStages: await safeGetAll("projectStages"),
+         Tasks: await safeGetAll("tasks"),
+         Milestones: await safeGetAll("milestones"),
+         MilestoneScopeRules: await safeGetAll("milestoneScopeRules"),
+         MilestoneTaskLinks: await safeGetAll("milestoneTaskLinks"),
+         // Sprint Entities
+         Sprints: await safeGetAll("sprints"),
+         SprintMembers: await safeGetAll("sprintMembers"),
+         SprintScopeEvents: await safeGetAll("sprintScopeEvents"),
+         SprintScopeTargets: await safeGetAll("sprintScopeTargets"),
+         SprintPulseUpdates: await safeGetAll("sprintPulseUpdates"),
+         // Task Related
+         TaskDependencies: await safeGetAll("taskDependencies"),
+         TaskTypes: await safeGetAll("taskTypes"),
+         ProjectTaskTypes: await safeGetAll("projectTaskTypes"),
+         ProjectTaskStatuses: await safeGetAll("projectTaskStatuses"),
+         ProjectSettings: await safeGetAll("projectSettings"),
+         // Activity & Comments
+         Activity: await safeGetAll("activity"),
+         Comments: await safeGetAll("comments"),
+         Attachments: await safeGetAll("attachments"),
+         History: await safeGetAll("history"),
+         // Views & Guidance
+         SavedViews: await safeGetAll("savedViews"),
+         GuidanceItems: await safeGetAll("guidanceItems"),
+         // Templates
+         ProjectTemplates: await safeGetAll("projectTemplates"),
+         FrameworkTemplates: await safeGetAll("frameworkTemplates"),
+         StageTemplates: await safeGetAll("stageTemplates"),
+         DeliverableTemplates: await safeGetAll("deliverableTemplates"),
+         EpicTemplates: await safeGetAll("epicTemplates"),
+         TaskTemplates: await safeGetAll("taskTemplates"),
+         RoleTemplates: await safeGetAll("roleTemplates"),
+         MilestoneTemplates: await safeGetAll("milestoneTemplates"),
+         TemplateSnippets: await safeGetAll("templateSnippets"),
+         // Defaults & Config
+         StatusOptions: await safeGetAll("statusOptions"),
+         RoleTypes: await safeGetAll("roleTypes"),
+         MappingTemplates: await safeGetAll("mappingTemplates"),
+         // Users & Roles
+         Users: await safeGetAll("users"),
+         ProjectRoles: await safeGetAll("projectRoles"),
+         RoleAssignments: await safeGetAll("roleAssignments"),
+         UserRoleEligibility: await safeGetAll("userRoleEligibility"),
+         UserPreferences: await safeGetAll("userPreferences"),
+         ProjectFavorites: await safeGetAll("projectFavorites"),
+         // Planning
+         WorkBlocks: await safeGetAll("workBlocks"),
+         DayPlans: await safeGetAll("dayPlans")
        };
     } else if (activeTab === "projects") {
       if (selectiveExportEnabled && selectedProjectIds.size > 0) {
@@ -985,48 +1044,76 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
           Activity: serialize(filtered.activity),
           Comments: serialize(filtered.comments),
           Attachments: serialize(filtered.attachments),
-          History: serialize(filtered.history)
+          History: serialize(filtered.history),
+          // Sprint-related (filter by sprint IDs from filtered sprints)
+          SprintMembers: await safeGetAll("sprintMembers"),
+          SprintScopeEvents: await safeGetAll("sprintScopeEvents"),
+          SprintScopeTargets: await safeGetAll("sprintScopeTargets"),
+          SprintPulseUpdates: await safeGetAll("sprintPulseUpdates"),
+          // Task-related project config
+          TaskDependencies: await safeGetAll("taskDependencies"),
+          ProjectTaskTypes: await safeGetAll("projectTaskTypes"),
+          ProjectTaskStatuses: await safeGetAll("projectTaskStatuses"),
+          ProjectSettings: await safeGetAll("projectSettings")
         };
       } else {
         data = {
-          Projects: serialize(await db.getAll("projects")),
-          Deliverables: serialize(await db.getAll("deliverables")),
-          Epics: serialize(await db.getAll("epics")),
-          ProjectStages: serialize(await db.getAll("projectStages")),
-          Sprints: serialize(await db.getAll("sprints")),
-          Tasks: serialize(await db.getAll("tasks")),
-          Milestones: serialize(await db.getAll("milestones")),
-          MilestoneScopeRules: serialize(await db.getAll("milestoneScopeRules")),
-          MilestoneTaskLinks: serialize(await db.getAll("milestoneTaskLinks")),
-          Activity: serialize(await db.getAll("activity")),
-          Comments: serialize(await db.getAll("comments")),
-          Attachments: serialize(await db.getAll("attachments")),
-          History: serialize(await db.getAll("history"))
+          Projects: await safeGetAll("projects"),
+          Deliverables: await safeGetAll("deliverables"),
+          Epics: await safeGetAll("epics"),
+          ProjectStages: await safeGetAll("projectStages"),
+          Sprints: await safeGetAll("sprints"),
+          Tasks: await safeGetAll("tasks"),
+          Milestones: await safeGetAll("milestones"),
+          MilestoneScopeRules: await safeGetAll("milestoneScopeRules"),
+          MilestoneTaskLinks: await safeGetAll("milestoneTaskLinks"),
+          Activity: await safeGetAll("activity"),
+          Comments: await safeGetAll("comments"),
+          Attachments: await safeGetAll("attachments"),
+          History: await safeGetAll("history"),
+          // Sprint Entities
+          SprintMembers: await safeGetAll("sprintMembers"),
+          SprintScopeEvents: await safeGetAll("sprintScopeEvents"),
+          SprintScopeTargets: await safeGetAll("sprintScopeTargets"),
+          SprintPulseUpdates: await safeGetAll("sprintPulseUpdates"),
+          // Task Related
+          TaskDependencies: await safeGetAll("taskDependencies"),
+          ProjectTaskTypes: await safeGetAll("projectTaskTypes"),
+          ProjectTaskStatuses: await safeGetAll("projectTaskStatuses"),
+          ProjectSettings: await safeGetAll("projectSettings")
         };
       }
     } else if (activeTab === "templates") {
       data = {
-        ProjectTemplates: serialize(await db.getAll("projectTemplates")),
-        FrameworkTemplates: serialize(await db.getAll("frameworkTemplates")),
-        StageTemplates: serialize(await db.getAll("stageTemplates")),
-        DeliverableTemplates: serialize(await db.getAll("deliverableTemplates")),
-        EpicTemplates: serialize(await db.getAll("epicTemplates")),
-        TaskTemplates: serialize(await db.getAll("taskTemplates")),
-        RoleTemplates: serialize(await db.getAll("roleTemplates"))
+        ProjectTemplates: await safeGetAll("projectTemplates"),
+        FrameworkTemplates: await safeGetAll("frameworkTemplates"),
+        StageTemplates: await safeGetAll("stageTemplates"),
+        DeliverableTemplates: await safeGetAll("deliverableTemplates"),
+        EpicTemplates: await safeGetAll("epicTemplates"),
+        TaskTemplates: await safeGetAll("taskTemplates"),
+        RoleTemplates: await safeGetAll("roleTemplates"),
+        MilestoneTemplates: await safeGetAll("milestoneTemplates"),
+        TemplateSnippets: await safeGetAll("templateSnippets")
       };
     } else if (activeTab === "defaults") {
       data = {
-        StatusOptions: serialize(await db.getAll("statusOptions")),
-        RoleTypes: serialize(await db.getAll("roleTypes")),
-        MappingTemplates: serialize(await db.getAll("mappingTemplates")),
-        GuidanceItems: serialize(await db.getAll("guidanceItems")),
-        SavedViews: serialize(await db.getAll("savedViews"))
+        StatusOptions: await safeGetAll("statusOptions"),
+        RoleTypes: await safeGetAll("roleTypes"),
+        MappingTemplates: await safeGetAll("mappingTemplates"),
+        GuidanceItems: await safeGetAll("guidanceItems"),
+        SavedViews: await safeGetAll("savedViews"),
+        TaskTypes: await safeGetAll("taskTypes")
       };
     } else if (activeTab === "users") {
       data = {
-        Users: serialize(await db.getAll("users")),
-        ProjectRoles: serialize(await db.getAll("projectRoles")),
-        RoleAssignments: serialize(await db.getAll("roleAssignments"))
+        Users: await safeGetAll("users"),
+        ProjectRoles: await safeGetAll("projectRoles"),
+        RoleAssignments: await safeGetAll("roleAssignments"),
+        UserRoleEligibility: await safeGetAll("userRoleEligibility"),
+        UserPreferences: await safeGetAll("userPreferences"),
+        ProjectFavorites: await safeGetAll("projectFavorites"),
+        WorkBlocks: await safeGetAll("workBlocks"),
+        DayPlans: await safeGetAll("dayPlans")
       };
     }
 
@@ -1034,17 +1121,31 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
   };
 
   const generateNestedExportData = async () => {
-    const allProjects = await db.getAll("projects");
-    const deliverables = await db.getAll("deliverables");
-    const epics = await db.getAll("epics");
-    const tasks = await db.getAll("tasks");
-    const milestones = await db.getAll("milestones");
-    const milestoneScopeRules = await db.getAll("milestoneScopeRules");
-    const milestoneTaskLinks = await db.getAll("milestoneTaskLinks");
-    const projectStages = await db.getAll("projectStages");
-    const comments = await db.getAll("comments");
-    const attachments = await db.getAll("attachments");
-    const history = await db.getAll("history");
+    const safeGet = async (collection: keyof import("@/lib/storage").NexusDB) => {
+      try {
+        return await db.getAll(collection);
+      } catch {
+        return [];
+      }
+    };
+    
+    const allProjects = await safeGet("projects");
+    const deliverables = await safeGet("deliverables");
+    const epics = await safeGet("epics");
+    const tasks = await safeGet("tasks");
+    const milestones = await safeGet("milestones");
+    const milestoneScopeRules = await safeGet("milestoneScopeRules");
+    const milestoneTaskLinks = await safeGet("milestoneTaskLinks");
+    const projectStages = await safeGet("projectStages");
+    const comments = await safeGet("comments");
+    const attachments = await safeGet("attachments");
+    const history = await safeGet("history");
+    const sprints = await safeGet("sprints");
+    const sprintMembers = await safeGet("sprintMembers");
+    const sprintScopeEvents = await safeGet("sprintScopeEvents");
+    const sprintScopeTargets = await safeGet("sprintScopeTargets");
+    const sprintPulseUpdates = await safeGet("sprintPulseUpdates");
+    const taskDependencies = await safeGet("taskDependencies");
 
     const projects = (selectiveExportEnabled && activeTab === "projects" && selectedProjectIds.size > 0)
       ? allProjects.filter((p: any) => selectedProjectIds.has(p.id))
@@ -1063,11 +1164,13 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
                   const taskComments = comments.filter((c: any) => c.taskId === task.id || c.task_id === task.id);
                   const taskAttachments = attachments.filter((a: any) => a.taskId === task.id || a.task_id === task.id);
                   const taskHistory = history.filter((h: any) => h.taskId === task.id || h.task_id === task.id);
+                  const taskDeps = taskDependencies.filter((d: any) => d.taskId === task.id || d.task_id === task.id);
                   return { 
                     ...task, 
                     comments: taskComments,
                     attachments: taskAttachments,
-                    history: taskHistory
+                    history: taskHistory,
+                    dependencies: taskDeps
                   };
                 });
               return { ...epic, tasks: epicTasks };
@@ -1084,12 +1187,23 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
         });
 
       const projectStagesData = projectStages.filter((s: any) => s.projectId === project.id || s.project_id === project.id);
+      
+      const projectSprints = sprints
+        .filter((s: any) => s.projectId === project.id || s.project_id === project.id)
+        .map((sprint: any) => {
+          const members = sprintMembers.filter((m: any) => m.sprintId === sprint.id || m.sprint_id === sprint.id);
+          const scopeEvents = sprintScopeEvents.filter((e: any) => e.sprintId === sprint.id || e.sprint_id === sprint.id);
+          const scopeTargets = sprintScopeTargets.filter((t: any) => t.sprintId === sprint.id || t.sprint_id === sprint.id);
+          const pulseUpdates = sprintPulseUpdates.filter((u: any) => u.sprintId === sprint.id || u.sprint_id === sprint.id);
+          return { ...sprint, members, scopeEvents, scopeTargets, pulseUpdates };
+        });
 
       return {
         ...project,
         deliverables: projectDeliverables,
         milestones: projectMilestones,
-        stages: projectStagesData
+        stages: projectStagesData,
+        sprints: projectSprints
       };
     });
 
@@ -1097,25 +1211,33 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
       return {
         projects: nestedProjects,
         templates: {
-          projectTemplates: await db.getAll("projectTemplates"),
-          frameworkTemplates: await db.getAll("frameworkTemplates"),
-          stageTemplates: await db.getAll("stageTemplates"),
-          deliverableTemplates: await db.getAll("deliverableTemplates"),
-          epicTemplates: await db.getAll("epicTemplates"),
-          taskTemplates: await db.getAll("taskTemplates"),
-          roleTemplates: await db.getAll("roleTemplates")
+          projectTemplates: await safeGet("projectTemplates"),
+          frameworkTemplates: await safeGet("frameworkTemplates"),
+          stageTemplates: await safeGet("stageTemplates"),
+          deliverableTemplates: await safeGet("deliverableTemplates"),
+          epicTemplates: await safeGet("epicTemplates"),
+          taskTemplates: await safeGet("taskTemplates"),
+          roleTemplates: await safeGet("roleTemplates"),
+          milestoneTemplates: await safeGet("milestoneTemplates"),
+          templateSnippets: await safeGet("templateSnippets")
         },
         defaults: {
-          statusOptions: await db.getAll("statusOptions"),
-          roleTypes: await db.getAll("roleTypes"),
-          mappingTemplates: await db.getAll("mappingTemplates"),
-          guidanceItems: await db.getAll("guidanceItems"),
-          savedViews: await db.getAll("savedViews")
+          statusOptions: await safeGet("statusOptions"),
+          roleTypes: await safeGet("roleTypes"),
+          mappingTemplates: await safeGet("mappingTemplates"),
+          guidanceItems: await safeGet("guidanceItems"),
+          savedViews: await safeGet("savedViews"),
+          taskTypes: await safeGet("taskTypes")
         },
         users: {
-          users: await db.getAll("users"),
-          projectRoles: await db.getAll("projectRoles"),
-          roleAssignments: await db.getAll("roleAssignments")
+          users: await safeGet("users"),
+          projectRoles: await safeGet("projectRoles"),
+          roleAssignments: await safeGet("roleAssignments"),
+          userRoleEligibility: await safeGet("userRoleEligibility"),
+          userPreferences: await safeGet("userPreferences"),
+          projectFavorites: await safeGet("projectFavorites"),
+          workBlocks: await safeGet("workBlocks"),
+          dayPlans: await safeGet("dayPlans")
         }
       };
     } else if (activeTab === "projects") {

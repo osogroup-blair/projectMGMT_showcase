@@ -1,24 +1,43 @@
 // Collection names map to API endpoints
+// Complete interface with ALL system entities from shared/schema.ts
 export interface NexusDB {
+  // Core Project Entities
   projects: any[];
   deliverables: any[];
   epics: any[];
+  projectStages: any[];
   tasks: any[];
   milestones: any[];
   milestoneScopeRules: any[];
   milestoneTaskLinks: any[];
+  // Sprint Entities
   sprints: any[];
   sprintMembers: any[];
+  sprintScopeEvents: any[];
+  sprintScopeTargets: any[];
+  sprintPulseUpdates: any[];
+  // Task Related
+  taskDependencies: any[];
+  taskTypes: any[];
+  projectTaskTypes: any[];
+  projectTaskStatuses: any[];
+  projectSettings: any[];
+  // Activity & Comments
   users: any[];
   activity: any[];
   comments: any[];
   attachments: any[];
   history: any[];
+  // Roles & Assignments
   projectRoles: any[];
   roleAssignments: any[];
+  userRoleEligibility: any[];
+  userPreferences: any[];
+  projectFavorites: any[];
+  // Views & Guidance
   savedViews: any[];
   guidanceItems: any[];
-  projectStages: any[];
+  // Templates
   projectTemplates: any[];
   deliverableTemplates: any[];
   epicTemplates: any[];
@@ -26,13 +45,18 @@ export interface NexusDB {
   stageTemplates: any[];
   frameworkTemplates: any[];
   roleTemplates: any[];
+  milestoneTemplates: any[];
+  templateSnippets: any[];
+  // Config & Defaults
   mappingTemplates: any[];
   statusOptions: any[];
   projectStatuses: any[];
   taskStatuses: any[];
   stageTypes: any[];
   roleTypes: any[];
-  taskTypes: any[];
+  // Planning
+  workBlocks: any[];
+  dayPlans: any[];
 }
 
 class StorageEngine {
