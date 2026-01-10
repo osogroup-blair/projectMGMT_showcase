@@ -584,26 +584,25 @@ export default function ProjectOverview() {
                 </div>
               </div>
 
-              <div className="flex gap-2 w-full lg:w-auto">
-                <Link href={`/projects/${projectId}/management`}>
-                  <Button variant="outline" className="gap-2">
+              <div className="flex items-center gap-2">
+                <Collapsible open={metricsOpen} onOpenChange={setMetricsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2" data-testid="button-toggle-metrics">
+                      <ChevronDown className={cn("h-4 w-4 transition-transform", metricsOpen && "rotate-180")} />
+                      Project Metrics
+                    </Button>
+                  </CollapsibleTrigger>
+                </Collapsible>
+                <Link href={`/projects/${projectId}/edit`}>
+                  <Button variant="outline" size="sm" className="gap-2">
                     <Settings className="h-4 w-4" />
-                    Management
+                    Project Settings
                   </Button>
                 </Link>
-                <Button size="icon" variant="ghost">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
               </div>
             </div>
 
             <Collapsible open={metricsOpen} onOpenChange={setMetricsOpen}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full flex items-center justify-between p-0 h-auto hover:bg-transparent" data-testid="button-toggle-metrics">
-                  <span className="text-sm font-medium text-muted-foreground">Project Metrics</span>
-                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", metricsOpen && "rotate-180")} />
-                </Button>
-              </CollapsibleTrigger>
               <CollapsibleContent className="pt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Card className="bg-primary/5 border-primary/20">
