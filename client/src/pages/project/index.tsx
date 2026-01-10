@@ -142,6 +142,9 @@ export default function ProjectOverview() {
   
   // Blocker dialog for flow board
   const [blockerTaskId, setBlockerTaskId] = useState<string | null>(null);
+  
+  // Team Pulse sidebar state
+  const [teamPulseOpen, setTeamPulseOpen] = useState(true);
 
   // Initialize edit values when project loads
   useEffect(() => {
@@ -796,44 +799,62 @@ export default function ProjectOverview() {
                         </Link>
                       </div>
 
-                      <div className="flex gap-6 relative">
-                        <Collapsible defaultOpen className="w-72 border-r pr-6 hidden lg:block shrink-0">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold flex items-center gap-2">
-                              <Activity className="h-4 w-4" />
-                              Team Pulse
-                            </h3>
-                            <CollapsibleTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <div className="flex gap-4 relative">
+                        {teamPulseOpen ? (
+                          <div className="w-72 border-r pr-4 hidden lg:block shrink-0">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="font-semibold flex items-center gap-2">
+                                <Activity className="h-4 w-4" />
+                                Team Pulse
+                              </h3>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8"
+                                onClick={() => setTeamPulseOpen(false)}
+                                data-testid="button-collapse-pulse"
+                              >
                                 <PanelLeft className="h-4 w-4" />
                               </Button>
-                            </CollapsibleTrigger>
-                          </div>
-                          <CollapsibleContent className="space-y-4">
-                            <Card className="bg-muted/30">
-                              <CardContent className="pt-4 pb-4">
-                                <Textarea 
-                                  placeholder="Share an update with your team..."
-                                  className="min-h-[80px] text-sm resize-none mb-3"
-                                  data-testid="input-team-pulse-update"
-                                />
-                                <Button size="sm" className="w-full gap-2" data-testid="button-send-pulse">
-                                  <Send className="h-3 w-3" />
-                                  Send Update
-                                </Button>
-                              </CardContent>
-                            </Card>
-                            <div className="space-y-3">
-                              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Updates</h4>
-                              <div className="space-y-2 text-sm">
-                                <Card className="p-3 bg-muted/20">
-                                  <p className="text-xs text-muted-foreground mb-1">No updates yet</p>
-                                  <p className="text-[10px] text-muted-foreground/70">Be the first to share progress!</p>
-                                </Card>
+                            </div>
+                            <div className="space-y-4">
+                              <Card className="bg-muted/30">
+                                <CardContent className="pt-4 pb-4">
+                                  <Textarea 
+                                    placeholder="Share an update with your team..."
+                                    className="min-h-[80px] text-sm resize-none mb-3"
+                                    data-testid="input-team-pulse-update"
+                                  />
+                                  <Button size="sm" className="w-full gap-2" data-testid="button-send-pulse">
+                                    <Send className="h-3 w-3" />
+                                    Send Update
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                              <div className="space-y-3">
+                                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Updates</h4>
+                                <div className="space-y-2 text-sm">
+                                  <Card className="p-3 bg-muted/20">
+                                    <p className="text-xs text-muted-foreground mb-1">No updates yet</p>
+                                    <p className="text-[10px] text-muted-foreground/70">Be the first to share progress!</p>
+                                  </Card>
+                                </div>
                               </div>
                             </div>
-                          </CollapsibleContent>
-                        </Collapsible>
+                          </div>
+                        ) : (
+                          <div className="hidden lg:flex flex-col items-center pt-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => setTeamPulseOpen(true)}
+                              data-testid="button-expand-pulse"
+                            >
+                              <Activity className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
 
                         <div className="flex-1 min-w-0 space-y-6">
                           <FlowBoard
