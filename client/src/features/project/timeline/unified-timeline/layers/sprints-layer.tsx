@@ -48,11 +48,25 @@ export function SprintsLayer({ sprints, projectId, viewMode, timelineRange, high
       if (!res.ok) throw new Error("Failed to update sprint dates");
       return res.json();
     },
+    onMutate: async ({ sprintId, startDate, endDate }) => {
+      await queryClient.cancelQueries({ queryKey: ["sprints"] });
+      const previousSprints = queryClient.getQueryData(["sprints"]);
+      queryClient.setQueryData(["sprints"], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((sprint: any) => 
+          sprint.id === sprintId ? { ...sprint, startDate, endDate } : sprint
+        );
+      });
+      return { previousSprints };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/sprints`] });
+      queryClient.invalidateQueries({ queryKey: ["sprints"] });
       toast({ title: "Sprint Updated", description: "Sprint dates have been updated." });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      if (context?.previousSprints) {
+        queryClient.setQueryData(["sprints"], context.previousSprints);
+      }
       toast({ title: "Error", description: "Failed to update sprint dates.", variant: "destructive" });
     },
   });

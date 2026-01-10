@@ -56,7 +56,7 @@ export function DeliverablesLayer({
 
   const updateDeliverableMutation = useMutation({
     mutationFn: async ({ deliverableId, startDate, dueDate }: { deliverableId: string; startDate: string; dueDate: string }) => {
-      const res = await fetch(`/api/projects/${projectId}/deliverables/${deliverableId}`, {
+      const res = await fetch(`/api/deliverables/${deliverableId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ startDate, dueDate }),
@@ -64,18 +64,32 @@ export function DeliverablesLayer({
       if (!res.ok) throw new Error("Failed to update deliverable dates");
       return res.json();
     },
+    onMutate: async ({ deliverableId, startDate, dueDate }) => {
+      await queryClient.cancelQueries({ queryKey: ["deliverables"] });
+      const previousDeliverables = queryClient.getQueryData(["deliverables"]);
+      queryClient.setQueryData(["deliverables"], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((d: any) => 
+          d.id === deliverableId ? { ...d, startDate, dueDate } : d
+        );
+      });
+      return { previousDeliverables };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/deliverables`] });
+      queryClient.invalidateQueries({ queryKey: ["deliverables"] });
       toast({ title: "Deliverable Updated", description: "Deliverable dates have been updated." });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      if (context?.previousDeliverables) {
+        queryClient.setQueryData(["deliverables"], context.previousDeliverables);
+      }
       toast({ title: "Error", description: "Failed to update deliverable dates.", variant: "destructive" });
     },
   });
 
   const updateEpicMutation = useMutation({
     mutationFn: async ({ epicId, startDate, endDate }: { epicId: string; startDate: string; endDate: string }) => {
-      const res = await fetch(`/api/projects/${projectId}/epics/${epicId}`, {
+      const res = await fetch(`/api/epics/${epicId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ startDate, endDate }),
@@ -83,11 +97,25 @@ export function DeliverablesLayer({
       if (!res.ok) throw new Error("Failed to update epic dates");
       return res.json();
     },
+    onMutate: async ({ epicId, startDate, endDate }) => {
+      await queryClient.cancelQueries({ queryKey: ["epics"] });
+      const previousEpics = queryClient.getQueryData(["epics"]);
+      queryClient.setQueryData(["epics"], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((e: any) => 
+          e.id === epicId ? { ...e, startDate, endDate } : e
+        );
+      });
+      return { previousEpics };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/epics`] });
+      queryClient.invalidateQueries({ queryKey: ["epics"] });
       toast({ title: "Epic Updated", description: "Epic dates have been updated." });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      if (context?.previousEpics) {
+        queryClient.setQueryData(["epics"], context.previousEpics);
+      }
       toast({ title: "Error", description: "Failed to update epic dates.", variant: "destructive" });
     },
   });

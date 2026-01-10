@@ -41,7 +41,7 @@ export function MilestonesLayer({ milestones, projectId, viewMode, timelineRange
 
   const updateMilestoneMutation = useMutation({
     mutationFn: async ({ milestoneId, targetDate }: { milestoneId: string; targetDate: string }) => {
-      const res = await fetch(`/api/projects/${projectId}/milestones/${milestoneId}`, {
+      const res = await fetch(`/api/milestones/${milestoneId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ targetDate }),
@@ -49,11 +49,25 @@ export function MilestonesLayer({ milestones, projectId, viewMode, timelineRange
       if (!res.ok) throw new Error("Failed to update milestone date");
       return res.json();
     },
+    onMutate: async ({ milestoneId, targetDate }) => {
+      await queryClient.cancelQueries({ queryKey: ["milestones"] });
+      const previousMilestones = queryClient.getQueryData(["milestones"]);
+      queryClient.setQueryData(["milestones"], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((milestone: any) => 
+          milestone.id === milestoneId ? { ...milestone, targetDate } : milestone
+        );
+      });
+      return { previousMilestones };
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/milestones`] });
+      queryClient.invalidateQueries({ queryKey: ["milestones"] });
       toast({ title: "Milestone Updated", description: "Milestone date has been updated." });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      if (context?.previousMilestones) {
+        queryClient.setQueryData(["milestones"], context.previousMilestones);
+      }
       toast({ title: "Error", description: "Failed to update milestone date.", variant: "destructive" });
     },
   });
