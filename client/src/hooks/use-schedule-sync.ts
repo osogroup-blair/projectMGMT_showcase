@@ -18,7 +18,7 @@ interface UseScheduleSyncOptions {
 }
 
 export function useScheduleSync(options: UseScheduleSyncOptions = {}) {
-  const { userId = 'system', onSyncNeeded, onNoSyncNeeded, onError } = options;
+  const { userId, onSyncNeeded, onNoSyncNeeded, onError } = options;
   const [changePlan, setChangePlan] = useState<ChangePlan | null>(null);
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [pendingChange, setPendingChange] = useState<{

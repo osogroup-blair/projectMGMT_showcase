@@ -37,14 +37,14 @@ export interface EvaluateRequest {
   entityType: EntityType;
   entityId: string;
   proposedDates: DateChange;
-  userId: string;
+  userId?: string;
 }
 
 export interface ApplyRequest {
   action: SyncAction;
   changePlan: ChangePlan;
   overrideReason?: string;
-  userId: string;
+  userId?: string;
 }
 
 const MAX_AUTO_EXPANSION_DAYS = 90;
@@ -186,6 +186,7 @@ export class ScheduleSyncService {
   async apply(request: ApplyRequest): Promise<{ success: boolean; appliedChanges: number; auditId: string }> {
     const { action, changePlan, overrideReason, userId } = request;
     const auditId = crypto.randomUUID();
+    const normalizedUserId = userId ?? null;
     
     await db.insert(schema.scheduleSyncAudit).values({
       id: auditId,
@@ -197,7 +198,7 @@ export class ScheduleSyncService {
         impactedCount: changePlan.impactedCount,
         warnings: changePlan.warnings
       },
-      userId,
+      userId: normalizedUserId,
     });
     
     if (action === 'cancelled') {
@@ -232,7 +233,7 @@ export class ScheduleSyncService {
     return { success: false, appliedChanges: 0, auditId };
   }
   
-  private async applyTriggerChange(trigger: ChangePlan['triggeredBy'], userId: string): Promise<void> {
+  private async applyTriggerChange(trigger: ChangePlan['triggeredBy'], userId?: string): Promise<void> {
     const { entityType, entityId, proposedDates } = trigger;
     
     if (entityType === 'task') {
@@ -252,7 +253,7 @@ export class ScheduleSyncService {
     }
   }
   
-  private async applyItemChange(item: ChangePlanItem, userId: string): Promise<void> {
+  private async applyItemChange(item: ChangePlanItem, userId?: string): Promise<void> {
     const { entityType, entityId, proposedDates } = item;
     
     if (entityType === 'epic') {
@@ -268,15 +269,16 @@ export class ScheduleSyncService {
     }
   }
   
-  private async markAsOverride(entityType: EntityType, entityId: string, reason: string, userId: string): Promise<void> {
+  private async markAsOverride(entityType: EntityType, entityId: string, reason: string, userId?: string): Promise<void> {
     const now = new Date();
+    const normalizedUserId = userId ?? null;
     
     if (entityType === 'task') {
       await db.update(schema.tasks).set({
         scheduleOverride: true,
         overrideReason: reason,
         overrideAt: now,
-        overrideBy: userId,
+        overrideBy: normalizedUserId,
         updatedAt: now
       }).where(eq(schema.tasks.id, entityId));
     } else if (entityType === 'epic') {
@@ -284,7 +286,7 @@ export class ScheduleSyncService {
         scheduleOverride: true,
         overrideReason: reason,
         overrideAt: now,
-        overrideBy: userId
+        overrideBy: normalizedUserId
       }).where(eq(schema.epics.id, entityId));
     }
   }
@@ -308,7 +310,7 @@ export class ScheduleSyncService {
     }
   }
   
-  async bulkResolveOverrides(entityType: EntityType, entityIds: string[], userId: string): Promise<number> {
+  async bulkResolveOverrides(entityType: EntityType, entityIds: string[], userId?: string): Promise<number> {
     if (entityType === 'task') {
       const result = await db.update(schema.tasks).set({
         scheduleOverride: false,

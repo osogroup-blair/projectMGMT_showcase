@@ -90,7 +90,7 @@ export function ScheduleSyncPrompt({
   onOpenChange,
   changePlan,
   onComplete,
-  userId = 'system',
+  userId,
 }: ScheduleSyncPromptProps) {
   const [overrideReason, setOverrideReason] = useState("");
   const queryClient = useQueryClient();

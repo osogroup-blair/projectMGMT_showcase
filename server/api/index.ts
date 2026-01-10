@@ -3586,7 +3586,7 @@ export async function registerRoutes(
         entityType,
         entityId,
         proposedDates,
-        userId: userId || 'system'
+        userId: userId || undefined
       });
       
       res.json(changePlan);
@@ -3608,7 +3608,7 @@ export async function registerRoutes(
         action,
         changePlan,
         overrideReason,
-        userId: userId || 'system'
+        userId: userId || undefined
       });
       
       res.json(result);
@@ -3636,7 +3636,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "entityType and entityIds array are required" });
       }
       
-      const resolved = await scheduleSyncService.bulkResolveOverrides(entityType, entityIds, userId || 'system');
+      const resolved = await scheduleSyncService.bulkResolveOverrides(entityType, entityIds, userId || undefined);
       res.json({ resolved });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

@@ -200,7 +200,7 @@ export const scheduleSyncAudit = pgTable("schedule_sync_audit", {
     impactedCount: number;
     warnings: string[];
   }>(),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
