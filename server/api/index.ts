@@ -3321,6 +3321,7 @@ export async function registerRoutes(
             const resolvedEpicId = epicIdMap.get(taskDraft.assignedEpicId);
             if (resolvedEpicId) {
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
               try {
                 await storage.createTask({
                   id: taskId,
@@ -3333,7 +3334,7 @@ export async function registerRoutes(
                   stageId: createdStage.createdStageId,
                   epicId: resolvedEpicId,
                   effort: 1,
-                  deadline: payload.project.deadline,
+                  deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   tags: []
                 } as any);
@@ -3362,6 +3363,7 @@ export async function registerRoutes(
           if (taskDraft.scope === 'once') {
             if (productManagementEpicId) {
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
               try {
                 await storage.createTask({
                   id: taskId,
@@ -3374,7 +3376,7 @@ export async function registerRoutes(
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
                   effort: 1,
-                  deadline: payload.project.deadline,
+                  deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   tags: []
                 } as any);
@@ -3398,6 +3400,7 @@ export async function registerRoutes(
               }
             }
           } else if (taskDraft.scope === 'per_epic') {
+            const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
             for (const businessEpic of businessEpics) {
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               try {
@@ -3412,7 +3415,7 @@ export async function registerRoutes(
                   stageId: createdStage.createdStageId,
                   epicId: businessEpic.id,
                   effort: 1,
-                  deadline: payload.project.deadline,
+                  deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   tags: []
                 } as any);

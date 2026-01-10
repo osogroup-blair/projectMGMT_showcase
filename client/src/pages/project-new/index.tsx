@@ -692,6 +692,8 @@ export default function ProjectWizard() {
           description: stage.description || '',
           order: index,
           type: stage.type || 'standard',
+          startDate: stage.startDate || null,
+          endDate: stage.endDate || null,
           tasks: (stage.tasks || []).map((task, taskIndex) => ({
             id: task.id || `task-${Date.now()}-${taskIndex}`,
             title: task.title,
@@ -702,7 +704,9 @@ export default function ProjectWizard() {
             order: taskIndex,
             assignedEpicId: task.assignedEpicId,
             assignedEpicTitle: task.assignedEpicTitle,
-            mappingStatus: task.mappingStatus
+            mappingStatus: task.mappingStatus,
+            startDate: task.startDate || stage.startDate || null,
+            deadline: task.deadline || stage.endDate || null
           }))
         })),
         deliverables: deliverables.map(del => ({
