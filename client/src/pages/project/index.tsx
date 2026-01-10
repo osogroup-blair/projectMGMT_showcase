@@ -148,7 +148,7 @@ export default function ProjectOverview() {
   
   // Dashboard sidebar state
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(true);
-  const [dashboardSection, setDashboardSection] = useState<"current-sprint" | "upcoming-work" | "metrics" | "activity">("current-sprint");
+  const [dashboardSection, setDashboardSection] = useState<"current-sprint" | "upcoming-work" | "metrics" | "activity" | "team-pulse">("current-sprint");
 
   // Initialize edit values when project loads
   useEffect(() => {
@@ -839,6 +839,20 @@ export default function ProjectOverview() {
                         <Activity className="h-4 w-4" />
                         Activity
                       </button>
+                      <div className="my-3 border-t" />
+                      <button
+                        onClick={() => setDashboardSection("team-pulse")}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          dashboardSection === "team-pulse" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid="nav-team-pulse"
+                      >
+                        <Send className="h-4 w-4" />
+                        Team Pulse
+                      </button>
                     </nav>
                   </div>
                 ) : (
@@ -885,6 +899,15 @@ export default function ProjectOverview() {
                       >
                         <Activity className="h-4 w-4" />
                       </Button>
+                      <div className="my-2 w-full border-t" />
+                      <Button 
+                        variant={dashboardSection === "team-pulse" ? "default" : "ghost"} 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => setDashboardSection("team-pulse")}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -914,74 +937,14 @@ export default function ProjectOverview() {
                             </Link>
                           </div>
 
-                          <div className="flex gap-4 relative">
-                            {teamPulseOpen ? (
-                              <div className="w-72 border-r pr-4 hidden lg:block shrink-0">
-                                <div className="flex items-center justify-between mb-4">
-                                  <h3 className="font-semibold flex items-center gap-2">
-                                    <Activity className="h-4 w-4" />
-                                    Team Pulse
-                                  </h3>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8"
-                                    onClick={() => setTeamPulseOpen(false)}
-                                    data-testid="button-collapse-pulse"
-                                  >
-                                    <PanelLeft className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                                <div className="space-y-4">
-                                  <Card className="bg-muted/30">
-                                    <CardContent className="pt-4 pb-4">
-                                      <Textarea 
-                                        placeholder="Share an update with your team..."
-                                        className="min-h-[80px] text-sm resize-none mb-3"
-                                        data-testid="input-team-pulse-update"
-                                      />
-                                      <Button size="sm" className="w-full gap-2" data-testid="button-send-pulse">
-                                        <Send className="h-3 w-3" />
-                                        Send Update
-                                      </Button>
-                                    </CardContent>
-                                  </Card>
-                                  <div className="space-y-3">
-                                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Updates</h4>
-                                    <div className="space-y-2 text-sm">
-                                      <Card className="p-3 bg-muted/20">
-                                        <p className="text-xs text-muted-foreground mb-1">No updates yet</p>
-                                        <p className="text-[10px] text-muted-foreground/70">Be the first to share progress!</p>
-                                      </Card>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="hidden lg:flex flex-col items-center pt-1">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8"
-                                  onClick={() => setTeamPulseOpen(true)}
-                                  data-testid="button-expand-pulse"
-                                >
-                                  <Activity className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-
-                            <div className="flex-1 min-w-0">
-                              <FlowBoard
-                                tasks={sprintTasks}
-                                users={users || []}
-                                epics={projectEpics || []}
-                                projectId={projectId}
-                                onTaskMove={handleTaskMove}
-                                onBlockerRequested={handleBlockerRequested}
-                              />
-                            </div>
-                          </div>
+                          <FlowBoard
+                            tasks={sprintTasks}
+                            users={users || []}
+                            epics={projectEpics || []}
+                            projectId={projectId}
+                            onTaskMove={handleTaskMove}
+                            onBlockerRequested={handleBlockerRequested}
+                          />
 
                           <BlockerReasonDialog
                             open={!!blockerTaskId}
@@ -1066,6 +1029,43 @@ export default function ProjectOverview() {
                         </div>
                       </CardContent>
                     </Card>
+                  )}
+
+                  {dashboardSection === "team-pulse" && (
+                    <div className="space-y-6">
+                      <div>
+                        <h2 className="text-lg font-semibold flex items-center gap-2 mb-2">
+                          <Send className="h-5 w-5" />
+                          Team Pulse
+                        </h2>
+                        <p className="text-sm text-muted-foreground">Share updates and stay connected with your team</p>
+                      </div>
+                      
+                      <Card className="bg-muted/30">
+                        <CardContent className="pt-4 pb-4">
+                          <Textarea 
+                            placeholder="Share an update with your team..."
+                            className="min-h-[100px] text-sm resize-none mb-3"
+                            data-testid="input-team-pulse-update"
+                          />
+                          <Button size="sm" className="gap-2" data-testid="button-send-pulse">
+                            <Send className="h-3 w-3" />
+                            Send Update
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Recent Updates</h3>
+                        <Card className="p-4 bg-muted/20">
+                          <div className="text-center py-6 text-muted-foreground">
+                            <Send className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                            <p className="text-sm">No updates yet</p>
+                            <p className="text-xs mt-1">Be the first to share progress with your team!</p>
+                          </div>
+                        </Card>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
