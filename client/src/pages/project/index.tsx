@@ -1010,7 +1010,9 @@ export default function ProjectOverview() {
                         <div className="space-y-6">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <h2 className="text-lg font-semibold">{activeSprint.name}</h2>
+                              <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
+                                <h2 className="text-lg font-semibold hover:text-primary transition-colors cursor-pointer">{activeSprint.name}</h2>
+                              </Link>
                               <Badge variant={activeSprint.status === "active" ? "default" : "secondary"} className="capitalize">
                                 {activeSprint.status}
                               </Badge>
