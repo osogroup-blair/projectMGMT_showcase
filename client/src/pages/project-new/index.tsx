@@ -796,9 +796,14 @@ export default function ProjectWizard() {
       
     } catch (error) {
       console.error("Error creating project:", error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as any).message)
+          : 'An unexpected error occurred';
       toast({
-        title: "Error",
-        description: "Failed to create project. Please try again.",
+        title: "Error Creating Project",
+        description: errorMessage || "Failed to create project. Please try again.",
         variant: "destructive"
       });
     } finally {

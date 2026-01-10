@@ -640,8 +640,10 @@ export function toWizardStages(imported: ImportedStage[]): WizardStage[] {
     id: s.id,
     name: s.name,
     description: s.description,
-    taskCreationMode: s.taskCreationMode,
-    tasks: s.tasks.map(t => ({
+    taskCreationMode: s.taskCreationMode || 'per_epic',
+    defaultTasks: s.defaultTasks || [],
+    defaultRoles: s.defaultRoles || [],
+    tasks: (s.tasks || []).map(t => ({
       id: t.id,
       title: t.title,
       description: t.description,
@@ -651,7 +653,7 @@ export function toWizardStages(imported: ImportedStage[]): WizardStage[] {
       stageId: t.stageId,
       order: t.order
     })),
-    type: s.type,
+    type: s.type || 'standard',
     startDate: s.startDate,
     endDate: s.endDate
   }));
