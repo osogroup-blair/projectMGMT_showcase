@@ -21,7 +21,8 @@ import {
   FileWarning,
   Loader2,
   X,
-  Filter
+  Filter,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -60,6 +61,12 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Import all mock data
 import { db } from "@/lib/storage";
@@ -315,6 +322,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
   const [availableProjects, setAvailableProjects] = useState<any[]>([]);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(new Set());
   const [selectiveExportEnabled, setSelectiveExportEnabled] = useState(false);
+  const [templateFormat, setTemplateFormat] = useState<"xlsx" | "json">("xlsx");
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -1302,11 +1310,13 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
     }, 100); // reduced timeout
   };
 
-  const handleDownloadTemplate = () => {
-    const wb = XLSX.utils.book_new();
+  const handleDownloadTemplate = (format: "xlsx" | "json") => {
     const schema = SCHEMA_DEFINITIONS[activeTab as keyof typeof SCHEMA_DEFINITIONS];
     
-    if (schema) {
+    if (!schema) return;
+
+    if (format === "xlsx") {
+      const wb = XLSX.utils.book_new();
       schema.forEach(def => {
         const ws = XLSX.utils.aoa_to_sheet([def.columns]);
         XLSX.utils.book_append_sheet(wb, ws, def.sheet);
@@ -1315,12 +1325,25 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       const blob = new Blob([wbout], { type: 'application/octet-stream' });
       saveAs(blob, `Nexus_${activeTab}_Import_Template.xlsx`);
-
-      toast({
-          title: "Template Downloaded",
-          description: "Empty import template generated successfully.",
+    } else {
+      const templateData: Record<string, Record<string, any>[]> = {};
+      schema.forEach(def => {
+        const sampleRecord: Record<string, any> = {};
+        def.columns.forEach((col: string) => {
+          sampleRecord[col] = "";
+        });
+        templateData[def.sheet] = [sampleRecord];
       });
+      
+      const jsonString = JSON.stringify(templateData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      saveAs(blob, `Nexus_${activeTab}_Import_Template.json`);
     }
+
+    toast({
+      title: "Template Downloaded",
+      description: `Empty ${format.toUpperCase()} import template generated successfully.`,
+    });
   };
 
   const TabCard = ({ value, icon: Icon, title, description }: any) => (
@@ -1513,9 +1536,25 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
                 )}
               </CardContent>
               <CardFooter className="flex justify-between border-t pt-6">
-                 <Button variant="outline" onClick={handleDownloadTemplate}>
-                    Download Template
-                 </Button>
+                 <DropdownMenu>
+                   <DropdownMenuTrigger asChild>
+                     <Button variant="outline" className="gap-2">
+                       <Download className="h-4 w-4" />
+                       Download Template
+                       <ChevronDown className="h-3 w-3 opacity-50" />
+                     </Button>
+                   </DropdownMenuTrigger>
+                   <DropdownMenuContent align="start">
+                     <DropdownMenuItem onClick={() => handleDownloadTemplate("xlsx")} className="gap-2">
+                       <FileSpreadsheet className="h-4 w-4" />
+                       Excel (.xlsx)
+                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => handleDownloadTemplate("json")} className="gap-2">
+                       <FileJson className="h-4 w-4" />
+                       JSON (.json)
+                     </DropdownMenuItem>
+                   </DropdownMenuContent>
+                 </DropdownMenu>
                  <Button onClick={handleExport} disabled={isExporting} className="gap-2">
                     {isExporting ? "Exporting..." : (
                         <>
