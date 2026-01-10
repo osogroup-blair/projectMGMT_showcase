@@ -154,7 +154,7 @@ export default function ProjectOverview() {
   const [teamPulseOpen, setTeamPulseOpen] = useState(true);
   
   // Dashboard sidebar state
-  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(true);
+  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
   const [dashboardSection, setDashboardSection] = useState<"current-sprint" | "upcoming-work" | "metrics" | "activity" | "team-pulse">("current-sprint");
 
   // Add Task to Sprint Dialog state
