@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { format, addDays, differenceInDays } from "date-fns";
@@ -52,16 +52,18 @@ export function TimelineBar({
   testId,
 }: TimelineBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
-  const captureElementRef = useRef<HTMLElement | null>(null);
-  const capturePointerIdRef = useRef<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [dragMode, setDragMode] = useState<DragMode>("none");
-  const [dragStartX, setDragStartX] = useState(0);
-  const [initialLeft, setInitialLeft] = useState(left);
-  const [initialWidth, setInitialWidth] = useState(width);
   const [tempLeft, setTempLeft] = useState(left);
   const [tempWidth, setTempWidth] = useState(width);
   const [isDragging, setIsDragging] = useState(false);
+  
+  const dragStateRef = useRef({
+    startX: 0,
+    initialLeft: left,
+    initialWidth: width,
+    mode: "none" as DragMode,
+  });
 
   const duration = useMemo(() => differenceInDays(endDate, startDate), [startDate, endDate]);
 
@@ -69,94 +71,89 @@ export function TimelineBar({
     return Math.round(pixels / dayWidth);
   }, [dayWidth]);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent, mode: DragMode) => {
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const { startX, initialLeft, initialWidth, mode } = dragStateRef.current;
+      const deltaX = e.clientX - startX;
+      
+      if (mode === "move") {
+        setTempLeft(initialLeft + deltaX);
+      } else if (mode === "resize-left") {
+        const newLeft = initialLeft + deltaX;
+        const newWidth = initialWidth - deltaX;
+        if (newWidth > dayWidth) {
+          setTempLeft(newLeft);
+          setTempWidth(newWidth);
+        }
+      } else if (mode === "resize-right") {
+        const newWidth = initialWidth + deltaX;
+        if (newWidth > dayWidth) {
+          setTempWidth(newWidth);
+        }
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      const { startX, mode } = dragStateRef.current;
+      const deltaX = e.clientX - startX;
+      const daysDelta = pixelsToDays(deltaX);
+      
+      let newStartDate = startDate;
+      let newEndDate = endDate;
+      
+      if (mode === "move") {
+        newStartDate = addDays(startDate, daysDelta);
+        newEndDate = addDays(endDate, daysDelta);
+      } else if (mode === "resize-left") {
+        newStartDate = addDays(startDate, daysDelta);
+        if (newStartDate >= endDate) {
+          newStartDate = addDays(endDate, -1);
+        }
+      } else if (mode === "resize-right") {
+        newEndDate = addDays(endDate, daysDelta);
+        if (newEndDate <= startDate) {
+          newEndDate = addDays(startDate, 1);
+        }
+      }
+      
+      if (onDateChange && (newStartDate.getTime() !== startDate.getTime() || newEndDate.getTime() !== endDate.getTime())) {
+        onDateChange(id, newStartDate, newEndDate);
+      }
+      
+      setTempLeft(left);
+      setTempWidth(width);
+      setDragMode("none");
+      setIsDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, dayWidth, pixelsToDays, startDate, endDate, id, onDateChange, left, width]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent, mode: DragMode) => {
     if (!onDateChange) return;
     e.preventDefault();
     e.stopPropagation();
     
+    dragStateRef.current = {
+      startX: e.clientX,
+      initialLeft: left,
+      initialWidth: width,
+      mode,
+    };
+    
+    setTempLeft(left);
+    setTempWidth(width);
     setDragMode(mode);
-    setDragStartX(e.clientX);
-    setInitialLeft(left);
-    setInitialWidth(width);
-    setTempLeft(left);
-    setTempWidth(width);
     setIsDragging(true);
-    
-    const target = e.currentTarget as HTMLElement;
-    captureElementRef.current = target;
-    capturePointerIdRef.current = e.pointerId;
-    target.setPointerCapture(e.pointerId);
   }, [left, width, onDateChange]);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (dragMode === "none" || !isDragging) return;
-    
-    const deltaX = e.clientX - dragStartX;
-    
-    if (dragMode === "move") {
-      setTempLeft(initialLeft + deltaX);
-    } else if (dragMode === "resize-left") {
-      const newLeft = initialLeft + deltaX;
-      const newWidth = initialWidth - deltaX;
-      if (newWidth > dayWidth * 1) {
-        setTempLeft(newLeft);
-        setTempWidth(newWidth);
-      }
-    } else if (dragMode === "resize-right") {
-      const newWidth = initialWidth + deltaX;
-      if (newWidth > dayWidth * 1) {
-        setTempWidth(newWidth);
-      }
-    }
-  }, [dragMode, isDragging, dragStartX, initialLeft, initialWidth, dayWidth]);
-
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (dragMode === "none" || !isDragging || !onDateChange) {
-      setDragMode("none");
-      setIsDragging(false);
-      return;
-    }
-    
-    if (captureElementRef.current && capturePointerIdRef.current !== null) {
-      try {
-        captureElementRef.current.releasePointerCapture(capturePointerIdRef.current);
-      } catch {
-        // Pointer capture may have been released already
-      }
-      captureElementRef.current = null;
-      capturePointerIdRef.current = null;
-    }
-    
-    const deltaX = e.clientX - dragStartX;
-    const daysDelta = pixelsToDays(deltaX);
-    
-    let newStartDate = startDate;
-    let newEndDate = endDate;
-    
-    if (dragMode === "move") {
-      newStartDate = addDays(startDate, daysDelta);
-      newEndDate = addDays(endDate, daysDelta);
-    } else if (dragMode === "resize-left") {
-      newStartDate = addDays(startDate, daysDelta);
-      if (newStartDate >= endDate) {
-        newStartDate = addDays(endDate, -1);
-      }
-    } else if (dragMode === "resize-right") {
-      newEndDate = addDays(endDate, daysDelta);
-      if (newEndDate <= startDate) {
-        newEndDate = addDays(startDate, 1);
-      }
-    }
-    
-    if (newStartDate.getTime() !== startDate.getTime() || newEndDate.getTime() !== endDate.getTime()) {
-      onDateChange(id, newStartDate, newEndDate);
-    }
-    
-    setTempLeft(left);
-    setTempWidth(width);
-    setDragMode("none");
-    setIsDragging(false);
-  }, [dragMode, isDragging, dragStartX, pixelsToDays, startDate, endDate, id, onDateChange, left, width]);
 
   const handleQuickAdjust = useCallback((startDelta: number, endDelta: number) => {
     if (!onDateChange) return;
@@ -211,8 +208,6 @@ export function TimelineBar({
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => !isDragging && setIsHovered(false)}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
           data-testid={testId}
         >
           {canEdit && (
@@ -222,7 +217,7 @@ export function TimelineBar({
                 "opacity-0 group-hover:opacity-100 transition-opacity",
                 "hover:bg-black/20 rounded-l-md"
               )}
-              onPointerDown={(e) => handlePointerDown(e, "resize-left")}
+              onMouseDown={(e) => handleMouseDown(e, "resize-left")}
               data-testid={`${testId}-resize-left`}
             >
               <GripVertical className="h-3 w-3 text-white/70" />
@@ -234,7 +229,7 @@ export function TimelineBar({
               "flex-1 px-3 flex items-center min-w-0",
               canEdit && "cursor-grab"
             )}
-            onPointerDown={(e) => canEdit && handlePointerDown(e, "move")}
+            onMouseDown={(e) => canEdit && handleMouseDown(e, "move")}
           >
             <span className={cn("text-xs font-medium truncate", textColorClass)}>
               {name}
@@ -249,7 +244,7 @@ export function TimelineBar({
                 "opacity-0 group-hover:opacity-100 transition-opacity",
                 "hover:bg-black/20 rounded-r-md"
               )}
-              onPointerDown={(e) => handlePointerDown(e, "resize-right")}
+              onMouseDown={(e) => handleMouseDown(e, "resize-right")}
               data-testid={`${testId}-resize-right`}
             >
               <GripVertical className="h-3 w-3 text-white/70" />
