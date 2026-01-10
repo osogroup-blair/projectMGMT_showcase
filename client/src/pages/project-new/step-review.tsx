@@ -42,20 +42,14 @@ export function StepReview({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="text-lg font-medium">Review & Summary</h3>
-          <p className="text-sm text-muted-foreground">
-            Review your project configuration before creation.
-          </p>
-        </div>
-        {isLargeProject && (
+      {isLargeProject && (
+        <div className="flex justify-end">
           <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
             <AlertTriangle className="h-4 w-4" />
             <span className="text-sm font-medium">Large project: {totalTasks} tasks will be created</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <ScrollArea className="h-[480px] pr-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

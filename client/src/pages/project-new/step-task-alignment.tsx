@@ -196,8 +196,9 @@ export function StepTaskAlignment({
   
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
+      {false && (
+        <Card>
+          <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ListTodo className="h-5 w-5" />
             Task-Epic Alignment

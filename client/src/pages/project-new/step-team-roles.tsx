@@ -171,13 +171,7 @@ export function StepTeamRoles({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-lg font-medium">Assignments & Roles</h3>
-          <p className="text-sm text-muted-foreground">
-            Core roles plus roles from your configured stages and tasks
-          </p>
-        </div>
+      <div className="flex justify-end items-center">
         <div className="flex gap-2">
           {availableTemplates.length > 0 && (
             <Select onValueChange={addRoleFromTemplate}>

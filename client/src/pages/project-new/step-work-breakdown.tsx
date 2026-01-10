@@ -65,13 +65,7 @@ export function StepWorkBreakdown({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-lg font-medium">Work Breakdown Structure</h3>
-          <p className="text-sm text-muted-foreground">
-            Define deliverables and epics. Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">Enter</kbd> to add a new epic.
-          </p>
-        </div>
+      <div className="flex justify-end">
         <div className="flex gap-2">
           <div className="relative">
             <input

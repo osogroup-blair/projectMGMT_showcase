@@ -258,13 +258,7 @@ export function StepStageConfig({
   return (
     <div className="flex flex-col h-full">
       <div className="sticky top-0 z-10 bg-background pb-4 border-b mb-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="text-lg font-medium">Stage Configuration</h3>
-            <p className="text-sm text-muted-foreground">
-              Configure stages and milestones for your project workflow.
-            </p>
-          </div>
+        <div className="flex justify-end items-center">
           <Sheet open={frameworkPanelOpen} onOpenChange={setFrameworkPanelOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="sm" data-testid="button-apply-framework">
