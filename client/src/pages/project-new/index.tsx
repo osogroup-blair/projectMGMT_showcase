@@ -30,7 +30,8 @@ import {
   toWizardProjectData, 
   toWizardDeliverables, 
   toWizardStages, 
-  toWizardMilestones 
+  toWizardMilestones,
+  toWizardRoles
 } from "@/lib/import-to-wizard-adapter";
 import { ImportSummaryBanner } from "@/components/import/ImportFieldIndicator";
 
@@ -176,6 +177,11 @@ export default function ProjectWizard() {
       const importedMilestones = toWizardMilestones(adapter.milestones);
       if (importedMilestones.length > 0) {
         setMilestones(importedMilestones);
+      }
+      
+      const importedRoles = toWizardRoles(adapter.roles);
+      if (importedRoles.length > 0) {
+        setRoles(importedRoles);
       }
       
       setImportInitialized(true);

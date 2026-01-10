@@ -669,3 +669,15 @@ export function toWizardMilestones(imported: ImportedMilestone[]): WizardMilesto
     rule: m.rule
   }));
 }
+
+export function toWizardRoles(imported: ImportedRole[]): WizardRole[] {
+  return imported.map(r => ({
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    roleType: r.roleType,
+    templateId: r.templateId,
+    isCore: r.isCore,
+    assigneeId: r.assigneeId
+  }));
+}
