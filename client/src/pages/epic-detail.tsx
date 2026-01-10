@@ -31,7 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints } from "@/hooks/use-nexus-data";
+import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints, useEpicTypes } from "@/hooks/use-nexus-data";
 import {
   Dialog,
   DialogContent,
@@ -84,12 +84,13 @@ export default function EpicDetail() {
 
   // Fetch data from database
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
-  const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allEpics, isLoading: isEpicsLoading, update: updateEpic } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask, remove: deleteTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
+  const { data: epicTypes = [], isLoading: isEpicTypesLoading } = useEpicTypes();
 
   // View mode state (stage or sprint)
   const [viewMode, setViewMode] = useState<"stage" | "sprint">("stage");
@@ -128,6 +129,17 @@ export default function EpicDetail() {
   const deliverable = useMemo(() => allDeliverables?.find((d: any) => d.id === epic?.deliverableId), [allDeliverables, epic]);
   const tasks = useMemo(() => allTasks?.filter((t: any) => t.epicId === epicId) || [], [allTasks, epicId]);
   const owner = useMemo(() => users?.find((u: any) => u.id === epic?.ownerId), [users, epic]);
+  const epicType = useMemo(() => epicTypes.find((t: any) => t.id === epic?.typeId), [epicTypes, epic]);
+
+  const handleUpdateEpicType = (typeId: string | null) => {
+    if (epic) {
+      updateEpic({ id: epic.id, updates: { typeId } });
+      toast({
+        title: "Epic Type Updated",
+        description: typeId ? `Type set to "${epicTypes.find((t: any) => t.id === typeId)?.name}"` : "Type removed"
+      });
+    }
+  };
 
   // Filter tasks based on active filters
   const filteredTasks = useMemo(() => {
@@ -330,6 +342,22 @@ export default function EpicDetail() {
                     )}>
                       {epic.status}
                     </Badge>
+                    {epicTypes.length > 0 && (
+                      <>
+                        <span>•</span>
+                        <SearchableSelect
+                          value={epic.typeId || ""}
+                          onValueChange={(v) => handleUpdateEpicType(v || null)}
+                          placeholder="Set type..."
+                          options={[
+                            { value: "", label: "None" },
+                            ...epicTypes.map((t: any) => ({ value: t.id, label: t.name }))
+                          ]}
+                          className="h-6 text-xs w-[120px]"
+                          data-testid="select-epic-type-header"
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

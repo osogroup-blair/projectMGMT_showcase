@@ -59,6 +59,7 @@ export const deliverables = pgTable("deliverables", {
   startDate: text("start_date"),
   dueDate: text("due_date").notNull(),
   progress: integer("progress").notNull().default(0),
+  typeId: varchar("type_id"),
   externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
 });
 
@@ -74,6 +75,7 @@ export const epics = pgTable("epics", {
   endDate: text("end_date").notNull(),
   progress: integer("progress").notNull().default(0),
   stageIds: text("stage_ids").array().notNull().default([]),
+  typeId: varchar("type_id"),
   externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
   scheduleOverride: boolean("schedule_override").default(false),
   overrideReason: text("override_reason"),

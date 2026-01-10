@@ -22,7 +22,7 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useDeliverables, useEpics, useUsers, useTasks, useProjectStages } from "@/hooks/use-nexus-data";
+import { useDeliverables, useEpics, useUsers, useTasks, useProjectStages, useDeliverableTypes } from "@/hooks/use-nexus-data";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +49,7 @@ export default function DeliverableDetail() {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: projectStages } = useProjectStages();
+  const { data: deliverableTypes = [] } = useDeliverableTypes();
   const { toast } = useToast();
 
   // Edit dates state
@@ -140,6 +141,21 @@ export default function DeliverableDetail() {
     users?.find((u: any) => u.id === deliverable?.ownerId), 
     [users, deliverable]
   );
+
+  const deliverableType = useMemo(() => 
+    deliverableTypes.find((t: any) => t.id === deliverable?.typeId), 
+    [deliverableTypes, deliverable]
+  );
+
+  const handleUpdateDeliverableType = (typeId: string | null) => {
+    if (deliverable) {
+      updateDeliverable({ id: deliverable.id, updates: { typeId } });
+      toast({
+        title: "Deliverable Type Updated",
+        description: typeId ? `Type set to "${deliverableTypes.find((t: any) => t.id === typeId)?.name}"` : "Type removed"
+      });
+    }
+  };
 
   const getTasksForEpic = (epicId: string) => {
     return allTasks?.filter((t: any) => t.epicId === epicId) || [];
@@ -258,6 +274,19 @@ export default function DeliverableDetail() {
                   )}>
                     {deliverable.status}
                   </Badge>
+                  {deliverableTypes.length > 0 && (
+                    <SearchableSelect
+                      value={deliverable.typeId || ""}
+                      onValueChange={(v) => handleUpdateDeliverableType(v || null)}
+                      placeholder="Set type..."
+                      options={[
+                        { value: "", label: "None" },
+                        ...deliverableTypes.map((t: any) => ({ value: t.id, label: t.name }))
+                      ]}
+                      className="h-6 text-xs w-[120px]"
+                      data-testid="select-deliverable-type-header"
+                    />
+                  )}
                 </div>
                 <p className="text-muted-foreground">{deliverable.description}</p>
               </div>
