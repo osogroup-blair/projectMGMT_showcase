@@ -31,6 +31,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format, parseISO } from "date-fns";
 import { 
   Card, 
   CardContent, 
@@ -171,6 +175,13 @@ export default function StageWorkspace() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editStatus, setEditStatus] = useState<"pending" | "active" | "completed">("pending");
+  
+  // Date editing state
+  const [isEditingDates, setIsEditingDates] = useState(false);
+  const [editStartDate, setEditStartDate] = useState<string>("");
+  const [editEndDate, setEditEndDate] = useState<string>("");
+  const [cascadeToTasks, setCascadeToTasks] = useState(true);
+  const [isSavingDates, setIsSavingDates] = useState(false);
 
   // Add/Link Milestone modal state
   const [, setLocation] = useLocation();
@@ -314,6 +325,8 @@ export default function StageWorkspace() {
       setEditName(stage.name || "");
       setEditDescription(stage.description || "");
       setEditStatus(stage.status || "pending");
+      setEditStartDate(stage.startDate || "");
+      setEditEndDate(stage.endDate || "");
     }
   }, [stage]);
 
@@ -343,6 +356,55 @@ export default function StageWorkspace() {
       setEditStatus(newStatus);
       setIsEditingStatus(false);
       toast({ title: "Updated", description: "Stage status has been updated." });
+    }
+  };
+
+  const handleSaveDates = async () => {
+    if (!stage) return;
+    
+    setIsSavingDates(true);
+    try {
+      // Update stage dates
+      await updateStage({ 
+        id: stage.id, 
+        updates: { 
+          startDate: editStartDate || null, 
+          endDate: editEndDate || null 
+        } 
+      });
+      
+      // Cascade to tasks if enabled
+      if (cascadeToTasks && tasks.length > 0 && editStartDate && editEndDate) {
+        const stageStart = new Date(editStartDate);
+        const stageEnd = new Date(editEndDate);
+        const stageDuration = stageEnd.getTime() - stageStart.getTime();
+        
+        // Update all tasks in this stage to fit within stage dates
+        for (const task of tasks) {
+          // Set task deadline to stage end date by default
+          await fetch(`/api/tasks/${task.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              deadline: editEndDate,
+              inheritedFromStage: true
+            })
+          });
+        }
+        
+        toast({ 
+          title: "Dates Updated", 
+          description: `Stage dates updated and ${tasks.length} task(s) adjusted.` 
+        });
+      } else {
+        toast({ title: "Updated", description: "Stage dates have been updated." });
+      }
+      
+      setIsEditingDates(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update dates.", variant: "destructive" });
+    } finally {
+      setIsSavingDates(false);
     }
   };
 
@@ -526,6 +588,119 @@ export default function StageWorkspace() {
                 </Button>
               </div>
             )}
+
+            {/* Stage Dates - Inline editing */}
+            <div className="flex items-center gap-4 mt-3 pt-3 border-t">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Dates:</span>
+              </div>
+              
+              {isEditingDates ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Start</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 w-[130px] justify-start text-left font-normal" data-testid="button-start-date-picker">
+                          <Calendar className="mr-2 h-3 w-3" />
+                          {editStartDate ? format(parseISO(editStartDate), "MMM d, yyyy") : <span className="text-muted-foreground">Pick date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={editStartDate ? parseISO(editStartDate) : undefined}
+                          onSelect={(date) => date && setEditStartDate(format(date, "yyyy-MM-dd"))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <span className="text-muted-foreground">→</span>
+                  
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">End</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 w-[130px] justify-start text-left font-normal" data-testid="button-end-date-picker">
+                          <Calendar className="mr-2 h-3 w-3" />
+                          {editEndDate ? format(parseISO(editEndDate), "MMM d, yyyy") : <span className="text-muted-foreground">Pick date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={editEndDate ? parseISO(editEndDate) : undefined}
+                          onSelect={(date) => date && setEditEndDate(format(date, "yyyy-MM-dd"))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 ml-4 px-3 py-1.5 bg-blue-50 rounded-md border border-blue-200">
+                    <Switch 
+                      id="cascade-dates" 
+                      checked={cascadeToTasks} 
+                      onCheckedChange={setCascadeToTasks}
+                      data-testid="switch-cascade-dates"
+                    />
+                    <Label htmlFor="cascade-dates" className="text-xs text-blue-700 cursor-pointer">
+                      Update {tasks.length} task deadline{tasks.length !== 1 ? 's' : ''}
+                    </Label>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      size="sm" 
+                      onClick={handleSaveDates} 
+                      disabled={isSavingDates}
+                      data-testid="button-save-dates"
+                    >
+                      {isSavingDates ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
+                      Save
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => {
+                        setIsEditingDates(false);
+                        setEditStartDate(stage.startDate || "");
+                        setEditEndDate(stage.endDate || "");
+                      }}
+                      disabled={isSavingDates}
+                      data-testid="button-cancel-dates"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  {editStartDate || editEndDate ? (
+                    <span className="text-sm">
+                      {editStartDate ? format(parseISO(editStartDate), "MMM d, yyyy") : "Not set"} 
+                      <span className="text-muted-foreground mx-2">→</span> 
+                      {editEndDate ? format(parseISO(editEndDate), "MMM d, yyyy") : "Not set"}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground italic">No dates set</span>
+                  )}
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-7 px-2" 
+                    onClick={() => setIsEditingDates(true)}
+                    data-testid="button-edit-stage-dates"
+                  >
+                    <Pencil className="h-3 w-3 mr-1" />
+                    Edit Dates
+                  </Button>
+                </div>
+              )}
+            </div>
 
           </div>
         </div>
