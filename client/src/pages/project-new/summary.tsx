@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useCreationReport } from '@/context/creation-report-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   CheckCircle2,
   XCircle,
@@ -16,7 +19,11 @@ import {
   Flag,
   Users,
   LayoutGrid,
-  Plus
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import type { EntityType, EntityResult } from '@shared/creation-result-types';
 
@@ -98,6 +105,146 @@ function FailedEntityRow({ result }: { result: EntityResult }) {
   );
 }
 
+function getEntityUrl(entityType: EntityType, entityId: string, projectId: string | null): string | null {
+  if (!projectId) return null;
+  
+  switch (entityType) {
+    case 'project':
+      return `/projects/${projectId}`;
+    case 'task':
+      return `/projects/${projectId}/tasks/${entityId}`;
+    case 'epic':
+      return `/projects/${projectId}/epics/${entityId}`;
+    case 'deliverable':
+      return `/projects/${projectId}/deliverables/${entityId}`;
+    case 'milestone':
+      return `/projects/${projectId}/milestones/${entityId}`;
+    case 'stage':
+    case 'role':
+      return null;
+    default:
+      return null;
+  }
+}
+
+function truncateId(id: string, maxLength: number = 8): string {
+  if (id.length <= maxLength) return id;
+  return `${id.slice(0, maxLength)}...`;
+}
+
+function CreatedEntityRow({ 
+  result, 
+  projectId,
+  onNavigate 
+}: { 
+  result: EntityResult; 
+  projectId: string | null;
+  onNavigate: (url: string) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const Icon = entityIcons[result.entityType as EntityType] || FolderOpen;
+  const url = getEntityUrl(result.entityType as EntityType, result.id, projectId);
+  
+  const handleCopyId = async () => {
+    await navigator.clipboard.writeText(result.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  
+  const handleClick = () => {
+    if (url) {
+      onNavigate(url);
+    }
+  };
+  
+  return (
+    <div 
+      className={`flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors ${url ? 'cursor-pointer' : ''}`}
+      onClick={url ? handleClick : undefined}
+      data-testid={`entity-row-${result.entityType}-${result.id}`}
+    >
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <span className="font-medium text-sm truncate">{result.name}</span>
+        {url && (
+          <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono text-muted-foreground">
+          {truncateId(result.id)}
+        </code>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCopyId();
+          }}
+          title="Copy full ID"
+          data-testid={`copy-id-${result.id}`}
+        >
+          {copied ? (
+            <CheckCircle2 className="h-3 w-3 text-green-500" />
+          ) : (
+            <Copy className="h-3 w-3" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EntityTypeSection({
+  entityType,
+  entities,
+  projectId,
+  onNavigate
+}: {
+  entityType: EntityType;
+  entities: EntityResult[];
+  projectId: string | null;
+  onNavigate: (url: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(entityType === 'project' || entityType === 'deliverable');
+  const Icon = entityIcons[entityType] || FolderOpen;
+  const label = entityLabels[entityType] || entityType;
+  
+  if (entities.length === 0) return null;
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 transition-colors">
+        <div className="flex items-center gap-2">
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+          <Icon className="h-4 w-4 text-primary" />
+          <span className="font-medium">{label}</span>
+          <Badge variant="secondary" className="ml-1">
+            {entities.length}
+          </Badge>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="ml-6 pl-4 border-l space-y-1 mt-1">
+          {entities.map((entity, index) => (
+            <CreatedEntityRow
+              key={`${entity.entityType}-${entity.id}-${index}`}
+              result={entity}
+              projectId={projectId}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export default function ProjectCreationSummary() {
   const [, setLocation] = useLocation();
   const { report, clearReport } = useCreationReport();
@@ -129,6 +276,24 @@ export default function ProjectCreationSummary() {
   
   const { projectId, projectName, overallSuccess, summary, breakdownByType, entityResults } = report;
   const failedEntities = entityResults.filter(r => !r.success);
+  const successfulEntities = entityResults.filter(r => r.success);
+  
+  const entitiesByType: Record<EntityType, EntityResult[]> = {
+    project: [],
+    deliverable: [],
+    epic: [],
+    task: [],
+    stage: [],
+    milestone: [],
+    role: []
+  };
+  
+  successfulEntities.forEach(entity => {
+    const type = entity.entityType as EntityType;
+    if (entitiesByType[type]) {
+      entitiesByType[type].push(entity);
+    }
+  });
   
   const handleGoToProject = () => {
     clearReport();
@@ -142,6 +307,11 @@ export default function ProjectCreationSummary() {
   const handleCreateAnother = () => {
     clearReport();
     setLocation('/projects/new');
+  };
+  
+  const handleNavigateToEntity = (url: string) => {
+    clearReport();
+    setLocation(url);
   };
   
   return (
@@ -229,6 +399,35 @@ export default function ProjectCreationSummary() {
             </div>
           </CardContent>
         </Card>
+        
+        {successfulEntities.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                Created Entities ({successfulEntities.length})
+              </CardTitle>
+              <CardDescription>
+                Click on any entity to view its details. Click the copy icon to copy the full ID.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px] pr-4">
+                <div className="space-y-1">
+                  {(['project', 'deliverable', 'epic', 'task', 'stage', 'milestone', 'role'] as EntityType[]).map(type => (
+                    <EntityTypeSection
+                      key={type}
+                      entityType={type}
+                      entities={entitiesByType[type]}
+                      projectId={projectId}
+                      onNavigate={handleNavigateToEntity}
+                    />
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
         
         {failedEntities.length > 0 && (
           <Card className="border-red-200 dark:border-red-900">
