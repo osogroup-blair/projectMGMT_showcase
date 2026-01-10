@@ -677,15 +677,6 @@ export default function ProjectOverview() {
             <div className="px-6 flex items-center justify-between">
               <TabsList className="justify-start rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto no-scrollbar">
                 <TabsTrigger 
-                  value="current-sprint" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none gap-1.5"
-                  data-testid="tab-current-sprint"
-                >
-                  <Zap className="h-4 w-4" />
-                  Current Sprint
-                </TabsTrigger>
-
-                <TabsTrigger 
                   value="overview" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
@@ -744,69 +735,81 @@ export default function ProjectOverview() {
           </div>
 
           <div className="px-6 py-6">
-            <TabsContent value="current-sprint" className="mt-0 outline-none">
-              {activeSprint ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-lg font-semibold">{activeSprint.name}</h2>
-                      <Badge variant={activeSprint.status === "active" ? "default" : "secondary"} className="capitalize">
-                        {activeSprint.status}
-                      </Badge>
-                      {activeSprint.endDate && (
-                        <span className="text-sm text-muted-foreground">
-                          {Math.max(0, differenceInDays(parseISO(activeSprint.endDate), new Date()))} days remaining
-                        </span>
-                      )}
-                    </div>
-                    <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Settings className="h-4 w-4" />
-                        Sprint Details
-                      </Button>
-                    </Link>
-                  </div>
-                  <FlowBoard
-                    tasks={sprintTasks}
-                    users={users || []}
-                    epics={projectEpics || []}
-                    projectId={projectId}
-                    onTaskMove={handleTaskMove}
-                    onBlockerRequested={handleBlockerRequested}
-                  />
-                  <BlockerReasonDialog
-                    open={!!blockerTaskId}
-                    onOpenChange={(open) => !open && setBlockerTaskId(null)}
-                    onConfirm={(reason) => {
-                      if (blockerTaskId) {
-                        handleTaskMove(blockerTaskId, "Blocked", reason);
-                        setBlockerTaskId(null);
-                      }
-                    }}
-                    onCancel={() => setBlockerTaskId(null)}
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[400px] text-center">
-                  <Zap className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Active Sprint</h3>
-                  <p className="text-muted-foreground mb-4">Create a sprint to start tracking your work</p>
-                  <Link href={`/projects/${projectId}/sprints`}>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Go to Sprints
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </TabsContent>
-
             <TabsContent value="overview" className="mt-0 outline-none">
-              <TimeHorizonDashboard 
-                projectId={projectId}
-                externalFilters={dashboardFilters}
-                onFiltersChange={setDashboardFilters}
-              />
+              <Tabs defaultValue="current-sprint" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="current-sprint" className="gap-1.5">
+                    <Zap className="h-4 w-4" />
+                    Current Sprint
+                  </TabsTrigger>
+                  <TabsTrigger value="metrics">Dashboard Metrics</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="current-sprint" className="mt-0">
+                  {activeSprint ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <h2 className="text-lg font-semibold">{activeSprint.name}</h2>
+                          <Badge variant={activeSprint.status === "active" ? "default" : "secondary"} className="capitalize">
+                            {activeSprint.status}
+                          </Badge>
+                          {activeSprint.endDate && (
+                            <span className="text-sm text-muted-foreground">
+                              {Math.max(0, differenceInDays(parseISO(activeSprint.endDate), new Date()))} days remaining
+                            </span>
+                          )}
+                        </div>
+                        <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Settings className="h-4 w-4" />
+                            Sprint Details
+                          </Button>
+                        </Link>
+                      </div>
+                      <FlowBoard
+                        tasks={sprintTasks}
+                        users={users || []}
+                        epics={projectEpics || []}
+                        projectId={projectId}
+                        onTaskMove={handleTaskMove}
+                        onBlockerRequested={handleBlockerRequested}
+                      />
+                      <BlockerReasonDialog
+                        open={!!blockerTaskId}
+                        onOpenChange={(open) => !open && setBlockerTaskId(null)}
+                        onConfirm={(reason) => {
+                          if (blockerTaskId) {
+                            handleTaskMove(blockerTaskId, "Blocked", reason);
+                            setBlockerTaskId(null);
+                          }
+                        }}
+                        onCancel={() => setBlockerTaskId(null)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[400px] text-center">
+                      <Zap className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No Active Sprint</h3>
+                      <p className="text-muted-foreground mb-4">Create a sprint to start tracking your work</p>
+                      <Link href={`/projects/${projectId}/sprints`}>
+                        <Button>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Go to Sprints
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="metrics" className="mt-0">
+                  <TimeHorizonDashboard 
+                    projectId={projectId}
+                    externalFilters={dashboardFilters}
+                    onFiltersChange={setDashboardFilters}
+                  />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
             <TabsContent value="timeline" className="h-[700px] mt-0 outline-none">
