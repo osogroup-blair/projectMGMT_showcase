@@ -70,7 +70,7 @@ import { FlowBoard } from "@/features/project/sprints/flow-board";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
 import { NextSprintBacklog } from "@/features/project/sprints/next-sprint-backlog";
-import { Users, PanelRight } from "lucide-react";
+import { Activity, PanelLeft, Send } from "lucide-react";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -797,6 +797,44 @@ export default function ProjectOverview() {
                       </div>
 
                       <div className="flex gap-6 relative">
+                        <Collapsible defaultOpen className="w-72 border-r pr-6 hidden lg:block shrink-0">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold flex items-center gap-2">
+                              <Activity className="h-4 w-4" />
+                              Team Pulse
+                            </h3>
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <PanelLeft className="h-4 w-4" />
+                              </Button>
+                            </CollapsibleTrigger>
+                          </div>
+                          <CollapsibleContent className="space-y-4">
+                            <Card className="bg-muted/30">
+                              <CardContent className="pt-4 pb-4">
+                                <Textarea 
+                                  placeholder="Share an update with your team..."
+                                  className="min-h-[80px] text-sm resize-none mb-3"
+                                  data-testid="input-team-pulse-update"
+                                />
+                                <Button size="sm" className="w-full gap-2" data-testid="button-send-pulse">
+                                  <Send className="h-3 w-3" />
+                                  Send Update
+                                </Button>
+                              </CardContent>
+                            </Card>
+                            <div className="space-y-3">
+                              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Updates</h4>
+                              <div className="space-y-2 text-sm">
+                                <Card className="p-3 bg-muted/20">
+                                  <p className="text-xs text-muted-foreground mb-1">No updates yet</p>
+                                  <p className="text-[10px] text-muted-foreground/70">Be the first to share progress!</p>
+                                </Card>
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+
                         <div className="flex-1 min-w-0 space-y-6">
                           <FlowBoard
                             tasks={sprintTasks}
@@ -816,43 +854,6 @@ export default function ProjectOverview() {
                             allTasks={projectTasks}
                           />
                         </div>
-
-                        <Collapsible defaultOpen className="w-80 border-l pl-6 hidden lg:block">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold flex items-center gap-2">
-                              <Users className="h-4 w-4" />
-                              Team Check-in
-                            </h3>
-                            <CollapsibleTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <PanelRight className="h-4 w-4" />
-                              </Button>
-                            </CollapsibleTrigger>
-                          </div>
-                          <CollapsibleContent className="space-y-4">
-                            <Card className="bg-muted/30 border-dashed">
-                              <CardContent className="pt-4 pb-4">
-                                <div className="space-y-3">
-                                  {(users || []).slice(0, 5).map(user => (
-                                    <div key={user.id} className="flex items-center gap-3">
-                                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
-                                        {user.name.split(' ').map(n => n[0]).join('')}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="text-sm font-medium truncate">{user.name}</div>
-                                        <div className="text-[10px] text-muted-foreground">Active now</div>
-                                      </div>
-                                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                                    </div>
-                                  ))}
-                                </div>
-                              </CardContent>
-                            </Card>
-                            <div className="text-xs text-muted-foreground px-1">
-                              Check-in with your team to see current focus and potential blockers.
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
                       </div>
 
                       <BlockerReasonDialog
