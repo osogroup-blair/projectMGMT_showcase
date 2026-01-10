@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useCreationReport } from '@/context/creation-report-context';
+import { useCreationReport, type CreationProgress } from '@/context/creation-report-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import {
   CheckCircle2,
   XCircle,
@@ -23,7 +24,8 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import type { EntityType, EntityResult } from '@shared/creation-result-types';
 
@@ -245,9 +247,121 @@ function EntityTypeSection({
   );
 }
 
+const entityCreationOrder: EntityType[] = ['project', 'stage', 'deliverable', 'epic', 'task', 'milestone', 'role'];
+
+function CreatingProgressView({ progress }: { progress: CreationProgress }) {
+  const [currentEntityIndex, setCurrentEntityIndex] = useState(0);
+  const [progressValue, setProgressValue] = useState(0);
+  
+  const totalEntities = 1 + 
+    progress.expectedCounts.stages + 
+    progress.expectedCounts.deliverables + 
+    progress.expectedCounts.epics + 
+    progress.expectedCounts.tasks + 
+    progress.expectedCounts.milestones + 
+    progress.expectedCounts.roles;
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProgressValue(prev => {
+        if (prev >= 95) return prev;
+        return prev + Math.random() * 8 + 2;
+      });
+      
+      setCurrentEntityIndex(prev => {
+        if (prev >= entityCreationOrder.length - 1) return prev;
+        return prev + 1;
+      });
+    }, 800);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  const currentEntity = entityCreationOrder[Math.min(currentEntityIndex, entityCreationOrder.length - 1)];
+  const CurrentIcon = entityIcons[currentEntity] || FolderOpen;
+  const currentLabel = entityLabels[currentEntity] || currentEntity;
+  
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-8">
+      <Card className="w-full max-w-lg">
+        <CardHeader className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mx-auto mb-4">
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          </div>
+          <CardTitle className="text-2xl">Creating Project</CardTitle>
+          <CardDescription className="text-base">
+            Setting up <span className="font-semibold">{progress.projectName}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <CurrentIcon className="h-4 w-4 text-primary animate-pulse" />
+                <span>Creating {currentLabel}...</span>
+              </div>
+              <span className="text-muted-foreground">{Math.round(progressValue)}%</span>
+            </div>
+            <Progress value={progressValue} className="h-2" />
+          </div>
+          
+          <Separator />
+          
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            {progress.expectedCounts.stages > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                <LayoutGrid className="h-4 w-4 text-muted-foreground" />
+                <span>{progress.expectedCounts.stages} Stages</span>
+              </div>
+            )}
+            {progress.expectedCounts.deliverables > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <span>{progress.expectedCounts.deliverables} Deliverables</span>
+              </div>
+            )}
+            {progress.expectedCounts.epics > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <span>{progress.expectedCounts.epics} Epics</span>
+              </div>
+            )}
+            {progress.expectedCounts.tasks > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                <ListTodo className="h-4 w-4 text-muted-foreground" />
+                <span>{progress.expectedCounts.tasks} Tasks</span>
+              </div>
+            )}
+            {progress.expectedCounts.milestones > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                <Flag className="h-4 w-4 text-muted-foreground" />
+                <span>{progress.expectedCounts.milestones} Milestones</span>
+              </div>
+            )}
+            {progress.expectedCounts.roles > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span>{progress.expectedCounts.roles} Roles</span>
+              </div>
+            )}
+          </div>
+          
+          <p className="text-center text-sm text-muted-foreground">
+            Please wait while we create your project and all related entities...
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function ProjectCreationSummary() {
   const [, setLocation] = useLocation();
-  const { report, clearReport } = useCreationReport();
+  const { report, clearReport, status, progress } = useCreationReport();
+  
+  if (status === 'creating' && progress) {
+    return <CreatingProgressView progress={progress} />;
+  }
   
   if (!report) {
     return (

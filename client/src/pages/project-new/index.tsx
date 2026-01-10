@@ -85,7 +85,7 @@ export default function ProjectWizard() {
   
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
-  const { setReport } = useCreationReport();
+  const { setReport, startCreating, finishCreating } = useCreationReport();
   
   const { data: frameworkTemplates = [], isLoading: loadingFrameworks } = useFrameworkTemplates();
   const { data: stageTemplates = [], isLoading: loadingStages } = useStageTemplates();
@@ -635,6 +635,23 @@ export default function ProjectWizard() {
     
     setIsCreating(true);
     
+    const totalEpics = deliverables.reduce((sum, d) => sum + (d.epics?.length || 0), 0);
+    const totalTasks = stages.reduce((sum, s) => sum + (s.tasks?.length || 0), 0);
+    
+    startCreating({
+      projectName: projectData.name,
+      expectedCounts: {
+        stages: stages.length,
+        deliverables: deliverables.length,
+        epics: totalEpics,
+        tasks: totalTasks,
+        milestones: milestones.length,
+        roles: roles.length
+      }
+    });
+    
+    setLocation('/projects/new/summary');
+    
     try {
       const payload: FullProjectCreatePayload = {
         project: {
@@ -717,8 +734,7 @@ export default function ProjectWizard() {
         importContext.clearImport();
       }
       
-      setReport(report);
-      setLocation('/projects/new/summary');
+      finishCreating(report);
       
     } catch (error) {
       console.error("Error creating project:", error);
