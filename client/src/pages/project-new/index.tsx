@@ -226,6 +226,24 @@ export default function ProjectWizard() {
     }
   }, [isImportMode, importInitialized, importContext?.state?.adapterResult, users]);
 
+  // Initialize default stages when entering Step 4 with empty stages (non-import mode)
+  useEffect(() => {
+    if (currentStep === 4 && stages.length === 0 && !isImportMode) {
+      const defaultStages: WizardStage[] = [
+        { id: `stage-${Date.now()}-0`, name: 'Requirements', description: 'Gather and document project requirements', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
+        { id: `stage-${Date.now()}-1`, name: 'Design', description: 'Create designs and technical specifications', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
+        { id: `stage-${Date.now()}-2`, name: 'Development', description: 'Build and implement the solution', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
+        { id: `stage-${Date.now()}-3`, name: 'QA', description: 'Test and validate the implementation', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
+        { id: `stage-${Date.now()}-4`, name: 'Documentation', description: 'Create user guides and technical documentation', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
+      ];
+      setStages(defaultStages);
+      toast({
+        title: "Default Stages Added",
+        description: "We've added standard project stages. You can customize them as needed.",
+      });
+    }
+  }, [currentStep, stages.length, isImportMode]);
+
   const syncRolesFromStagesAndTasks = () => {
     const uniqueRoleIds = new Set<string>();
     
