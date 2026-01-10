@@ -22,7 +22,8 @@ import {
   Loader2,
   X,
   Filter,
-  ChevronDown
+  ChevronDown,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -65,6 +66,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -1310,6 +1312,77 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
     }, 100); // reduced timeout
   };
 
+  const FIELD_DESCRIPTIONS: Record<string, string> = {
+    id: "Unique identifier (UUID or string)",
+    name: "Display name of the entity",
+    title: "Title or heading text",
+    description: "Detailed description or notes",
+    status: "Current status (e.g., Active, Completed, Pending)",
+    progress: "Completion percentage (0-100)",
+    startDate: "Start date (ISO format: YYYY-MM-DD)",
+    endDate: "End date (ISO format: YYYY-MM-DD)",
+    deadline: "Due date (ISO format: YYYY-MM-DD)",
+    dueDate: "Due date (ISO format: YYYY-MM-DD)",
+    targetDate: "Target completion date (ISO format: YYYY-MM-DD)",
+    createdAt: "Creation timestamp (auto-generated)",
+    updatedAt: "Last update timestamp (auto-generated)",
+    projectId: "Reference to parent project ID",
+    deliverableId: "Reference to parent deliverable ID",
+    epicId: "Reference to parent epic ID",
+    taskId: "Reference to parent task ID",
+    milestoneId: "Reference to linked milestone ID",
+    sprintId: "Reference to assigned sprint ID",
+    stageId: "Reference to workflow stage ID",
+    userId: "Reference to user ID",
+    ownerId: "Reference to owner user ID",
+    assigneeId: "Reference to assigned user ID",
+    frameworkId: "Reference to project framework template ID",
+    templateId: "Reference to template ID",
+    roleId: "Reference to role definition ID",
+    priority: "Priority level (Low, Medium, High, Critical)",
+    order: "Sort order or sequence number",
+    type: "Entity type or category",
+    tags: "Array of tag strings [\"tag1\", \"tag2\"]",
+    stageIds: "Array of stage IDs [\"stage-1\", \"stage-2\"]",
+    email: "Email address",
+    role: "User role or permission level",
+    avatar: "URL to avatar image",
+    client: "Client or customer name",
+    riskLevel: "Risk assessment (Low, Medium, High)",
+    estimateHours: "Estimated hours to complete",
+    effort: "Effort points or story points",
+    blocked: "Whether task is blocked (true/false)",
+    blockerReason: "Reason for blocking",
+    capacityHours: "Available capacity in hours",
+    goal: "Sprint or milestone goal description",
+    externalRefs: "Array of external reference objects",
+    permissions: "JSON object of permission settings",
+    config: "JSON configuration object",
+    isDefault: "Whether this is the default option (true/false)",
+    isRequired: "Whether this field is required (true/false)",
+    isPrimary: "Whether this is the primary assignment (true/false)",
+    isActive: "Whether entity is active (true/false)",
+    visibility: "Visibility setting (public, private, team)",
+    viewType: "Type of view (kanban, table, timeline)",
+    scopeType: "Scope type (all, filtered, custom)",
+    completionMode: "How completion is calculated",
+    allocationPercent: "Allocation percentage (0-100)",
+    maxAssignees: "Maximum number of assignees allowed",
+    defaultTasks: "Array of default task definitions",
+    defaultStages: "Array of default stage definitions",
+    defaultRoles: "Array of default role definitions",
+    defaultPermissions: "Array of default permission settings",
+    entryCriteria: "Criteria required to enter this stage",
+    exitCriteria: "Criteria required to exit this stage",
+    body: "Main content or body text",
+    phase: "Project phase or milestone phase",
+    source: "Data source or origin",
+    active: "Whether rule or setting is active",
+    locked: "Whether record is locked for editing",
+    label: "Display label text",
+    filters: "JSON filter criteria object"
+  };
+
   const handleDownloadTemplate = (format: "xlsx" | "json") => {
     const schema = SCHEMA_DEFINITIONS[activeTab as keyof typeof SCHEMA_DEFINITIONS];
     
@@ -1343,6 +1416,30 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
     toast({
       title: "Template Downloaded",
       description: `Empty ${format.toUpperCase()} import template generated successfully.`,
+    });
+  };
+
+  const handleDownloadSchemaReference = () => {
+    const schema = SCHEMA_DEFINITIONS[activeTab as keyof typeof SCHEMA_DEFINITIONS];
+    
+    if (!schema) return;
+
+    const referenceData: Record<string, Record<string, any>[]> = {};
+    schema.forEach(def => {
+      const sampleRecord: Record<string, any> = {};
+      def.columns.forEach((col: string) => {
+        sampleRecord[col] = FIELD_DESCRIPTIONS[col] || `Value for ${col}`;
+      });
+      referenceData[def.sheet] = [sampleRecord];
+    });
+    
+    const jsonString = JSON.stringify(referenceData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    saveAs(blob, `Nexus_${activeTab}_Schema_Reference.json`);
+
+    toast({
+      title: "Schema Reference Downloaded",
+      description: "JSON with field descriptions generated successfully.",
     });
   };
 
@@ -1547,11 +1644,16 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
                    <DropdownMenuContent align="start">
                      <DropdownMenuItem onClick={() => handleDownloadTemplate("xlsx")} className="gap-2">
                        <FileSpreadsheet className="h-4 w-4" />
-                       Excel (.xlsx)
+                       Excel Template (.xlsx)
                      </DropdownMenuItem>
                      <DropdownMenuItem onClick={() => handleDownloadTemplate("json")} className="gap-2">
                        <FileJson className="h-4 w-4" />
-                       JSON (.json)
+                       JSON Template (.json)
+                     </DropdownMenuItem>
+                     <DropdownMenuSeparator />
+                     <DropdownMenuItem onClick={handleDownloadSchemaReference} className="gap-2">
+                       <FileText className="h-4 w-4" />
+                       Schema Reference (.json)
                      </DropdownMenuItem>
                    </DropdownMenuContent>
                  </DropdownMenu>
