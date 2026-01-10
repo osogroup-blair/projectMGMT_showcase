@@ -63,19 +63,36 @@ export function TimelineBar({
     initialLeft: left,
     initialWidth: width,
     mode: "none" as DragMode,
+    startDate,
+    endDate,
+    id,
+    dayWidth,
+    left,
+    width,
+    onDateChange,
   });
+
+  useEffect(() => {
+    dragStateRef.current.startDate = startDate;
+    dragStateRef.current.endDate = endDate;
+    dragStateRef.current.id = id;
+    dragStateRef.current.dayWidth = dayWidth;
+    dragStateRef.current.left = left;
+    dragStateRef.current.width = width;
+    dragStateRef.current.onDateChange = onDateChange;
+  }, [startDate, endDate, id, dayWidth, left, width, onDateChange]);
 
   const duration = useMemo(() => differenceInDays(endDate, startDate), [startDate, endDate]);
 
-  const pixelsToDays = useCallback((pixels: number) => {
-    return Math.round(pixels / dayWidth);
-  }, [dayWidth]);
+  const pixelsToDays = useCallback((pixels: number, dw: number) => {
+    return Math.round(pixels / dw);
+  }, []);
 
   useEffect(() => {
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const { startX, initialLeft, initialWidth, mode } = dragStateRef.current;
+      const { startX, initialLeft, initialWidth, mode, dayWidth: dw } = dragStateRef.current;
       const deltaX = e.clientX - startX;
       
       if (mode === "move") {
@@ -83,47 +100,47 @@ export function TimelineBar({
       } else if (mode === "resize-left") {
         const newLeft = initialLeft + deltaX;
         const newWidth = initialWidth - deltaX;
-        if (newWidth > dayWidth) {
+        if (newWidth > dw) {
           setTempLeft(newLeft);
           setTempWidth(newWidth);
         }
       } else if (mode === "resize-right") {
         const newWidth = initialWidth + deltaX;
-        if (newWidth > dayWidth) {
+        if (newWidth > dw) {
           setTempWidth(newWidth);
         }
       }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      const { startX, mode } = dragStateRef.current;
-      const deltaX = e.clientX - startX;
-      const daysDelta = pixelsToDays(deltaX);
+      const state = dragStateRef.current;
+      const deltaX = e.clientX - state.startX;
+      const daysDelta = pixelsToDays(deltaX, state.dayWidth);
       
-      let newStartDate = startDate;
-      let newEndDate = endDate;
+      let newStartDate = state.startDate;
+      let newEndDate = state.endDate;
       
-      if (mode === "move") {
-        newStartDate = addDays(startDate, daysDelta);
-        newEndDate = addDays(endDate, daysDelta);
-      } else if (mode === "resize-left") {
-        newStartDate = addDays(startDate, daysDelta);
-        if (newStartDate >= endDate) {
-          newStartDate = addDays(endDate, -1);
+      if (state.mode === "move") {
+        newStartDate = addDays(state.startDate, daysDelta);
+        newEndDate = addDays(state.endDate, daysDelta);
+      } else if (state.mode === "resize-left") {
+        newStartDate = addDays(state.startDate, daysDelta);
+        if (newStartDate >= state.endDate) {
+          newStartDate = addDays(state.endDate, -1);
         }
-      } else if (mode === "resize-right") {
-        newEndDate = addDays(endDate, daysDelta);
-        if (newEndDate <= startDate) {
-          newEndDate = addDays(startDate, 1);
+      } else if (state.mode === "resize-right") {
+        newEndDate = addDays(state.endDate, daysDelta);
+        if (newEndDate <= state.startDate) {
+          newEndDate = addDays(state.startDate, 1);
         }
       }
       
-      if (onDateChange && (newStartDate.getTime() !== startDate.getTime() || newEndDate.getTime() !== endDate.getTime())) {
-        onDateChange(id, newStartDate, newEndDate);
+      if (state.onDateChange && (newStartDate.getTime() !== state.startDate.getTime() || newEndDate.getTime() !== state.endDate.getTime())) {
+        state.onDateChange(state.id, newStartDate, newEndDate);
       }
       
-      setTempLeft(left);
-      setTempWidth(width);
+      setTempLeft(state.left);
+      setTempWidth(state.width);
       setDragMode("none");
       setIsDragging(false);
     };
@@ -135,19 +152,17 @@ export function TimelineBar({
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, dayWidth, pixelsToDays, startDate, endDate, id, onDateChange, left, width]);
+  }, [isDragging, pixelsToDays]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent, mode: DragMode) => {
     if (!onDateChange) return;
     e.preventDefault();
     e.stopPropagation();
     
-    dragStateRef.current = {
-      startX: e.clientX,
-      initialLeft: left,
-      initialWidth: width,
-      mode,
-    };
+    dragStateRef.current.startX = e.clientX;
+    dragStateRef.current.initialLeft = left;
+    dragStateRef.current.initialWidth = width;
+    dragStateRef.current.mode = mode;
     
     setTempLeft(left);
     setTempWidth(width);
