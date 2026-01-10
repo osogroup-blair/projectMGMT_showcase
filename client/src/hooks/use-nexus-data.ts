@@ -107,6 +107,8 @@ export const useRoleTypes = () => useCollection("roleTypes");
 export const useSprints = () => useCollection("sprints");
 export const useSprintMembers = () => useCollection("sprintMembers");
 export const useTaskTypes = () => useCollection("taskTypes");
+export const useEpicTypes = () => useCollection("epicTypes");
+export const useDeliverableTypes = () => useCollection("deliverableTypes");
 
 // Single Item Hooks
 export function useProject(id: string) {

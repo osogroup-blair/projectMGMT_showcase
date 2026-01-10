@@ -19,6 +19,8 @@ export interface NexusDB {
   // Task Related
   taskDependencies: any[];
   taskTypes: any[];
+  epicTypes: any[];
+  deliverableTypes: any[];
   projectTaskTypes: any[];
   projectTaskStatuses: any[];
   projectSettings: any[];
