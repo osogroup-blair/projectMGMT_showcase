@@ -3,6 +3,7 @@ import { Shell } from "@/components/layout/shell";
 import { ListHeader, LayoutVariant, getGridClassName } from "@/components/ui/list-header";
 import { 
   ArrowLeft, 
+  ArrowDown,
   Search, 
   Filter, 
   MoreHorizontal, 
@@ -21,6 +22,11 @@ import {
   Target,
   Loader2
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Accordion,
   AccordionContent,
@@ -937,6 +943,29 @@ export default function StageWorkspace() {
                                     ))}
                                   </div>
                                 </div>
+                                
+                                {/* Deadline with inheritance indicator */}
+                                {task.deadline && (
+                                  <div className="flex items-center gap-1.5 text-[10px]">
+                                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                                    <span className="text-muted-foreground">
+                                      {format(parseISO(task.deadline), "MMM d")}
+                                    </span>
+                                    {stage?.endDate && task.deadline === stage.endDate && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="flex items-center gap-0.5 text-blue-600 bg-blue-50 px-1 py-0.5 rounded text-[9px] font-medium">
+                                            <ArrowDown className="h-2.5 w-2.5" />
+                                            Stage
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Deadline inherited from stage end date</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </div>
+                                )}
                                 
                                 <div className="flex items-center justify-between pt-1">
                                   <div className="flex items-center gap-2">
