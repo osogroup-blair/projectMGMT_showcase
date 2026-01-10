@@ -63,12 +63,12 @@ interface DependencyRule {
 export function TaskDependenciesTab({
   task,
   projectId,
-  allTasks,
-  stages,
-  allEpics,
-  milestones,
-  dependsOn,
-  dependents,
+  allTasks = [],
+  stages = [],
+  allEpics = [],
+  milestones = [],
+  dependsOn = [],
+  dependents = [],
   addDependency,
   removeDependency,
 }: TaskDependenciesTabProps) {
