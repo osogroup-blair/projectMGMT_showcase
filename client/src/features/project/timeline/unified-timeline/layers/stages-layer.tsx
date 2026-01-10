@@ -81,11 +81,34 @@ export function StagesLayer({ stages, projectId, projectStartDate, viewMode, tim
       if (!res.ok) throw new Error("Failed to update stage dates");
       return res.json();
     },
+    onMutate: async ({ stageId, startDate, endDate }) => {
+      // Cancel outgoing refetches to prevent overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ["projectStages"] });
+      
+      // Snapshot current data for rollback
+      const previousStages = queryClient.getQueryData(["projectStages"]);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(["projectStages"], (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((stage: any) => 
+          stage.id === stageId 
+            ? { ...stage, startDate, endDate }
+            : stage
+        );
+      });
+      
+      return { previousStages };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projectStages"] });
       toast({ title: "Stage Updated", description: "Stage dates have been updated." });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousStages) {
+        queryClient.setQueryData(["projectStages"], context.previousStages);
+      }
       toast({ title: "Error", description: "Failed to update stage dates.", variant: "destructive" });
     },
   });

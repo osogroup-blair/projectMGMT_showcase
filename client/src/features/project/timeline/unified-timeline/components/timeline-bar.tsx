@@ -82,6 +82,14 @@ export function TimelineBar({
     dragStateRef.current.onDateChange = onDateChange;
   }, [startDate, endDate, id, dayWidth, left, width, onDateChange]);
 
+  // Sync temp state with props when not dragging (for updates after server response)
+  useEffect(() => {
+    if (!isDragging) {
+      setTempLeft(left);
+      setTempWidth(width);
+    }
+  }, [left, width, isDragging]);
+
   const duration = useMemo(() => differenceInDays(endDate, startDate), [startDate, endDate]);
 
   const pixelsToDays = useCallback((pixels: number, dw: number) => {
