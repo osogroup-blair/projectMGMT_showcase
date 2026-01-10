@@ -25,6 +25,14 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
+import { useImportOptional } from "@/context/import-context";
+import { 
+  toWizardProjectData, 
+  toWizardDeliverables, 
+  toWizardStages, 
+  toWizardMilestones 
+} from "@/lib/import-to-wizard-adapter";
+import { ImportSummaryBanner } from "@/components/import/ImportFieldIndicator";
 
 import { 
   useProjects,
@@ -68,6 +76,10 @@ export default function ProjectWizard() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
+  const [importInitialized, setImportInitialized] = useState(false);
+  
+  const importContext = useImportOptional();
+  const isImportMode = importContext?.state?.isImportMode || false;
   
   const { data: frameworkTemplates = [], isLoading: loadingFrameworks } = useFrameworkTemplates();
   const { data: stageTemplates = [], isLoading: loadingStages } = useStageTemplates();
@@ -132,6 +144,48 @@ export default function ProjectWizard() {
     
     prevDatesRef.current = { startDate: projectData.startDate, dueDate: projectData.dueDate };
   }, [projectData.startDate, projectData.dueDate]);
+
+  useEffect(() => {
+    if (isImportMode && !importInitialized && importContext?.state?.adapterResult) {
+      const adapter = importContext.state.adapterResult;
+      
+      const importedProject = toWizardProjectData(adapter.projectData);
+      if (importedProject.name || importedProject.description) {
+        setProjectData(prev => ({
+          ...prev,
+          name: importedProject.name || prev.name,
+          description: importedProject.description || prev.description,
+          startDate: importedProject.startDate || prev.startDate,
+          dueDate: importedProject.dueDate || prev.dueDate,
+          sprintDurationWeeks: importedProject.sprintDurationWeeks || prev.sprintDurationWeeks,
+          client: importedProject.client || prev.client,
+          ownerId: importedProject.ownerId || users[0]?.id || prev.ownerId
+        }));
+      }
+      
+      const importedDeliverables = toWizardDeliverables(adapter.deliverables);
+      if (importedDeliverables.length > 0) {
+        setDeliverables(importedDeliverables);
+      }
+      
+      const importedStages = toWizardStages(adapter.stages);
+      if (importedStages.length > 0) {
+        setStagesRaw(importedStages);
+      }
+      
+      const importedMilestones = toWizardMilestones(adapter.milestones);
+      if (importedMilestones.length > 0) {
+        setMilestones(importedMilestones);
+      }
+      
+      setImportInitialized(true);
+      
+      toast({
+        title: "Import data loaded",
+        description: `Loaded data from ${importContext.state.sourceFileName}. Review and adjust as needed.`,
+      });
+    }
+  }, [isImportMode, importInitialized, importContext?.state?.adapterResult, users]);
 
   const syncRolesFromStagesAndTasks = () => {
     const uniqueRoleIds = new Set<string>();
@@ -822,9 +876,41 @@ export default function ProjectWizard() {
     <Shell>
       <div className="py-6">
         <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight text-primary">New Project Wizard</h1>
-            <p className="text-muted-foreground">Follow the steps to set up your new project structure.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-primary">
+              {isImportMode ? 'Import Project' : 'New Project Wizard'}
+            </h1>
+            <p className="text-muted-foreground">
+              {isImportMode 
+                ? 'Review and adjust the imported data, then create your project.'
+                : 'Follow the steps to set up your new project structure.'}
+            </p>
         </div>
+
+        {isImportMode && importContext?.state?.adapterResult && (
+          <ImportSummaryBanner
+            fileName={importContext.state.sourceFileName || 'Unknown file'}
+            stats={importContext.state.adapterResult.stats}
+            warnings={importContext.state.adapterResult.warnings}
+            onClearImport={() => {
+              importContext.clearImport();
+              setProjectData({
+                name: "",
+                description: "",
+                templateId: "",
+                client: "",
+                startDate: new Date().toISOString().split('T')[0],
+                dueDate: "",
+                sprintDurationWeeks: 2,
+                ownerId: users[0]?.id || "",
+              });
+              setDeliverables([]);
+              setStagesRaw([]);
+              setMilestones([]);
+              setRoles([]);
+              setImportInitialized(false);
+            }}
+          />
+        )}
 
         <div className="mb-8">
             <div className="flex items-center justify-between relative">

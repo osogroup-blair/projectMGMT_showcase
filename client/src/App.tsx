@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrentUserProvider } from "@/context/current-user-context";
+import { ImportProvider } from "@/context/import-context";
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
 
@@ -39,6 +40,7 @@ import SprintDetail from "@/pages/sprint-detail";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import ProjectTools from "@/pages/project-tools";
 import ImportWizard from "@/pages/import-wizard";
+import ImportUpload from "@/pages/import-upload";
 
 function Router() {
   return (
@@ -46,7 +48,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/projects" component={ProjectsList} />
       <Route path="/projects/new" component={ProjectWizard} />
-      <Route path="/projects/import" component={ImportWizard} />
+      <Route path="/projects/import" component={ImportUpload} />
+      <Route path="/projects/import/legacy" component={ImportWizard} />
       <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
       <Route path="/projects/import/:sessionId/preview" component={ProjectImportPreview} />
       <Route path="/projects/:projectId" component={ProjectOverview} />
@@ -82,10 +85,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CurrentUserProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <ImportProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </ImportProvider>
       </CurrentUserProvider>
     </QueryClientProvider>
   );
