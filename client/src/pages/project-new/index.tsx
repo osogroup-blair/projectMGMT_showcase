@@ -909,11 +909,7 @@ export default function ProjectWizard() {
         </div>
 
         <Card className="min-h-[500px] flex flex-col">
-            <CardHeader>
-                <CardTitle>{STEPS[currentStep - 1].title}</CardTitle>
-                <CardDescription>{STEPS[currentStep - 1].description}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1">
+            <CardContent className="flex-1 pt-6">
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center h-64">
                         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
