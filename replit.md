@@ -59,10 +59,12 @@ The import wizard (`/projects/import`) supports multi-format imports (JSON, Exce
 6. **Results** - View import summary with per-entity breakdowns and error details
 
 Key import features:
+- **Nested Nexus export format support**: Automatically detects and flattens hierarchical exports where Projects contain Deliverables, Deliverables contain Epics, and Epics contain Tasks
 - Array field normalization for `stageIds` and `tags` (handles strings, JSON strings, native arrays)
 - Foreign key validation with fallback chains (e.g., ownerId → defaults.ownerId → first user)
 - External source tracking via `externalRefs` metadata arrays
 - Task-Epic alignment via `import-to-wizard-adapter.ts` with fuzzy matching
+- ID relationship preservation during flattening (epicId, deliverableId, projectId)
 
 ### File Structure
 
