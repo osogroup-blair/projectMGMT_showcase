@@ -41,6 +41,8 @@ import {
   insertTaskTypeSchema,
   insertProjectTaskTypeSchema,
   insertTaskDependencySchema,
+  insertEpicTypeSchema,
+  insertDeliverableTypeSchema,
 } from "@shared/schema";
 
 // Import seed function
@@ -1584,6 +1586,76 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // Epic Types (global)
+  app.get("/api/epicTypes", async (req, res) => {
+    const epicTypes = await storage.getEpicTypes();
+    res.json(epicTypes);
+  });
+
+  app.get("/api/epicTypes/:id", async (req, res) => {
+    const epicType = await storage.getEpicTypeById(req.params.id);
+    res.json(epicType);
+  });
+
+  app.post("/api/epicTypes", async (req, res) => {
+    try {
+      const validated = insertEpicTypeSchema.parse(req.body);
+      const epicType = await storage.createEpicType(validated);
+      res.status(201).json(epicType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/epicTypes/:id", async (req, res) => {
+    try {
+      const epicType = await storage.updateEpicType(req.params.id, req.body);
+      res.json(epicType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/epicTypes/:id", async (req, res) => {
+    await storage.deleteEpicType(req.params.id);
+    res.status(204).send();
+  });
+
+  // Deliverable Types (global)
+  app.get("/api/deliverableTypes", async (req, res) => {
+    const deliverableTypes = await storage.getDeliverableTypes();
+    res.json(deliverableTypes);
+  });
+
+  app.get("/api/deliverableTypes/:id", async (req, res) => {
+    const deliverableType = await storage.getDeliverableTypeById(req.params.id);
+    res.json(deliverableType);
+  });
+
+  app.post("/api/deliverableTypes", async (req, res) => {
+    try {
+      const validated = insertDeliverableTypeSchema.parse(req.body);
+      const deliverableType = await storage.createDeliverableType(validated);
+      res.status(201).json(deliverableType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/deliverableTypes/:id", async (req, res) => {
+    try {
+      const deliverableType = await storage.updateDeliverableType(req.params.id, req.body);
+      res.json(deliverableType);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/deliverableTypes/:id", async (req, res) => {
+    await storage.deleteDeliverableType(req.params.id);
+    res.status(204).send();
   });
 
   // Task Dependencies
