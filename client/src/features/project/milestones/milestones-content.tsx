@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { 
   Flag, 
   CheckCircle2, 
@@ -7,6 +7,8 @@ import {
   Circle,
   Calendar as CalendarIcon,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   ListTodo,
   Plus,
   Loader2,
@@ -15,7 +17,15 @@ import {
   X,
   User,
   Search,
-  ExternalLink
+  ExternalLink,
+  ArrowUpDown,
+  Layers,
+  SlidersHorizontal,
+  Trash2,
+  Lock,
+  Unlock,
+  AlertTriangle,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +35,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProjectStages } from "@/hooks/use-nexus-data";
+import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useMilestoneScopeRules } from "@/hooks/use-nexus-data";
+import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +46,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
+import { MilestoneScopeInline } from "./milestone-scope-inline";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -103,19 +116,117 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const [milestoneSearchQuery, setMilestoneSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("card");
 
+  // Sorting state
+  type SortField = "name" | "status" | "targetDate" | "owner" | "tasks" | "progress";
+  type SortDirection = "asc" | "desc";
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  // Expanded rows state for internal tabs
+  const [expandedMilestoneId, setExpandedMilestoneId] = useState<string | null>(null);
+  const [activeInternalTab, setActiveInternalTab] = useState<"tasks" | "scope">("tasks");
+
+  // Scope rules for expanded milestone
+  const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
+
   const milestones = useMemo(() => 
     (allMilestones || []).filter((m: any) => m.projectId === projectId),
     [allMilestones, projectId]
   );
 
   const filteredMilestones = useMemo(() => {
-    if (!milestoneSearchQuery.trim()) return milestones;
-    const q = milestoneSearchQuery.toLowerCase();
-    return milestones.filter((m: any) => 
-      m.name?.toLowerCase().includes(q) || 
-      m.description?.toLowerCase().includes(q)
-    );
+    let result = milestones;
+    if (milestoneSearchQuery.trim()) {
+      const q = milestoneSearchQuery.toLowerCase();
+      result = result.filter((m: any) => 
+        m.name?.toLowerCase().includes(q) || 
+        m.description?.toLowerCase().includes(q)
+      );
+    }
+    return result;
   }, [milestones, milestoneSearchQuery]);
+
+  // Sorted milestones for list view
+  const sortedMilestones = useMemo(() => {
+    const sorted = [...filteredMilestones];
+    sorted.sort((a: any, b: any) => {
+      let aVal: any, bVal: any;
+      switch (sortField) {
+        case "name":
+          aVal = a.name?.toLowerCase() || "";
+          bVal = b.name?.toLowerCase() || "";
+          break;
+        case "status":
+          aVal = a.status || "";
+          bVal = b.status || "";
+          break;
+        case "targetDate":
+          aVal = a.targetDate ? new Date(a.targetDate).getTime() : 0;
+          bVal = b.targetDate ? new Date(b.targetDate).getTime() : 0;
+          break;
+        case "owner":
+          const ownerA = users?.find((u: any) => u.id === a.ownerId);
+          const ownerB = users?.find((u: any) => u.id === b.ownerId);
+          aVal = ownerA?.name?.toLowerCase() || "";
+          bVal = ownerB?.name?.toLowerCase() || "";
+          break;
+        case "tasks":
+          const linksA = (allTaskLinks || []).filter((l: any) => l.milestoneId === a.id);
+          const linksB = (allTaskLinks || []).filter((l: any) => l.milestoneId === b.id);
+          aVal = linksA.length;
+          bVal = linksB.length;
+          break;
+        case "progress":
+          const tasksA = (allTaskLinks || []).filter((l: any) => l.milestoneId === a.id)
+            .map((l: any) => allTasks?.find((t: any) => t.id === l.taskId))
+            .filter(Boolean);
+          const tasksB = (allTaskLinks || []).filter((l: any) => l.milestoneId === b.id)
+            .map((l: any) => allTasks?.find((t: any) => t.id === l.taskId))
+            .filter(Boolean);
+          aVal = tasksA.length > 0 ? tasksA.filter((t: any) => t.status === "Done").length / tasksA.length : 0;
+          bVal = tasksB.length > 0 ? tasksB.filter((t: any) => t.status === "Done").length / tasksB.length : 0;
+          break;
+        default:
+          aVal = "";
+          bVal = "";
+      }
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredMilestones, sortField, sortDirection, users, allTaskLinks, allTasks]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const SortableHeader = ({ field, children, width }: { field: SortField; children: React.ReactNode; width: string }) => (
+    <TableHead 
+      style={{ width }} 
+      className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
+      onClick={() => handleSort(field)}
+      data-testid={`sort-header-${field}`}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {sortField === field ? (
+          sortDirection === "asc" ? (
+            <ChevronUp className="h-3.5 w-3.5 text-primary" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 text-primary" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+        )}
+      </div>
+    </TableHead>
+  );
 
   const projectTasks = useMemo(() => 
     (allTasks || []).filter((t: any) => t.projectId === projectId || t.project === projectId),
@@ -386,18 +497,20 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
         aria-hidden="true"
       />
 
-      <TabToolbar
-        searchQuery={milestoneSearchQuery}
-        onSearchChange={setMilestoneSearchQuery}
-        searchPlaceholder="Search milestones..."
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        showFilter={false}
-        addButtonLabel="Add Milestone"
-        onAddClick={handleCreateMilestone}
-      />
+      <div className="sticky top-0 z-10 bg-background pt-2 pb-3 -mx-1 px-1">
+        <TabToolbar
+          searchQuery={milestoneSearchQuery}
+          onSearchChange={setMilestoneSearchQuery}
+          searchPlaceholder="Search milestones..."
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          showFilter={false}
+          addButtonLabel="Add Milestone"
+          onAddClick={handleCreateMilestone}
+        />
+      </div>
 
-      <div className="space-y-4 pt-4">
+      <div className="space-y-4">
         {filteredMilestones.length === 0 ? (
           <Card className="bg-muted/10 border-dashed">
             <CardContent className="flex flex-col items-center justify-center p-12 text-center">
@@ -414,93 +527,238 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
           </Card>
         ) : viewMode === "list" ? (
           <div className="border rounded-lg bg-card overflow-x-auto">
-            <Table style={{ minWidth: "800px" }}>
+            <Table style={{ minWidth: "900px" }}>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead style={{ width: "25%" }}>Milestone</TableHead>
-                  <TableHead style={{ width: "12%" }}>Status</TableHead>
-                  <TableHead style={{ width: "15%" }}>Target Date</TableHead>
-                  <TableHead style={{ width: "15%" }}>Owner</TableHead>
-                  <TableHead style={{ width: "10%" }}>Tasks</TableHead>
-                  <TableHead style={{ width: "15%" }}>Progress</TableHead>
+                  <TableHead style={{ width: "3%" }}></TableHead>
+                  <SortableHeader field="name" width="22%">Milestone</SortableHeader>
+                  <SortableHeader field="status" width="12%">Status</SortableHeader>
+                  <SortableHeader field="targetDate" width="14%">Target Date</SortableHeader>
+                  <SortableHeader field="owner" width="14%">Owner</SortableHeader>
+                  <SortableHeader field="tasks" width="10%">Tasks</SortableHeader>
+                  <SortableHeader field="progress" width="14%">Progress</SortableHeader>
                   <TableHead style={{ width: "8%" }} className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredMilestones.map((milestone: any) => {
+                {sortedMilestones.map((milestone: any) => {
                   const status = STATUS_CONFIG[milestone.status] || STATUS_CONFIG.planned;
                   const StatusIcon = status.icon;
                   const owner = getOwner(milestone.ownerId);
                   const progress = getMilestoneProgress(milestone.id);
+                  const isExpanded = expandedMilestoneId === milestone.id;
+                  const milestoneTasks = getTasksForMilestone(milestone.id);
+                  const milestoneLinks = getLinksForMilestone(milestone.id);
 
                   return (
-                    <TableRow key={milestone.id} className="hover:bg-muted/50" data-testid={`row-milestone-${milestone.id}`}>
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          <Link href={`/projects/${projectId}/milestones/${milestone.id}`}>
-                            <span className="font-medium hover:text-primary cursor-pointer">{milestone.name}</span>
-                          </Link>
-                          {milestone.description && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{milestone.description}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn(
-                          "font-normal text-xs",
-                          milestone.status === "achieved" || milestone.status === "Completed" 
-                            ? "bg-green-50 text-green-700 border-green-200" 
-                            : milestone.status === "in_progress" || milestone.status === "In Progress"
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : milestone.status === "slipped" || milestone.status === "Blocked"
-                            ? "bg-red-50 text-red-700 border-red-200"
-                            : "bg-slate-50 text-slate-700 border-slate-200"
-                        )}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {status.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {milestone.targetDate ? (
-                          <div className="flex items-center gap-1.5">
-                            <CalendarIcon className="h-3.5 w-3.5" />
-                            {new Date(milestone.targetDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </div>
-                        ) : (
-                          <span className="italic">Not set</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {owner ? (
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-5 w-5">
-                              <AvatarFallback className="text-[8px]">
-                                {owner.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs truncate max-w-[80px]">{owner.name?.split(' ')[0]}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {progress.total} <span className="text-muted-foreground">({progress.done} done)</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={progress.percent} className="h-2 flex-1" />
-                          <span className="text-xs text-muted-foreground w-8">{progress.percent}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Link href={`/projects/${projectId}/milestones/${milestone.id}`}>
-                          <Button variant="ghost" size="sm" className="h-7">
-                            <ExternalLink className="h-3.5 w-3.5" />
+                    <React.Fragment key={milestone.id}>
+                      <TableRow 
+                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30")} 
+                        data-testid={`row-milestone-${milestone.id}`}
+                      >
+                        <TableCell className="p-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => {
+                              setExpandedMilestoneId(isExpanded ? null : milestone.id);
+                              setActiveInternalTab("tasks");
+                            }}
+                            data-testid={`expand-milestone-${milestone.id}`}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
                           </Button>
-                        </Link>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            <span 
+                              className="font-medium hover:text-primary cursor-pointer"
+                              onClick={() => {
+                                setExpandedMilestoneId(isExpanded ? null : milestone.id);
+                                setActiveInternalTab("tasks");
+                              }}
+                            >
+                              {milestone.name}
+                            </span>
+                            {milestone.description && (
+                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{milestone.description}</p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn(
+                            "font-normal text-xs",
+                            milestone.status === "achieved" || milestone.status === "Completed" 
+                              ? "bg-green-50 text-green-700 border-green-200" 
+                              : milestone.status === "in_progress" || milestone.status === "In Progress"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : milestone.status === "slipped" || milestone.status === "Blocked"
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : "bg-slate-50 text-slate-700 border-slate-200"
+                          )}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {status.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {milestone.targetDate ? (
+                            <div className="flex items-center gap-1.5">
+                              <CalendarIcon className="h-3.5 w-3.5" />
+                              {new Date(milestone.targetDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </div>
+                          ) : (
+                            <span className="italic">Not set</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {owner ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                <AvatarFallback className="text-[8px]">
+                                  {owner.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs truncate max-w-[80px]">{owner.name?.split(' ')[0]}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {progress.total} <span className="text-muted-foreground">({progress.done} done)</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={progress.percent} className="h-2 flex-1" />
+                            <span className="text-xs text-muted-foreground w-8">{progress.percent}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-7"
+                              onClick={() => openAddTaskDialog(milestone.id)}
+                              data-testid={`add-task-to-milestone-${milestone.id}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                            <Link href={`/projects/${projectId}/milestones/${milestone.id}`}>
+                              <Button variant="ghost" size="sm" className="h-7">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow key={`${milestone.id}-expanded`} className="bg-muted/10 hover:bg-muted/10">
+                          <TableCell colSpan={8} className="p-0">
+                            <div className="p-4 border-t">
+                              <Tabs value={activeInternalTab} onValueChange={(v) => setActiveInternalTab(v as "tasks" | "scope")}>
+                                <TabsList className="h-8 mb-4">
+                                  <TabsTrigger value="tasks" className="text-xs h-7 px-3" data-testid="internal-tab-tasks">
+                                    <ListTodo className="h-3.5 w-3.5 mr-1.5" />
+                                    Tasks ({milestoneTasks.length})
+                                  </TabsTrigger>
+                                  <TabsTrigger value="scope" className="text-xs h-7 px-3" data-testid="internal-tab-scope">
+                                    <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
+                                    Scope Definition
+                                  </TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value="tasks" className="mt-0">
+                                  {milestoneTasks.length === 0 ? (
+                                    <div className="text-center py-6 text-muted-foreground">
+                                      <ListTodo className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                      <p className="text-sm">No tasks linked to this milestone</p>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="mt-3"
+                                        onClick={() => openAddTaskDialog(milestone.id)}
+                                      >
+                                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                                        Add Task
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <span className="text-sm text-muted-foreground">{milestoneTasks.length} linked task{milestoneTasks.length !== 1 ? 's' : ''}</span>
+                                        <Button 
+                                          variant="outline" 
+                                          size="sm"
+                                          onClick={() => openAddTaskDialog(milestone.id)}
+                                        >
+                                          <Plus className="h-3.5 w-3.5 mr-1.5" />
+                                          Add Task
+                                        </Button>
+                                      </div>
+                                      <div className="border rounded-md divide-y max-h-[300px] overflow-y-auto">
+                                        {milestoneTasks.map((task: any) => {
+                                          const taskEpic = getEpic(task.epicId);
+                                          const assignee = getAssignee(task.assigneeId);
+                                          return (
+                                            <div key={task.id} className="p-3 hover:bg-muted/30 flex items-center justify-between">
+                                              <div className="flex-1 min-w-0">
+                                                <Link href={`/tasks/${task.id}`}>
+                                                  <span className="font-medium text-sm hover:text-primary cursor-pointer">{task.title}</span>
+                                                </Link>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                                  {taskEpic && <span>{taskEpic.title}</span>}
+                                                  <Badge variant="outline" className={cn(
+                                                    "text-[10px] px-1.5 py-0",
+                                                    task.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
+                                                    task.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                                    "bg-slate-50 text-slate-700 border-slate-200"
+                                                  )}>
+                                                    {task.status}
+                                                  </Badge>
+                                                </div>
+                                              </div>
+                                              {assignee && (
+                                                <Avatar className="h-6 w-6">
+                                                  <AvatarFallback className="text-[10px]">
+                                                    {assignee.name?.substring(0, 2).toUpperCase()}
+                                                  </AvatarFallback>
+                                                </Avatar>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+                                </TabsContent>
+
+                                <TabsContent value="scope" className="mt-0">
+                                  <MilestoneScopeInline
+                                    milestone={milestone}
+                                    projectId={projectId}
+                                    tasks={projectTasks}
+                                    epics={projectEpics}
+                                    stages={projectStages}
+                                    links={milestoneLinks}
+                                    allLinks={allTaskLinks || []}
+                                    scopeRules={allScopeRules || []}
+                                    onCreateLink={createLink}
+                                    onCreateScopeRule={createScopeRule}
+                                    onUpdateScopeRule={updateScopeRule}
+                                  />
+                                </TabsContent>
+                              </Tabs>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </TableBody>
