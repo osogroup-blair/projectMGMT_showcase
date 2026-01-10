@@ -44,6 +44,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
 import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { EFFORT_VALUES } from "@shared/schema";
@@ -1224,15 +1225,18 @@ export default function ProjectOverview() {
             <TabsContent value="link" className="mt-4 space-y-4">
               <div className="space-y-2">
                 <Label>Select Existing Task</Label>
-                <SearchableSelect
-                  options={availableTasks.map((t: any) => ({
-                    value: t.id,
-                    label: t.title
-                  }))}
-                  value={selectedExistingTaskId}
-                  onValueChange={setSelectedExistingTaskId}
-                  placeholder="Search tasks..."
-                />
+                <Select value={selectedExistingTaskId} onValueChange={setSelectedExistingTaskId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a task..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableTasks.map((t: any) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {availableTasks.length === 0 && (
                   <p className="text-sm text-muted-foreground">No available tasks to add. All tasks are already in this sprint.</p>
                 )}
