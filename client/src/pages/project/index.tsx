@@ -1129,11 +1129,10 @@ export default function ProjectOverview() {
                   {dashboardSection === "upcoming-work" && (
                     <NextSprintBacklog
                       projectId={projectId}
-                      nextSprint={nextSprint}
-                      tasks={nextSprintTasks}
+                      sprints={projectSprints}
+                      allTasks={projectTasks}
                       users={users || []}
                       epics={projectEpics || []}
-                      allTasks={projectTasks}
                     />
                   )}
 

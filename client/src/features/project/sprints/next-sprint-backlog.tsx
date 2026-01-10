@@ -1,16 +1,18 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Calendar,
   ChevronRight,
   Clock,
   ListTodo,
   ArrowUpRight,
-  Layers
+  Layers,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
@@ -22,6 +24,7 @@ interface Task {
   status: string;
   assigneeId?: string;
   epicId?: string;
+  sprintId?: string;
   deadline?: string;
   effort?: number;
   priority?: string;
@@ -47,24 +50,53 @@ interface Epic {
 
 interface NextSprintBacklogProps {
   projectId: string;
-  nextSprint: Sprint | null;
-  tasks: Task[];
+  sprints: Sprint[];
+  allTasks: Task[];
   users: User[];
   epics: Epic[];
-  allTasks: Task[];
 }
 
 export function NextSprintBacklog({ 
   projectId, 
-  nextSprint, 
-  tasks, 
+  sprints,
+  allTasks,
   users, 
-  epics,
-  allTasks 
+  epics
 }: NextSprintBacklogProps) {
+  // Find the default sprint (first planned/upcoming, or first sprint)
+  const defaultSprintId = useMemo(() => {
+    if (!sprints || sprints.length === 0) return null;
+    const today = new Date();
+    // First try to find a planned/upcoming sprint
+    const upcomingSprint = sprints.find((s: Sprint) => 
+      s.status === "planned" || s.status === "upcoming"
+    );
+    if (upcomingSprint) return upcomingSprint.id;
+    // Fall back to first sprint
+    return sprints[0]?.id || null;
+  }, [sprints]);
+
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultSprintId && !selectedSprintId) {
+      setSelectedSprintId(defaultSprintId);
+    }
+  }, [defaultSprintId, selectedSprintId]);
+
+  const selectedSprint = useMemo(() => {
+    if (!sprints || !selectedSprintId) return null;
+    return sprints.find((s: Sprint) => s.id === selectedSprintId) || sprints[0] || null;
+  }, [sprints, selectedSprintId]);
+
+  const sprintTasks = useMemo(() => {
+    if (!selectedSprint || !allTasks) return [];
+    return allTasks.filter((t: Task) => t.sprintId === selectedSprint.id);
+  }, [selectedSprint, allTasks]);
+
   const backlogTasks = useMemo(() => {
-    if (nextSprint) {
-      return tasks.filter(t => t.status !== "Done" && t.status !== "Completed");
+    if (selectedSprint) {
+      return sprintTasks.filter(t => t.status !== "Done" && t.status !== "Completed");
     }
     return allTasks
       .filter(t => 
@@ -73,7 +105,7 @@ export function NextSprintBacklog({
         !["Done", "Completed", "Closed"].includes(t.status || "")
       )
       .slice(0, 10);
-  }, [nextSprint, tasks, allTasks]);
+  }, [selectedSprint, sprintTasks, allTasks]);
 
   const stats = useMemo(() => {
     const total = backlogTasks.length;
@@ -109,7 +141,7 @@ export function NextSprintBacklog({
     }
   };
 
-  if (!nextSprint && backlogTasks.length === 0) {
+  if (sprints.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center">
@@ -132,22 +164,35 @@ export function NextSprintBacklog({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Layers className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">
-            {nextSprint ? "Next Sprint Backlog" : "Upcoming Work"}
-          </h3>
-          {nextSprint && (
-            <Badge variant="outline" className="ml-2">
-              {nextSprint.name}
-            </Badge>
+        <div className="flex items-center gap-3">
+          <Select 
+            value={selectedSprintId || ""} 
+            onValueChange={(val) => setSelectedSprintId(val)}
+          >
+            <SelectTrigger className="w-auto min-w-[180px] h-9 text-lg font-semibold border-none shadow-none hover:bg-muted/50 focus:ring-0">
+              <SelectValue placeholder="Select sprint..." />
+            </SelectTrigger>
+            <SelectContent>
+              {sprints.map((sprint: Sprint) => (
+                <SelectItem key={sprint.id} value={sprint.id}>
+                  {sprint.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedSprint && (
+            <>
+              <Badge variant={selectedSprint.status === "active" ? "default" : "secondary"} className="capitalize">
+                {selectedSprint.status}
+              </Badge>
+            </>
           )}
         </div>
-        {nextSprint && (
-          <Link href={`/projects/${projectId}/sprints/${nextSprint.id}`}>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs">
-              View Sprint
-              <ArrowUpRight className="h-3 w-3" />
+        {selectedSprint && (
+          <Link href={`/projects/${projectId}/sprints/${selectedSprint.id}?tab=run`}>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Sprint Details
             </Button>
           </Link>
         )}
@@ -167,10 +212,10 @@ export function NextSprintBacklog({
             {stats.highPriority} high priority
           </Badge>
         )}
-        {nextSprint?.startDate && (
+        {selectedSprint?.startDate && (
           <div className="flex items-center gap-1.5 text-muted-foreground ml-auto">
             <Calendar className="h-4 w-4" />
-            <span>Starts {format(parseISO(nextSprint.startDate), "MMM d")}</span>
+            <span>Starts {format(parseISO(selectedSprint.startDate), "MMM d")}</span>
           </div>
         )}
       </div>
