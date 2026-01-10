@@ -874,7 +874,7 @@ export function DashboardFilterControls({
     <div className="flex items-center gap-2">
       <SearchableSelect 
         value={filters.range} 
-        onValueChange={(value: TimeRange) => onFiltersChange({ ...filters, range: value })}
+        onValueChange={(value) => onFiltersChange({ ...filters, range: value as TimeRange })}
         className="w-[130px] h-8 text-xs"
         data-testid="range-selector"
         options={[
@@ -888,7 +888,7 @@ export function DashboardFilterControls({
       
       <SearchableSelect 
         value={filters.assigneeScope} 
-        onValueChange={(value: AssigneeScope) => onFiltersChange({ ...filters, assigneeScope: value })}
+        onValueChange={(value) => onFiltersChange({ ...filters, assigneeScope: value as AssigneeScope })}
         className="w-[120px] h-8 text-xs"
         data-testid="scope-selector"
         options={[
@@ -1003,7 +1003,7 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
           <div className="flex items-center gap-3">
             <SearchableSelect 
               value={filters.range} 
-              onValueChange={(value: TimeRange) => updateFilters({ ...filters, range: value })}
+              onValueChange={(value) => updateFilters({ ...filters, range: value as TimeRange })}
               className="w-[140px]"
               data-testid="range-selector"
               options={[
@@ -1017,7 +1017,7 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
             
             <SearchableSelect 
               value={filters.assigneeScope} 
-              onValueChange={(value: AssigneeScope) => updateFilters({ ...filters, assigneeScope: value })}
+              onValueChange={(value) => updateFilters({ ...filters, assigneeScope: value as AssigneeScope })}
               className="w-[130px]"
               data-testid="scope-selector"
               options={[

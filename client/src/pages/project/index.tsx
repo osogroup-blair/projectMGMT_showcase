@@ -7,6 +7,7 @@ import {
   Clock, 
   MoreHorizontal,
   ChevronRight,
+  ChevronDown,
   LayoutDashboard,
   Kanban,
   Settings,
@@ -19,7 +20,8 @@ import {
   Pencil,
   Check,
   X,
-  Plus
+  Plus,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -38,6 +40,7 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
 import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints } from "@/hooks/use-nexus-data";
 import { Input } from "@/components/ui/input";
@@ -63,6 +66,8 @@ import { TaskListContent } from "@/features/project/tasks/task-list-content";
 import { MilestonesContent } from "@/features/project/milestones/milestones-content";
 import { StagesContent } from "@/features/project/stages/stages-content";
 import { SprintsContent } from "@/features/project/sprints/sprints-content";
+import { FlowBoard } from "@/features/project/sprints/flow-board";
+import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -128,6 +133,12 @@ export default function ProjectOverview() {
     projectIds: projectId ? [projectId] : [],
     assigneeScope: 'all',
   });
+
+  // Metrics accordion state
+  const [metricsOpen, setMetricsOpen] = useState(true);
+  
+  // Blocker dialog for flow board
+  const [blockerTaskId, setBlockerTaskId] = useState<string | null>(null);
 
   // Initialize edit values when project loads
   useEffect(() => {
@@ -332,6 +343,39 @@ export default function ProjectOverview() {
     return allEpics.filter((e: any) => deliverableIds.has(e.deliverableId));
   }, [allEpics, projectDeliverables]);
 
+  // Find the active sprint for this project
+  const activeSprint = useMemo(() => {
+    if (!projectSprints || projectSprints.length === 0) return null;
+    return projectSprints.find((s: any) => s.status === "active") || projectSprints[0];
+  }, [projectSprints]);
+
+  // Get tasks for the active sprint
+  const sprintTasks = useMemo(() => {
+    if (!activeSprint || !allTasks) return [];
+    return allTasks.filter((t: any) => t.sprintId === activeSprint.id);
+  }, [activeSprint, allTasks]);
+
+  const { update: updateTask } = useTasks();
+
+  // Handle task move in flow board
+  const handleTaskMove = (taskId: string, newStatus: string, blockerReason?: string) => {
+    const updates: any = { status: newStatus };
+    if (newStatus === "Blocked" && blockerReason) {
+      updates.blocked = true;
+      updates.blockerReason = blockerReason;
+    } else if (newStatus !== "Blocked") {
+      updates.blocked = false;
+      updates.blockerReason = null;
+    }
+    updateTask({ id: taskId, updates });
+    toast({ title: "Updated", description: `Task moved to ${newStatus}` });
+  };
+
+  // Handle blocker request
+  const handleBlockerRequested = (taskId: string) => {
+    setBlockerTaskId(taskId);
+  };
+
   // Get the framework name from the framework ID
   const frameworkName = useMemo(() => {
     if (!project?.frameworkId || !frameworkTemplates) return "Not set";
@@ -373,13 +417,13 @@ export default function ProjectOverview() {
           <div className="flex flex-col gap-6">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div className="space-y-2">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full">
                   {isEditingTitle ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-1">
                       <Input
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="text-2xl font-bold h-10 w-80"
+                        className="text-3xl font-bold tracking-tight h-auto py-0 px-0 bg-transparent border-0 border-b-2 border-primary/30 focus:border-primary rounded-none shadow-none focus-visible:ring-0 flex-1"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleSaveTitle();
@@ -395,7 +439,7 @@ export default function ProjectOverview() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 group">
+                    <div className="flex items-center gap-2 group flex-1">
                       <h1 className="text-3xl font-bold tracking-tight text-primary" data-testid="text-project-title">{project.name}</h1>
                       <Button 
                         size="icon" 
@@ -409,7 +453,7 @@ export default function ProjectOverview() {
                     </div>
                   )}
                   <Badge variant="outline" className={cn(
-                    "px-2.5 py-0.5 text-sm font-medium border-0",
+                    "px-2.5 py-0.5 text-sm font-medium border-0 shrink-0",
                     project.status === 'In Progress' && "bg-blue-50 text-blue-700",
                     project.status === 'Upcoming' && "bg-purple-50 text-purple-700",
                     project.status === 'Overdue' && "bg-red-50 text-red-700",
@@ -553,68 +597,78 @@ export default function ProjectOverview() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-muted-foreground">Completion</p>
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl font-bold" data-testid="text-completion-percent">{completionPercentage}%</h3>
-                  </div>
-                  <Progress value={completionPercentage} className="h-2 mt-4" />
-                </CardContent>
-              </Card>
+            <Collapsible open={metricsOpen} onOpenChange={setMetricsOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full flex items-center justify-between p-0 h-auto hover:bg-transparent" data-testid="button-toggle-metrics">
+                  <span className="text-sm font-medium text-muted-foreground">Project Metrics</span>
+                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", metricsOpen && "rotate-180")} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card className="bg-primary/5 border-primary/20">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-muted-foreground">Completion</p>
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="text-2xl font-bold" data-testid="text-completion-percent">{completionPercentage}%</h3>
+                      </div>
+                      <Progress value={completionPercentage} className="h-2 mt-4" />
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
-                    <ListTodo className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl font-bold" data-testid="text-total-tasks">{stats.total}</h3>
-                    <p className="text-xs text-muted-foreground">across all epics</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    {stats.completed} completed, {stats.inProgress} in progress
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
+                        <ListTodo className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="text-2xl font-bold" data-testid="text-total-tasks">{stats.total}</h3>
+                        <p className="text-xs text-muted-foreground">across all epics</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-4">
+                        {stats.completed} completed, {stats.inProgress} in progress
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-muted-foreground">At Risk</p>
-                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl font-bold text-red-600" data-testid="text-at-risk-tasks">{stats.atRisk}</h3>
-                    <p className="text-xs text-muted-foreground">tasks needing attention</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    High priority items past due
-                  </p>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-muted-foreground">At Risk</p>
+                        <AlertTriangle className="h-4 w-4 text-red-500" />
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="text-2xl font-bold text-red-600" data-testid="text-at-risk-tasks">{stats.atRisk}</h3>
+                        <p className="text-xs text-muted-foreground">tasks needing attention</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-4">
+                        High priority items past due
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-muted-foreground">Milestones</p>
-                    <Flag className="h-4 w-4 text-blue-500" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-2xl font-bold" data-testid="text-milestone-count">{milestones.length}</h3>
-                    <p className="text-xs text-muted-foreground">defined</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    Next: {milestones[0]?.name || "None scheduled"}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-medium text-muted-foreground">Milestones</p>
+                        <Flag className="h-4 w-4 text-blue-500" />
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="text-2xl font-bold" data-testid="text-milestone-count">{milestones.length}</h3>
+                        <p className="text-xs text-muted-foreground">defined</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-4">
+                        Next: {milestones[0]?.name || "None scheduled"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </div>
 
@@ -623,6 +677,15 @@ export default function ProjectOverview() {
           <div className="sticky top-0 z-30 bg-background border-b shadow-sm">
             <div className="px-6 flex items-center justify-between">
               <TabsList className="justify-start rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto no-scrollbar">
+                <TabsTrigger 
+                  value="current-sprint" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none gap-1.5"
+                  data-testid="tab-current-sprint"
+                >
+                  <Zap className="h-4 w-4" />
+                  Current Sprint
+                </TabsTrigger>
+
                 <TabsTrigger 
                   value="overview" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
@@ -682,6 +745,63 @@ export default function ProjectOverview() {
           </div>
 
           <div className="px-6 py-6">
+            <TabsContent value="current-sprint" className="mt-0 outline-none">
+              {activeSprint ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-lg font-semibold">{activeSprint.name}</h2>
+                      <Badge variant={activeSprint.status === "active" ? "default" : "secondary"} className="capitalize">
+                        {activeSprint.status}
+                      </Badge>
+                      {activeSprint.endDate && (
+                        <span className="text-sm text-muted-foreground">
+                          {Math.max(0, differenceInDays(parseISO(activeSprint.endDate), new Date()))} days remaining
+                        </span>
+                      )}
+                    </div>
+                    <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Settings className="h-4 w-4" />
+                        Sprint Details
+                      </Button>
+                    </Link>
+                  </div>
+                  <FlowBoard
+                    tasks={sprintTasks}
+                    users={users || []}
+                    epics={projectEpics || []}
+                    projectId={projectId}
+                    onTaskMove={handleTaskMove}
+                    onBlockerRequested={handleBlockerRequested}
+                  />
+                  <BlockerReasonDialog
+                    open={!!blockerTaskId}
+                    onOpenChange={(open) => !open && setBlockerTaskId(null)}
+                    onConfirm={(reason) => {
+                      if (blockerTaskId) {
+                        handleTaskMove(blockerTaskId, "Blocked", reason);
+                        setBlockerTaskId(null);
+                      }
+                    }}
+                    onCancel={() => setBlockerTaskId(null)}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[400px] text-center">
+                  <Zap className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Active Sprint</h3>
+                  <p className="text-muted-foreground mb-4">Create a sprint to start tracking your work</p>
+                  <Link href={`/projects/${projectId}/sprints`}>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Go to Sprints
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </TabsContent>
+
             <TabsContent value="overview" className="mt-0 outline-none">
               <TimeHorizonDashboard 
                 projectId={projectId}

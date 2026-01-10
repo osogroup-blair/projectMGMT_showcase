@@ -62,10 +62,10 @@ interface FlowBoardProps {
 }
 
 const COLUMNS = [
-  { id: "todo", title: "To Do", statuses: ["To Do", "Todo", "Pending", "Backlog"], icon: Circle, color: "text-slate-500", bgColor: "bg-slate-50", borderColor: "border-slate-200" },
-  { id: "inprogress", title: "In Progress", statuses: ["In Progress", "Review", "In Review"], icon: Clock, color: "text-blue-500", bgColor: "bg-blue-50", borderColor: "border-blue-200" },
-  { id: "blocked", title: "Blocked", statuses: ["Blocked"], icon: AlertOctagon, color: "text-amber-600", bgColor: "bg-amber-50", borderColor: "border-amber-300" },
-  { id: "done", title: "Done", statuses: ["Done", "Completed"], icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-50", borderColor: "border-green-200" },
+  { id: "todo", title: "To Do", statuses: ["To Do", "Todo", "Pending", "Backlog", "Not Started", "Open", "New"], icon: Circle, color: "text-slate-500", bgColor: "bg-slate-50", borderColor: "border-slate-200" },
+  { id: "inprogress", title: "In Progress", statuses: ["In Progress", "Active", "Review", "In Review", "Ready for QA", "QA", "Testing"], icon: Clock, color: "text-blue-500", bgColor: "bg-blue-50", borderColor: "border-blue-200" },
+  { id: "blocked", title: "Blocked", statuses: ["Blocked", "On Hold"], icon: AlertOctagon, color: "text-amber-600", bgColor: "bg-amber-50", borderColor: "border-amber-300" },
+  { id: "done", title: "Done", statuses: ["Done", "Completed", "Closed", "Resolved"], icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-50", borderColor: "border-green-200" },
 ];
 
 function DroppableColumn({ 
