@@ -70,7 +70,7 @@ import { FlowBoard } from "@/features/project/sprints/flow-board";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
 import { NextSprintBacklog } from "@/features/project/sprints/next-sprint-backlog";
-import { Activity, PanelLeft, Send } from "lucide-react";
+import { Activity, PanelLeft, Send, BarChart3, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -145,6 +145,10 @@ export default function ProjectOverview() {
   
   // Team Pulse sidebar state
   const [teamPulseOpen, setTeamPulseOpen] = useState(true);
+  
+  // Dashboard sidebar state
+  const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(true);
+  const [dashboardSection, setDashboardSection] = useState<"current-sprint" | "upcoming-work" | "metrics" | "activity">("current-sprint");
 
   // Initialize edit values when project loads
   useEffect(() => {
@@ -767,199 +771,304 @@ export default function ProjectOverview() {
 
           <div className="px-6 py-6">
             <TabsContent value="overview" className="mt-0 outline-none">
-              <Tabs defaultValue="current-sprint" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="current-sprint" className="gap-1.5">
-                    <Zap className="h-4 w-4" />
-                    Current Sprint
-                  </TabsTrigger>
-                  <TabsTrigger value="upcoming-work" className="gap-1.5">
-                    <Layers className="h-4 w-4" />
-                    Upcoming Work
-                  </TabsTrigger>
-                  <TabsTrigger value="metrics">Dashboard Metrics</TabsTrigger>
-                  <TabsTrigger value="activity" className="gap-1.5">
-                    <Activity className="h-4 w-4" />
-                    Activity
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="current-sprint" className="mt-0">
-                  {activeSprint ? (
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <h2 className="text-lg font-semibold">{activeSprint.name}</h2>
-                          <Badge variant={activeSprint.status === "active" ? "default" : "secondary"} className="capitalize">
-                            {activeSprint.status}
-                          </Badge>
-                          {activeSprint.endDate && (
-                            <span className="text-sm text-muted-foreground">
-                              {Math.max(0, differenceInDays(parseISO(activeSprint.endDate), new Date()))} days remaining
-                            </span>
-                          )}
-                        </div>
-                        <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
-                          <Button variant="outline" size="sm" className="gap-2">
-                            <Settings className="h-4 w-4" />
-                            Sprint Details
-                          </Button>
-                        </Link>
-                      </div>
+              <div className="flex gap-0">
+                {dashboardSidebarOpen ? (
+                  <div className="w-56 border-r pr-4 shrink-0">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dashboard</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6"
+                        onClick={() => setDashboardSidebarOpen(false)}
+                        data-testid="button-collapse-dashboard-nav"
+                      >
+                        <ChevronLeftIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <nav className="space-y-1">
+                      <button
+                        onClick={() => setDashboardSection("current-sprint")}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          dashboardSection === "current-sprint" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid="nav-current-sprint"
+                      >
+                        <Zap className="h-4 w-4" />
+                        Current Sprint
+                      </button>
+                      <button
+                        onClick={() => setDashboardSection("upcoming-work")}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          dashboardSection === "upcoming-work" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid="nav-upcoming-work"
+                      >
+                        <Layers className="h-4 w-4" />
+                        Upcoming Work
+                      </button>
+                      <button
+                        onClick={() => setDashboardSection("metrics")}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          dashboardSection === "metrics" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid="nav-metrics"
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                        Dashboard Metrics
+                      </button>
+                      <button
+                        onClick={() => setDashboardSection("activity")}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          dashboardSection === "activity" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid="nav-activity"
+                      >
+                        <Activity className="h-4 w-4" />
+                        Activity
+                      </button>
+                    </nav>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center border-r pr-2 shrink-0">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 mb-2"
+                      onClick={() => setDashboardSidebarOpen(true)}
+                      data-testid="button-expand-dashboard-nav"
+                    >
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </Button>
+                    <div className="space-y-1">
+                      <Button 
+                        variant={dashboardSection === "current-sprint" ? "default" : "ghost"} 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => setDashboardSection("current-sprint")}
+                      >
+                        <Zap className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant={dashboardSection === "upcoming-work" ? "default" : "ghost"} 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => setDashboardSection("upcoming-work")}
+                      >
+                        <Layers className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant={dashboardSection === "metrics" ? "default" : "ghost"} 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => setDashboardSection("metrics")}
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant={dashboardSection === "activity" ? "default" : "ghost"} 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => setDashboardSection("activity")}
+                      >
+                        <Activity className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-                      <div className="flex gap-4 relative">
-                        {teamPulseOpen ? (
-                          <div className="w-72 border-r pr-4 hidden lg:block shrink-0">
-                            <div className="flex items-center justify-between mb-4">
-                              <h3 className="font-semibold flex items-center gap-2">
-                                <Activity className="h-4 w-4" />
-                                Team Pulse
-                              </h3>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8"
-                                onClick={() => setTeamPulseOpen(false)}
-                                data-testid="button-collapse-pulse"
-                              >
-                                <PanelLeft className="h-4 w-4" />
-                              </Button>
+                <div className={cn("flex-1 min-w-0", dashboardSidebarOpen ? "pl-6" : "pl-4")}>
+                  {dashboardSection === "current-sprint" && (
+                    <>
+                      {activeSprint ? (
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <h2 className="text-lg font-semibold">{activeSprint.name}</h2>
+                              <Badge variant={activeSprint.status === "active" ? "default" : "secondary"} className="capitalize">
+                                {activeSprint.status}
+                              </Badge>
+                              {activeSprint.endDate && (
+                                <span className="text-sm text-muted-foreground">
+                                  {Math.max(0, differenceInDays(parseISO(activeSprint.endDate), new Date()))} days remaining
+                                </span>
+                              )}
                             </div>
-                            <div className="space-y-4">
-                              <Card className="bg-muted/30">
-                                <CardContent className="pt-4 pb-4">
-                                  <Textarea 
-                                    placeholder="Share an update with your team..."
-                                    className="min-h-[80px] text-sm resize-none mb-3"
-                                    data-testid="input-team-pulse-update"
-                                  />
-                                  <Button size="sm" className="w-full gap-2" data-testid="button-send-pulse">
-                                    <Send className="h-3 w-3" />
-                                    Send Update
+                            <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
+                              <Button variant="outline" size="sm" className="gap-2">
+                                <Settings className="h-4 w-4" />
+                                Sprint Details
+                              </Button>
+                            </Link>
+                          </div>
+
+                          <div className="flex gap-4 relative">
+                            {teamPulseOpen ? (
+                              <div className="w-72 border-r pr-4 hidden lg:block shrink-0">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h3 className="font-semibold flex items-center gap-2">
+                                    <Activity className="h-4 w-4" />
+                                    Team Pulse
+                                  </h3>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    onClick={() => setTeamPulseOpen(false)}
+                                    data-testid="button-collapse-pulse"
+                                  >
+                                    <PanelLeft className="h-4 w-4" />
                                   </Button>
-                                </CardContent>
-                              </Card>
-                              <div className="space-y-3">
-                                <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Updates</h4>
-                                <div className="space-y-2 text-sm">
-                                  <Card className="p-3 bg-muted/20">
-                                    <p className="text-xs text-muted-foreground mb-1">No updates yet</p>
-                                    <p className="text-[10px] text-muted-foreground/70">Be the first to share progress!</p>
+                                </div>
+                                <div className="space-y-4">
+                                  <Card className="bg-muted/30">
+                                    <CardContent className="pt-4 pb-4">
+                                      <Textarea 
+                                        placeholder="Share an update with your team..."
+                                        className="min-h-[80px] text-sm resize-none mb-3"
+                                        data-testid="input-team-pulse-update"
+                                      />
+                                      <Button size="sm" className="w-full gap-2" data-testid="button-send-pulse">
+                                        <Send className="h-3 w-3" />
+                                        Send Update
+                                      </Button>
+                                    </CardContent>
                                   </Card>
+                                  <div className="space-y-3">
+                                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Updates</h4>
+                                    <div className="space-y-2 text-sm">
+                                      <Card className="p-3 bg-muted/20">
+                                        <p className="text-xs text-muted-foreground mb-1">No updates yet</p>
+                                        <p className="text-[10px] text-muted-foreground/70">Be the first to share progress!</p>
+                                      </Card>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+                            ) : (
+                              <div className="hidden lg:flex flex-col items-center pt-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8"
+                                  onClick={() => setTeamPulseOpen(true)}
+                                  data-testid="button-expand-pulse"
+                                >
+                                  <Activity className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                              <FlowBoard
+                                tasks={sprintTasks}
+                                users={users || []}
+                                epics={projectEpics || []}
+                                projectId={projectId}
+                                onTaskMove={handleTaskMove}
+                                onBlockerRequested={handleBlockerRequested}
+                              />
                             </div>
                           </div>
-                        ) : (
-                          <div className="hidden lg:flex flex-col items-center pt-1">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8"
-                              onClick={() => setTeamPulseOpen(true)}
-                              data-testid="button-expand-pulse"
-                            >
-                              <Activity className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
 
-                        <div className="flex-1 min-w-0">
-                          <FlowBoard
-                            tasks={sprintTasks}
-                            users={users || []}
-                            epics={projectEpics || []}
-                            projectId={projectId}
-                            onTaskMove={handleTaskMove}
-                            onBlockerRequested={handleBlockerRequested}
+                          <BlockerReasonDialog
+                            open={!!blockerTaskId}
+                            onOpenChange={(open) => !open && setBlockerTaskId(null)}
+                            onConfirm={(reason) => {
+                              if (blockerTaskId) {
+                                handleTaskMove(blockerTaskId, "Blocked", reason);
+                                setBlockerTaskId(null);
+                              }
+                            }}
+                            onCancel={() => setBlockerTaskId(null)}
                           />
                         </div>
-                      </div>
-
-                      <BlockerReasonDialog
-                        open={!!blockerTaskId}
-                        onOpenChange={(open) => !open && setBlockerTaskId(null)}
-                        onConfirm={(reason) => {
-                          if (blockerTaskId) {
-                            handleTaskMove(blockerTaskId, "Blocked", reason);
-                            setBlockerTaskId(null);
-                          }
-                        }}
-                        onCancel={() => setBlockerTaskId(null)}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-[400px] text-center">
-                      <Zap className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No Active Sprint</h3>
-                      <p className="text-muted-foreground mb-4">Create a sprint to start tracking your work</p>
-                      <Link href={`/projects/${projectId}/sprints`}>
-                        <Button>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Go to Sprints
-                        </Button>
-                      </Link>
-                    </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-[400px] text-center">
+                          <Zap className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No Active Sprint</h3>
+                          <p className="text-muted-foreground mb-4">Create a sprint to start tracking your work</p>
+                          <Link href={`/projects/${projectId}/sprints`}>
+                            <Button>
+                              <Plus className="h-4 w-4 mr-2" />
+                              Go to Sprints
+                            </Button>
+                          </Link>
+                        </div>
+                      )}
+                    </>
                   )}
-                </TabsContent>
-                
-                <TabsContent value="upcoming-work" className="mt-0">
-                  <NextSprintBacklog
-                    projectId={projectId}
-                    nextSprint={nextSprint}
-                    tasks={nextSprintTasks}
-                    users={users || []}
-                    epics={projectEpics || []}
-                    allTasks={projectTasks}
-                  />
-                </TabsContent>
 
-                <TabsContent value="metrics" className="mt-0">
-                  <TimeHorizonDashboard 
-                    projectId={projectId}
-                    externalFilters={dashboardFilters}
-                    onFiltersChange={setDashboardFilters}
-                  />
-                </TabsContent>
+                  {dashboardSection === "upcoming-work" && (
+                    <NextSprintBacklog
+                      projectId={projectId}
+                      nextSprint={nextSprint}
+                      tasks={nextSprintTasks}
+                      users={users || []}
+                      epics={projectEpics || []}
+                      allTasks={projectTasks}
+                    />
+                  )}
 
-                <TabsContent value="activity" className="mt-0">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Activity className="h-5 w-5" />
-                        Recent Activity
-                      </CardTitle>
-                      <CardDescription>Track updates and changes across the project</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {tasks.filter((t: any) => t.status === "Done").length > 0 ? (
-                          tasks
-                            .filter((t: any) => t.status === "Done")
-                            .slice(0, 10)
-                            .map((task: any) => (
-                              <div key={task.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
-                                <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  {dashboardSection === "metrics" && (
+                    <TimeHorizonDashboard 
+                      projectId={projectId}
+                      externalFilters={dashboardFilters}
+                      onFiltersChange={setDashboardFilters}
+                    />
+                  )}
+
+                  {dashboardSection === "activity" && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Activity className="h-5 w-5" />
+                          Recent Activity
+                        </CardTitle>
+                        <CardDescription>Track updates and changes across the project</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {tasks.filter((t: any) => t.status === "Done").length > 0 ? (
+                            tasks
+                              .filter((t: any) => t.status === "Done")
+                              .slice(0, 10)
+                              .map((task: any) => (
+                                <div key={task.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                                  <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">{task.title}</p>
+                                    <p className="text-xs text-muted-foreground">Task completed</p>
+                                  </div>
                                 </div>
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium">{task.title}</p>
-                                  <p className="text-xs text-muted-foreground">Task completed</p>
-                                </div>
-                              </div>
-                            ))
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <Activity className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                            <p className="text-sm">No recent activity</p>
-                            <p className="text-xs mt-1">Activity will appear here as work progresses</p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
+                              ))
+                          ) : (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Activity className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                              <p className="text-sm">No recent activity</p>
+                              <p className="text-xs mt-1">Activity will appear here as work progresses</p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="timeline" className="h-[700px] mt-0 outline-none">
