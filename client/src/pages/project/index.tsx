@@ -773,7 +773,15 @@ export default function ProjectOverview() {
                     <Zap className="h-4 w-4" />
                     Current Sprint
                   </TabsTrigger>
+                  <TabsTrigger value="upcoming-work" className="gap-1.5">
+                    <Layers className="h-4 w-4" />
+                    Upcoming Work
+                  </TabsTrigger>
                   <TabsTrigger value="metrics">Dashboard Metrics</TabsTrigger>
+                  <TabsTrigger value="activity" className="gap-1.5">
+                    <Activity className="h-4 w-4" />
+                    Activity
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="current-sprint" className="mt-0">
@@ -856,7 +864,7 @@ export default function ProjectOverview() {
                           </div>
                         )}
 
-                        <div className="flex-1 min-w-0 space-y-6">
+                        <div className="flex-1 min-w-0">
                           <FlowBoard
                             tasks={sprintTasks}
                             users={users || []}
@@ -864,15 +872,6 @@ export default function ProjectOverview() {
                             projectId={projectId}
                             onTaskMove={handleTaskMove}
                             onBlockerRequested={handleBlockerRequested}
-                          />
-
-                          <NextSprintBacklog
-                            projectId={projectId}
-                            nextSprint={nextSprint}
-                            tasks={nextSprintTasks}
-                            users={users || []}
-                            epics={projectEpics || []}
-                            allTasks={projectTasks}
                           />
                         </div>
                       </div>
@@ -904,12 +903,61 @@ export default function ProjectOverview() {
                   )}
                 </TabsContent>
                 
+                <TabsContent value="upcoming-work" className="mt-0">
+                  <NextSprintBacklog
+                    projectId={projectId}
+                    nextSprint={nextSprint}
+                    tasks={nextSprintTasks}
+                    users={users || []}
+                    epics={projectEpics || []}
+                    allTasks={projectTasks}
+                  />
+                </TabsContent>
+
                 <TabsContent value="metrics" className="mt-0">
                   <TimeHorizonDashboard 
                     projectId={projectId}
                     externalFilters={dashboardFilters}
                     onFiltersChange={setDashboardFilters}
                   />
+                </TabsContent>
+
+                <TabsContent value="activity" className="mt-0">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        Recent Activity
+                      </CardTitle>
+                      <CardDescription>Track updates and changes across the project</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {tasks.filter((t: any) => t.status === "Done").length > 0 ? (
+                          tasks
+                            .filter((t: any) => t.status === "Done")
+                            .slice(0, 10)
+                            .map((task: any) => (
+                              <div key={task.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                                <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{task.title}</p>
+                                  <p className="text-xs text-muted-foreground">Task completed</p>
+                                </div>
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Activity className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                            <p className="text-sm">No recent activity</p>
+                            <p className="text-xs mt-1">Activity will appear here as work progresses</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
               </Tabs>
             </TabsContent>
