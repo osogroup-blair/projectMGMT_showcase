@@ -122,6 +122,7 @@ export function MilestonesLayer({ milestones, projectId, viewMode, timelineRange
               left={item.left}
               top={top}
               size={MILESTONE_SIZE}
+              dayWidth={config.dayWidth}
               colorClass={statusColor}
               isHighlighted={isHighlighted}
               onClick={() => handleClick(item.milestone.id)}

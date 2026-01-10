@@ -438,6 +438,7 @@ export interface MilestoneMarkerProps {
   left: number;
   top: number;
   size: number;
+  dayWidth: number;
   colorClass: string;
   isHighlighted?: boolean;
   onClick?: () => void;
@@ -453,6 +454,7 @@ export function MilestoneMarker({
   left,
   top,
   size,
+  dayWidth,
   colorClass,
   isHighlighted,
   onClick,
@@ -460,6 +462,15 @@ export function MilestoneMarker({
   testId,
 }: MilestoneMarkerProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [tempLeft, setTempLeft] = useState(left);
+  const dragStartRef = useRef<{ x: number; left: number } | null>(null);
+  
+  useEffect(() => {
+    if (!isDragging) {
+      setTempLeft(left);
+    }
+  }, [left, isDragging]);
   
   const handleDateSelect = useCallback((date: Date | undefined) => {
     if (!date || !onDateChange) return;
@@ -467,6 +478,44 @@ export function MilestoneMarker({
   }, [onDateChange, id]);
 
   const canEdit = !!onDateChange;
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!canEdit) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, left: tempLeft };
+  }, [canEdit, tempLeft]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const deltaX = e.clientX - dragStartRef.current.x;
+      setTempLeft(dragStartRef.current.left + deltaX);
+    };
+    
+    const handleMouseUp = () => {
+      if (dragStartRef.current && onDateChange) {
+        const deltaX = tempLeft - left;
+        const daysDelta = Math.round(deltaX / dayWidth);
+        if (daysDelta !== 0) {
+          const newDate = addDays(targetDate, daysDelta);
+          onDateChange(id, newDate);
+        }
+      }
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+    
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, tempLeft, left, dayWidth, targetDate, id, onDateChange]);
 
   return (
     <HoverCard openDelay={300} closeDelay={100}>
@@ -484,19 +533,21 @@ export function MilestoneMarker({
             damping: 20,
           }}
           className={cn(
-            "absolute cursor-pointer",
-            "transition-all",
+            "absolute",
+            canEdit ? "cursor-grab" : "cursor-pointer",
+            isDragging && "cursor-grabbing z-50",
             isHighlighted && "ring-2 ring-primary ring-offset-2 rounded-sm",
-            isHovered && "z-50"
+            isHovered && !isDragging && "z-50"
           )}
           style={{ 
-            left: left - size / 2, 
+            left: tempLeft - size / 2, 
             top,
             width: size,
             height: size,
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
+          onMouseDown={handleMouseDown}
           data-testid={testId}
         >
           <div 
