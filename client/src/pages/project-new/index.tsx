@@ -85,7 +85,7 @@ export default function ProjectWizard() {
   
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
-  const { setReport, startCreating, finishCreating } = useCreationReport();
+  const { setReport, startCreating, finishCreating, failCreating } = useCreationReport();
   
   const { data: frameworkTemplates = [], isLoading: loadingFrameworks } = useFrameworkTemplates();
   const { data: stageTemplates = [], isLoading: loadingStages } = useStageTemplates();
@@ -743,11 +743,7 @@ export default function ProjectWizard() {
         : typeof error === 'object' && error !== null && 'message' in error
           ? String((error as any).message)
           : 'An unexpected error occurred';
-      toast({
-        title: "Error Creating Project",
-        description: errorMessage || "Failed to create project. Please try again.",
-        variant: "destructive"
-      });
+      failCreating(errorMessage || "Failed to create project. Please try again.", projectData.name);
     } finally {
       setIsCreating(false);
     }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useCreationReport, type CreationProgress } from '@/context/creation-report-context';
+import { useCreationReport, type CreationProgress, type CreationError } from '@/context/creation-report-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -355,12 +355,64 @@ function CreatingProgressView({ progress }: { progress: CreationProgress }) {
   );
 }
 
+function CreationErrorView({ error, onBack }: { error: CreationError; onBack: () => void }) {
+  const [, setLocation] = useLocation();
+  
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-8">
+      <Card className="w-full max-w-lg">
+        <CardHeader className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 mx-auto mb-4">
+            <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          </div>
+          <CardTitle className="text-2xl">Project Creation Failed</CardTitle>
+          <CardDescription className="text-base">
+            Failed to create <span className="font-semibold">{error.projectName}</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg">
+            <p className="text-sm text-red-700 dark:text-red-300">{error.message}</p>
+          </div>
+          
+          <div className="flex flex-col gap-3">
+            <Button onClick={onBack} className="w-full" data-testid="button-try-again">
+              <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+              Go Back and Try Again
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setLocation('/projects')} 
+              className="w-full"
+              data-testid="button-view-projects"
+            >
+              View All Projects
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function ProjectCreationSummary() {
   const [, setLocation] = useLocation();
-  const { report, clearReport, status, progress } = useCreationReport();
+  const { report, clearReport, status, progress, error } = useCreationReport();
   
   if (status === 'creating' && progress) {
     return <CreatingProgressView progress={progress} />;
+  }
+  
+  if (status === 'error' && error) {
+    return (
+      <CreationErrorView 
+        error={error} 
+        onBack={() => {
+          clearReport();
+          setLocation('/projects/new');
+        }} 
+      />
+    );
   }
   
   if (!report) {
