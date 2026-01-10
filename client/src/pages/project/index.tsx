@@ -70,6 +70,7 @@ import { FlowBoard } from "@/features/project/sprints/flow-board";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
 import { NextSprintBacklog } from "@/features/project/sprints/next-sprint-backlog";
+import { Users, PanelRight } from "lucide-react";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -795,29 +796,64 @@ export default function ProjectOverview() {
                         </Link>
                       </div>
 
-                      <LivePulseCheck
-                        sprint={activeSprint}
-                        tasks={sprintTasks}
-                        users={users || []}
-                      />
+                      <div className="flex gap-6 relative">
+                        <div className="flex-1 min-w-0 space-y-6">
+                          <FlowBoard
+                            tasks={sprintTasks}
+                            users={users || []}
+                            epics={projectEpics || []}
+                            projectId={projectId}
+                            onTaskMove={handleTaskMove}
+                            onBlockerRequested={handleBlockerRequested}
+                          />
 
-                      <FlowBoard
-                        tasks={sprintTasks}
-                        users={users || []}
-                        epics={projectEpics || []}
-                        projectId={projectId}
-                        onTaskMove={handleTaskMove}
-                        onBlockerRequested={handleBlockerRequested}
-                      />
+                          <NextSprintBacklog
+                            projectId={projectId}
+                            nextSprint={nextSprint}
+                            tasks={nextSprintTasks}
+                            users={users || []}
+                            epics={projectEpics || []}
+                            allTasks={projectTasks}
+                          />
+                        </div>
 
-                      <NextSprintBacklog
-                        projectId={projectId}
-                        nextSprint={nextSprint}
-                        tasks={nextSprintTasks}
-                        users={users || []}
-                        epics={projectEpics || []}
-                        allTasks={projectTasks}
-                      />
+                        <Collapsible defaultOpen className="w-80 border-l pl-6 hidden lg:block">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              Team Check-in
+                            </h3>
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <PanelRight className="h-4 w-4" />
+                              </Button>
+                            </CollapsibleTrigger>
+                          </div>
+                          <CollapsibleContent className="space-y-4">
+                            <Card className="bg-muted/30 border-dashed">
+                              <CardContent className="pt-4 pb-4">
+                                <div className="space-y-3">
+                                  {(users || []).slice(0, 5).map(user => (
+                                    <div key={user.id} className="flex items-center gap-3">
+                                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                                        {user.name.split(' ').map(n => n[0]).join('')}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium truncate">{user.name}</div>
+                                        <div className="text-[10px] text-muted-foreground">Active now</div>
+                                      </div>
+                                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                            <div className="text-xs text-muted-foreground px-1">
+                              Check-in with your team to see current focus and potential blockers.
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </div>
 
                       <BlockerReasonDialog
                         open={!!blockerTaskId}
