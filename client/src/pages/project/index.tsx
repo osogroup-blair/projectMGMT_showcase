@@ -41,8 +41,12 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
-import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints } from "@/hooks/use-nexus-data";
+import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { EFFORT_VALUES } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -118,6 +122,8 @@ export default function ProjectOverview() {
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: frameworkTemplates, isLoading: isFrameworksLoading } = useFrameworkTemplates();
   const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
+  const { data: taskTypes } = useResolvedTaskTypes(projectId);
+  const { createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { toast } = useToast();
 
   // Inline editing state
@@ -149,6 +155,19 @@ export default function ProjectOverview() {
   // Dashboard sidebar state
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(true);
   const [dashboardSection, setDashboardSection] = useState<"current-sprint" | "upcoming-work" | "metrics" | "activity" | "team-pulse">("current-sprint");
+
+  // Add Task to Sprint Dialog state
+  const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
+  const [addTaskMode, setAddTaskMode] = useState<"link" | "create">("link");
+  const [selectedExistingTaskId, setSelectedExistingTaskId] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDescription, setNewTaskDescription] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
+  const [newTaskEffort, setNewTaskEffort] = useState<number>(3);
+  const [newTaskEpicId, setNewTaskEpicId] = useState("");
+  const [newTaskStageId, setNewTaskStageId] = useState("");
+  const [newTaskTypeId, setNewTaskTypeId] = useState("");
+  const [isAddingTask, setIsAddingTask] = useState(false);
 
   // Initialize edit values when project loads
   useEffect(() => {
@@ -390,7 +409,79 @@ export default function ProjectOverview() {
     return allTasks.filter((t: any) => t.projectId === projectId);
   }, [allTasks, projectId]);
 
-  const { update: updateTask } = useTasks();
+  // Get backlog tasks (tasks not in the current sprint)
+  const backlogTasks = useMemo(() => {
+    if (!allTasks || !activeSprint) return [];
+    return allTasks.filter((t: any) => 
+      t.projectId === projectId && 
+      t.sprintId !== activeSprint.id &&
+      t.status !== "Done"
+    );
+  }, [allTasks, activeSprint, projectId]);
+
+  // Add Task dialog handlers
+  const openAddTaskDialog = () => {
+    setAddTaskMode("link");
+    setSelectedExistingTaskId("");
+    setNewTaskTitle("");
+    setNewTaskDescription("");
+    setNewTaskPriority("Medium");
+    setNewTaskEffort(3);
+    setNewTaskEpicId(projectEpics[0]?.id || "");
+    setNewTaskStageId(stages[0]?.id || "");
+    const defaultTaskType = (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
+    setNewTaskTypeId(defaultTaskType?.id || "");
+    setAddTaskDialogOpen(true);
+  };
+
+  const handleAddTaskToSprint = async () => {
+    if (!activeSprint) return;
+    setIsAddingTask(true);
+    
+    try {
+      if (addTaskMode === "link") {
+        if (!selectedExistingTaskId) {
+          toast({ title: "Error", description: "Please select a task to add.", variant: "destructive" });
+          setIsAddingTask(false);
+          return;
+        }
+        await updateTask({ id: selectedExistingTaskId, updates: { sprintId: activeSprint.id } });
+        toast({ title: "Task Added", description: "Task has been added to the sprint." });
+      } else {
+        if (!newTaskTitle.trim()) {
+          toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
+          setIsAddingTask(false);
+          return;
+        }
+        if (!newTaskEpicId) {
+          toast({ title: "Error", description: "Please select an epic.", variant: "destructive" });
+          setIsAddingTask(false);
+          return;
+        }
+        await createTaskAsync({
+          title: newTaskTitle,
+          description: newTaskDescription || "",
+          project: project?.name,
+          projectId: project?.id,
+          epicId: newTaskEpicId,
+          stageId: newTaskStageId,
+          sprintId: activeSprint.id,
+          status: "Todo",
+          priority: newTaskPriority,
+          effort: newTaskEffort,
+          deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          tags: [],
+          taskTypeId: newTaskTypeId || null
+        });
+        toast({ title: "Task Created", description: "New task has been added to the sprint." });
+      }
+      setAddTaskDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to add task.", variant: "destructive" });
+    } finally {
+      setIsAddingTask(false);
+    }
+  };
 
   // Handle task move in flow board
   const handleTaskMove = (taskId: string, newStatus: string, blockerReason?: string) => {
@@ -929,12 +1020,23 @@ export default function ProjectOverview() {
                                 </span>
                               )}
                             </div>
-                            <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
-                              <Button variant="outline" size="sm" className="gap-2">
-                                <Settings className="h-4 w-4" />
-                                Sprint Details
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                size="sm" 
+                                className="gap-2"
+                                onClick={openAddTaskDialog}
+                                data-testid="button-add-task-sprint"
+                              >
+                                <Plus className="h-4 w-4" />
+                                Add Task
                               </Button>
-                            </Link>
+                              <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
+                                <Button variant="outline" size="sm" className="gap-2">
+                                  <Settings className="h-4 w-4" />
+                                  Sprint Details
+                                </Button>
+                              </Link>
+                            </div>
                           </div>
 
                           <FlowBoard
@@ -1104,6 +1206,145 @@ export default function ProjectOverview() {
           </div>
         </Tabs>
       </div>
+
+      <Dialog open={addTaskDialogOpen} onOpenChange={setAddTaskDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Task to Sprint</DialogTitle>
+            <DialogDescription>
+              Add an existing task or create a new one for {activeSprint?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs value={addTaskMode} onValueChange={(v) => setAddTaskMode(v as "link" | "create")} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="link">Link Existing</TabsTrigger>
+              <TabsTrigger value="create">Create New</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="link" className="mt-4 space-y-4">
+              <div className="space-y-2">
+                <Label>Select Task from Backlog</Label>
+                <SearchableSelect
+                  options={backlogTasks.map((t: any) => ({
+                    value: t.id,
+                    label: t.title
+                  }))}
+                  value={selectedExistingTaskId}
+                  onValueChange={setSelectedExistingTaskId}
+                  placeholder="Search tasks..."
+                />
+                {backlogTasks.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No available tasks in backlog.</p>
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="create" className="mt-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-title">Title *</Label>
+                <Input
+                  id="task-title"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  placeholder="Enter task title"
+                  data-testid="input-new-task-title"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="task-description">Description</Label>
+                <Textarea
+                  id="task-description"
+                  value={newTaskDescription}
+                  onChange={(e) => setNewTaskDescription(e.target.value)}
+                  placeholder="Optional description"
+                  className="min-h-[80px]"
+                  data-testid="input-new-task-description"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Epic *</Label>
+                  <SearchableSelect
+                    options={projectEpics.map((e: any) => ({
+                      value: e.id,
+                      label: e.title
+                    }))}
+                    value={newTaskEpicId}
+                    onValueChange={setNewTaskEpicId}
+                    placeholder="Select epic"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Stage</Label>
+                  <SearchableSelect
+                    options={stages.map((s: any) => ({
+                      value: s.id,
+                      label: s.name
+                    }))}
+                    value={newTaskStageId}
+                    onValueChange={setNewTaskStageId}
+                    placeholder="Select stage"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <SearchableSelect
+                    options={[
+                      { value: "Low", label: "Low" },
+                      { value: "Medium", label: "Medium" },
+                      { value: "High", label: "High" },
+                      { value: "Critical", label: "Critical" }
+                    ]}
+                    value={newTaskPriority}
+                    onValueChange={setNewTaskPriority}
+                    placeholder="Select priority"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Effort (1-5)</Label>
+                  <SearchableSelect
+                    options={EFFORT_VALUES.map((v) => ({
+                      value: v.toString(),
+                      label: v.toString()
+                    }))}
+                    value={newTaskEffort.toString()}
+                    onValueChange={(v) => setNewTaskEffort(parseInt(v))}
+                    placeholder="Select effort"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddTaskDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddTaskToSprint} 
+              disabled={isAddingTask}
+              data-testid="button-confirm-add-task"
+            >
+              {isAddingTask ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                addTaskMode === "link" ? "Add to Sprint" : "Create & Add"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Shell>
   );
 }
