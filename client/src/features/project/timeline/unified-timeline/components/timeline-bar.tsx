@@ -154,9 +154,30 @@ export function TimelineBar({
     };
   }, [isDragging, pixelsToDays]);
 
-  const handleMouseDown = useCallback((_e: React.MouseEvent, _mode: DragMode) => {
-    // Drag functionality temporarily disabled - use hover card date pickers instead
-  }, []);
+  const handleMouseDown = useCallback((e: React.MouseEvent, mode: DragMode) => {
+    if (!onDateChange) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    dragStateRef.current = {
+      startX: e.clientX,
+      initialLeft: left,
+      initialWidth: width,
+      mode,
+      startDate,
+      endDate,
+      id,
+      dayWidth,
+      left,
+      width,
+      onDateChange,
+    };
+    
+    setTempLeft(left);
+    setTempWidth(width);
+    setDragMode(mode);
+    setIsDragging(true);
+  }, [onDateChange, left, width, startDate, endDate, id, dayWidth]);
 
   const handleQuickAdjust = useCallback((startDelta: number, endDelta: number) => {
     if (!onDateChange) return;

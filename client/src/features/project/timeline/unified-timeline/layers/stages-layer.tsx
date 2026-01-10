@@ -82,7 +82,7 @@ export function StagesLayer({ stages, projectId, projectStartDate, viewMode, tim
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projectStages"] });
+      queryClient.invalidateQueries({ queryKey: ["projectStages"] });
       toast({ title: "Stage Updated", description: "Stage dates have been updated." });
     },
     onError: () => {
