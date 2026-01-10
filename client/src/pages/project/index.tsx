@@ -409,13 +409,12 @@ export default function ProjectOverview() {
     return allTasks.filter((t: any) => t.projectId === projectId);
   }, [allTasks, projectId]);
 
-  // Get backlog tasks (tasks not in the current sprint)
-  const backlogTasks = useMemo(() => {
+  // Get available tasks (any project task not already in the current sprint)
+  const availableTasks = useMemo(() => {
     if (!allTasks || !activeSprint) return [];
     return allTasks.filter((t: any) => 
       t.projectId === projectId && 
-      t.sprintId !== activeSprint.id &&
-      t.status !== "Done"
+      t.sprintId !== activeSprint.id
     );
   }, [allTasks, activeSprint, projectId]);
 
@@ -1224,9 +1223,9 @@ export default function ProjectOverview() {
             
             <TabsContent value="link" className="mt-4 space-y-4">
               <div className="space-y-2">
-                <Label>Select Task from Backlog</Label>
+                <Label>Select Existing Task</Label>
                 <SearchableSelect
-                  options={backlogTasks.map((t: any) => ({
+                  options={availableTasks.map((t: any) => ({
                     value: t.id,
                     label: t.title
                   }))}
@@ -1234,8 +1233,8 @@ export default function ProjectOverview() {
                   onValueChange={setSelectedExistingTaskId}
                   placeholder="Search tasks..."
                 />
-                {backlogTasks.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No available tasks in backlog.</p>
+                {availableTasks.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No available tasks to add. All tasks are already in this sprint.</p>
                 )}
               </div>
             </TabsContent>
