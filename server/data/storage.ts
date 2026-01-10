@@ -174,10 +174,14 @@ export interface IStorage {
 
   // Project Stages
   getProjectStages(): Promise<ProjectStage[]>;
+  getProjectStagesByProjectId(projectId: string): Promise<ProjectStage[]>;
   getProjectStageById(id: string): Promise<ProjectStage | undefined>;
   createProjectStage(stage: InsertProjectStage): Promise<ProjectStage>;
   updateProjectStage(id: string, stage: Partial<ProjectStage>): Promise<ProjectStage>;
   deleteProjectStage(id: string): Promise<void>;
+  
+  // Project Epics (by project)
+  getEpicsByProjectId(projectId: string): Promise<Epic[]>;
 
   // Framework Templates
   getFrameworkTemplates(): Promise<FrameworkTemplate[]>;
@@ -823,9 +827,23 @@ export class DatabaseStorage implements IStorage {
   async getProjectStages(): Promise<ProjectStage[]> {
     return await db.select().from(schema.projectStages);
   }
+  async getProjectStagesByProjectId(projectId: string): Promise<ProjectStage[]> {
+    return await db.select().from(schema.projectStages).where(eq(schema.projectStages.projectId, projectId));
+  }
   async getProjectStageById(id: string): Promise<ProjectStage | undefined> {
     const [stage] = await db.select().from(schema.projectStages).where(eq(schema.projectStages.id, id));
     return stage;
+  }
+  
+  // Get all epics for a project (through deliverables)
+  async getEpicsByProjectId(projectId: string): Promise<Epic[]> {
+    const deliverables = await this.getDeliverablesByProjectId(projectId);
+    const allEpics: Epic[] = [];
+    for (const del of deliverables) {
+      const epics = await this.getEpicsByDeliverableId(del.id);
+      allEpics.push(...epics);
+    }
+    return allEpics;
   }
   async createProjectStage(stage: InsertProjectStage): Promise<ProjectStage> {
     const id = (arguments[0] as any).id || crypto.randomUUID();

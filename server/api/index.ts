@@ -133,6 +133,123 @@ export async function registerRoutes(
     }
   });
 
+  // Nested project endpoints for deliverables, epics, stages, milestones
+  app.get("/api/projects/:projectId/deliverables", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const deliverables = await storage.getDeliverablesByProjectId(projectId);
+      res.json(deliverables);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/projects/:projectId/deliverables/:deliverableId", async (req, res) => {
+    try {
+      const deliverable = await storage.getDeliverableById(req.params.deliverableId);
+      if (!deliverable) return res.status(404).json({ error: "Deliverable not found" });
+      res.json(deliverable);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/projects/:projectId/deliverables/:deliverableId", async (req, res) => {
+    try {
+      const deliverable = await storage.updateDeliverable(req.params.deliverableId, req.body);
+      res.json(deliverable);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/projects/:projectId/epics", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const epics = await storage.getEpicsByProjectId(projectId);
+      res.json(epics);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/projects/:projectId/epics/:epicId", async (req, res) => {
+    try {
+      const epic = await storage.getEpicById(req.params.epicId);
+      if (!epic) return res.status(404).json({ error: "Epic not found" });
+      res.json(epic);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/projects/:projectId/epics/:epicId", async (req, res) => {
+    try {
+      const epic = await storage.updateEpic(req.params.epicId, req.body);
+      res.json(epic);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/projects/:projectId/stages", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const stages = await storage.getProjectStagesByProjectId(projectId);
+      res.json(stages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/projects/:projectId/stages/:stageId", async (req, res) => {
+    try {
+      const stage = await storage.getProjectStageById(req.params.stageId);
+      if (!stage) return res.status(404).json({ error: "Stage not found" });
+      res.json(stage);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/projects/:projectId/stages/:stageId", async (req, res) => {
+    try {
+      const stage = await storage.updateProjectStage(req.params.stageId, req.body);
+      res.json(stage);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/projects/:projectId/milestones", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const milestones = await storage.getMilestonesByProjectId(projectId);
+      res.json(milestones);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/projects/:projectId/milestones/:milestoneId", async (req, res) => {
+    try {
+      const milestone = await storage.getMilestoneById(req.params.milestoneId);
+      if (!milestone) return res.status(404).json({ error: "Milestone not found" });
+      res.json(milestone);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/projects/:projectId/milestones/:milestoneId", async (req, res) => {
+    try {
+      const milestone = await storage.updateMilestone(req.params.milestoneId, req.body);
+      res.json(milestone);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Project Favorites
   app.get("/api/favorites", async (req, res) => {
     try {
