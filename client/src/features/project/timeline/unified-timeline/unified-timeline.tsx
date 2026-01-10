@@ -8,6 +8,8 @@ import { SprintsLayer, getSprintsLayerHeight } from "./layers/sprints-layer";
 import { MilestonesLayer, getMilestonesLayerHeight } from "./layers/milestones-layer";
 import { StagesLayer, getStagesLayerHeight } from "./layers/stages-layer";
 import { DeliverablesLayer, getDeliverablesLayerHeight, DELIVERABLE_ROW_HEIGHT, EPIC_ROW_HEIGHT } from "./layers/deliverables-layer";
+import { ScheduleSyncPrompt } from "./components/schedule-sync-prompt";
+import { useScheduleSync } from "@/hooks/use-schedule-sync";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getDeliverableColor } from "./types";
 import { VIEW_MODE_CONFIGS, calculateTimelineRange, parseDate } from "./timeline-utils";
@@ -50,6 +52,15 @@ export function UnifiedTimeline({
   });
 
   const [expandedDeliverables, setExpandedDeliverables] = useState<Set<string>>(new Set());
+
+  const {
+    evaluateChange,
+    isEvaluating,
+    changePlan,
+    isPromptOpen,
+    handlePromptComplete,
+    handlePromptOpenChange,
+  } = useScheduleSync();
 
   const handleLayerToggle = useCallback((layer: LayerType) => {
     setLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
@@ -367,6 +378,7 @@ export function UnifiedTimeline({
                     highlightId={highlightItemId}
                     expandedDeliverables={expandedDeliverables}
                     onToggleDeliverable={handleToggleDeliverable}
+                    onScheduleSyncEvaluate={evaluateChange}
                   />
                 )}
 
@@ -380,6 +392,12 @@ export function UnifiedTimeline({
           </div>
         </div>
       </div>
+      <ScheduleSyncPrompt
+        open={isPromptOpen}
+        onOpenChange={handlePromptOpenChange}
+        changePlan={changePlan}
+        onComplete={handlePromptComplete}
+      />
     </TooltipProvider>
   );
 }

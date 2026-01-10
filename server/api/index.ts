@@ -3571,5 +3571,77 @@ export async function registerRoutes(
     }
   });
 
+  // Schedule Sync Endpoints
+  const { scheduleSyncService } = await import("../services/schedule-sync-service");
+  
+  app.post("/api/schedule-sync/evaluate", async (req, res) => {
+    try {
+      const { entityType, entityId, proposedDates, userId } = req.body;
+      
+      if (!entityType || !entityId || !proposedDates) {
+        return res.status(400).json({ error: "entityType, entityId, and proposedDates are required" });
+      }
+      
+      const changePlan = await scheduleSyncService.evaluate({
+        entityType,
+        entityId,
+        proposedDates,
+        userId: userId || 'system'
+      });
+      
+      res.json(changePlan);
+    } catch (error: any) {
+      console.error("Schedule sync evaluate error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  app.post("/api/schedule-sync/apply", async (req, res) => {
+    try {
+      const { action, changePlan, overrideReason, userId } = req.body;
+      
+      if (!action || !changePlan) {
+        return res.status(400).json({ error: "action and changePlan are required" });
+      }
+      
+      const result = await scheduleSyncService.apply({
+        action,
+        changePlan,
+        overrideReason,
+        userId: userId || 'system'
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Schedule sync apply error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  app.get("/api/schedule-sync/overridden", async (req, res) => {
+    try {
+      const projectId = req.query.projectId as string | undefined;
+      const result = await scheduleSyncService.getOverriddenEntities(projectId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  app.post("/api/schedule-sync/bulk-resolve", async (req, res) => {
+    try {
+      const { entityType, entityIds, userId } = req.body;
+      
+      if (!entityType || !entityIds || !Array.isArray(entityIds)) {
+        return res.status(400).json({ error: "entityType and entityIds array are required" });
+      }
+      
+      const resolved = await scheduleSyncService.bulkResolveOverrides(entityType, entityIds, userId || 'system');
+      res.json({ resolved });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }

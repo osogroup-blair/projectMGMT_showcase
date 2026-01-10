@@ -5,13 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
-import { Package, GitBranch, ChevronRight, ChevronDown } from "lucide-react";
+import { Package, GitBranch, ChevronRight, ChevronDown, AlertTriangle } from "lucide-react";
 import type { Deliverable, Epic } from "@shared/schema";
 import type { ViewMode, TimelineRange, DeliverableWithEpics } from "../types";
 import { getPosition, getWidth, parseDate, VIEW_MODE_CONFIGS } from "../timeline-utils";
 import { getDeliverableColor } from "../types";
 import { TimelineBar } from "../components/timeline-bar";
 import { useToast } from "@/hooks/use-toast";
+import type { EntityType, DateChange } from "../components/schedule-sync-prompt";
 
 function hexToRgba(hex: string, alpha: number): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -33,6 +34,12 @@ interface DeliverablesLayerProps {
   highlightId?: string;
   expandedDeliverables: Set<string>;
   onToggleDeliverable: (id: string) => void;
+  onScheduleSyncEvaluate?: (
+    entityType: EntityType,
+    entityId: string,
+    proposedDates: DateChange,
+    onApply: (dates: DateChange) => void
+  ) => void;
 }
 
 export const DELIVERABLE_ROW_HEIGHT = 48;
@@ -48,6 +55,7 @@ export function DeliverablesLayer({
   highlightId,
   expandedDeliverables,
   onToggleDeliverable,
+  onScheduleSyncEvaluate,
 }: DeliverablesLayerProps) {
   const [, navigate] = useLocation();
   const config = VIEW_MODE_CONFIGS[viewMode];
@@ -142,13 +150,25 @@ export function DeliverablesLayer({
     });
   }, [updateDeliverableMutation]);
 
-  const handleEpicDateChange = useCallback((epicId: string, startDate: Date, endDate: Date) => {
-    updateEpicMutation.mutate({
-      epicId,
-      startDate: format(startDate, "yyyy-MM-dd"),
-      endDate: format(endDate, "yyyy-MM-dd"),
-    });
+  const applyEpicDateChange = useCallback((epicId: string, startDate: string, endDate: string) => {
+    updateEpicMutation.mutate({ epicId, startDate, endDate });
   }, [updateEpicMutation]);
+
+  const handleEpicDateChange = useCallback((epicId: string, startDate: Date, endDate: Date) => {
+    const formattedStart = format(startDate, "yyyy-MM-dd");
+    const formattedEnd = format(endDate, "yyyy-MM-dd");
+    
+    if (onScheduleSyncEvaluate) {
+      onScheduleSyncEvaluate(
+        'epic',
+        epicId,
+        { startDate: formattedStart, endDate: formattedEnd },
+        () => applyEpicDateChange(epicId, formattedStart, formattedEnd)
+      );
+    } else {
+      applyEpicDateChange(epicId, formattedStart, formattedEnd);
+    }
+  }, [onScheduleSyncEvaluate, applyEpicDateChange]);
 
   return (
     <div className="border-b">
@@ -293,6 +313,17 @@ export function DeliverablesLayer({
                               onClick={() => handleEpicClick(epic.id)}
                               onDateChange={handleEpicDateChange}
                               testId={`timeline-epic-${epic.id}`}
+                              renderBadge={
+                                epic.scheduleOverride ? (
+                                  <span 
+                                    className="inline-flex items-center gap-0.5 text-[9px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded border border-amber-200 ml-1"
+                                    title={epic.overrideReason || "Dates out of sync with hierarchy"}
+                                  >
+                                    <AlertTriangle className="h-2.5 w-2.5" />
+                                    Override
+                                  </span>
+                                ) : undefined
+                              }
                             />
                           ) : (
                             <motion.button
