@@ -6,7 +6,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarIcon, GripVertical, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 
 export interface TimelineBarProps {
   id: string;
@@ -200,12 +200,6 @@ export function TimelineBar({
           onMouseLeave={() => !isDragging && setIsHovered(false)}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onClick={(e) => {
-            if (!isDragging && onClick) {
-              e.stopPropagation();
-              onClick();
-            }
-          }}
           data-testid={testId}
         >
           {canEdit && (
@@ -253,10 +247,27 @@ export function TimelineBar({
 
       <HoverCardContent side="top" align="center" className="w-80 p-3" sideOffset={8}>
         <div className="space-y-3">
-          <div>
-            <h4 className="font-semibold text-sm">{name}</h4>
-            {description && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{description}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-sm">{name}</h4>
+              {description && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{description}</p>
+              )}
+            </div>
+            {onClick && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick();
+                }}
+                data-testid={`${testId}-view-details`}
+              >
+                <ExternalLink className="h-3 w-3 mr-1" />
+                <span className="text-xs">View</span>
+              </Button>
             )}
           </div>
 
@@ -418,10 +429,6 @@ export function MilestoneMarker({
             width: size,
             height: size,
           }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick?.();
-          }}
           data-testid={testId}
         >
           <div 
@@ -435,10 +442,27 @@ export function MilestoneMarker({
 
       <HoverCardContent side="top" align="center" className="w-64 p-3" sideOffset={8}>
         <div className="space-y-3">
-          <div>
-            <h4 className="font-semibold text-sm">{name}</h4>
-            {description && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{description}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-sm">{name}</h4>
+              {description && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{description}</p>
+              )}
+            </div>
+            {onClick && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick();
+                }}
+                data-testid={`${testId}-view-details`}
+              >
+                <ExternalLink className="h-3 w-3 mr-1" />
+                <span className="text-xs">View</span>
+              </Button>
             )}
           </div>
 
