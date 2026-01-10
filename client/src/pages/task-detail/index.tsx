@@ -27,7 +27,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation, useSearch } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { 
@@ -58,11 +58,26 @@ const PRIORITY_CONFIG = {
 
 const STATUS_OPTIONS = ["Todo", "In Progress", "Review", "Done"];
 
+const VALID_TABS = ["overview", "subtasks", "attachments", "dependents", "history"] as const;
+type TabValue = typeof VALID_TABS[number];
+
 export default function TaskDetail() {
   const [match, params] = useRoute("/projects/:projectId/tasks/:taskId");
   const projectId = params?.projectId || "1";
   const taskId = params?.taskId || "1";
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  
+  const searchParams = new URLSearchParams(searchString);
+  const tabParam = searchParams.get("tab") as TabValue | null;
+  const activeTab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "overview";
+  
+  const handleTabChange = (tab: string) => {
+    const newParams = new URLSearchParams(searchString);
+    newParams.set("tab", tab);
+    setLocation(`/projects/${projectId}/tasks/${taskId}?${newParams.toString()}`, { replace: true });
+  };
 
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allTasks, isLoading: isTasksLoading, update: updateTask } = useTasks();
@@ -326,7 +341,7 @@ export default function TaskDetail() {
               </CollapsibleContent>
             </Collapsible>
 
-            <Tabs defaultValue="overview" className="w-full">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
                 <TabsTrigger 
                   value="overview" 
