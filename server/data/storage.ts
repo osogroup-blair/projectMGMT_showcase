@@ -43,6 +43,8 @@ import type {
   TaskType, InsertTaskType,
   ProjectTaskType, InsertProjectTaskType,
   TaskDependency, InsertTaskDependency,
+  EpicType, InsertEpicType,
+  DeliverableType, InsertDeliverableType,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -330,6 +332,20 @@ export interface IStorage {
   createTaskDependency(dependency: InsertTaskDependency): Promise<TaskDependency>;
   deleteTaskDependency(id: string): Promise<void>;
   deleteTaskDependenciesByTaskId(taskId: string): Promise<void>;
+
+  // Epic Types (global)
+  getEpicTypes(): Promise<EpicType[]>;
+  getEpicTypeById(id: string): Promise<EpicType | undefined>;
+  createEpicType(epicType: InsertEpicType): Promise<EpicType>;
+  updateEpicType(id: string, epicType: Partial<EpicType>): Promise<EpicType>;
+  deleteEpicType(id: string): Promise<void>;
+
+  // Deliverable Types (global)
+  getDeliverableTypes(): Promise<DeliverableType[]>;
+  getDeliverableTypeById(id: string): Promise<DeliverableType | undefined>;
+  createDeliverableType(deliverableType: InsertDeliverableType): Promise<DeliverableType>;
+  updateDeliverableType(id: string, deliverableType: Partial<DeliverableType>): Promise<DeliverableType>;
+  deleteDeliverableType(id: string): Promise<void>;
 
   // Subtasks
   getSubtasksByParentId(parentTaskId: string): Promise<Task[]>;
@@ -1436,6 +1452,48 @@ export class DatabaseStorage implements IStorage {
     await db.delete(schema.taskDependencies).where(
       or(eq(schema.taskDependencies.taskId, taskId), eq(schema.taskDependencies.dependsOnTaskId, taskId))
     );
+  }
+
+  // Epic Types (global)
+  async getEpicTypes(): Promise<EpicType[]> {
+    return await db.select().from(schema.epicTypes);
+  }
+  async getEpicTypeById(id: string): Promise<EpicType | undefined> {
+    const [epicType] = await db.select().from(schema.epicTypes).where(eq(schema.epicTypes.id, id));
+    return epicType;
+  }
+  async createEpicType(epicType: InsertEpicType): Promise<EpicType> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.epicTypes).values({ ...epicType, id }).returning();
+    return created;
+  }
+  async updateEpicType(id: string, epicType: Partial<EpicType>): Promise<EpicType> {
+    const [updated] = await db.update(schema.epicTypes).set(epicType).where(eq(schema.epicTypes.id, id)).returning();
+    return updated;
+  }
+  async deleteEpicType(id: string): Promise<void> {
+    await db.delete(schema.epicTypes).where(eq(schema.epicTypes.id, id));
+  }
+
+  // Deliverable Types (global)
+  async getDeliverableTypes(): Promise<DeliverableType[]> {
+    return await db.select().from(schema.deliverableTypes);
+  }
+  async getDeliverableTypeById(id: string): Promise<DeliverableType | undefined> {
+    const [deliverableType] = await db.select().from(schema.deliverableTypes).where(eq(schema.deliverableTypes.id, id));
+    return deliverableType;
+  }
+  async createDeliverableType(deliverableType: InsertDeliverableType): Promise<DeliverableType> {
+    const id = crypto.randomUUID();
+    const [created] = await db.insert(schema.deliverableTypes).values({ ...deliverableType, id }).returning();
+    return created;
+  }
+  async updateDeliverableType(id: string, deliverableType: Partial<DeliverableType>): Promise<DeliverableType> {
+    const [updated] = await db.update(schema.deliverableTypes).set(deliverableType).where(eq(schema.deliverableTypes.id, id)).returning();
+    return updated;
+  }
+  async deleteDeliverableType(id: string): Promise<void> {
+    await db.delete(schema.deliverableTypes).where(eq(schema.deliverableTypes.id, id));
   }
 
   // Subtasks

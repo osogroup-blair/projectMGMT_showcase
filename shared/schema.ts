@@ -469,6 +469,28 @@ export const projectTaskTypes = pgTable("project_task_types", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Epic Types (global defaults for categorizing epics)
+export const epicTypes = pgTable("epic_types", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
+  icon: text("icon"),
+  isDefault: boolean("is_default").default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Deliverable Types (global defaults for categorizing deliverables)
+export const deliverableTypes = pgTable("deliverable_types", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
+  icon: text("icon"),
+  isDefault: boolean("is_default").default(false),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Task Dependencies (finish-to-start blocking relationships)
 export const taskDependencies = pgTable("task_dependencies", {
   id: varchar("id").primaryKey(),
@@ -608,6 +630,8 @@ export const insertProjectTaskStatusSchema = createInsertSchema(projectTaskStatu
 export const insertProjectSettingsSchema = createInsertSchema(projectSettings).omit({ id: true, updatedAt: true });
 export const insertTaskTypeSchema = createInsertSchema(taskTypes).omit({ id: true, createdAt: true });
 export const insertProjectTaskTypeSchema = createInsertSchema(projectTaskTypes).omit({ id: true, createdAt: true });
+export const insertEpicTypeSchema = createInsertSchema(epicTypes).omit({ id: true, createdAt: true });
+export const insertDeliverableTypeSchema = createInsertSchema(deliverableTypes).omit({ id: true, createdAt: true });
 export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({ id: true, createdAt: true });
 export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true });
@@ -756,6 +780,12 @@ export type InsertTaskType = z.infer<typeof insertTaskTypeSchema>;
 
 export type ProjectTaskType = typeof projectTaskTypes.$inferSelect;
 export type InsertProjectTaskType = z.infer<typeof insertProjectTaskTypeSchema>;
+
+export type EpicType = typeof epicTypes.$inferSelect;
+export type InsertEpicType = z.infer<typeof insertEpicTypeSchema>;
+
+export type DeliverableType = typeof deliverableTypes.$inferSelect;
+export type InsertDeliverableType = z.infer<typeof insertDeliverableTypeSchema>;
 
 export type TaskDependency = typeof taskDependencies.$inferSelect;
 export type InsertTaskDependency = z.infer<typeof insertTaskDependencySchema>;
