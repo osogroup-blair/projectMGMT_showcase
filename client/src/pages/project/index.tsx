@@ -856,57 +856,57 @@ export default function ProjectOverview() {
                     </nav>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center border-r pr-2 shrink-0">
+                  <div className="flex flex-col items-center border-r shrink-0 w-10 py-1">
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 mb-2"
+                      className="h-7 w-7 mb-1"
                       onClick={() => setDashboardSidebarOpen(true)}
                       data-testid="button-expand-dashboard-nav"
                     >
-                      <ChevronRightIcon className="h-4 w-4" />
+                      <ChevronRightIcon className="h-3.5 w-3.5" />
                     </Button>
-                    <div className="space-y-1">
+                    <div className="flex flex-col items-center gap-0.5">
                       <Button 
                         variant={dashboardSection === "current-sprint" ? "default" : "ghost"} 
                         size="icon" 
-                        className="h-8 w-8"
+                        className="h-7 w-7"
                         onClick={() => setDashboardSection("current-sprint")}
                       >
-                        <Zap className="h-4 w-4" />
+                        <Zap className="h-3.5 w-3.5" />
                       </Button>
                       <Button 
                         variant={dashboardSection === "upcoming-work" ? "default" : "ghost"} 
                         size="icon" 
-                        className="h-8 w-8"
+                        className="h-7 w-7"
                         onClick={() => setDashboardSection("upcoming-work")}
                       >
-                        <Layers className="h-4 w-4" />
+                        <Layers className="h-3.5 w-3.5" />
                       </Button>
                       <Button 
                         variant={dashboardSection === "metrics" ? "default" : "ghost"} 
                         size="icon" 
-                        className="h-8 w-8"
+                        className="h-7 w-7"
                         onClick={() => setDashboardSection("metrics")}
                       >
-                        <BarChart3 className="h-4 w-4" />
+                        <BarChart3 className="h-3.5 w-3.5" />
                       </Button>
                       <Button 
                         variant={dashboardSection === "activity" ? "default" : "ghost"} 
                         size="icon" 
-                        className="h-8 w-8"
+                        className="h-7 w-7"
                         onClick={() => setDashboardSection("activity")}
                       >
-                        <Activity className="h-4 w-4" />
+                        <Activity className="h-3.5 w-3.5" />
                       </Button>
-                      <div className="my-2 w-full border-t" />
+                      <div className="my-1 w-5 border-t" />
                       <Button 
                         variant={dashboardSection === "team-pulse" ? "default" : "ghost"} 
                         size="icon" 
-                        className="h-8 w-8"
+                        className="h-7 w-7"
                         onClick={() => setDashboardSection("team-pulse")}
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
