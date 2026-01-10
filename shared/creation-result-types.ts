@@ -32,6 +32,7 @@ export interface CreationReport {
       failed: number;
     };
   };
+  fatalError?: string;
 }
 
 export interface FullProjectCreatePayload {

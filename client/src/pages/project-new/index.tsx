@@ -651,6 +651,10 @@ export default function ProjectWizard() {
       
       const report: CreationReport = await response.json();
       
+      if (!response.ok && !report.projectId) {
+        throw new Error(report.fatalError || 'Failed to create project');
+      }
+      
       if (isImportMode && importContext?.clearImport) {
         importContext.clearImport();
       }

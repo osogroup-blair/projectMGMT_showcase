@@ -3286,38 +3286,13 @@ export async function registerRoutes(
         }
       }
       
-      // 7. Create role assignments
+      // 7. Note: Roles from wizard are informational only
+      // The projectRoles table is for global role definitions, not project-specific roles
+      // Role assignment to projects would require a different data model (e.g., project_role_assignments table)
+      // For now, we log that roles were provided but don't create them to avoid data inconsistency
       const roles = payload.roles || [];
-      for (const role of roles) {
-        const roleId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        try {
-          await storage.createProjectRole({
-            id: roleId,
-            projectId: projectId!,
-            roleTypeId: role.roleTypeId,
-            userId: role.userId || null,
-            rate: role.rate || 0,
-            allocation: role.allocation || 100
-          });
-          
-          entityResults.push({
-            entityType: 'role',
-            id: roleId,
-            name: `Role: ${role.roleTypeId}`,
-            success: true,
-            parentId: projectId!
-          });
-        } catch (e: any) {
-          entityResults.push({
-            entityType: 'role',
-            id: roleId,
-            name: `Role: ${role.roleTypeId}`,
-            success: false,
-            error: e.message,
-            parentId: projectId!
-          });
-        }
+      if (roles.length > 0) {
+        console.log(`Full-create: ${roles.length} roles provided but skipped - projectRoles table is global, not project-specific`);
       }
       
       // Build summary
