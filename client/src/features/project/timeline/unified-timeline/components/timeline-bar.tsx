@@ -52,6 +52,8 @@ export function TimelineBar({
   testId,
 }: TimelineBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
+  const captureElementRef = useRef<HTMLElement | null>(null);
+  const capturePointerIdRef = useRef<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [dragMode, setDragMode] = useState<DragMode>("none");
   const [dragStartX, setDragStartX] = useState(0);
@@ -80,7 +82,10 @@ export function TimelineBar({
     setTempWidth(width);
     setIsDragging(true);
     
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const target = e.currentTarget as HTMLElement;
+    captureElementRef.current = target;
+    capturePointerIdRef.current = e.pointerId;
+    target.setPointerCapture(e.pointerId);
   }, [left, width, onDateChange]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -112,7 +117,15 @@ export function TimelineBar({
       return;
     }
     
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    if (captureElementRef.current && capturePointerIdRef.current !== null) {
+      try {
+        captureElementRef.current.releasePointerCapture(capturePointerIdRef.current);
+      } catch {
+        // Pointer capture may have been released already
+      }
+      captureElementRef.current = null;
+      capturePointerIdRef.current = null;
+    }
     
     const deltaX = e.clientX - dragStartX;
     const daysDelta = pixelsToDays(deltaX);
