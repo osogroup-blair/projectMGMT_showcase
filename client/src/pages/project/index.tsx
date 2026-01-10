@@ -413,7 +413,7 @@ export default function ProjectOverview() {
     <Shell noPadding>
       <div className="flex flex-col">
         {/* Header Section - Wrapped in padding */}
-        <div className="px-6 py-8 space-y-8">
+        <div className="px-6 py-8 space-y-8 pt-[10px] pb-[10px]">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div className="space-y-2">
