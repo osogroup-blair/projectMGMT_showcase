@@ -192,13 +192,26 @@ export function TimelineBar({
         <motion.div
           ref={barRef}
           initial={{ opacity: 0, scaleX: 0.8 }}
-          animate={{ opacity: 1, scaleX: 1 }}
+          animate={{ 
+            opacity: 1, 
+            scaleX: 1,
+            scale: isHovered ? 1.02 : 1,
+            y: isHovered ? -2 : 0,
+          }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 400, 
+            damping: 25,
+            scale: { duration: 0.15 },
+            y: { duration: 0.15 }
+          }}
           className={cn(
             "absolute rounded-md flex items-center group select-none",
-            "transition-shadow",
+            "transition-all duration-150",
             colorClass,
             isHighlighted && "ring-2 ring-primary ring-offset-2",
             isDragging && "z-50 shadow-lg",
+            isHovered && !isDragging && "z-40 shadow-xl ring-2 ring-white/50",
             canEdit ? "cursor-grab" : "cursor-pointer",
             isDragging && "cursor-grabbing"
           )}
@@ -208,6 +221,7 @@ export function TimelineBar({
             top, 
             height,
             backgroundColor,
+            filter: isHovered ? 'brightness(1.1)' : 'brightness(1)',
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => !isDragging && setIsHovered(false)}
@@ -416,6 +430,8 @@ export function MilestoneMarker({
   onDateChange,
   testId,
 }: MilestoneMarkerProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  
   const handleDateSelect = useCallback((date: Date | undefined) => {
     if (!date || !onDateChange) return;
     onDateChange(id, date);
@@ -428,11 +444,21 @@ export function MilestoneMarker({
       <HoverCardTrigger asChild>
         <motion.div
           initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
+          animate={{ 
+            opacity: 1, 
+            scale: isHovered ? 1.3 : 1,
+            y: isHovered ? -3 : 0,
+          }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 400, 
+            damping: 20,
+          }}
           className={cn(
             "absolute cursor-pointer",
-            "transition-all hover:scale-110",
-            isHighlighted && "ring-2 ring-primary ring-offset-2 rounded-sm"
+            "transition-all",
+            isHighlighted && "ring-2 ring-primary ring-offset-2 rounded-sm",
+            isHovered && "z-50"
           )}
           style={{ 
             left: left - size / 2, 
@@ -440,13 +466,19 @@ export function MilestoneMarker({
             width: size,
             height: size,
           }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           data-testid={testId}
         >
           <div 
             className={cn(
-              "w-full h-full rotate-45 rounded-sm",
-              colorClass
+              "w-full h-full rotate-45 rounded-sm transition-shadow duration-150",
+              colorClass,
+              isHovered && "shadow-lg"
             )}
+            style={{
+              filter: isHovered ? 'brightness(1.15)' : 'brightness(1)',
+            }}
           />
         </motion.div>
       </HoverCardTrigger>
