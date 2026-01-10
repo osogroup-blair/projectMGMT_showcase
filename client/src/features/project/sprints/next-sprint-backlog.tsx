@@ -1,22 +1,19 @@
 import { useMemo, useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Calendar,
-  ChevronRight,
   Clock,
   ListTodo,
-  ArrowUpRight,
-  Layers,
-  Settings
+  Settings,
+  Plus
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInDays } from "date-fns";
 import { Link } from "wouter";
+import { FlowBoard } from "./flow-board";
+import { BlockerReasonDialog } from "./blocker-reason-dialog";
 
 interface Task {
   id: string;
@@ -54,6 +51,8 @@ interface NextSprintBacklogProps {
   allTasks: Task[];
   users: User[];
   epics: Epic[];
+  onTaskMove: (taskId: string, newStatus: string, blockerReason?: string) => void;
+  onAddTask: (sprintId: string) => void;
 }
 
 export function NextSprintBacklog({ 
@@ -61,12 +60,13 @@ export function NextSprintBacklog({
   sprints,
   allTasks,
   users, 
-  epics
+  epics,
+  onTaskMove,
+  onAddTask
 }: NextSprintBacklogProps) {
   // Find the default sprint (first planned/upcoming, or first sprint)
   const defaultSprintId = useMemo(() => {
     if (!sprints || sprints.length === 0) return null;
-    const today = new Date();
     // First try to find a planned/upcoming sprint
     const upcomingSprint = sprints.find((s: Sprint) => 
       s.status === "planned" || s.status === "upcoming"
@@ -77,6 +77,7 @@ export function NextSprintBacklog({
   }, [sprints]);
 
   const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  const [blockerTaskId, setBlockerTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     if (defaultSprintId && !selectedSprintId) {
@@ -94,51 +95,19 @@ export function NextSprintBacklog({
     return allTasks.filter((t: Task) => t.sprintId === selectedSprint.id);
   }, [selectedSprint, allTasks]);
 
-  const backlogTasks = useMemo(() => {
-    if (selectedSprint) {
-      return sprintTasks.filter(t => t.status !== "Done" && t.status !== "Completed");
-    }
-    return allTasks
-      .filter(t => 
-        !t.status?.includes("Done") && 
-        !t.status?.includes("Completed") &&
-        !["Done", "Completed", "Closed"].includes(t.status || "")
-      )
-      .slice(0, 10);
-  }, [selectedSprint, sprintTasks, allTasks]);
-
   const stats = useMemo(() => {
-    const total = backlogTasks.length;
-    const totalEffort = backlogTasks.reduce((sum, t) => sum + (t.effort || 1), 0);
-    const highPriority = backlogTasks.filter(t => 
+    const total = sprintTasks.length;
+    const totalEffort = sprintTasks.reduce((sum, t) => sum + (t.effort || 1), 0);
+    const highPriority = sprintTasks.filter(t => 
       t.priority === "High" || t.priority === "Critical"
     ).length;
+    const completed = sprintTasks.filter(t => t.status === "Done" || t.status === "Completed").length;
     
-    return { total, totalEffort, highPriority };
-  }, [backlogTasks]);
+    return { total, totalEffort, highPriority, completed };
+  }, [sprintTasks]);
 
-  const getUserName = (userId?: string) => {
-    if (!userId) return null;
-    return users.find(u => u.id === userId)?.name;
-  };
-
-  const getEpicTitle = (epicId?: string) => {
-    if (!epicId) return null;
-    return epics.find(e => e.id === epicId)?.title;
-  };
-
-  const getInitials = (name: string) => {
-    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
-  };
-
-  const getPriorityColor = (priority?: string) => {
-    switch (priority) {
-      case "Critical": return "bg-red-100 text-red-700 border-red-200";
-      case "High": return "bg-orange-100 text-orange-700 border-orange-200";
-      case "Medium": return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "Low": return "bg-green-100 text-green-700 border-green-200";
-      default: return "bg-slate-100 text-slate-700 border-slate-200";
-    }
+  const handleBlockerRequested = (taskId: string) => {
+    setBlockerTaskId(taskId);
   };
 
   if (sprints.length === 0) {
@@ -146,14 +115,14 @@ export function NextSprintBacklog({
       <Card>
         <CardContent className="py-8 text-center">
           <ListTodo className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-          <h4 className="font-medium text-muted-foreground">No upcoming work</h4>
+          <h4 className="font-medium text-muted-foreground">No sprints available</h4>
           <p className="text-sm text-muted-foreground/70 mt-1">
-            Plan your next sprint to see the backlog here
+            Create a sprint to start planning your work
           </p>
           <Link href={`/projects/${projectId}/sprints`}>
             <Button variant="outline" size="sm" className="mt-4 gap-2">
               <Calendar className="h-4 w-4" />
-              Plan Sprint
+              Create Sprint
             </Button>
           </Link>
         </CardContent>
@@ -162,7 +131,7 @@ export function NextSprintBacklog({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Select 
@@ -185,17 +154,33 @@ export function NextSprintBacklog({
               <Badge variant={selectedSprint.status === "active" ? "default" : "secondary"} className="capitalize">
                 {selectedSprint.status}
               </Badge>
+              {selectedSprint.endDate && (
+                <span className="text-sm text-muted-foreground">
+                  {Math.max(0, differenceInDays(parseISO(selectedSprint.endDate), new Date()))} days remaining
+                </span>
+              )}
             </>
           )}
         </div>
-        {selectedSprint && (
-          <Link href={`/projects/${projectId}/sprints/${selectedSprint.id}?tab=run`}>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Sprint Details
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <Button 
+            size="sm" 
+            className="gap-2"
+            onClick={() => selectedSprintId && onAddTask(selectedSprintId)}
+            data-testid="button-add-task-upcoming"
+          >
+            <Plus className="h-4 w-4" />
+            Add Task
+          </Button>
+          {selectedSprint && (
+            <Link href={`/projects/${projectId}/sprints/${selectedSprint.id}?tab=run`}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings className="h-4 w-4" />
+                Sprint Details
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-4 text-sm">
@@ -220,71 +205,32 @@ export function NextSprintBacklog({
         )}
       </div>
 
-      <ScrollArea className="h-[280px]">
-        <div className="space-y-2 pr-4">
-          {backlogTasks.map((task) => {
-            const userName = getUserName(task.assigneeId);
-            const epicTitle = getEpicTitle(task.epicId);
-            
-            return (
-              <Card 
-                key={task.id} 
-                className="p-3 hover:bg-muted/50 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    {epicTitle && (
-                      <p className="text-[10px] text-muted-foreground mb-0.5 truncate">
-                        {epicTitle}
-                      </p>
-                    )}
-                    <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                      <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                        {task.title}
-                      </p>
-                    </Link>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      {task.priority && (
-                        <Badge 
-                          variant="outline" 
-                          className={cn("text-[10px] px-1.5 py-0", getPriorityColor(task.priority))}
-                        >
-                          {task.priority}
-                        </Badge>
-                      )}
-                      {task.effort && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {task.effort} pts
-                        </span>
-                      )}
-                      {task.deadline && (
-                        <span className="text-[10px] text-muted-foreground">
-                          Due {format(parseISO(task.deadline), "MMM d")}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {userName && (
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-[10px] bg-primary/10">
-                          {getInitials(userName)}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </ScrollArea>
+      <FlowBoard
+        tasks={sprintTasks}
+        users={users}
+        epics={epics}
+        projectId={projectId}
+        onTaskMove={onTaskMove}
+        onBlockerRequested={handleBlockerRequested}
+      />
 
-      {backlogTasks.length === 0 && (
+      <BlockerReasonDialog
+        open={!!blockerTaskId}
+        onOpenChange={(open) => !open && setBlockerTaskId(null)}
+        onConfirm={(reason) => {
+          if (blockerTaskId) {
+            onTaskMove(blockerTaskId, "Blocked", reason);
+            setBlockerTaskId(null);
+          }
+        }}
+        onCancel={() => setBlockerTaskId(null)}
+      />
+
+      {sprintTasks.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          <p className="text-sm">No tasks in backlog</p>
+          <ListTodo className="h-10 w-10 mx-auto mb-3 opacity-50" />
+          <p className="text-sm">No tasks in this sprint</p>
+          <p className="text-xs mt-1">Add tasks to start planning</p>
         </div>
       )}
     </div>
