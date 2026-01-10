@@ -124,14 +124,16 @@ export function UnifiedTimeline({
 
   useEffect(() => {
     if (scrollContainerRef.current) {
-      const targetPos = differenceInDays(currentDate, timelineRange.start) * config.dayWidth;
+      const today = new Date();
+      const targetPos = differenceInDays(today, timelineRange.start) * config.dayWidth;
       const containerWidth = scrollContainerRef.current.clientWidth;
+      // Position "today" at 2/8ths (25%) from the left edge
       scrollContainerRef.current.scrollTo({
-        left: Math.max(0, targetPos - containerWidth / 2),
+        left: Math.max(0, targetPos - containerWidth * 0.25),
         behavior: "smooth",
       });
     }
-  }, [currentDate, viewMode, config.dayWidth, timelineRange.start]);
+  }, [viewMode, config.dayWidth, timelineRange.start]);
 
   useEffect(() => {
     if (highlightItemId && scrollContainerRef.current) {
