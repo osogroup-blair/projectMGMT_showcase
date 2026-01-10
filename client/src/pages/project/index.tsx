@@ -603,7 +603,7 @@ export default function ProjectOverview() {
             </div>
 
             <Collapsible open={metricsOpen} onOpenChange={setMetricsOpen}>
-              <CollapsibleContent className="pt-4">
+              <CollapsibleContent className="mt-[-6px] mb-[-6px] pt-[1px] pb-[1px]">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <Card className="bg-primary/5 border-primary/20">
                     <CardContent className="pt-6">
