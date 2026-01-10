@@ -1,22 +1,12 @@
-import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
-  Plus, 
-  Search, 
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  CheckCircle2,
-  List,
+  List, 
   Tags,
   Sliders,
+  ListChecks,
   Layers,
-  Users
+  Package
 } from "lucide-react";
-import { useRoleTypes, useStatusOptions } from "@/hooks/use-nexus-data";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { 
   Tabs, 
   TabsContent, 
@@ -24,189 +14,19 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
-import type { StatusOption } from "@shared/schema";
-import { cn } from "@/lib/utils";
+  StatusOptionsTab,
+  TaskTypesTab,
+  EpicTypesTab,
+  DeliverableTypesTab,
+  TagsTab,
+  GeneralTab,
+} from "./appdefaults";
 
 interface AdminAppDefaultsProps {
   embedded?: boolean;
 }
 
 export default function AdminAppDefaults({ embedded = false }: AdminAppDefaultsProps) {
-  const { toast } = useToast();
-  
-  // Database hooks
-  const { data: roleTypes = [], createAsync: createRoleType, updateAsync: updateRoleType, removeAsync: deleteRoleType, isLoading: roleTypesLoading } = useRoleTypes();
-  const { data: allStatusOptions = [], createAsync: createStatusOption, updateAsync: updateStatusOption, removeAsync: deleteStatusOption, isLoading: statusOptionsLoading } = useStatusOptions();
-  
-  // Filter status options by type
-  const projectStatuses = useMemo(() => 
-    allStatusOptions.filter((s: StatusOption) => s.type === "project").sort((a: StatusOption, b: StatusOption) => (a.order ?? 0) - (b.order ?? 0)),
-    [allStatusOptions]
-  );
-  const taskStatuses = useMemo(() => 
-    allStatusOptions.filter((s: StatusOption) => s.type === "task").sort((a: StatusOption, b: StatusOption) => (a.order ?? 0) - (b.order ?? 0)),
-    [allStatusOptions]
-  );
-  
-  const [stageTypes, setStageTypes] = useState([
-    { id: "st1", label: "Planning", description: "Initial phase for requirements and scoping" },
-    { id: "st2", label: "Execution", description: "Active development and implementation" },
-    { id: "st3", label: "Review", description: "Quality assurance and stakeholder review" },
-    { id: "st4", label: "Delivery", description: "Deployment and handover" },
-  ]);
-
-  // Modal State
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [currentType, setCurrentType] = useState<"project" | "task" | "stage-type" | "role-type">("project");
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  const [formData, setFormData] = useState<any>({
-    label: "",
-    color: "bg-slate-100 text-slate-700",
-    description: ""
-  });
-
-  const handleOpenEdit = (type: "project" | "task" | "stage-type" | "role-type", item?: any) => {
-    setCurrentType(type);
-    setEditingItem(item || null);
-    if (item) {
-      setFormData({ ...item });
-    } else {
-      setFormData({
-        label: "",
-        color: "bg-slate-100 text-slate-700",
-        description: "",
-        type: type
-      });
-    }
-    setIsEditOpen(true);
-  };
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      if (currentType === "role-type") {
-        const roleData = { label: formData.label, description: formData.description || "" };
-        if (editingItem) {
-          await updateRoleType({ id: editingItem.id, updates: roleData });
-        } else {
-          await createRoleType(roleData);
-        }
-      } else if (currentType === "project" || currentType === "task") {
-        const statusData = {
-          label: formData.label,
-          color: formData.color,
-          type: currentType,
-          order: currentType === "project" ? projectStatuses.length : taskStatuses.length,
-          isDefault: formData.isDefault || false,
-        };
-        if (editingItem) {
-          await updateStatusOption({ id: editingItem.id, updates: statusData });
-        } else {
-          await createStatusOption(statusData);
-        }
-      } else if (currentType === "stage-type") {
-        const newItem = {
-          ...formData,
-          id: editingItem?.id || `st_${Date.now()}`,
-        };
-        setStageTypes(prev => 
-          editingItem ? prev.map(i => i.id === newItem.id ? newItem : i) : [...prev, newItem]
-        );
-      }
-
-      setIsEditOpen(false);
-      toast({
-        title: "Settings Saved",
-        description: `${formData.label} has been successfully saved.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async (type: "project" | "task" | "stage-type" | "role-type", id: string) => {
-    try {
-      if (type === "role-type") {
-        await deleteRoleType(id);
-      } else if (type === "project" || type === "task") {
-        await deleteStatusOption(id);
-      } else if (type === "stage-type") {
-        setStageTypes(prev => prev.filter(i => i.id !== id));
-      }
-      toast({
-        title: "Item Deleted",
-        description: "Item has been removed.",
-        variant: "destructive"
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const ColorPicker = ({ value, onChange }: { value: string, onChange: (val: string) => void }) => {
-    const colors = [
-      { label: "Slate", value: "bg-slate-100 text-slate-700" },
-      { label: "Blue", value: "bg-blue-50 text-blue-700" },
-      { label: "Green", value: "bg-green-50 text-green-700" },
-      { label: "Purple", value: "bg-purple-50 text-purple-700" },
-      { label: "Red", value: "bg-red-50 text-red-700" },
-      { label: "Amber", value: "bg-amber-50 text-amber-700" },
-    ];
-
-    return (
-      <div className="flex flex-wrap gap-2 mt-2">
-        {colors.map(c => (
-          <div 
-            key={c.label}
-            className={cn(
-              "w-6 h-6 rounded-full cursor-pointer ring-offset-2 ring-1 ring-transparent",
-              c.value.replace("text", "bg").split(" ")[0].replace("50", "500").replace("100", "500"),
-              value === c.value && "ring-primary"
-            )}
-            onClick={() => onChange(c.value)}
-            title={c.label}
-          />
-        ))}
-      </div>
-    );
-  };
-
   const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : Shell;
 
   return (
@@ -223,275 +43,57 @@ export default function AdminAppDefaults({ embedded = false }: AdminAppDefaultsP
 
         <Tabs defaultValue="status" className="w-full">
           <TabsList>
-            <TabsTrigger value="status" className="gap-2">
+            <TabsTrigger value="status" className="gap-2" data-testid="tab-status-options">
               <List className="h-4 w-4" />
               Status Options
             </TabsTrigger>
-            <TabsTrigger value="stage-types" className="gap-2">
+            <TabsTrigger value="task-types" className="gap-2" data-testid="tab-task-types">
+              <ListChecks className="h-4 w-4" />
+              Task Types
+            </TabsTrigger>
+            <TabsTrigger value="epic-types" className="gap-2" data-testid="tab-epic-types">
               <Layers className="h-4 w-4" />
-              Stage Types
+              Epic Types
             </TabsTrigger>
-            <TabsTrigger value="role-types" className="gap-2">
-              <Users className="h-4 w-4" />
-              Role Types
+            <TabsTrigger value="deliverable-types" className="gap-2" data-testid="tab-deliverable-types">
+              <Package className="h-4 w-4" />
+              Deliverable Types
             </TabsTrigger>
-            <TabsTrigger value="tags" className="gap-2">
+            <TabsTrigger value="tags" className="gap-2" data-testid="tab-tags">
               <Tags className="h-4 w-4" />
               Global Tags
             </TabsTrigger>
-            <TabsTrigger value="general" className="gap-2">
+            <TabsTrigger value="general" className="gap-2" data-testid="tab-general">
               <Sliders className="h-4 w-4" />
               General
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="status" className="space-y-8 mt-6">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle>Project Statuses</CardTitle>
-                      <CardDescription>Define the available status options for projects.</CardDescription>
-                    </div>
-                    <Button size="sm" onClick={() => handleOpenEdit("project")}>
-                      <Plus className="h-4 w-4 mr-2" /> Add Status
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-md border">
-                    <div className="grid grid-cols-1 divide-y">
-                      {projectStatuses.map(status => (
-                        <div key={status.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                          <div className="flex items-center gap-3">
-                            <Badge variant="outline" className={cn("font-normal border-0", status.color)}>
-                              {status.label}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleOpenEdit("project", status)}>
-                              <Pencil className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDelete("project", status.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle>Task Statuses</CardTitle>
-                      <CardDescription>Define the workflow states for tasks.</CardDescription>
-                    </div>
-                    <Button size="sm" onClick={() => handleOpenEdit("task")}>
-                      <Plus className="h-4 w-4 mr-2" /> Add Status
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-md border">
-                    <div className="grid grid-cols-1 divide-y">
-                      {taskStatuses.map(status => (
-                        <div key={status.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                          <div className="flex items-center gap-3">
-                            <Badge variant="outline" className={cn("font-normal border-0", status.color)}>
-                              {status.label}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleOpenEdit("task", status)}>
-                              <Pencil className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDelete("task", status.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <StatusOptionsTab />
           </TabsContent>
 
-          <TabsContent value="stage-types" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Stage Types</CardTitle>
-                    <CardDescription>Define the categories available for project stages.</CardDescription>
-                  </div>
-                  <Button size="sm" onClick={() => handleOpenEdit("stage-type")}>
-                    <Plus className="h-4 w-4 mr-2" /> Add Type
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <div className="grid grid-cols-1 divide-y">
-                    {stageTypes.map(type => (
-                      <div key={type.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                        <div>
-                          <div className="font-medium">{type.label}</div>
-                          <div className="text-sm text-muted-foreground">{type.description}</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenEdit("stage-type", type)}>
-                            <Pencil className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDelete("stage-type", type.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="task-types" className="mt-6">
+            <TaskTypesTab />
           </TabsContent>
 
-          <TabsContent value="role-types" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Role Types</CardTitle>
-                    <CardDescription>Define the types of roles that can be assigned to team members.</CardDescription>
-                  </div>
-                  <Button size="sm" onClick={() => handleOpenEdit("role-type")}>
-                    <Plus className="h-4 w-4 mr-2" /> Add Role Type
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {roleTypesLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading role types...</div>
-                ) : roleTypes.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>No role types defined yet. Add your first role type to get started.</p>
-                  </div>
-                ) : (
-                  <div className="rounded-md border">
-                    <div className="grid grid-cols-1 divide-y">
-                      {roleTypes.map((type: any) => (
-                        <div key={type.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                          <div>
-                            <div className="font-medium">{type.label}</div>
-                            {type.description && (
-                              <div className="text-sm text-muted-foreground">{type.description}</div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => handleOpenEdit("role-type", type)}>
-                              <Pencil className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDelete("role-type", type.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          <TabsContent value="epic-types" className="mt-6">
+            <EpicTypesTab />
+          </TabsContent>
+
+          <TabsContent value="deliverable-types" className="mt-6">
+            <DeliverableTypesTab />
           </TabsContent>
 
           <TabsContent value="tags" className="mt-6">
-            <Card>
-              <CardContent className="p-12 text-center text-muted-foreground">
-                <Tags className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <h3 className="text-lg font-medium">Tag Management</h3>
-                <p>Global tag configuration coming soon.</p>
-              </CardContent>
-            </Card>
+            <TagsTab />
           </TabsContent>
 
           <TabsContent value="general" className="mt-6">
-            <Card>
-              <CardContent className="p-12 text-center text-muted-foreground">
-                <Sliders className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <h3 className="text-lg font-medium">General Settings</h3>
-                <p>System-wide defaults configuration coming soon.</p>
-              </CardContent>
-            </Card>
+            <GeneralTab />
           </TabsContent>
         </Tabs>
       </div>
-
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingItem ? "Edit" : "Create"} {currentType === "role-type" ? "Role Type" : currentType === "stage-type" ? "Stage Type" : "Status Option"}
-            </DialogTitle>
-            <DialogDescription>
-              {currentType === "role-type" 
-                ? "Configure the role type label and description." 
-                : currentType === "stage-type"
-                ? "Configure the stage type label and description."
-                : "Configure the status label and appearance."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="label">Label</Label>
-              <Input 
-                id="label" 
-                value={formData.label} 
-                onChange={(e) => setFormData({...formData, label: e.target.value})} 
-                placeholder={currentType === "stage-type" ? "e.g. Planning" : currentType === "role-type" ? "e.g. Project Manager" : "e.g. In Review"}
-              />
-            </div>
-            
-            {(currentType === "stage-type" || currentType === "role-type") && (
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input 
-                  id="description" 
-                  value={formData.description || ""} 
-                  onChange={(e) => setFormData({...formData, description: e.target.value})} 
-                  placeholder={currentType === "role-type" ? "Brief description of this role type" : "Short description of this stage type"}
-                />
-              </div>
-            )}
-
-            {currentType !== "stage-type" && currentType !== "role-type" && (
-              <div className="space-y-2">
-                <Label>Color Preset</Label>
-                <ColorPicker 
-                  value={formData.color || ""} 
-                  onChange={(c) => setFormData({...formData, color: c})} 
-                />
-                <div className="mt-4 p-4 border rounded-md flex items-center justify-center bg-muted/20">
-                  <Badge variant="outline" className={cn("font-normal border-0 text-sm py-1 px-3", formData.color)}>
-                    {formData.label || "Preview Label"}
-                  </Badge>
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Wrapper>
   );
 }
