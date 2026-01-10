@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { 
@@ -86,6 +87,7 @@ export default function ProjectWizard() {
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
   const { setReport, startCreating, finishCreating, failCreating } = useCreationReport();
+  const queryClient = useQueryClient();
   
   const { data: frameworkTemplates = [], isLoading: loadingFrameworks } = useFrameworkTemplates();
   const { data: stageTemplates = [], isLoading: loadingStages } = useStageTemplates();
@@ -732,6 +734,23 @@ export default function ProjectWizard() {
       
       if (isImportMode && importContext?.clearImport) {
         importContext.clearImport();
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["deliverables"] });
+      queryClient.invalidateQueries({ queryKey: ["epics"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["milestones"] });
+      queryClient.invalidateQueries({ queryKey: ["stages"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (report.projectId) {
+        queryClient.invalidateQueries({ queryKey: ["projects", report.projectId] });
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${report.projectId}/deliverables`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${report.projectId}/epics`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${report.projectId}/tasks`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${report.projectId}/milestones`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${report.projectId}/stages`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${report.projectId}/sprints`] });
       }
       
       finishCreating(report);
