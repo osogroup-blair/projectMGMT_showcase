@@ -1,12 +1,9 @@
 import { useMemo, useCallback } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import type { Sprint } from "@shared/schema";
 import type { ViewMode, TimelineRange } from "../types";
 import { getPosition, getWidth, parseDate, VIEW_MODE_CONFIGS, assignLanes, getLaneCount, type PositionedItem } from "../timeline-utils";
 import { TimelineBar } from "../components/timeline-bar";
-import { useToast } from "@/hooks/use-toast";
 
 interface SprintsLayerProps {
   sprints: Sprint[];
@@ -35,53 +32,10 @@ interface SprintWithPosition extends PositionedItem {
 export function SprintsLayer({ sprints, projectId, viewMode, timelineRange, highlightId }: SprintsLayerProps) {
   const [, navigate] = useLocation();
   const config = VIEW_MODE_CONFIGS[viewMode];
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  const updateSprintMutation = useMutation({
-    mutationFn: async ({ sprintId, startDate, endDate }: { sprintId: string; startDate: string; endDate: string }) => {
-      const res = await fetch(`/api/sprints/${sprintId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startDate, endDate }),
-      });
-      if (!res.ok) throw new Error("Failed to update sprint dates");
-      return res.json();
-    },
-    onMutate: async ({ sprintId, startDate, endDate }) => {
-      await queryClient.cancelQueries({ queryKey: ["sprints"] });
-      const previousSprints = queryClient.getQueryData(["sprints"]);
-      queryClient.setQueryData(["sprints"], (old: any[] | undefined) => {
-        if (!old) return old;
-        return old.map((sprint: any) => 
-          sprint.id === sprintId ? { ...sprint, startDate, endDate } : sprint
-        );
-      });
-      return { previousSprints };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sprints"] });
-      toast({ title: "Sprint Updated", description: "Sprint dates have been updated." });
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousSprints) {
-        queryClient.setQueryData(["sprints"], context.previousSprints);
-      }
-      toast({ title: "Error", description: "Failed to update sprint dates.", variant: "destructive" });
-    },
-  });
 
   const handleClick = useCallback((sprintId: string) => {
     navigate(`/projects/${projectId}/sprints/${sprintId}`);
   }, [navigate, projectId]);
-
-  const handleDateChange = useCallback((sprintId: string, startDate: Date, endDate: Date) => {
-    updateSprintMutation.mutate({
-      sprintId,
-      startDate: format(startDate, "yyyy-MM-dd"),
-      endDate: format(endDate, "yyyy-MM-dd"),
-    });
-  }, [updateSprintMutation]);
 
   const sprintsWithPositions = useMemo(() => {
     return sprints
@@ -131,7 +85,6 @@ export function SprintsLayer({ sprints, projectId, viewMode, timelineRange, high
               colorClass={statusColor}
               isHighlighted={isHighlighted}
               onClick={() => handleClick(item.sprint.id)}
-              onDateChange={handleDateChange}
               testId={`timeline-sprint-${item.sprint.id}`}
             />
           );
