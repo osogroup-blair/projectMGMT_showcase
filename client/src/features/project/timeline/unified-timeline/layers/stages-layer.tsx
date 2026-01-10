@@ -73,7 +73,7 @@ export function StagesLayer({ stages, projectId, projectStartDate, viewMode, tim
 
   const updateStageMutation = useMutation({
     mutationFn: async ({ stageId, startDate, endDate }: { stageId: string; startDate: string; endDate: string }) => {
-      const res = await fetch(`/api/projects/${projectId}/stages/${stageId}`, {
+      const res = await fetch(`/api/projectStages/${stageId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ startDate, endDate }),
@@ -82,7 +82,7 @@ export function StagesLayer({ stages, projectId, projectStartDate, viewMode, tim
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/stages`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projectStages"] });
       toast({ title: "Stage Updated", description: "Stage dates have been updated." });
     },
     onError: () => {
