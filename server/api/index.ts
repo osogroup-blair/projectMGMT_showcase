@@ -2871,6 +2871,32 @@ export async function registerRoutes(
       const payload = req.body;
       projectName = payload.project?.name || 'Untitled Project';
       
+      // Debug logging for import flow
+      console.log('[FULL-CREATE] Received payload:', {
+        projectName: payload.project?.name,
+        stagesCount: payload.stages?.length || 0,
+        deliverablesCount: payload.deliverables?.length || 0,
+        milestonesCount: payload.milestones?.length || 0,
+        rolesCount: payload.roles?.length || 0,
+        hasImportMetadata: !!payload.importMetadata
+      });
+      
+      if (payload.deliverables?.length > 0) {
+        console.log('[FULL-CREATE] Deliverables:', payload.deliverables.map((d: any) => ({
+          id: d.id,
+          title: d.title,
+          epicsCount: d.epics?.length || 0
+        })));
+      }
+      
+      if (payload.stages?.length > 0) {
+        console.log('[FULL-CREATE] Stages:', payload.stages.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          tasksCount: s.tasks?.length || 0
+        })));
+      }
+      
       // Track stage ID mappings (wizard ID -> created ID)
       const stageIdMap = new Map<string, string>();
       const createdStages: Array<{ templateId: string; createdStageId: string }> = [];
@@ -3004,7 +3030,7 @@ export async function registerRoutes(
           startDate: payload.project.startDate,
           dueDate: payload.project.deadline,
           progress: 0
-        });
+        } as any);
         
         entityResults.push({
           entityType: 'deliverable',
@@ -3027,7 +3053,7 @@ export async function registerRoutes(
           endDate: payload.project.deadline,
           progress: 0,
           stageIds: allStageIds
-        });
+        } as any);
         projectManagementEpicId = pmEpic.id;
         
         entityResults.push({
@@ -3051,7 +3077,7 @@ export async function registerRoutes(
           endDate: payload.project.deadline,
           progress: 0,
           stageIds: allStageIds
-        });
+        } as any);
         productManagementEpicId = prodEpic.id;
         
         entityResults.push({
@@ -3090,7 +3116,7 @@ export async function registerRoutes(
             startDate: payload.project.startDate,
             dueDate: payload.project.deadline,
             progress: 0
-          });
+          } as any);
           
           entityResults.push({
             entityType: 'deliverable',
@@ -3117,7 +3143,7 @@ export async function registerRoutes(
                   endDate: payload.project.deadline,
                   progress: 0,
                   stageIds: allStageIds
-                });
+                } as any);
                 
                 businessEpics.push({ id: newEpic.id, title: epic.title });
                 
@@ -3152,6 +3178,20 @@ export async function registerRoutes(
         }
       }
       
+      // Build epic ID mapping for imported tasks (wizard epic ID -> created epic ID)
+      const epicIdMap = new Map<string, string>();
+      for (const deliverable of deliverables) {
+        if (deliverable.epics?.length > 0) {
+          for (const epic of deliverable.epics) {
+            const createdEpic = businessEpics.find(be => be.title === epic.title);
+            if (createdEpic) {
+              epicIdMap.set(epic.id, createdEpic.id);
+            }
+          }
+        }
+      }
+      console.log('[FULL-CREATE] Epic ID mapping:', Object.fromEntries(epicIdMap));
+      
       // 5. Create tasks based on stage task templates
       for (const wizardStage of stages) {
         const createdStage = createdStages.find(cs => cs.templateId === wizardStage.id);
@@ -3159,6 +3199,49 @@ export async function registerRoutes(
         
         const tasks = wizardStage.tasks || [];
         for (const taskDraft of tasks) {
+          // Handle imported tasks with pre-assigned epic (from Task-Epic Alignment)
+          if (taskDraft.assignedEpicId && taskDraft.mappingStatus === 'mapped') {
+            const resolvedEpicId = epicIdMap.get(taskDraft.assignedEpicId);
+            if (resolvedEpicId) {
+              const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              try {
+                await storage.createTask({
+                  id: taskId,
+                  project: projectName,
+                  projectId: projectId!,
+                  title: taskDraft.title,
+                  description: taskDraft.description || "",
+                  status: "Todo",
+                  priority: taskDraft.priority || "Medium",
+                  stageId: createdStage.createdStageId,
+                  epicId: resolvedEpicId,
+                  effort: 1,
+                  deadline: payload.project.deadline,
+                  estimateHours: taskDraft.estimateHours || 0,
+                  tags: []
+                } as any);
+                
+                entityResults.push({
+                  entityType: 'task',
+                  id: taskId,
+                  name: taskDraft.title,
+                  success: true,
+                  parentId: createdStage.createdStageId
+                });
+              } catch (e: any) {
+                entityResults.push({
+                  entityType: 'task',
+                  id: taskId,
+                  name: taskDraft.title || 'Unknown Task',
+                  success: false,
+                  error: e.message,
+                  parentId: createdStage.createdStageId
+                });
+              }
+              continue;
+            }
+          }
+          
           if (taskDraft.scope === 'once') {
             if (productManagementEpicId) {
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -3177,7 +3260,7 @@ export async function registerRoutes(
                   deadline: payload.project.deadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   tags: []
-                });
+                } as any);
                 
                 entityResults.push({
                   entityType: 'task',
@@ -3215,7 +3298,7 @@ export async function registerRoutes(
                   deadline: payload.project.deadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   tags: []
-                });
+                } as any);
                 
                 entityResults.push({
                   entityType: 'task',
@@ -3265,7 +3348,7 @@ export async function registerRoutes(
             completionTargetPercent: rule.completionTargetPercent || 100,
             isBillingGate: milestone.isBillingGate || false,
             tags: []
-          });
+          } as any);
           
           entityResults.push({
             entityType: 'milestone',

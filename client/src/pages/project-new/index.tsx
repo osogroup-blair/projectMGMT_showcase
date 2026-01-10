@@ -636,7 +636,10 @@ export default function ProjectWizard() {
             priority: task.priority || 'Medium',
             estimateHours: task.estimateHours || 0,
             scope: task.scope || 'per_epic',
-            order: taskIndex
+            order: taskIndex,
+            assignedEpicId: task.assignedEpicId,
+            assignedEpicTitle: task.assignedEpicTitle,
+            mappingStatus: task.mappingStatus
           }))
         })),
         deliverables: deliverables.map(del => ({

@@ -585,6 +585,19 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).o
 export const insertWorkBlockSchema = createInsertSchema(workBlocks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDayPlanSchema = createInsertSchema(dayPlans).omit({ id: true, createdAt: true, updatedAt: true });
 
+// Bulk-create schemas (include optional id for import/full-create scenarios)
+export const bulkInsertDeliverableSchema = insertDeliverableSchema.extend({ id: z.string().optional() });
+export const bulkInsertEpicSchema = insertEpicSchema.extend({ id: z.string().optional() });
+export const bulkInsertTaskSchema = insertTaskSchema.extend({ id: z.string().optional() });
+export const bulkInsertMilestoneSchema = insertMilestoneSchema.extend({ id: z.string().optional() });
+export const bulkInsertProjectStageSchema = insertProjectStageSchema.extend({ id: z.string().optional() });
+
+export type BulkInsertDeliverable = z.infer<typeof bulkInsertDeliverableSchema>;
+export type BulkInsertEpic = z.infer<typeof bulkInsertEpicSchema>;
+export type BulkInsertTask = z.infer<typeof bulkInsertTaskSchema>;
+export type BulkInsertMilestone = z.infer<typeof bulkInsertMilestoneSchema>;
+export type BulkInsertProjectStage = z.infer<typeof bulkInsertProjectStageSchema>;
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
