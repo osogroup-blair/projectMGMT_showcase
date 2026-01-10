@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrentUserProvider } from "@/context/current-user-context";
 import { ImportProvider } from "@/context/import-context";
+import { CreationReportProvider } from "@/context/creation-report-context";
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
 
@@ -34,6 +35,7 @@ import DeliverableDetail from "@/pages/deliverable-detail";
 import EpicDetail from "@/pages/epic-detail";
 import ProjectExport from "@/pages/project-export";
 import ProjectWizard from "@/pages/project-new";
+import ProjectCreationSummary from "@/pages/project-new/summary";
 import ProjectManagement from "@/pages/project-management";
 import SprintList from "@/pages/sprint-list";
 import SprintDetail from "@/pages/sprint-detail";
@@ -48,6 +50,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/projects" component={ProjectsList} />
       <Route path="/projects/new" component={ProjectWizard} />
+      <Route path="/projects/new/summary" component={ProjectCreationSummary} />
       <Route path="/projects/import" component={ImportUpload} />
       <Route path="/projects/import/legacy" component={ImportWizard} />
       <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
@@ -86,10 +89,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <CurrentUserProvider>
         <ImportProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <CreationReportProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </CreationReportProvider>
         </ImportProvider>
       </CurrentUserProvider>
     </QueryClientProvider>
