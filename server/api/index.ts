@@ -2852,5 +2852,546 @@ export async function registerRoutes(
     }
   });
 
+  // Full project creation endpoint with detailed results tracking
+  app.post("/api/projects/full-create", async (req, res) => {
+    const startedAt = new Date().toISOString();
+    const entityResults: Array<{
+      entityType: string;
+      id: string;
+      name: string;
+      success: boolean;
+      error?: string;
+      parentId?: string;
+    }> = [];
+    
+    let projectId: string | null = null;
+    let projectName = '';
+    
+    try {
+      const payload = req.body;
+      projectName = payload.project?.name || 'Untitled Project';
+      
+      // Track stage ID mappings (wizard ID -> created ID)
+      const stageIdMap = new Map<string, string>();
+      const createdStages: Array<{ templateId: string; createdStageId: string }> = [];
+      
+      // 1. Create the project
+      const newProjectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      try {
+        const projectData = {
+          id: newProjectId,
+          name: payload.project.name,
+          description: payload.project.description || '',
+          status: payload.project.status || 'Upcoming',
+          startDate: payload.project.startDate,
+          deadline: payload.project.deadline,
+          frameworkId: payload.project.frameworkId || null,
+          sprintDurationWeeks: payload.project.sprintDurationWeeks || null,
+          ownerId: payload.project.ownerId || null,
+          client: payload.project.client || null,
+          riskLevel: payload.project.riskLevel || null
+        };
+        
+        const project = await storage.createProject(projectData);
+        projectId = project.id;
+        
+        entityResults.push({
+          entityType: 'project',
+          id: project.id,
+          name: project.name,
+          success: true
+        });
+        
+        // Auto-generate sprints if configured
+        if (project.sprintDurationWeeks && project.sprintDurationWeeks > 0 && project.startDate && project.deadline) {
+          const startDate = new Date(project.startDate);
+          const endDate = new Date(project.deadline);
+          const durationMs = project.sprintDurationWeeks * 7 * 24 * 60 * 60 * 1000;
+          const totalMs = endDate.getTime() - startDate.getTime();
+          const sprintCount = Math.max(1, Math.ceil(totalMs / durationMs));
+          
+          for (let i = 0; i < sprintCount; i++) {
+            const sprintStart = new Date(startDate.getTime() + (i * durationMs));
+            let sprintEnd = new Date(sprintStart.getTime() + durationMs - (24 * 60 * 60 * 1000));
+            if (sprintEnd > endDate || i === sprintCount - 1) {
+              sprintEnd = endDate;
+            }
+            
+            try {
+              await storage.createSprint({
+                projectId: project.id,
+                name: `Sprint ${i + 1}`,
+                goal: null,
+                startDate: sprintStart.toISOString().split('T')[0],
+                endDate: sprintEnd.toISOString().split('T')[0],
+                status: 'Planned',
+                capacityHours: null
+              });
+            } catch (e: any) {
+              // Sprint creation is non-critical, log but continue
+              console.log(`Sprint ${i + 1} creation failed: ${e.message}`);
+            }
+          }
+        }
+      } catch (e: any) {
+        entityResults.push({
+          entityType: 'project',
+          id: newProjectId,
+          name: projectName,
+          success: false,
+          error: e.message
+        });
+        // Project creation is critical - can't continue without it
+        throw new Error(`Failed to create project: ${e.message}`);
+      }
+      
+      // 2. Create stages
+      const stages = payload.stages || [];
+      for (let i = 0; i < stages.length; i++) {
+        const stage = stages[i];
+        const newStageId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        try {
+          const stageData = {
+            id: newStageId,
+            projectId: projectId!,
+            name: stage.name,
+            description: stage.description || '',
+            order: i,
+            type: stage.type || 'standard',
+            status: 'pending'
+          };
+          
+          await storage.createProjectStage(stageData);
+          stageIdMap.set(stage.id, newStageId);
+          createdStages.push({ templateId: stage.id, createdStageId: newStageId });
+          
+          entityResults.push({
+            entityType: 'stage',
+            id: newStageId,
+            name: stage.name,
+            success: true,
+            parentId: projectId!
+          });
+        } catch (e: any) {
+          entityResults.push({
+            entityType: 'stage',
+            id: newStageId,
+            name: stage.name || 'Unknown Stage',
+            success: false,
+            error: e.message,
+            parentId: projectId!
+          });
+        }
+      }
+      
+      // Get all created stage IDs for epics
+      const allStageIds = Array.from(stageIdMap.values());
+      
+      // 3. Create management deliverable and epics
+      let projectManagementEpicId: string | null = null;
+      let productManagementEpicId: string | null = null;
+      
+      try {
+        const mgmtDeliverableId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        await storage.createDeliverable({
+          id: mgmtDeliverableId,
+          projectId: projectId!,
+          title: "Management Activities",
+          description: "Project and product management activities",
+          status: "Active",
+          ownerId: payload.project.ownerId || "1",
+          startDate: payload.project.startDate,
+          dueDate: payload.project.deadline,
+          progress: 0
+        });
+        
+        entityResults.push({
+          entityType: 'deliverable',
+          id: mgmtDeliverableId,
+          name: 'Management Activities',
+          success: true,
+          parentId: projectId!
+        });
+        
+        // Create PM epic
+        const pmEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const pmEpic = await storage.createEpic({
+          id: pmEpicId,
+          deliverableId: mgmtDeliverableId,
+          title: "Project Management",
+          description: "Project coordination, reporting, and governance activities",
+          status: "Active",
+          ownerId: payload.project.ownerId || "1",
+          startDate: payload.project.startDate,
+          endDate: payload.project.deadline,
+          progress: 0,
+          stageIds: allStageIds
+        });
+        projectManagementEpicId = pmEpic.id;
+        
+        entityResults.push({
+          entityType: 'epic',
+          id: pmEpicId,
+          name: 'Project Management',
+          success: true,
+          parentId: mgmtDeliverableId
+        });
+        
+        // Create Product Management epic
+        const prodEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const prodEpic = await storage.createEpic({
+          id: prodEpicId,
+          deliverableId: mgmtDeliverableId,
+          title: "Product Management",
+          description: "Product requirements, acceptance, and delivery activities",
+          status: "Active",
+          ownerId: payload.project.ownerId || "1",
+          startDate: payload.project.startDate,
+          endDate: payload.project.deadline,
+          progress: 0,
+          stageIds: allStageIds
+        });
+        productManagementEpicId = prodEpic.id;
+        
+        entityResults.push({
+          entityType: 'epic',
+          id: prodEpicId,
+          name: 'Product Management',
+          success: true,
+          parentId: mgmtDeliverableId
+        });
+      } catch (e: any) {
+        entityResults.push({
+          entityType: 'deliverable',
+          id: 'mgmt-deliverable',
+          name: 'Management Activities',
+          success: false,
+          error: e.message,
+          parentId: projectId!
+        });
+      }
+      
+      // 4. Create business deliverables and epics
+      const businessEpics: { id: string; title: string }[] = [];
+      const deliverables = payload.deliverables || [];
+      
+      for (const deliverable of deliverables) {
+        const deliverableId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        try {
+          const newDeliverable = await storage.createDeliverable({
+            id: deliverableId,
+            projectId: projectId!,
+            title: deliverable.title,
+            description: deliverable.description || "",
+            status: "Active",
+            ownerId: payload.project.ownerId || "1",
+            startDate: payload.project.startDate,
+            dueDate: payload.project.deadline,
+            progress: 0
+          });
+          
+          entityResults.push({
+            entityType: 'deliverable',
+            id: deliverableId,
+            name: deliverable.title,
+            success: true,
+            parentId: projectId!
+          });
+          
+          // Create epics for this deliverable
+          if (deliverable.epics?.length > 0) {
+            for (const epic of deliverable.epics) {
+              const epicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              
+              try {
+                const newEpic = await storage.createEpic({
+                  id: epicId,
+                  deliverableId: newDeliverable.id,
+                  title: epic.title,
+                  description: epic.description || "",
+                  status: "Active",
+                  ownerId: payload.project.ownerId || "1",
+                  startDate: payload.project.startDate,
+                  endDate: payload.project.deadline,
+                  progress: 0,
+                  stageIds: allStageIds
+                });
+                
+                businessEpics.push({ id: newEpic.id, title: epic.title });
+                
+                entityResults.push({
+                  entityType: 'epic',
+                  id: epicId,
+                  name: epic.title,
+                  success: true,
+                  parentId: deliverableId
+                });
+              } catch (e: any) {
+                entityResults.push({
+                  entityType: 'epic',
+                  id: epicId,
+                  name: epic.title || 'Unknown Epic',
+                  success: false,
+                  error: e.message,
+                  parentId: deliverableId
+                });
+              }
+            }
+          }
+        } catch (e: any) {
+          entityResults.push({
+            entityType: 'deliverable',
+            id: deliverableId,
+            name: deliverable.title || 'Unknown Deliverable',
+            success: false,
+            error: e.message,
+            parentId: projectId!
+          });
+        }
+      }
+      
+      // 5. Create tasks based on stage task templates
+      for (const wizardStage of stages) {
+        const createdStage = createdStages.find(cs => cs.templateId === wizardStage.id);
+        if (!createdStage) continue;
+        
+        const tasks = wizardStage.tasks || [];
+        for (const taskDraft of tasks) {
+          if (taskDraft.scope === 'once') {
+            if (productManagementEpicId) {
+              const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              try {
+                await storage.createTask({
+                  id: taskId,
+                  project: projectName,
+                  projectId: projectId!,
+                  title: taskDraft.title,
+                  description: taskDraft.description || "",
+                  status: "Todo",
+                  priority: taskDraft.priority || "Medium",
+                  stageId: createdStage.createdStageId,
+                  epicId: productManagementEpicId,
+                  effort: 1,
+                  deadline: payload.project.deadline,
+                  estimateHours: taskDraft.estimateHours || 0,
+                  tags: []
+                });
+                
+                entityResults.push({
+                  entityType: 'task',
+                  id: taskId,
+                  name: taskDraft.title,
+                  success: true,
+                  parentId: createdStage.createdStageId
+                });
+              } catch (e: any) {
+                entityResults.push({
+                  entityType: 'task',
+                  id: taskId,
+                  name: taskDraft.title || 'Unknown Task',
+                  success: false,
+                  error: e.message,
+                  parentId: createdStage.createdStageId
+                });
+              }
+            }
+          } else if (taskDraft.scope === 'per_epic') {
+            for (const businessEpic of businessEpics) {
+              const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              try {
+                await storage.createTask({
+                  id: taskId,
+                  project: projectName,
+                  projectId: projectId!,
+                  title: taskDraft.title,
+                  description: taskDraft.description || "",
+                  status: "Todo",
+                  priority: taskDraft.priority || "Medium",
+                  stageId: createdStage.createdStageId,
+                  epicId: businessEpic.id,
+                  effort: 1,
+                  deadline: payload.project.deadline,
+                  estimateHours: taskDraft.estimateHours || 0,
+                  tags: []
+                });
+                
+                entityResults.push({
+                  entityType: 'task',
+                  id: taskId,
+                  name: `${taskDraft.title} (${businessEpic.title})`,
+                  success: true,
+                  parentId: createdStage.createdStageId
+                });
+              } catch (e: any) {
+                entityResults.push({
+                  entityType: 'task',
+                  id: taskId,
+                  name: `${taskDraft.title} (${businessEpic.title})`,
+                  success: false,
+                  error: e.message,
+                  parentId: createdStage.createdStageId
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // 6. Create milestones
+      const milestones = payload.milestones || [];
+      for (const milestone of milestones) {
+        const milestoneId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        try {
+          const rule = milestone.rule || { scopeType: 'all', completionMode: 'all_tasks', completionTargetPercent: 100 };
+          const resolvedStageId = rule.scopeType === 'stage' && rule.scopeEntityId 
+            ? stageIdMap.get(rule.scopeEntityId) || null 
+            : null;
+          
+          await storage.createMilestone({
+            id: milestoneId,
+            projectId: projectId!,
+            name: milestone.name,
+            description: milestone.description || "",
+            phase: milestone.phase || "plan_strategy",
+            stageId: resolvedStageId,
+            targetDate: milestone.targetDate,
+            status: "planned",
+            ownerId: milestone.ownerId || payload.project.ownerId || "1",
+            scopeType: rule.scopeType,
+            completionMode: rule.completionMode,
+            completionTargetPercent: rule.completionTargetPercent || 100,
+            isBillingGate: milestone.isBillingGate || false,
+            tags: []
+          });
+          
+          entityResults.push({
+            entityType: 'milestone',
+            id: milestoneId,
+            name: milestone.name,
+            success: true,
+            parentId: projectId!
+          });
+        } catch (e: any) {
+          entityResults.push({
+            entityType: 'milestone',
+            id: milestoneId,
+            name: milestone.name || 'Unknown Milestone',
+            success: false,
+            error: e.message,
+            parentId: projectId!
+          });
+        }
+      }
+      
+      // 7. Create role assignments
+      const roles = payload.roles || [];
+      for (const role of roles) {
+        const roleId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        try {
+          await storage.createProjectRole({
+            id: roleId,
+            projectId: projectId!,
+            roleTypeId: role.roleTypeId,
+            userId: role.userId || null,
+            rate: role.rate || 0,
+            allocation: role.allocation || 100
+          });
+          
+          entityResults.push({
+            entityType: 'role',
+            id: roleId,
+            name: `Role: ${role.roleTypeId}`,
+            success: true,
+            parentId: projectId!
+          });
+        } catch (e: any) {
+          entityResults.push({
+            entityType: 'role',
+            id: roleId,
+            name: `Role: ${role.roleTypeId}`,
+            success: false,
+            error: e.message,
+            parentId: projectId!
+          });
+        }
+      }
+      
+      // Build summary
+      const completedAt = new Date().toISOString();
+      const succeeded = entityResults.filter(r => r.success).length;
+      const failed = entityResults.filter(r => !r.success).length;
+      
+      const breakdownByType: Record<string, { total: number; succeeded: number; failed: number }> = {};
+      for (const result of entityResults) {
+        if (!breakdownByType[result.entityType]) {
+          breakdownByType[result.entityType] = { total: 0, succeeded: 0, failed: 0 };
+        }
+        breakdownByType[result.entityType].total++;
+        if (result.success) {
+          breakdownByType[result.entityType].succeeded++;
+        } else {
+          breakdownByType[result.entityType].failed++;
+        }
+      }
+      
+      const report = {
+        projectId,
+        projectName,
+        overallSuccess: failed === 0,
+        startedAt,
+        completedAt,
+        summary: {
+          total: entityResults.length,
+          succeeded,
+          failed
+        },
+        entityResults,
+        breakdownByType
+      };
+      
+      res.status(201).json(report);
+    } catch (error: any) {
+      console.error("Full project creation error:", error);
+      
+      // Return partial results even on failure
+      const completedAt = new Date().toISOString();
+      const succeeded = entityResults.filter(r => r.success).length;
+      const failed = entityResults.filter(r => !r.success).length;
+      
+      const breakdownByType: Record<string, { total: number; succeeded: number; failed: number }> = {};
+      for (const result of entityResults) {
+        if (!breakdownByType[result.entityType]) {
+          breakdownByType[result.entityType] = { total: 0, succeeded: 0, failed: 0 };
+        }
+        breakdownByType[result.entityType].total++;
+        if (result.success) {
+          breakdownByType[result.entityType].succeeded++;
+        } else {
+          breakdownByType[result.entityType].failed++;
+        }
+      }
+      
+      res.status(500).json({
+        projectId,
+        projectName,
+        overallSuccess: false,
+        startedAt,
+        completedAt,
+        summary: {
+          total: entityResults.length,
+          succeeded,
+          failed
+        },
+        entityResults,
+        breakdownByType,
+        fatalError: error.message
+      });
+    }
+  });
+
   return httpServer;
 }
