@@ -68,6 +68,8 @@ import { StagesContent } from "@/features/project/stages/stages-content";
 import { SprintsContent } from "@/features/project/sprints/sprints-content";
 import { FlowBoard } from "@/features/project/sprints/flow-board";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
+import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
+import { NextSprintBacklog } from "@/features/project/sprints/next-sprint-backlog";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -354,6 +356,31 @@ export default function ProjectOverview() {
     if (!activeSprint || !allTasks) return [];
     return allTasks.filter((t: any) => t.sprintId === activeSprint.id);
   }, [activeSprint, allTasks]);
+
+  // Find the next sprint (first planned/upcoming sprint after active)
+  const nextSprint = useMemo(() => {
+    if (!projectSprints || projectSprints.length === 0) return null;
+    const plannedSprints = projectSprints.filter((s: any) => 
+      s.status === "planned" || s.status === "upcoming"
+    );
+    if (plannedSprints.length === 0) return null;
+    return plannedSprints.sort((a: any, b: any) => {
+      if (!a.startDate || !b.startDate) return 0;
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    })[0];
+  }, [projectSprints]);
+
+  // Get tasks for the next sprint
+  const nextSprintTasks = useMemo(() => {
+    if (!nextSprint || !allTasks) return [];
+    return allTasks.filter((t: any) => t.sprintId === nextSprint.id);
+  }, [nextSprint, allTasks]);
+
+  // Get project tasks (for backlog display when no next sprint)
+  const projectTasks = useMemo(() => {
+    if (!allTasks) return [];
+    return allTasks.filter((t: any) => t.projectId === projectId);
+  }, [allTasks, projectId]);
 
   const { update: updateTask } = useTasks();
 
@@ -747,7 +774,7 @@ export default function ProjectOverview() {
                 
                 <TabsContent value="current-sprint" className="mt-0">
                   {activeSprint ? (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <h2 className="text-lg font-semibold">{activeSprint.name}</h2>
@@ -767,6 +794,13 @@ export default function ProjectOverview() {
                           </Button>
                         </Link>
                       </div>
+
+                      <LivePulseCheck
+                        sprint={activeSprint}
+                        tasks={sprintTasks}
+                        users={users || []}
+                      />
+
                       <FlowBoard
                         tasks={sprintTasks}
                         users={users || []}
@@ -775,6 +809,16 @@ export default function ProjectOverview() {
                         onTaskMove={handleTaskMove}
                         onBlockerRequested={handleBlockerRequested}
                       />
+
+                      <NextSprintBacklog
+                        projectId={projectId}
+                        nextSprint={nextSprint}
+                        tasks={nextSprintTasks}
+                        users={users || []}
+                        epics={projectEpics || []}
+                        allTasks={projectTasks}
+                      />
+
                       <BlockerReasonDialog
                         open={!!blockerTaskId}
                         onOpenChange={(open) => !open && setBlockerTaskId(null)}
