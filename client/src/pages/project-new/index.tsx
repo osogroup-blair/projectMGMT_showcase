@@ -155,6 +155,32 @@ export default function ProjectWizard() {
     if (isImportMode && !importInitialized && importContext?.state?.adapterResult) {
       const adapter = importContext.state.adapterResult;
       
+      // Debug logging for import flow
+      console.log('[WIZARD-IMPORT] Adapter result received:', {
+        projectName: adapter.projectData?.name?.value,
+        deliverablesCount: adapter.deliverables?.length || 0,
+        stagesCount: adapter.stages?.length || 0,
+        milestonesCount: adapter.milestones?.length || 0,
+        rolesCount: adapter.roles?.length || 0,
+        warnings: adapter.warnings
+      });
+      
+      if (adapter.deliverables?.length > 0) {
+        console.log('[WIZARD-IMPORT] Deliverables:', adapter.deliverables.map((d: any) => ({
+          id: d.id,
+          title: d.title,
+          epicsCount: d.epics?.length || 0
+        })));
+      }
+      
+      if (adapter.stages?.length > 0) {
+        console.log('[WIZARD-IMPORT] Stages:', adapter.stages.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          tasksCount: s.tasks?.length || 0
+        })));
+      }
+      
       const importedProject = toWizardProjectData(adapter.projectData);
       if (importedProject.name || importedProject.description) {
         setProjectData(prev => ({
