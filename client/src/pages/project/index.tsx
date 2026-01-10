@@ -159,7 +159,6 @@ export default function ProjectOverview() {
 
   // Add Task to Sprint Dialog state
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
-  const [addTaskTargetSprintId, setAddTaskTargetSprintId] = useState<string | null>(null);
   const [addTaskMode, setAddTaskMode] = useState<"link" | "create">("link");
   const [selectedExistingTaskId, setSelectedExistingTaskId] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -441,26 +440,17 @@ export default function ProjectOverview() {
     return allTasks.filter((t: any) => t.projectId === projectId);
   }, [allTasks, projectId]);
 
-  // Get available tasks (any project task not already in the target sprint)
+  // Get available tasks (any project task not already in the selected sprint)
   const availableTasks = useMemo(() => {
-    if (!allTasks || !addTaskTargetSprintId) return [];
+    if (!allTasks || !selectedSprint) return [];
     return allTasks.filter((t: any) => 
       t.projectId === projectId && 
-      t.sprintId !== addTaskTargetSprintId
+      t.sprintId !== selectedSprint.id
     );
-  }, [allTasks, addTaskTargetSprintId, projectId]);
-
-  // Get the target sprint object for display
-  const addTaskTargetSprint = useMemo(() => {
-    if (!projectSprints || !addTaskTargetSprintId) return null;
-    return projectSprints.find((s: any) => s.id === addTaskTargetSprintId) || null;
-  }, [projectSprints, addTaskTargetSprintId]);
+  }, [allTasks, selectedSprint, projectId]);
 
   // Add Task dialog handlers
-  const openAddTaskDialog = (sprintId?: string) => {
-    const targetSprintId = sprintId || selectedSprintId;
-    if (!targetSprintId) return;
-    setAddTaskTargetSprintId(targetSprintId);
+  const openAddTaskDialog = () => {
     setAddTaskMode("link");
     setSelectedExistingTaskId("");
     setNewTaskTitle("");
@@ -475,7 +465,7 @@ export default function ProjectOverview() {
   };
 
   const handleAddTaskToSprint = async () => {
-    if (!addTaskTargetSprintId) return;
+    if (!selectedSprint) return;
     setIsAddingTask(true);
     
     try {
@@ -485,7 +475,7 @@ export default function ProjectOverview() {
           setIsAddingTask(false);
           return;
         }
-        await updateTask({ id: selectedExistingTaskId, updates: { sprintId: addTaskTargetSprintId } });
+        await updateTask({ id: selectedExistingTaskId, updates: { sprintId: selectedSprint.id } });
         toast({ title: "Task Added", description: "Task has been added to the sprint." });
       } else {
         if (!newTaskTitle.trim()) {
@@ -505,7 +495,7 @@ export default function ProjectOverview() {
           projectId: project?.id,
           epicId: newTaskEpicId,
           stageId: newTaskStageId,
-          sprintId: addTaskTargetSprintId,
+          sprintId: selectedSprint.id,
           status: "Todo",
           priority: newTaskPriority,
           effort: newTaskEffort,
@@ -1143,8 +1133,6 @@ export default function ProjectOverview() {
                       allTasks={projectTasks}
                       users={users || []}
                       epics={projectEpics || []}
-                      onTaskMove={handleTaskMove}
-                      onAddTask={openAddTaskDialog}
                     />
                   )}
 
@@ -1273,7 +1261,7 @@ export default function ProjectOverview() {
           <DialogHeader>
             <DialogTitle>Add Task to Sprint</DialogTitle>
             <DialogDescription>
-              Add an existing task or create a new one for {addTaskTargetSprint?.name}
+              Add an existing task or create a new one for {selectedSprint?.name}
             </DialogDescription>
           </DialogHeader>
           
