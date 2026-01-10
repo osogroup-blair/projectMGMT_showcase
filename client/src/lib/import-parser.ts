@@ -111,6 +111,75 @@ function extractColumns(rows: Record<string, any>[]): ParsedColumn[] {
   });
 }
 
+interface FlattenedNexusData {
+  projects: Record<string, any>[];
+  deliverables: Record<string, any>[];
+  epics: Record<string, any>[];
+  tasks: Record<string, any>[];
+  stages: Record<string, any>[];
+  milestones: Record<string, any>[];
+}
+
+function isNestedNexusFormat(data: any): boolean {
+  if (!data || typeof data !== 'object') return false;
+  if (!Array.isArray(data.projects) || data.projects.length === 0) return false;
+  
+  const firstProject = data.projects[0];
+  return (
+    Array.isArray(firstProject.deliverables) &&
+    firstProject.deliverables.length > 0 &&
+    Array.isArray(firstProject.deliverables[0]?.epics)
+  );
+}
+
+function flattenNexusExport(data: any): FlattenedNexusData {
+  const result: FlattenedNexusData = {
+    projects: [],
+    deliverables: [],
+    epics: [],
+    tasks: [],
+    stages: [],
+    milestones: []
+  };
+  
+  if (!data.projects || !Array.isArray(data.projects)) {
+    return result;
+  }
+  
+  for (const project of data.projects) {
+    const { deliverables, stages, milestones, ...projectData } = project;
+    result.projects.push(projectData);
+    
+    if (Array.isArray(stages)) {
+      result.stages.push(...stages);
+    }
+    
+    if (Array.isArray(milestones)) {
+      result.milestones.push(...milestones);
+    }
+    
+    if (Array.isArray(deliverables)) {
+      for (const deliverable of deliverables) {
+        const { epics, ...deliverableData } = deliverable;
+        result.deliverables.push(deliverableData);
+        
+        if (Array.isArray(epics)) {
+          for (const epic of epics) {
+            const { tasks, ...epicData } = epic;
+            result.epics.push(epicData);
+            
+            if (Array.isArray(tasks)) {
+              result.tasks.push(...tasks);
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return result;
+}
+
 async function parseJSON(content: string): Promise<ParseResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -118,6 +187,34 @@ async function parseJSON(content: string): Promise<ParseResult> {
   
   try {
     const data = JSON.parse(content);
+    
+    if (isNestedNexusFormat(data)) {
+      warnings.push('Detected nested Nexus export format - flattening hierarchical structure');
+      const flattened = flattenNexusExport(data);
+      
+      const entityTypes: Array<{ key: keyof FlattenedNexusData; type: string }> = [
+        { key: 'projects', type: 'Projects' },
+        { key: 'deliverables', type: 'Deliverables' },
+        { key: 'epics', type: 'Epics' },
+        { key: 'tasks', type: 'Tasks' },
+        { key: 'stages', type: 'ProjectStages' },
+        { key: 'milestones', type: 'Milestones' }
+      ];
+      
+      for (const { key, type } of entityTypes) {
+        const rows = flattened[key];
+        if (rows.length > 0) {
+          entities.push({
+            entityType: type,
+            columns: extractColumns(rows),
+            rows,
+            rowCount: rows.length
+          });
+        }
+      }
+      
+      return { format: 'json', fileName: '', entities, rawData: data, errors, warnings };
+    }
     
     if (Array.isArray(data)) {
       entities.push({
