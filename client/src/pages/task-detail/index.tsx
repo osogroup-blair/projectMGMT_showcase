@@ -48,7 +48,7 @@ import { TaskSubtasksTab } from "./task-subtasks-tab";
 import { TaskAttachmentsTab } from "./task-attachments-tab";
 import { TaskDependenciesTab } from "./task-dependencies-tab";
 import { TaskHistoryTab } from "./task-history-tab";
-import { TaskCommentsPanel } from "./task-comments-panel";
+import { TaskSidebarTabs } from "./task-sidebar-tabs";
 
 const PRIORITY_CONFIG = {
   "High": { color: "text-red-600 bg-red-100", label: "High" },
@@ -130,6 +130,10 @@ export default function TaskDetail() {
   const getMilestone = (id?: string | null) => milestones.find((m: any) => m.id === id);
   const getStage = (id?: string | null) => stages.find((s: any) => s.id === id);
   const getEpic = (id?: string | null) => allEpics?.find((e: any) => e.id === id);
+  const getDeliverable = (id?: string | null) => allDeliverables?.find((d: any) => d.id === id);
+  
+  const epic = getEpic(task?.epicId);
+  const deliverable = epic ? getDeliverable(epic.deliverableId) : null;
 
   if (isLoading) {
     return (
@@ -162,7 +166,7 @@ export default function TaskDetail() {
             <div className="space-y-4">
               <div className="flex justify-between items-start gap-4">
                 <Input 
-                  className="text-2xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
+                  className="text-3xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
                   value={task.title}
                   onChange={(e) => handleUpdateTask("title", e.target.value)}
                   data-testid="input-task-title"
@@ -172,31 +176,98 @@ export default function TaskDetail() {
                 </Button>
               </div>
               
-              <div className="flex flex-wrap gap-3">
-                {getStage(task.stageId) && (
-                  <Badge variant="outline" className="font-medium" data-testid="badge-stage">
-                    <Layers className="h-3 w-3 mr-1" />
-                    {getStage(task.stageId)?.name}
-                  </Badge>
-                )}
-                <Badge 
-                  variant="outline" 
-                  className={cn("font-medium border-0", PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG]?.color)}
-                  data-testid="badge-priority"
-                >
-                  {task.priority} Priority
-                </Badge>
-                {task.effort && (
-                  <Badge variant="secondary" className="font-normal" data-testid="badge-effort">
-                    <Target className="h-3 w-3 mr-1" />
-                    Effort: {task.effort}
-                  </Badge>
-                )}
-                {task.tags?.map((tag: string) => (
-                  <Badge key={tag} variant="secondary" className="font-normal text-muted-foreground">
-                    {tag}
-                  </Badge>
-                ))}
+              {(deliverable || epic) && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {deliverable && (
+                    <>
+                      <Link 
+                        href={`/projects/${projectId}/deliverables/${deliverable.id}`}
+                        className="hover:text-foreground hover:underline transition-colors"
+                        data-testid="link-deliverable"
+                      >
+                        {deliverable.title}
+                      </Link>
+                      <span>/</span>
+                    </>
+                  )}
+                  {epic && (
+                    <Link 
+                      href={`/projects/${projectId}/epics/${epic.id}`}
+                      className="hover:text-foreground hover:underline transition-colors"
+                      data-testid="link-epic"
+                    >
+                      {epic.title}
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <SearchableSelect
+                    value={task.assigneeId || "unassigned"}
+                    onValueChange={(v) => handleUpdateTask("assigneeId", v === "unassigned" ? null : v)}
+                    placeholder="Assignee"
+                    options={[
+                      { value: "unassigned", label: "Unassigned" },
+                      ...(users || []).map((member: any) => ({ value: member.id, label: member.name }))
+                    ]}
+                    className="w-[140px] h-8"
+                    data-testid="inline-select-assignee"
+                  />
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    type="date" 
+                    value={task.deadline || ""}
+                    onChange={(e) => handleUpdateTask("deadline", e.target.value)}
+                    className="w-[140px] h-8"
+                    data-testid="inline-input-deadline"
+                  />
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    type="number" 
+                    value={task.estimateHours || ""}
+                    onChange={(e) => handleUpdateTask("estimateHours", parseInt(e.target.value) || 0)}
+                    placeholder="Est. hrs"
+                    className="w-[80px] h-8"
+                    data-testid="inline-input-estimate"
+                  />
+                  <span className="text-sm text-muted-foreground">hrs</span>
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <Flag className="h-4 w-4 text-muted-foreground" />
+                  <SearchableSelect
+                    value={task.milestoneId || "none"}
+                    onValueChange={(v) => handleUpdateTask("milestoneId", v === "none" ? null : v)}
+                    placeholder="Milestone"
+                    options={[
+                      { value: "none", label: "No Milestone" },
+                      ...milestones.map((m: any) => ({ value: m.id, label: m.name }))
+                    ]}
+                    className="w-[140px] h-8"
+                    data-testid="inline-select-milestone"
+                  />
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  <SearchableSelect
+                    value={task.taskTypeId || ""}
+                    onValueChange={(v) => handleUpdateTask("taskTypeId", v || null)}
+                    placeholder="Type"
+                    options={(taskTypes || []).map((tt: any) => ({ value: tt.id, label: tt.name }))}
+                    className="w-[120px] h-8"
+                    data-testid="inline-select-task-type"
+                  />
+                </div>
               </div>
             </div>
 
@@ -213,18 +284,7 @@ export default function TaskDetail() {
               <CollapsibleContent className="pt-4">
                 <Card>
                   <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Task Type</Label>
-                        <SearchableSelect
-                          value={task.taskTypeId || ""}
-                          onValueChange={(v) => handleUpdateTask("taskTypeId", v || null)}
-                          placeholder="Select type"
-                          options={(taskTypes || []).map((tt: any) => ({ value: tt.id, label: tt.name }))}
-                          data-testid="select-task-type"
-                        />
-                      </div>
-
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Status</Label>
                         <SearchableSelect
@@ -233,42 +293,6 @@ export default function TaskDetail() {
                           placeholder="Select status"
                           options={STATUS_OPTIONS.map(status => ({ value: status, label: status }))}
                           data-testid="select-status"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Stage</Label>
-                        <SearchableSelect
-                          value={task.stageId || ""}
-                          onValueChange={(v) => handleUpdateTask("stageId", v)}
-                          placeholder="Select stage"
-                          options={stages.map((s: any) => ({ value: s.id, label: s.name }))}
-                          data-testid="select-stage"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Epic</Label>
-                        <SearchableSelect
-                          value={task.epicId || ""}
-                          onValueChange={(v) => handleUpdateTask("epicId", v)}
-                          placeholder="Select epic"
-                          options={(allEpics || []).map((e: any) => ({ value: e.id, label: e.title }))}
-                          data-testid="select-epic"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Assignee</Label>
-                        <SearchableSelect
-                          value={task.assigneeId || "unassigned"}
-                          onValueChange={(v) => handleUpdateTask("assigneeId", v === "unassigned" ? null : v)}
-                          placeholder="Select assignee"
-                          options={[
-                            { value: "unassigned", label: "Unassigned" },
-                            ...(users || []).map((member: any) => ({ value: member.id, label: member.name }))
-                          ]}
-                          data-testid="select-assignee"
                         />
                       </div>
 
@@ -288,6 +312,17 @@ export default function TaskDetail() {
                       </div>
 
                       <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Stage</Label>
+                        <SearchableSelect
+                          value={task.stageId || ""}
+                          onValueChange={(v) => handleUpdateTask("stageId", v)}
+                          placeholder="Select stage"
+                          options={stages.map((s: any) => ({ value: s.id, label: s.name }))}
+                          data-testid="select-stage"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Effort (Fibonacci)</Label>
                         <SearchableSelect
                           value={String(task.effort || "")}
@@ -299,40 +334,29 @@ export default function TaskDetail() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Due Date</Label>
-                        <Input 
-                          type="date" 
-                          value={task.deadline || ""}
-                          onChange={(e) => handleUpdateTask("deadline", e.target.value)}
-                          data-testid="input-deadline"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Milestone</Label>
+                        <Label className="text-xs text-muted-foreground">Epic</Label>
                         <SearchableSelect
-                          value={task.milestoneId || "none"}
-                          onValueChange={(v) => handleUpdateTask("milestoneId", v === "none" ? null : v)}
-                          placeholder="Select milestone"
-                          options={[
-                            { value: "none", label: "None" },
-                            ...milestones.map((m: any) => ({ value: m.id, label: m.name }))
-                          ]}
-                          data-testid="select-milestone"
+                          value={task.epicId || ""}
+                          onValueChange={(v) => handleUpdateTask("epicId", v)}
+                          placeholder="Select epic"
+                          options={(allEpics || []).map((e: any) => ({ value: e.id, label: e.title }))}
+                          data-testid="select-epic"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Estimate (Hours)</Label>
-                        <div className="relative">
-                          <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input 
-                            type="number" 
-                            className="pl-9"
-                            value={task.estimateHours || 0}
-                            onChange={(e) => handleUpdateTask("estimateHours", parseInt(e.target.value) || 0)}
-                            data-testid="input-estimate-hours"
-                          />
+                      <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                        <Label className="text-xs text-muted-foreground">Tags</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {task.tags?.length > 0 ? (
+                            task.tags.map((tag: string) => (
+                              <Badge key={tag} variant="secondary" className="font-normal">
+                                <Tag className="h-3 w-3 mr-1" />
+                                {tag}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No tags</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -430,7 +454,12 @@ export default function TaskDetail() {
           </div>
 
           <div className="space-y-6">
-            <TaskCommentsPanel task={task} projectId={projectId} />
+            <TaskSidebarTabs 
+              task={task} 
+              projectId={projectId} 
+              subtasks={subtasks || []}
+              isLoadingSubtasks={isSubtasksLoading}
+            />
 
             <Card className="bg-muted/10 border-dashed">
               <CardContent className="p-4">

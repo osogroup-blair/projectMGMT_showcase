@@ -334,6 +334,62 @@ export function useResolvedTaskTypes(projectId: string) {
   });
 }
 
+// Task Comments Hook
+export function useTaskComments(taskId: string) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const query = useQuery({
+    queryKey: ["comments", taskId],
+    queryFn: async () => {
+      if (!taskId) return [];
+      const response = await fetch(`/api/tasks/${taskId}/comments`);
+      if (!response.ok) throw new Error("Failed to fetch comments");
+      return response.json();
+    },
+    enabled: !!taskId,
+  });
+
+  const create = useMutation({
+    mutationFn: async (comment: { authorId: string; authorName: string; body: string }) => {
+      const response = await fetch(`/api/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...comment, taskId }),
+      });
+      if (!response.ok) throw new Error("Failed to create comment");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
+      toast({ title: "Comment added" });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: async (commentId: string) => {
+      const response = await fetch(`/api/comments/${commentId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete comment");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
+      toast({ title: "Comment deleted" });
+    },
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    create: create.mutate,
+    createAsync: create.mutateAsync,
+    remove: remove.mutate,
+    removeAsync: remove.mutateAsync,
+    refetch: query.refetch,
+  };
+}
+
 // Helper to get nested data (e.g. project with deliverables)
 export function useProjectDetails(projectId: string) {
   const project = useProject(projectId);

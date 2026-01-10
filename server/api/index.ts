@@ -566,6 +566,12 @@ export async function registerRoutes(
     res.json(comments);
   });
 
+  // Task-specific comments
+  app.get("/api/tasks/:taskId/comments", async (req, res) => {
+    const taskComments = await storage.getCommentsByTaskId(req.params.taskId);
+    res.json(taskComments);
+  });
+
   app.get("/api/comments/:id", async (req, res) => {
     const comment = await storage.getCommentById(req.params.id);
     if (!comment) return res.status(404).json({ error: "Comment not found" });
