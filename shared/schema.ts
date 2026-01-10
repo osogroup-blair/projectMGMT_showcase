@@ -75,6 +75,10 @@ export const epics = pgTable("epics", {
   progress: integer("progress").notNull().default(0),
   stageIds: text("stage_ids").array().notNull().default([]),
   externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
+  scheduleOverride: boolean("schedule_override").default(false),
+  overrideReason: text("override_reason"),
+  overrideAt: timestamp("override_at"),
+  overrideBy: varchar("override_by").references(() => users.id),
 });
 
 // Project Stages
@@ -178,6 +182,28 @@ export const sprintPulseUpdates = pgTable("sprint_pulse_updates", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Schedule Sync Audit (tracks all hierarchy date sync decisions)
+export const scheduleSyncAudit = pgTable("schedule_sync_audit", {
+  id: varchar("id").primaryKey(),
+  entityType: text("entity_type").notNull(), // 'task' | 'epic' | 'deliverable'
+  entityId: varchar("entity_id").notNull(),
+  action: text("action").notNull(), // 'sync_applied' | 'override_saved' | 'cancelled'
+  changePlan: jsonb("change_plan").$type<{
+    items: Array<{
+      entityType: string;
+      entityId: string;
+      currentDates: { startDate?: string; endDate?: string; dueDate?: string };
+      proposedDates: { startDate?: string; endDate?: string; dueDate?: string };
+      reason: string;
+      warningCode: string;
+    }>;
+    impactedCount: number;
+    warnings: string[];
+  }>(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Fibonacci sequence values for effort estimation (1-100)
 export const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89] as const;
 export type EffortValue = typeof EFFORT_VALUES[number];
@@ -203,10 +229,13 @@ export const tasks = pgTable("tasks", {
   blocked: boolean("blocked").default(false),
   blockerReason: text("blocker_reason"),
   updatedAt: timestamp("updated_at").defaultNow(),
-  // Task Type and Subtask support
   taskTypeId: varchar("task_type_id"),
   parentTaskId: varchar("parent_task_id"),
   externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
+  scheduleOverride: boolean("schedule_override").default(false),
+  overrideReason: text("override_reason"),
+  overrideAt: timestamp("override_at"),
+  overrideBy: varchar("override_by").references(() => users.id),
 });
 
 // Milestone Scope Rules (stored as JSONB for flexibility)
