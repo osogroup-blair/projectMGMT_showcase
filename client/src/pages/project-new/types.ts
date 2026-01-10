@@ -7,6 +7,7 @@ export interface ProjectData {
   ownerId?: string;
   client?: string;
   templateId?: string;
+  frameworkId?: string;
 }
 
 export interface WizardDeliverable {
@@ -22,6 +23,8 @@ export interface WizardEpic {
   description: string;
 }
 
+export type TaskMappingStatus = 'mapped' | 'orphaned' | 'manual' | 'skipped';
+
 export interface WizardTaskDraft {
   id: string;
   templateId?: string;
@@ -33,6 +36,11 @@ export interface WizardTaskDraft {
   assigneeRoleTypeId?: string;
   stageId: string;
   order: number;
+  sourceEpicId?: string;
+  sourceEpicTitle?: string;
+  assignedEpicId?: string;
+  assignedEpicTitle?: string;
+  mappingStatus?: TaskMappingStatus;
 }
 
 export interface WizardStage {
@@ -163,9 +171,10 @@ export interface StepProps {
 export const STEPS = [
   { id: 1, title: "Project Basics", description: "Name, dates, and basic settings" },
   { id: 2, title: "Work Breakdown", description: "Define deliverables and epics" },
-  { id: 3, title: "Stage Configuration", description: "Set up stages, tasks, and milestones" },
-  { id: 4, title: "Assignments & Roles", description: "Assign team members by role" },
-  { id: 5, title: "Review & Summary", description: "Preview what will be created" },
+  { id: 3, title: "Task Alignment", description: "Map tasks to epics" },
+  { id: 4, title: "Stage Configuration", description: "Set up stages, tasks, and milestones" },
+  { id: 5, title: "Assignments & Roles", description: "Assign team members by role" },
+  { id: 6, title: "Review & Summary", description: "Preview what will be created" },
 ];
 
 export const DEFAULT_SPRINT_DURATION = 2;

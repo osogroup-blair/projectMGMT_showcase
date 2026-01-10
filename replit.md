@@ -26,6 +26,28 @@ The core data model follows a hierarchical structure: Projects, Deliverables, Ep
 
 API routes are RESTful, organized logically around core entities (e.g., `/api/projects`, `/api/users`, `/api/sprints`) and nested resources (e.g., `/api/projects/:projectId/deliverables`). Specific endpoints handle project import workflows and home page data aggregation.
 
+### Project Creation Wizard
+
+The project creation wizard (`/projects/new`) provides a 6-step flow:
+1. **Project Basics** - Name, dates, template selection, and basic settings
+2. **Work Breakdown** - Define deliverables and epics hierarchy
+3. **Task Alignment** - Map imported tasks to epics (import mode only)
+4. **Stage Configuration** - Set up workflow stages, tasks, and milestones
+5. **Assignments & Roles** - Assign team members by role
+6. **Review & Summary** - Preview all entities before creation
+
+Task-Epic Alignment (step 3) features:
+- Automatic epic matching via ID or fuzzy title matching during import
+- Task tracking with `mappingStatus`: mapped, orphaned, manual, skipped
+- Bulk and individual task-to-epic assignment controls
+- Validation gate blocks advancement when per_epic tasks remain orphaned
+- Non-import flows bypass validation and show informational message
+
+Project creation uses orchestrated endpoint (`POST /api/projects/full-create`) that:
+- Creates project and all entities in a single transaction
+- Returns detailed CreationReport with per-entity success/failure tracking
+- Supports partial failure with error details per entity
+
 ### Import/Export System
 
 The import wizard (`/projects/import`) supports multi-format imports (JSON, Excel/CSV, YAML) with a 6-step workflow:
@@ -40,6 +62,7 @@ Key import features:
 - Array field normalization for `stageIds` and `tags` (handles strings, JSON strings, native arrays)
 - Foreign key validation with fallback chains (e.g., ownerId → defaults.ownerId → first user)
 - External source tracking via `externalRefs` metadata arrays
+- Task-Epic alignment via `import-to-wizard-adapter.ts` with fuzzy matching
 
 ### File Structure
 

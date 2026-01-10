@@ -68,11 +68,13 @@ import {
 } from "./types";
 import { StepBasics } from "./step-basics";
 import { StepWorkBreakdown } from "./step-work-breakdown";
+import { StepTaskAlignment } from "./step-task-alignment";
 import { StepStageConfig } from "./step-stage-config";
 import { StepTeamRoles } from "./step-team-roles";
 import { StepReview } from "./step-review";
+import { Link2 } from "lucide-react";
 
-const STEP_ICONS = [Settings, Package, Layers, Users, Check];
+const STEP_ICONS = [Settings, Package, Link2, Layers, Users, Check];
 
 export default function ProjectWizard() {
   const [, setLocation] = useLocation();
@@ -259,6 +261,33 @@ export default function ProjectWizard() {
 
   const handleNext = () => {
     if (currentStep === 3) {
+      const hasImportedTasks = stages.some(stage => 
+        stage.tasks.some(task => 
+          task.mappingStatus && ['mapped', 'orphaned', 'manual', 'skipped'].includes(task.mappingStatus)
+        )
+      );
+      
+      if (hasImportedTasks) {
+        const hasUnresolvedPerEpicTasks = stages.some(stage => 
+          stage.tasks.some(task => 
+            task.scope === 'per_epic' && 
+            !task.assignedEpicId && 
+            task.mappingStatus === 'orphaned'
+          )
+        );
+        
+        if (hasUnresolvedPerEpicTasks) {
+          toast({
+            title: "Unassigned Tasks",
+            description: "Some per-epic tasks don't have an epic assigned. Please assign them to epics or mark them as skipped before proceeding.",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+    }
+    
+    if (currentStep === 4) {
       syncRolesFromStagesAndTasks();
     }
     
@@ -637,8 +666,8 @@ export default function ProjectWizard() {
           rate: 0,
           allocation: 100
         })),
-        importMetadata: isImportMode && importContext?.state?.sourceInfo ? {
-          source: importContext.state.sourceInfo.fileName || 'imported',
+        importMetadata: isImportMode && importContext?.state?.sourceFileName ? {
+          source: importContext.state.sourceFileName || 'imported',
           importedAt: new Date().toISOString()
         } : undefined
       };
@@ -834,9 +863,10 @@ export default function ProjectWizard() {
                   <>
                     {currentStep === 1 && <StepBasics {...stepProps} />}
                     {currentStep === 2 && <StepWorkBreakdown {...stepProps} />}
-                    {currentStep === 3 && <StepStageConfig {...stepProps} />}
-                    {currentStep === 4 && <StepTeamRoles {...stepProps} />}
-                    {currentStep === 5 && <StepReview {...stepProps} />}
+                    {currentStep === 3 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
+                    {currentStep === 4 && <StepStageConfig {...stepProps} />}
+                    {currentStep === 5 && <StepTeamRoles {...stepProps} />}
+                    {currentStep === 6 && <StepReview {...stepProps} />}
                   </>
                 )}
             </CardContent>

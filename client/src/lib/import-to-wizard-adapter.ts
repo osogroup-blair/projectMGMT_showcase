@@ -55,6 +55,8 @@ export interface ImportedTask extends WizardTaskDraft {
   warnings: string[];
   sourceAssigneeId?: string;
   sourceStatus?: string;
+  sourceEpicId?: string;
+  sourceEpicTitle?: string;
 }
 
 export interface ImportedMilestone extends WizardMilestone {
@@ -406,7 +408,8 @@ function extractStages(entities: ParsedEntity[]): ImportedStage[] {
 
 function extractTasks(
   entities: ParsedEntity[],
-  stages: ImportedStage[]
+  stages: ImportedStage[],
+  deliverables: ImportedDeliverable[]
 ): ImportedTask[] {
   const taskEntity = entities.find(e => e.entityType === 'Tasks');
   if (!taskEntity) return [];
@@ -417,6 +420,36 @@ function extractTasks(
     stageByName.set(s.name.toLowerCase(), s);
     if (s.sourceId) stageBySourceId.set(s.sourceId, s);
   });
+  
+  const epicBySourceId = new Map<string, { id: string; title: string }>();
+  const epicByNormalizedTitle = new Map<string, { id: string; title: string }>();
+  const allEpics: { id: string; title: string; normalizedTitle: string }[] = [];
+  
+  deliverables.forEach(d => {
+    d.epics.forEach(e => {
+      const imported = e as ImportedEpic;
+      const normalizedTitle = e.title.toLowerCase().trim().replace(/\s+/g, ' ');
+      
+      if (imported.sourceId) {
+        epicBySourceId.set(imported.sourceId, { id: e.id, title: e.title });
+      }
+      epicByNormalizedTitle.set(normalizedTitle, { id: e.id, title: e.title });
+      allEpics.push({ id: e.id, title: e.title, normalizedTitle });
+    });
+  });
+  
+  function fuzzyMatchEpic(searchTitle: string): { id: string; title: string } | undefined {
+    const normalized = searchTitle.toLowerCase().trim().replace(/\s+/g, ' ');
+    if (epicByNormalizedTitle.has(normalized)) {
+      return epicByNormalizedTitle.get(normalized);
+    }
+    for (const epic of allEpics) {
+      if (epic.normalizedTitle.includes(normalized) || normalized.includes(epic.normalizedTitle)) {
+        return { id: epic.id, title: epic.title };
+      }
+    }
+    return undefined;
+  }
   
   return taskEntity.rows.map((row, index) => {
     const titleField = getFieldValue<string>(row, ['title', 'name', 'taskName', 'summary'], `Task ${index + 1}`);
@@ -437,6 +470,36 @@ function extractTasks(
       if (stageMatch) matchedStage = stageMatch;
     }
     
+    const sourceEpicId = row.epicId || row.epic_id || row.parentEpicId;
+    const sourceEpicName = row.epicName || row.epic_name || row.epicTitle || row.epic_title;
+    let sourceEpicTitle: string | undefined = sourceEpicName;
+    let assignedEpicId: string | undefined;
+    let assignedEpicTitle: string | undefined;
+    let mappingStatus: 'mapped' | 'orphaned' = 'orphaned';
+    
+    if (sourceEpicId) {
+      const epicMatch = epicBySourceId.get(sourceEpicId);
+      if (epicMatch) {
+        assignedEpicId = epicMatch.id;
+        assignedEpicTitle = epicMatch.title;
+        sourceEpicTitle = sourceEpicTitle || epicMatch.title;
+        mappingStatus = 'mapped';
+      } else {
+        warnings.push(`Epic ID "${sourceEpicId}" not found - attempting title match`);
+      }
+    }
+    
+    if (!assignedEpicId && sourceEpicName) {
+      const fuzzyMatch = fuzzyMatchEpic(sourceEpicName);
+      if (fuzzyMatch) {
+        assignedEpicId = fuzzyMatch.id;
+        assignedEpicTitle = fuzzyMatch.title;
+        mappingStatus = 'mapped';
+      } else {
+        warnings.push(`Epic "${sourceEpicName}" not found - task needs manual assignment`);
+      }
+    }
+    
     return {
       id: generateId('t'),
       title: titleField.value,
@@ -449,6 +512,11 @@ function extractTasks(
       sourceId: row.id || row.sourceId,
       sourceAssigneeId: row.assigneeId || row.assignee,
       sourceStatus: row.status,
+      sourceEpicId,
+      sourceEpicTitle,
+      assignedEpicId,
+      assignedEpicTitle,
+      mappingStatus,
       confidence: titleField.sourceField ? 'high' : 'medium',
       warnings
     };
@@ -553,7 +621,7 @@ export function convertImportToWizardData(parseResult: ParseResult): ImportAdapt
   let deliverables = extractDeliverables(parseResult.entities);
   deliverables = extractEpics(parseResult.entities, deliverables);
   const stages = extractStages(parseResult.entities);
-  const tasks = extractTasks(parseResult.entities, stages);
+  const tasks = extractTasks(parseResult.entities, stages, deliverables);
   const milestones = extractMilestones(parseResult.entities);
   const userMappings = extractUsers(parseResult.entities);
   const statusMappings = extractStatuses(parseResult.entities);
@@ -651,7 +719,12 @@ export function toWizardStages(imported: ImportedStage[]): WizardStage[] {
       estimateHours: t.estimateHours,
       scope: t.scope,
       stageId: t.stageId,
-      order: t.order
+      order: t.order,
+      sourceEpicId: (t as ImportedTask).sourceEpicId,
+      sourceEpicTitle: (t as ImportedTask).sourceEpicTitle,
+      assignedEpicId: (t as ImportedTask).assignedEpicId,
+      assignedEpicTitle: (t as ImportedTask).assignedEpicTitle,
+      mappingStatus: (t as ImportedTask).mappingStatus
     })),
     type: s.type || 'standard',
     startDate: s.startDate,
