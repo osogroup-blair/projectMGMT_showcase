@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { useImportOptional } from "@/context/import-context";
+import { useCreationReport } from "@/context/creation-report-context";
 import { 
   toWizardProjectData, 
   toWizardDeliverables, 
@@ -34,6 +35,7 @@ import {
   toWizardRoles
 } from "@/lib/import-to-wizard-adapter";
 import { ImportSummaryBanner } from "@/components/import/ImportFieldIndicator";
+import type { CreationReport, FullProjectCreatePayload } from "@shared/creation-result-types";
 
 import { 
   useProjects,
@@ -81,6 +83,7 @@ export default function ProjectWizard() {
   
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
+  const { setReport } = useCreationReport();
   
   const { data: frameworkTemplates = [], isLoading: loadingFrameworks } = useFrameworkTemplates();
   const { data: stageTemplates = [], isLoading: loadingStages } = useStageTemplates();
@@ -578,221 +581,82 @@ export default function ProjectWizard() {
     setIsCreating(true);
     
     try {
-      const newProject = await createProject({
-        name: projectData.name,
-        description: projectData.description,
-        status: "Upcoming",
-        startDate: projectData.startDate || null,
-        deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-        frameworkId: null,
-        progress: 0,
-        sprintDurationWeeks: projectData.sprintDurationWeeks || null,
-        client: projectData.client || null,
-        ownerId: projectData.ownerId || null
+      const payload: FullProjectCreatePayload = {
+        project: {
+          name: projectData.name,
+          description: projectData.description || '',
+          status: 'Upcoming',
+          startDate: projectData.startDate || new Date().toISOString().split('T')[0],
+          deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
+          frameworkId: projectData.frameworkId || null,
+          sprintDurationWeeks: projectData.sprintDurationWeeks || null,
+          ownerId: projectData.ownerId || null,
+          client: projectData.client || null,
+          riskLevel: null
+        },
+        stages: stages.map((stage, index) => ({
+          id: stage.id,
+          name: stage.name,
+          description: stage.description || '',
+          order: index,
+          type: stage.type || 'standard',
+          tasks: (stage.tasks || []).map((task, taskIndex) => ({
+            id: task.id || `task-${Date.now()}-${taskIndex}`,
+            title: task.title,
+            description: task.description || '',
+            priority: task.priority || 'Medium',
+            estimateHours: task.estimateHours || 0,
+            scope: task.scope || 'per_epic',
+            order: taskIndex
+          }))
+        })),
+        deliverables: deliverables.map(del => ({
+          id: del.id,
+          title: del.title,
+          description: del.description || '',
+          epics: (del.epics || []).map(epic => ({
+            id: epic.id,
+            title: epic.title,
+            description: epic.description || ''
+          }))
+        })),
+        milestones: milestones.map(m => ({
+          id: m.id,
+          name: m.name,
+          description: m.description || '',
+          targetDate: m.targetDate,
+          phase: m.phase || 'plan_strategy',
+          ownerId: m.ownerId,
+          isBillingGate: m.isBillingGate || false,
+          rule: m.rule
+        })),
+        roles: roles.map(r => ({
+          id: r.id,
+          roleTypeId: r.roleType || 'rt-1',
+          userId: r.assigneeId || null,
+          rate: 0,
+          allocation: 100
+        })),
+        importMetadata: isImportMode && importContext?.state?.sourceInfo ? {
+          source: importContext.state.sourceInfo.fileName || 'imported',
+          importedAt: new Date().toISOString()
+        } : undefined
+      };
+      
+      const response = await fetch('/api/projects/full-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
       
-      if (!newProject?.id) {
-        throw new Error("Failed to create project");
+      const report: CreationReport = await response.json();
+      
+      if (isImportMode && importContext?.clearImport) {
+        importContext.clearImport();
       }
       
-      const createdStages: Array<{ 
-        templateId: string;
-        createdStageId: string; 
-        taskCreationMode: 'none' | 'once' | 'per_epic'; 
-        defaultTasks: string[];
-        name: string;
-      }> = [];
-      
-      for (let i = 0; i < stages.length; i++) {
-        const stageTemplate = stages[i];
-        const newStage = await createProjectStage({
-          projectId: newProject.id,
-          name: stageTemplate.name,
-          description: stageTemplate.description || "",
-          order: i,
-          type: stageTemplate.type || "standard",
-          status: "pending"
-        });
-        
-        if (newStage?.id) {
-          createdStages.push({
-            templateId: stageTemplate.id,
-            createdStageId: newStage.id,
-            taskCreationMode: stageTemplate.taskCreationMode || 'per_epic',
-            defaultTasks: stageTemplate.defaultTasks || [],
-            name: stageTemplate.name
-          });
-        }
-      }
-      
-      const stageIdMap = new Map<string, string>();
-      createdStages.forEach(s => stageIdMap.set(s.templateId, s.createdStageId));
-      
-      const allStageIds = createdStages.map(s => s.createdStageId).filter(Boolean);
-      
-      let productManagementEpicId: string | null = null;
-      let projectManagementEpicId: string | null = null;
-      
-      const projectOpsDeliverable = await createDeliverable({
-        projectId: newProject.id,
-        title: "Project Operations",
-        description: "Project-wide management activities and cross-cutting tasks",
-        status: "Active",
-        ownerId: projectData.ownerId || "1",
-        startDate: projectData.startDate || new Date().toISOString().split('T')[0],
-        dueDate: projectData.dueDate || new Date().toISOString().split('T')[0],
-        progress: 0
-      });
-      
-      if (projectOpsDeliverable?.id) {
-        const pmEpic = await createEpic({
-          deliverableId: projectOpsDeliverable.id,
-          title: "Project Management",
-          description: "Project coordination, reporting, and governance activities",
-          status: "Active",
-          ownerId: projectData.ownerId || "1",
-          startDate: projectData.startDate || new Date().toISOString().split('T')[0],
-          endDate: projectData.dueDate || new Date().toISOString().split('T')[0],
-          progress: 0,
-          stageIds: allStageIds
-        });
-        if (pmEpic?.id) {
-          projectManagementEpicId = pmEpic.id;
-        }
-        
-        const prodMgmtEpic = await createEpic({
-          deliverableId: projectOpsDeliverable.id,
-          title: "Product Management",
-          description: "Product requirements, acceptance, and delivery activities",
-          status: "Active",
-          ownerId: projectData.ownerId || "1",
-          startDate: projectData.startDate || new Date().toISOString().split('T')[0],
-          endDate: projectData.dueDate || new Date().toISOString().split('T')[0],
-          progress: 0,
-          stageIds: allStageIds
-        });
-        if (prodMgmtEpic?.id) {
-          productManagementEpicId = prodMgmtEpic.id;
-        }
-      }
-      
-      const businessEpics: { id: string; title: string }[] = [];
-      
-      for (const deliverable of deliverables) {
-        const newDeliverable = await createDeliverable({
-          projectId: newProject.id,
-          title: deliverable.title,
-          description: deliverable.description || "",
-          status: "Active",
-          ownerId: projectData.ownerId || "1",
-          startDate: projectData.startDate || new Date().toISOString().split('T')[0],
-          dueDate: projectData.dueDate || new Date().toISOString().split('T')[0],
-          progress: 0
-        });
-        
-        if (newDeliverable?.id && deliverable.epics?.length > 0) {
-          for (const epic of deliverable.epics) {
-            const newEpic = await createEpic({
-              deliverableId: newDeliverable.id,
-              title: epic.title,
-              description: epic.description || "",
-              status: "Active",
-              ownerId: projectData.ownerId || "1",
-              startDate: projectData.startDate || new Date().toISOString().split('T')[0],
-              endDate: projectData.dueDate || new Date().toISOString().split('T')[0],
-              progress: 0,
-              stageIds: allStageIds
-            });
-            
-            if (newEpic?.id) {
-              businessEpics.push({ id: newEpic.id, title: epic.title });
-            }
-          }
-        }
-      }
-      
-      let totalTasksCreated = 0;
-      
-      for (let i = 0; i < stages.length; i++) {
-        const wizardStage = stages[i];
-        const createdStage = createdStages.find(cs => cs.templateId === wizardStage.id);
-        if (!createdStage) continue;
-        
-        for (const taskDraft of wizardStage.tasks) {
-          if (taskDraft.scope === 'once') {
-            if (productManagementEpicId) {
-              await createTask({
-                project: projectData.name,
-                projectId: newProject.id,
-                title: taskDraft.title,
-                description: taskDraft.description || "",
-                status: "Todo",
-                priority: taskDraft.priority || "Medium",
-                stageId: createdStage.createdStageId,
-                epicId: productManagementEpicId,
-                effort: 1,
-                deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-                estimateHours: taskDraft.estimateHours || 0,
-                tags: []
-              });
-              totalTasksCreated++;
-            }
-          } else if (taskDraft.scope === 'per_epic') {
-            for (const businessEpic of businessEpics) {
-              await createTask({
-                project: projectData.name,
-                projectId: newProject.id,
-                title: taskDraft.title,
-                description: taskDraft.description || "",
-                status: "Todo",
-                priority: taskDraft.priority || "Medium",
-                stageId: createdStage.createdStageId,
-                epicId: businessEpic.id,
-                effort: 1,
-                deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-                estimateHours: taskDraft.estimateHours || 0,
-                tags: []
-              });
-              totalTasksCreated++;
-            }
-          }
-        }
-      }
-      
-      const totalEpics = (projectManagementEpicId ? 1 : 0) + (productManagementEpicId ? 1 : 0) + businessEpics.length;
-      
-      let totalMilestonesCreated = 0;
-      for (const milestone of milestones) {
-        const rule = milestone.rule || { scopeType: 'all', completionMode: 'all_tasks', completionTargetPercent: 100 };
-        const resolvedStageId = rule.scopeType === 'stage' && rule.scopeEntityId 
-          ? stageIdMap.get(rule.scopeEntityId) || null 
-          : null;
-        
-        await createMilestone({
-          id: crypto.randomUUID(),
-          projectId: newProject.id,
-          name: milestone.name,
-          description: milestone.description || "",
-          phase: milestone.phase || "plan_strategy",
-          stageId: resolvedStageId,
-          targetDate: milestone.targetDate,
-          status: "planned",
-          ownerId: milestone.ownerId,
-          scopeType: rule.scopeType,
-          completionMode: rule.completionMode,
-          completionTargetPercent: rule.completionTargetPercent || 100,
-          isBillingGate: milestone.isBillingGate,
-          tags: []
-        });
-        totalMilestonesCreated++;
-      }
-      
-      toast({
-        title: "Project Created",
-        description: `${projectData.name} has been successfully created with ${totalEpics} epics, ${totalTasksCreated} tasks, and ${totalMilestonesCreated} milestones.`,
-      });
-      
-      setLocation(`/projects/${newProject.id}`);
+      setReport(report);
+      setLocation('/projects/new/summary');
       
     } catch (error) {
       console.error("Error creating project:", error);
