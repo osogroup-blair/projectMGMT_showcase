@@ -306,6 +306,44 @@ export default function ProjectWizard() {
   };
 
   const handleNext = () => {
+    if (currentStep === 2) {
+      const deliverablesWithoutEpics = deliverables.filter(d => !d.epics || d.epics.length === 0);
+      
+      if (deliverablesWithoutEpics.length > 0) {
+        const updatedDeliverables = deliverables.map(d => {
+          if (!d.epics || d.epics.length === 0) {
+            return {
+              ...d,
+              epics: [{
+                id: `e-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                title: d.title ? `${d.title} - General` : "General",
+                description: "Auto-created epic for task alignment"
+              }]
+            };
+          }
+          return d;
+        });
+        setDeliverables(updatedDeliverables);
+        toast({
+          title: "Epics Added",
+          description: `Created default epics for ${deliverablesWithoutEpics.length} deliverable(s) that had none.`,
+        });
+      }
+      
+      const deliverablesWithEmptyEpicTitles = deliverables.filter(d => 
+        d.epics && d.epics.length > 0 && d.epics.every(e => !e.title.trim())
+      );
+      
+      if (deliverablesWithEmptyEpicTitles.length > 0) {
+        toast({
+          title: "Epic Names Required",
+          description: "Please enter a name for each epic before proceeding.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     if (currentStep === 3) {
       const hasImportedTasks = stages.some(stage => 
         stage.tasks.some(task => 

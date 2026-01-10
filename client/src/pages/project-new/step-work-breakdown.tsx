@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Package, FileBox, Plus, Trash2, Upload } from "lucide-react";
 import { StepProps, WizardEpic } from "./types";
 import { useRef, useCallback } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export function StepWorkBreakdown({
   deliverables,
@@ -12,6 +13,7 @@ export function StepWorkBreakdown({
   onFileUpload,
 }: StepProps) {
   const epicInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const { toast } = useToast();
 
   const addEpic = useCallback((deliverableIndex: number, focusNew: boolean = false) => {
     const epicId = `e-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -33,10 +35,18 @@ export function StepWorkBreakdown({
   }, [deliverables, setDeliverables]);
 
   const removeEpic = useCallback((deliverableIndex: number, epicIndex: number) => {
+    if (deliverables[deliverableIndex].epics.length <= 1) {
+      toast({
+        title: "Cannot remove last epic",
+        description: "Each deliverable must have at least one epic for task alignment.",
+        variant: "destructive"
+      });
+      return;
+    }
     const newD = [...deliverables];
     newD[deliverableIndex].epics.splice(epicIndex, 1);
     setDeliverables(newD);
-  }, [deliverables, setDeliverables]);
+  }, [deliverables, setDeliverables, toast]);
 
   const handleEpicKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
