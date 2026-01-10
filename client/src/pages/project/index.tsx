@@ -135,7 +135,7 @@ export default function ProjectOverview() {
   });
 
   // Metrics accordion state
-  const [metricsOpen, setMetricsOpen] = useState(true);
+  const [metricsOpen, setMetricsOpen] = useState(false);
   
   // Blocker dialog for flow board
   const [blockerTaskId, setBlockerTaskId] = useState<string | null>(null);
