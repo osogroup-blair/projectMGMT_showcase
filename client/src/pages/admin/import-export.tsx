@@ -65,47 +65,81 @@ import { Label } from "@/components/ui/label";
 import { db } from "@/lib/storage";
 
 // Schema Definitions - uses camelCase to match API response format
+// Complete schema with ALL attributes from shared/schema.ts
 const SCHEMA_DEFINITIONS = {
   all: [
-    { sheet: "Projects", columns: ["id", "name", "description", "status", "startDate", "deadline", "progress", "frameworkId", "defaultMappingTemplateId", "permissions"] },
-    { sheet: "Deliverables", columns: ["id", "projectId", "title", "description", "status", "ownerId", "dueDate", "progress"] },
-    { sheet: "Epics", columns: ["id", "deliverableId", "title", "description", "status", "ownerId", "startDate", "endDate", "progress", "stageIds"] },
-    { sheet: "ProjectStages", columns: ["id", "projectId", "name", "description", "order", "type", "status"] },
-    { sheet: "Sprints", columns: ["id", "projectId", "name", "goal", "startDate", "endDate", "status", "capacityHours"] },
-    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "sprintId", "estimateHours", "effort", "tags", "blocked", "blockerReason"] },
+    // Core Project Entities
+    { sheet: "Projects", columns: ["id", "name", "description", "status", "startDate", "deadline", "progress", "frameworkId", "defaultMappingTemplateId", "permissions", "sprintDurationWeeks", "ownerId", "client", "riskLevel", "externalRefs"] },
+    { sheet: "Deliverables", columns: ["id", "projectId", "title", "description", "status", "ownerId", "startDate", "dueDate", "progress", "externalRefs"] },
+    { sheet: "Epics", columns: ["id", "deliverableId", "title", "description", "status", "ownerId", "startDate", "endDate", "progress", "stageIds", "externalRefs"] },
+    { sheet: "ProjectStages", columns: ["id", "projectId", "name", "description", "order", "type", "status", "startDate", "endDate"] },
+    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "sprintId", "estimateHours", "effort", "tags", "blocked", "blockerReason", "updatedAt", "taskTypeId", "parentTaskId", "externalRefs"] },
     { sheet: "Milestones", columns: ["id", "projectId", "name", "description", "phase", "stageId", "targetDate", "status", "ownerId", "scopeType", "completionMode", "completionTargetPercent", "tags", "createdAt", "updatedAt", "progressTotalTasks", "progressCompletedTasks", "progressPercentComplete", "progressLastCalculatedAt", "progressPercent", "isBillingGate", "requiredCompletionRatio"] },
     { sheet: "MilestoneScopeRules", columns: ["id", "milestoneId", "rules", "lastEvaluatedAt"] },
     { sheet: "MilestoneTaskLinks", columns: ["id", "milestoneId", "taskId", "projectId", "source", "ruleId", "locked", "createdAt", "updatedAt"] },
+    // Sprint Entities
+    { sheet: "Sprints", columns: ["id", "projectId", "ownerUserId", "name", "goal", "startDate", "endDate", "status", "capacityHours", "notes", "autoStart", "closedAt", "createdAt", "updatedAt"] },
+    { sheet: "SprintMembers", columns: ["id", "sprintId", "userId", "capacityHours", "capacityPoints"] },
+    { sheet: "SprintScopeEvents", columns: ["id", "sprintId", "taskId", "userId", "eventType", "occurredAt", "note"] },
+    { sheet: "SprintScopeTargets", columns: ["id", "sprintId", "targetType", "targetId", "autoSyncTasks", "createdAt"] },
+    { sheet: "SprintPulseUpdates", columns: ["id", "sprintId", "userId", "date", "didText", "nextText", "blockersText", "referencedTaskIds", "createdAt", "updatedAt"] },
+    // Task Related
+    { sheet: "TaskDependencies", columns: ["id", "taskId", "dependsOnTaskId", "dependencyType", "createdAt"] },
+    { sheet: "TaskTypes", columns: ["id", "name", "color", "icon", "isDefault", "order", "createdAt"] },
+    { sheet: "ProjectTaskTypes", columns: ["id", "projectId", "taskTypeId", "name", "color", "icon", "isEnabled", "isDefault", "order", "createdAt"] },
+    { sheet: "ProjectTaskStatuses", columns: ["id", "projectId", "label", "color", "isDefault", "order", "createdAt"] },
+    { sheet: "ProjectSettings", columns: ["id", "projectId", "useCustomStatuses", "useCustomTaskTypes", "updatedAt"] },
+    // Activity & Comments
     { sheet: "Activity", columns: ["id", "user", "action", "target", "time", "details", "avatar"] },
     { sheet: "Comments", columns: ["id", "taskId", "authorId", "authorName", "body", "createdAt"] },
     { sheet: "Attachments", columns: ["id", "taskId", "fileName", "url", "fileType", "size", "uploadedAt", "uploadedBy"] },
     { sheet: "History", columns: ["id", "taskId", "field", "oldValue", "newValue", "changedAt", "changedBy"] },
+    // Views & Guidance
     { sheet: "SavedViews", columns: ["id", "name", "description", "stageIds", "viewType", "visibility", "isDefault", "config"] },
+    { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stageId"] },
+    // Templates
     { sheet: "ProjectTemplates", columns: ["id", "name", "description", "defaultFrameworkId", "defaultRoles", "defaultDeliverables", "thumbnail"] },
     { sheet: "FrameworkTemplates", columns: ["id", "name", "description", "defaultStages"] },
     { sheet: "StageTemplates", columns: ["id", "name", "description", "defaultTasks", "defaultRoles", "entryCriteria", "exitCriteria", "allowedTaskStatuses"] },
     { sheet: "DeliverableTemplates", columns: ["id", "title", "description", "defaultEpics"] },
     { sheet: "EpicTemplates", columns: ["id", "title", "description", "defaultStages"] },
-    { sheet: "TaskTemplates", columns: ["id", "title", "description", "defaultPriority", "defaultEstimateHours", "requiredRole", "assignedRoleId"] },
+    { sheet: "TaskTemplates", columns: ["id", "title", "description", "defaultPriority", "defaultEstimateHours", "requiredRole", "assignedRoleId", "scope", "assigneeRoleTypeId"] },
     { sheet: "RoleTemplates", columns: ["id", "name", "description", "defaultRoleType", "defaultPermissions"] },
-    { sheet: "StatusOptions", columns: ["id", "label", "color", "isDefault", "type"] },
+    { sheet: "MilestoneTemplates", columns: ["id", "name", "description", "phase", "scopeType", "completionMode", "completionTargetPercent", "isBillingGate", "offsetDays"] },
+    { sheet: "TemplateSnippets", columns: ["id", "name", "description", "type", "stageTemplateIds", "taskTemplateIds", "milestoneTemplateIds", "isDefault"] },
+    // Defaults & Config
+    { sheet: "StatusOptions", columns: ["id", "label", "color", "isDefault", "type", "order"] },
     { sheet: "RoleTypes", columns: ["id", "label", "description", "isDefault"] },
     { sheet: "MappingTemplates", columns: ["id", "name", "dataType"] },
-    { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stageId"] },
+    // Users & Roles
     { sheet: "Users", columns: ["id", "name", "role", "email", "status", "avatar"] },
     { sheet: "ProjectRoles", columns: ["id", "name", "description", "roleType", "isRequired", "maxAssignees", "permissions"] },
-    { sheet: "RoleAssignments", columns: ["id", "roleId", "userId", "isPrimary", "allocationPercent"] }
+    { sheet: "RoleAssignments", columns: ["id", "roleId", "userId", "isPrimary", "allocationPercent"] },
+    { sheet: "UserRoleEligibility", columns: ["id", "userId", "roleTypeId"] },
+    { sheet: "UserPreferences", columns: ["id", "userId", "workdayStartTime", "workdayEndTime", "defaultTargetDailyMinutes", "showOnlyActionable", "timezone"] },
+    { sheet: "ProjectFavorites", columns: ["id", "userId", "projectId", "createdAt"] },
+    // Planning
+    { sheet: "WorkBlocks", columns: ["id", "userId", "date", "startTime", "endTime", "label", "taskIds", "totalPlannedMinutes", "status", "createdAt", "updatedAt"] },
+    { sheet: "DayPlans", columns: ["id", "userId", "date", "targetWorkMinutes", "plannedMinutes", "unassignedTaskIds", "createdAt", "updatedAt"] }
   ],
   projects: [
-    { sheet: "Projects", columns: ["id", "name", "description", "status", "startDate", "deadline", "progress", "frameworkId", "defaultMappingTemplateId", "permissions"] },
-    { sheet: "Deliverables", columns: ["id", "projectId", "title", "description", "status", "ownerId", "dueDate", "progress"] },
-    { sheet: "Epics", columns: ["id", "deliverableId", "title", "description", "status", "ownerId", "startDate", "endDate", "progress", "stageIds"] },
-    { sheet: "ProjectStages", columns: ["id", "projectId", "name", "description", "order", "type", "status"] },
-    { sheet: "Sprints", columns: ["id", "projectId", "name", "goal", "startDate", "endDate", "status", "capacityHours"] },
-    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "sprintId", "estimateHours", "effort", "tags", "blocked", "blockerReason"] },
+    { sheet: "Projects", columns: ["id", "name", "description", "status", "startDate", "deadline", "progress", "frameworkId", "defaultMappingTemplateId", "permissions", "sprintDurationWeeks", "ownerId", "client", "riskLevel", "externalRefs"] },
+    { sheet: "Deliverables", columns: ["id", "projectId", "title", "description", "status", "ownerId", "startDate", "dueDate", "progress", "externalRefs"] },
+    { sheet: "Epics", columns: ["id", "deliverableId", "title", "description", "status", "ownerId", "startDate", "endDate", "progress", "stageIds", "externalRefs"] },
+    { sheet: "ProjectStages", columns: ["id", "projectId", "name", "description", "order", "type", "status", "startDate", "endDate"] },
+    { sheet: "Tasks", columns: ["id", "title", "description", "project", "projectId", "stageId", "epicId", "status", "assigneeId", "deadline", "priority", "milestoneId", "sprintId", "estimateHours", "effort", "tags", "blocked", "blockerReason", "updatedAt", "taskTypeId", "parentTaskId", "externalRefs"] },
     { sheet: "Milestones", columns: ["id", "projectId", "name", "description", "phase", "stageId", "targetDate", "status", "ownerId", "scopeType", "completionMode", "completionTargetPercent", "tags", "createdAt", "updatedAt", "progressTotalTasks", "progressCompletedTasks", "progressPercentComplete", "progressLastCalculatedAt", "progressPercent", "isBillingGate", "requiredCompletionRatio"] },
     { sheet: "MilestoneScopeRules", columns: ["id", "milestoneId", "rules", "lastEvaluatedAt"] },
     { sheet: "MilestoneTaskLinks", columns: ["id", "milestoneId", "taskId", "projectId", "source", "ruleId", "locked", "createdAt", "updatedAt"] },
+    { sheet: "Sprints", columns: ["id", "projectId", "ownerUserId", "name", "goal", "startDate", "endDate", "status", "capacityHours", "notes", "autoStart", "closedAt", "createdAt", "updatedAt"] },
+    { sheet: "SprintMembers", columns: ["id", "sprintId", "userId", "capacityHours", "capacityPoints"] },
+    { sheet: "SprintScopeEvents", columns: ["id", "sprintId", "taskId", "userId", "eventType", "occurredAt", "note"] },
+    { sheet: "SprintScopeTargets", columns: ["id", "sprintId", "targetType", "targetId", "autoSyncTasks", "createdAt"] },
+    { sheet: "SprintPulseUpdates", columns: ["id", "sprintId", "userId", "date", "didText", "nextText", "blockersText", "referencedTaskIds", "createdAt", "updatedAt"] },
+    { sheet: "TaskDependencies", columns: ["id", "taskId", "dependsOnTaskId", "dependencyType", "createdAt"] },
+    { sheet: "ProjectTaskTypes", columns: ["id", "projectId", "taskTypeId", "name", "color", "icon", "isEnabled", "isDefault", "order", "createdAt"] },
+    { sheet: "ProjectTaskStatuses", columns: ["id", "projectId", "label", "color", "isDefault", "order", "createdAt"] },
+    { sheet: "ProjectSettings", columns: ["id", "projectId", "useCustomStatuses", "useCustomTaskTypes", "updatedAt"] },
     { sheet: "Activity", columns: ["id", "user", "action", "target", "time", "details", "avatar"] },
     { sheet: "Comments", columns: ["id", "taskId", "authorId", "authorName", "body", "createdAt"] },
     { sheet: "Attachments", columns: ["id", "taskId", "fileName", "url", "fileType", "size", "uploadedAt", "uploadedBy"] },
@@ -117,20 +151,28 @@ const SCHEMA_DEFINITIONS = {
     { sheet: "StageTemplates", columns: ["id", "name", "description", "defaultTasks", "defaultRoles", "entryCriteria", "exitCriteria", "allowedTaskStatuses"] },
     { sheet: "DeliverableTemplates", columns: ["id", "title", "description", "defaultEpics"] },
     { sheet: "EpicTemplates", columns: ["id", "title", "description", "defaultStages"] },
-    { sheet: "TaskTemplates", columns: ["id", "title", "description", "defaultPriority", "defaultEstimateHours", "requiredRole", "assignedRoleId"] },
-    { sheet: "RoleTemplates", columns: ["id", "name", "description", "defaultRoleType", "defaultPermissions"] }
+    { sheet: "TaskTemplates", columns: ["id", "title", "description", "defaultPriority", "defaultEstimateHours", "requiredRole", "assignedRoleId", "scope", "assigneeRoleTypeId"] },
+    { sheet: "RoleTemplates", columns: ["id", "name", "description", "defaultRoleType", "defaultPermissions"] },
+    { sheet: "MilestoneTemplates", columns: ["id", "name", "description", "phase", "scopeType", "completionMode", "completionTargetPercent", "isBillingGate", "offsetDays"] },
+    { sheet: "TemplateSnippets", columns: ["id", "name", "description", "type", "stageTemplateIds", "taskTemplateIds", "milestoneTemplateIds", "isDefault"] }
   ],
   defaults: [
-    { sheet: "StatusOptions", columns: ["id", "label", "color", "isDefault", "type"] },
+    { sheet: "StatusOptions", columns: ["id", "label", "color", "isDefault", "type", "order"] },
     { sheet: "RoleTypes", columns: ["id", "label", "description", "isDefault"] },
     { sheet: "MappingTemplates", columns: ["id", "name", "dataType"] },
     { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stageId"] },
-    { sheet: "SavedViews", columns: ["id", "name", "description", "stageIds", "viewType", "visibility", "isDefault", "config"] }
+    { sheet: "SavedViews", columns: ["id", "name", "description", "stageIds", "viewType", "visibility", "isDefault", "config"] },
+    { sheet: "TaskTypes", columns: ["id", "name", "color", "icon", "isDefault", "order", "createdAt"] }
   ],
   users: [
     { sheet: "Users", columns: ["id", "name", "role", "email", "status", "avatar"] },
     { sheet: "ProjectRoles", columns: ["id", "name", "description", "roleType", "isRequired", "maxAssignees", "permissions"] },
-    { sheet: "RoleAssignments", columns: ["id", "roleId", "userId", "isPrimary", "allocationPercent"] }
+    { sheet: "RoleAssignments", columns: ["id", "roleId", "userId", "isPrimary", "allocationPercent"] },
+    { sheet: "UserRoleEligibility", columns: ["id", "userId", "roleTypeId"] },
+    { sheet: "UserPreferences", columns: ["id", "userId", "workdayStartTime", "workdayEndTime", "defaultTargetDailyMinutes", "showOnlyActionable", "timezone"] },
+    { sheet: "ProjectFavorites", columns: ["id", "userId", "projectId", "createdAt"] },
+    { sheet: "WorkBlocks", columns: ["id", "userId", "date", "startTime", "endTime", "label", "taskIds", "totalPlannedMinutes", "status", "createdAt", "updatedAt"] },
+    { sheet: "DayPlans", columns: ["id", "userId", "date", "targetWorkMinutes", "plannedMinutes", "unassignedTaskIds", "createdAt", "updatedAt"] }
   ]
 };
 
@@ -158,20 +200,36 @@ type ImportState = {
 };
 
 const ENTITY_TO_COLLECTION: Record<string, string> = {
+  // Core Entities
   Projects: "projects",
   Deliverables: "deliverables",
   Epics: "epics",
   ProjectStages: "projectStages",
-  Sprints: "sprints",
   Tasks: "tasks",
   Milestones: "milestones",
   MilestoneScopeRules: "milestoneScopeRules",
   MilestoneTaskLinks: "milestoneTaskLinks",
+  // Sprint Entities
+  Sprints: "sprints",
+  SprintMembers: "sprintMembers",
+  SprintScopeEvents: "sprintScopeEvents",
+  SprintScopeTargets: "sprintScopeTargets",
+  SprintPulseUpdates: "sprintPulseUpdates",
+  // Task Related
+  TaskDependencies: "taskDependencies",
+  TaskTypes: "taskTypes",
+  ProjectTaskTypes: "projectTaskTypes",
+  ProjectTaskStatuses: "projectTaskStatuses",
+  ProjectSettings: "projectSettings",
+  // Activity & Comments
   Activity: "activity",
   Comments: "comments",
   Attachments: "attachments",
   History: "history",
+  // Views & Guidance
   SavedViews: "savedViews",
+  GuidanceItems: "guidanceItems",
+  // Templates
   ProjectTemplates: "projectTemplates",
   FrameworkTemplates: "frameworkTemplates",
   StageTemplates: "stageTemplates",
@@ -179,13 +237,22 @@ const ENTITY_TO_COLLECTION: Record<string, string> = {
   EpicTemplates: "epicTemplates",
   TaskTemplates: "taskTemplates",
   RoleTemplates: "roleTemplates",
+  MilestoneTemplates: "milestoneTemplates",
+  TemplateSnippets: "templateSnippets",
+  // Defaults & Config
   StatusOptions: "statusOptions",
   RoleTypes: "roleTypes",
   MappingTemplates: "mappingTemplates",
-  GuidanceItems: "guidanceItems",
+  // Users & Roles
   Users: "users",
   ProjectRoles: "projectRoles",
-  RoleAssignments: "roleAssignments"
+  RoleAssignments: "roleAssignments",
+  UserRoleEligibility: "userRoleEligibility",
+  UserPreferences: "userPreferences",
+  ProjectFavorites: "projectFavorites",
+  // Planning
+  WorkBlocks: "workBlocks",
+  DayPlans: "dayPlans"
 };
 
 const DEFAULT_STATUS_VALUES: Record<string, string> = {
