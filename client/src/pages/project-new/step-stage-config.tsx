@@ -34,8 +34,16 @@ import {
   ListTodo,
   Target,
   LayoutTemplate,
-  PanelRightOpen
+  PanelRightOpen,
+  Calendar,
+  Info
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { StepProps, WizardStage, WizardTaskDraft, WizardMilestone } from "./types";
 
 export function StepStageConfig({
@@ -96,7 +104,10 @@ export function StepStageConfig({
       estimateHours: 2,
       scope: stage.taskCreationMode === 'once' ? 'once' : 'per_epic',
       stageId: stage.id,
-      order: stage.tasks.length
+      order: stage.tasks.length,
+      startDate: stage.startDate || "",
+      deadline: stage.endDate || "",
+      datesInheritedFromStage: !!(stage.startDate || stage.endDate)
     };
     stage.tasks.push(newTask);
     setStages(newStages);
@@ -133,7 +144,10 @@ export function StepStageConfig({
       scope: template.scope || 'per_epic',
       assigneeRoleTypeId: template.assigneeRoleTypeId,
       stageId: stage.id,
-      order: stage.tasks.length
+      order: stage.tasks.length,
+      startDate: stage.startDate || "",
+      deadline: stage.endDate || "",
+      datesInheritedFromStage: !!(stage.startDate || stage.endDate)
     };
     stage.tasks.push(newTask);
     setStages(newStages);
@@ -434,9 +448,19 @@ export function StepStageConfig({
                               data-testid={`input-stage-end-${stageIndex}`}
                             />
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            (Auto-calculated from project dates)
-                          </span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+                                  <Info className="h-3 w-3" />
+                                  <span>Tasks inherit these dates</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[220px]">
+                                <p className="text-xs">New tasks will inherit the stage's start and end dates by default. You can override dates on individual tasks.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                         
                         <div className="flex items-center gap-4 py-2 px-3 bg-muted/50 rounded-md">
@@ -538,6 +562,47 @@ export function StepStageConfig({
                                             className="h-8"
                                             placeholder="Hours"
                                           />
+                                        </div>
+                                        <div className="flex items-center gap-2 pt-1">
+                                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                          <div className="flex items-center gap-2 flex-1">
+                                            <Input
+                                              type="date"
+                                              value={task.startDate || ""}
+                                              onChange={(e) => updateTask(stageIndex, taskIndex, { 
+                                                startDate: e.target.value,
+                                                datesInheritedFromStage: false 
+                                              })}
+                                              className="h-7 text-xs w-32"
+                                              data-testid={`input-task-start-${stageIndex}-${taskIndex}`}
+                                            />
+                                            <span className="text-xs text-muted-foreground">to</span>
+                                            <Input
+                                              type="date"
+                                              value={task.deadline || ""}
+                                              onChange={(e) => updateTask(stageIndex, taskIndex, { 
+                                                deadline: e.target.value,
+                                                datesInheritedFromStage: false 
+                                              })}
+                                              className="h-7 text-xs w-32"
+                                              data-testid={`input-task-deadline-${stageIndex}-${taskIndex}`}
+                                            />
+                                            {task.datesInheritedFromStage && (
+                                              <TooltipProvider>
+                                                <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                    <Badge variant="secondary" className="text-xs gap-1 cursor-help">
+                                                      <Info className="h-3 w-3" />
+                                                      Inherited
+                                                    </Badge>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent side="top" className="max-w-[200px]">
+                                                    <p className="text-xs">Dates inherited from stage. Edit to override.</p>
+                                                  </TooltipContent>
+                                                </Tooltip>
+                                              </TooltipProvider>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
                                       <Button 

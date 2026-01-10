@@ -41,6 +41,9 @@ export interface WizardTaskDraft {
   assignedEpicId?: string;
   assignedEpicTitle?: string;
   mappingStatus?: TaskMappingStatus;
+  startDate?: string;
+  deadline?: string;
+  datesInheritedFromStage?: boolean;
 }
 
 export interface WizardStage {
