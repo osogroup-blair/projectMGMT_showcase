@@ -373,17 +373,47 @@ export default function ProjectOverview() {
     return allEpics.filter((e: any) => deliverableIds.has(e.deliverableId));
   }, [allEpics, projectDeliverables]);
 
-  // Find the active sprint for this project
-  const activeSprint = useMemo(() => {
+  // Find the default sprint for this project (active sprint whose dates include today, or first sprint)
+  const defaultSprintId = useMemo(() => {
     if (!projectSprints || projectSprints.length === 0) return null;
-    return projectSprints.find((s: any) => s.status === "active") || projectSprints[0];
+    const today = new Date();
+    // First try to find an active sprint that covers today
+    const activeSprint = projectSprints.find((s: any) => {
+      if (s.status !== "active") return false;
+      if (!s.startDate) return true; // If no dates, include it
+      const startDate = parseISO(s.startDate);
+      const endDate = s.endDate ? parseISO(s.endDate) : null;
+      return startDate <= today && (!endDate || endDate >= today);
+    });
+    if (activeSprint) return activeSprint.id;
+    // Fall back to any active sprint
+    const anyActive = projectSprints.find((s: any) => s.status === "active");
+    if (anyActive) return anyActive.id;
+    // Fall back to first sprint
+    return projectSprints[0]?.id || null;
   }, [projectSprints]);
 
-  // Get tasks for the active sprint
+  // Selected sprint state (for the dropdown)
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+
+  // Update selected sprint when default changes
+  useEffect(() => {
+    if (defaultSprintId && !selectedSprintId) {
+      setSelectedSprintId(defaultSprintId);
+    }
+  }, [defaultSprintId, selectedSprintId]);
+
+  // Get the currently selected sprint object
+  const selectedSprint = useMemo(() => {
+    if (!projectSprints || !selectedSprintId) return null;
+    return projectSprints.find((s: any) => s.id === selectedSprintId) || projectSprints[0] || null;
+  }, [projectSprints, selectedSprintId]);
+
+  // Get tasks for the selected sprint
   const sprintTasks = useMemo(() => {
-    if (!activeSprint || !allTasks) return [];
-    return allTasks.filter((t: any) => t.sprintId === activeSprint.id);
-  }, [activeSprint, allTasks]);
+    if (!selectedSprint || !allTasks) return [];
+    return allTasks.filter((t: any) => t.sprintId === selectedSprint.id);
+  }, [selectedSprint, allTasks]);
 
   // Find the next sprint (first planned/upcoming sprint after active)
   const nextSprint = useMemo(() => {
@@ -410,14 +440,14 @@ export default function ProjectOverview() {
     return allTasks.filter((t: any) => t.projectId === projectId);
   }, [allTasks, projectId]);
 
-  // Get available tasks (any project task not already in the current sprint)
+  // Get available tasks (any project task not already in the selected sprint)
   const availableTasks = useMemo(() => {
-    if (!allTasks || !activeSprint) return [];
+    if (!allTasks || !selectedSprint) return [];
     return allTasks.filter((t: any) => 
       t.projectId === projectId && 
-      t.sprintId !== activeSprint.id
+      t.sprintId !== selectedSprint.id
     );
-  }, [allTasks, activeSprint, projectId]);
+  }, [allTasks, selectedSprint, projectId]);
 
   // Add Task dialog handlers
   const openAddTaskDialog = () => {
@@ -435,7 +465,7 @@ export default function ProjectOverview() {
   };
 
   const handleAddTaskToSprint = async () => {
-    if (!activeSprint) return;
+    if (!selectedSprint) return;
     setIsAddingTask(true);
     
     try {
@@ -445,7 +475,7 @@ export default function ProjectOverview() {
           setIsAddingTask(false);
           return;
         }
-        await updateTask({ id: selectedExistingTaskId, updates: { sprintId: activeSprint.id } });
+        await updateTask({ id: selectedExistingTaskId, updates: { sprintId: selectedSprint.id } });
         toast({ title: "Task Added", description: "Task has been added to the sprint." });
       } else {
         if (!newTaskTitle.trim()) {
@@ -465,7 +495,7 @@ export default function ProjectOverview() {
           projectId: project?.id,
           epicId: newTaskEpicId,
           stageId: newTaskStageId,
-          sprintId: activeSprint.id,
+          sprintId: selectedSprint.id,
           status: "Todo",
           priority: newTaskPriority,
           effort: newTaskEffort,
@@ -1006,20 +1036,36 @@ export default function ProjectOverview() {
                 <div className={cn("flex-1 min-w-0", dashboardSidebarOpen ? "pl-6" : "pl-4")}>
                   {dashboardSection === "current-sprint" && (
                     <>
-                      {activeSprint ? (
+                      {projectSprints.length > 0 ? (
                         <div className="space-y-6">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
-                                <h2 className="text-lg font-semibold hover:text-primary transition-colors cursor-pointer">{activeSprint.name}</h2>
-                              </Link>
-                              <Badge variant={activeSprint.status === "active" ? "default" : "secondary"} className="capitalize">
-                                {activeSprint.status}
-                              </Badge>
-                              {activeSprint.endDate && (
-                                <span className="text-sm text-muted-foreground">
-                                  {Math.max(0, differenceInDays(parseISO(activeSprint.endDate), new Date()))} days remaining
-                                </span>
+                              <Select 
+                                value={selectedSprintId || ""} 
+                                onValueChange={(val) => setSelectedSprintId(val)}
+                              >
+                                <SelectTrigger className="w-auto min-w-[180px] h-9 text-lg font-semibold border-none shadow-none hover:bg-muted/50 focus:ring-0">
+                                  <SelectValue placeholder="Select sprint..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {projectSprints.map((sprint: any) => (
+                                    <SelectItem key={sprint.id} value={sprint.id}>
+                                      {sprint.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {selectedSprint && (
+                                <>
+                                  <Badge variant={selectedSprint.status === "active" ? "default" : "secondary"} className="capitalize">
+                                    {selectedSprint.status}
+                                  </Badge>
+                                  {selectedSprint.endDate && (
+                                    <span className="text-sm text-muted-foreground">
+                                      {Math.max(0, differenceInDays(parseISO(selectedSprint.endDate), new Date()))} days remaining
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                             <div className="flex items-center gap-2">
@@ -1032,12 +1078,14 @@ export default function ProjectOverview() {
                                 <Plus className="h-4 w-4" />
                                 Add Task
                               </Button>
-                              <Link href={`/projects/${projectId}/sprints/${activeSprint.id}?tab=run`}>
-                                <Button variant="outline" size="sm" className="gap-2">
-                                  <Settings className="h-4 w-4" />
-                                  Sprint Details
-                                </Button>
-                              </Link>
+                              {selectedSprint && (
+                                <Link href={`/projects/${projectId}/sprints/${selectedSprint.id}?tab=run`}>
+                                  <Button variant="outline" size="sm" className="gap-2">
+                                    <Settings className="h-4 w-4" />
+                                    Sprint Details
+                                  </Button>
+                                </Link>
+                              )}
                             </div>
                           </div>
 
@@ -1214,7 +1262,7 @@ export default function ProjectOverview() {
           <DialogHeader>
             <DialogTitle>Add Task to Sprint</DialogTitle>
             <DialogDescription>
-              Add an existing task or create a new one for {activeSprint?.name}
+              Add an existing task or create a new one for {selectedSprint?.name}
             </DialogDescription>
           </DialogHeader>
           
