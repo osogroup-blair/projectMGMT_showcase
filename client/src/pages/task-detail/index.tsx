@@ -44,9 +44,10 @@ import {
 } from "@/hooks/use-nexus-data";
 import { EFFORT_VALUES } from "@shared/schema";
 import { TaskOverviewTab } from "./task-overview-tab";
-import { TaskDependenciesTab } from "./task-dependencies-tab";
 import { TaskSubtasksTab } from "./task-subtasks-tab";
-import { TaskActivityTab } from "./task-activity-tab";
+import { TaskAttachmentsTab } from "./task-attachments-tab";
+import { TaskDependenciesTab } from "./task-dependencies-tab";
+import { TaskHistoryTab } from "./task-history-tab";
 import { TaskCommentsPanel } from "./task-comments-panel";
 
 const PRIORITY_CONFIG = {
@@ -335,13 +336,6 @@ export default function TaskDetail() {
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="dependencies" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-                  data-testid="tab-dependencies"
-                >
-                  Dependencies
-                </TabsTrigger>
-                <TabsTrigger 
                   value="subtasks" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
                   data-testid="tab-subtasks"
@@ -349,11 +343,25 @@ export default function TaskDetail() {
                   Subtasks
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="activity" 
+                  value="attachments" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-                  data-testid="tab-activity"
+                  data-testid="tab-attachments"
                 >
-                  Activity
+                  Attachments
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="dependents" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  data-testid="tab-dependents"
+                >
+                  Dependents
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="history" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  data-testid="tab-history"
+                >
+                  History
                 </TabsTrigger>
               </TabsList>
               
@@ -362,20 +370,6 @@ export default function TaskDetail() {
                   task={task} 
                   projectId={projectId}
                   updateTask={handleUpdateTask}
-                />
-              </TabsContent>
-
-              <TabsContent value="dependencies" className="pt-6">
-                <TaskDependenciesTab 
-                  task={task}
-                  projectId={projectId}
-                  taskId={taskId}
-                  allTasks={allTasks}
-                  dependsOn={dependsOn}
-                  dependents={dependents}
-                  addDependency={addDependency}
-                  removeDependency={removeDependency}
-                  subtasks={subtasks}
                 />
               </TabsContent>
 
@@ -389,8 +383,30 @@ export default function TaskDetail() {
                 />
               </TabsContent>
 
-              <TabsContent value="activity" className="pt-6">
-                <TaskActivityTab 
+              <TabsContent value="attachments" className="pt-6">
+                <TaskAttachmentsTab 
+                  task={task}
+                  projectId={projectId}
+                />
+              </TabsContent>
+
+              <TabsContent value="dependents" className="pt-6">
+                <TaskDependenciesTab 
+                  task={task}
+                  projectId={projectId}
+                  allTasks={allTasks || []}
+                  stages={stages}
+                  allEpics={allEpics || []}
+                  milestones={milestones}
+                  dependsOn={dependsOn}
+                  dependents={dependents}
+                  addDependency={addDependency}
+                  removeDependency={removeDependency}
+                />
+              </TabsContent>
+
+              <TabsContent value="history" className="pt-6">
+                <TaskHistoryTab 
                   task={task}
                   projectId={projectId}
                 />
