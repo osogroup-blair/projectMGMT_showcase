@@ -1,6 +1,6 @@
 import { ParseResult, NYMBL_SCHEMA } from "@/lib/import-parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -69,22 +69,16 @@ export function SchemaDetectionStep({
                   </div>
                   <div className="flex items-center gap-3">
                     <Database className="h-4 w-4 text-muted-foreground" />
-                    <Select
+                    <SearchableSelect
                       value={entityMappings[entity.entityType] || entity.entityType}
                       onValueChange={(val) => handleEntityTypeChange(entity.entityType, val)}
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="skip" className="text-muted-foreground italic">
-                          -- Skip this section --
-                        </SelectItem>
-                        {ENTITY_TYPES.map(type => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      placeholder="Select entity type..."
+                      options={[
+                        { value: 'skip', label: '-- Skip this section --' },
+                        ...ENTITY_TYPES.map(type => ({ value: type, label: type }))
+                      ]}
+                      triggerClassName="w-[180px]"
+                    />
                   </div>
                 </div>
               </CardHeader>
@@ -168,19 +162,12 @@ export function SchemaDetectionStep({
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Default Owner</Label>
-                <Select
+                <SearchableSelect
                   value={projectDefaults.ownerId}
                   onValueChange={(val) => onProjectDefaultsChange({ ...projectDefaults, ownerId: val })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select owner..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {existingUsers.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select owner..."
+                  options={existingUsers.map((user: any) => ({ value: user.id, label: user.name }))}
+                />
               </div>
             </CardContent>
           </Card>

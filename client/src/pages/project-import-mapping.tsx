@@ -8,13 +8,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { 
   Table, 
   TableBody, 
@@ -201,34 +195,22 @@ export default function ProjectImportMapping() {
                             {col.sampleValue}
                           </TableCell>
                           <TableCell>
-                            <Select 
+                            <SearchableSelect 
                               value={mappings[col.name] || "ignore"} 
                               onValueChange={(val) => handleMappingChange(col.name, val)}
-                            >
-                              <SelectTrigger className={cn(
+                              placeholder="Select field..."
+                              triggerClassName={cn(
                                 "w-full",
                                 mappedField ? "border-primary ring-1 ring-primary/20" : ""
-                              )}>
-                                <SelectValue placeholder="Select field..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="ignore" className="text-muted-foreground italic">
-                                  -- Ignore Column --
-                                </SelectItem>
-                                {MOCK_SYSTEM_FIELDS.map((field) => (
-                                  <SelectItem key={field.id} value={field.id}>
-                                    <span className="flex items-center gap-2">
-                                      {field.label}
-                                      {field.required && (
-                                        <Badge variant="outline" className="text-[10px] py-0 h-4 border-red-200 text-red-600 bg-red-50">
-                                          Req
-                                        </Badge>
-                                      )}
-                                    </span>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              )}
+                              options={[
+                                { value: "ignore", label: "-- Ignore Column --" },
+                                ...MOCK_SYSTEM_FIELDS.map((field) => ({
+                                  value: field.id,
+                                  label: field.required ? `${field.label} (Req)` : field.label
+                                }))
+                              ]}
+                            />
                           </TableCell>
                         </TableRow>
                       );

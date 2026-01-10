@@ -34,13 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -548,35 +542,27 @@ export default function DeliverableDetail() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="epic-owner">Owner</Label>
-                <Select
+                <SearchableSelect
                   value={newEpicData.ownerId}
                   onValueChange={(value) => setNewEpicData(prev => ({ ...prev, ownerId: value }))}
-                >
-                  <SelectTrigger data-testid="select-epic-owner">
-                    <SelectValue placeholder="Select owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users?.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select owner"
+                  data-testid="select-epic-owner"
+                  options={users?.map((user: any) => ({ value: user.id, label: user.name })) || []}
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="epic-status">Status</Label>
-                <Select
+                <SearchableSelect
                   value={newEpicData.status}
                   onValueChange={(value) => setNewEpicData(prev => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger data-testid="select-epic-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Not Started">Not Started</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
+                  data-testid="select-epic-status"
+                  placeholder="Select status"
+                  options={[
+                    { value: "Not Started", label: "Not Started" },
+                    { value: "In Progress", label: "In Progress" },
+                    { value: "Completed", label: "Completed" },
+                  ]}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

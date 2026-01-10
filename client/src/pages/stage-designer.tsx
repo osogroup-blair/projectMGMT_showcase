@@ -22,13 +22,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useRoute, Link } from "wouter";
@@ -394,40 +388,31 @@ export default function StageDesigner() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="stage-type">Type</Label>
-                          <Select 
-                            value={editForm.type} 
+                          <SearchableSelect 
+                            value={editForm.type || ""} 
                             onValueChange={(v: any) => setEditForm({ ...editForm, type: v })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="planning">Planning</SelectItem>
-                              <SelectItem value="execution">Execution</SelectItem>
-                              <SelectItem value="review">Review</SelectItem>
-                              <SelectItem value="delivery">Delivery</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            options={[
+                              { value: "planning", label: "Planning" },
+                              { value: "execution", label: "Execution" },
+                              { value: "review", label: "Review" },
+                              { value: "delivery", label: "Delivery" }
+                            ]}
+                          />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="entry-criteria">Entry Milestone</Label>
-                          <Select 
-                            value={editForm.entryMilestoneId} 
+                          <SearchableSelect 
+                            value={editForm.entryMilestoneId || ""} 
                             onValueChange={(v) => setEditForm({ ...editForm, entryMilestoneId: v })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Entry Milestone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {MILESTONES.map(m => (
-                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            placeholder="Select Entry Milestone"
+                            options={[
+                              { value: "none", label: "None" },
+                              ...MILESTONES.map(m => ({ value: m.id, label: m.name }))
+                            ]}
+                          />
                           <Input 
                             id="entry-criteria" 
                             value={editForm.entryCriteria} 
@@ -438,20 +423,15 @@ export default function StageDesigner() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="exit-criteria">Exit Milestone</Label>
-                          <Select 
-                            value={editForm.exitMilestoneId} 
+                          <SearchableSelect 
+                            value={editForm.exitMilestoneId || ""} 
                             onValueChange={(v) => setEditForm({ ...editForm, exitMilestoneId: v })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Exit Milestone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {MILESTONES.map(m => (
-                                <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            placeholder="Select Exit Milestone"
+                            options={[
+                              { value: "none", label: "None" },
+                              ...MILESTONES.map(m => ({ value: m.id, label: m.name }))
+                            ]}
+                          />
                           <Input 
                             id="exit-criteria" 
                             value={editForm.exitCriteria} 
@@ -589,19 +569,15 @@ export default function StageDesigner() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="default-view">Default View</Label>
-                          <Select 
+                          <SearchableSelect 
                             value={editForm.defaultView} 
                             onValueChange={(v: any) => setEditForm({ ...editForm, defaultView: v })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="kanban">Kanban Board</SelectItem>
-                              <SelectItem value="list">List View</SelectItem>
-                              <SelectItem value="calendar">Calendar</SelectItem>
-                            </SelectContent>
-                          </Select>
+                            options={[
+                              { value: "kanban", label: "Kanban Board" },
+                              { value: "list", label: "List View" },
+                              { value: "calendar", label: "Calendar" }
+                            ]}
+                          />
                         </div>
                       </div>
 

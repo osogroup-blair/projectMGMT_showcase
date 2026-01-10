@@ -26,13 +26,7 @@ import {
   CardTitle, 
   CardFooter
 } from "@/components/ui/card";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
   TableBody,
@@ -441,15 +435,15 @@ export default function ProjectExport() {
               <CardContent className="space-y-6">
                 <div className="space-y-3">
                   <Label>Export Scope</Label>
-                  <Select value={scope} onValueChange={(v: any) => setScope(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="project">This Project Only ({project.name})</SelectItem>
-                      <SelectItem value="all">All Projects (Admin)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect 
+                    value={scope} 
+                    onValueChange={(v: any) => setScope(v)}
+                    placeholder="Select scope"
+                    options={[
+                      { value: "project", label: `This Project Only (${project.name})` },
+                      { value: "all", label: "All Projects (Admin)" },
+                    ]}
+                  />
                 </div>
 
                 <div className="space-y-3">

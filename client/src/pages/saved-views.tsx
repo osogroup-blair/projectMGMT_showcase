@@ -36,13 +36,7 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useRoute, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -136,29 +130,31 @@ export default function SavedViewsGallery() {
             </div>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="View Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Kanban">Kanban</SelectItem>
-                <SelectItem value="List">List</SelectItem>
-                <SelectItem value="Calendar">Calendar</SelectItem>
-                <SelectItem value="Gantt">Gantt</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect 
+              value={typeFilter} 
+              onValueChange={setTypeFilter}
+              className="w-[140px]"
+              placeholder="View Type"
+              options={[
+                { value: "all", label: "All Types" },
+                { value: "Kanban", label: "Kanban" },
+                { value: "List", label: "List" },
+                { value: "Calendar", label: "Calendar" },
+                { value: "Gantt", label: "Gantt" }
+              ]}
+            />
 
-            <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Visibility" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Visibility</SelectItem>
-                <SelectItem value="Global">Global</SelectItem>
-                <SelectItem value="Personal">Personal</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect 
+              value={visibilityFilter} 
+              onValueChange={setVisibilityFilter}
+              className="w-[140px]"
+              placeholder="Visibility"
+              options={[
+                { value: "all", label: "All Visibility" },
+                { value: "Global", label: "Global" },
+                { value: "Personal", label: "Personal" }
+              ]}
+            />
             
             <Button variant="ghost" size="icon" onClick={() => {
               setSearchQuery("");

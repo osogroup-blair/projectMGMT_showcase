@@ -42,13 +42,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -327,22 +321,19 @@ export default function ProjectRoles() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="type">Role Type</Label>
-                  <Select 
+                  <SearchableSelect 
                     value={formData.roleType} 
                     onValueChange={(v: any) => setFormData({ ...formData, roleType: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Management">Management</SelectItem>
-                      <SelectItem value="Discovery">Discovery</SelectItem>
-                      <SelectItem value="Design">Design</SelectItem>
-                      <SelectItem value="Development">Development</SelectItem>
-                      <SelectItem value="QA & Testing">QA & Testing</SelectItem>
-                      <SelectItem value="Launch">Launch</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select type"
+                    options={[
+                      { value: "Management", label: "Management" },
+                      { value: "Discovery", label: "Discovery" },
+                      { value: "Design", label: "Design" },
+                      { value: "Development", label: "Development" },
+                      { value: "QA & Testing", label: "QA & Testing" },
+                      { value: "Launch", label: "Launch" },
+                    ]}
+                  />
                 </div>
 
                 <div className="grid gap-2">

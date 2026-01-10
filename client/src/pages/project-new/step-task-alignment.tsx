@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle2, AlertTriangle, XCircle, ListTodo, Layers, ArrowRight } from 'lucide-react';
@@ -185,6 +185,16 @@ export function StepTaskAlignment({
     );
   }
   
+  const epicOptions = allEpics.map(epic => ({
+    value: epic.id,
+    label: `${epic.title} (${epic.deliverableTitle})`
+  }));
+
+  const epicOptionsSimple = allEpics.map(epic => ({
+    value: epic.id,
+    label: epic.title
+  }));
+
   return (
     <div className="space-y-6">
       <Card>
@@ -253,22 +263,13 @@ export function StepTaskAlignment({
               <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                 <span className="text-sm font-medium">{selectedTasks.size} selected</span>
                 <ArrowRight className="h-4 w-4" />
-                <Select value={bulkAssignEpicId} onValueChange={setBulkAssignEpicId}>
-                  <SelectTrigger className="w-[250px]">
-                    <SelectValue placeholder="Select epic..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allEpics.map(epic => (
-                      <SelectItem key={epic.id} value={epic.id}>
-                        <span className="flex items-center gap-2">
-                          <Layers className="h-3 w-3" />
-                          {epic.title}
-                          <span className="text-xs text-muted-foreground">({epic.deliverableTitle})</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={bulkAssignEpicId}
+                  onValueChange={setBulkAssignEpicId}
+                  placeholder="Select epic..."
+                  options={epicOptions}
+                  triggerClassName="w-[250px]"
+                />
                 <Button 
                   size="sm" 
                   onClick={() => assignSelectedToEpic(bulkAssignEpicId)}
@@ -309,21 +310,13 @@ export function StepTaskAlignment({
                       )}
                     </div>
                   </div>
-                  <Select 
+                  <SearchableSelect 
                     value={task.assignedEpicId || ''} 
                     onValueChange={(value) => assignTaskToEpic(task.id, value)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Assign to epic..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {allEpics.map(epic => (
-                        <SelectItem key={epic.id} value={epic.id}>
-                          {epic.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Assign to epic..."
+                    options={epicOptionsSimple}
+                    triggerClassName="w-[180px]"
+                  />
                   <Button 
                     variant="ghost" 
                     size="sm" 

@@ -3,13 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Plus, Trash2, Users, AlertCircle, Shield, Layers } from "lucide-react";
 import { StepProps, WizardRole, CORE_PROJECT_ROLES } from "./types";
 
@@ -80,9 +74,19 @@ export function StepTeamRoles({
     !CORE_PROJECT_ROLES.some(c => c.templateId === rt.id)
   );
 
+  const templateOptions = availableTemplates.map((rt: any) => ({
+    value: rt.id,
+    label: rt.name
+  }));
+
   const renderRoleCard = (role: WizardRole, globalIndex: number) => {
     const eligibleForRole = getEligibleUsersForRole(role.roleTypeId);
     const hasEligibleUsers = eligibleForRole.length > 0;
+
+    const userOptions = (hasEligibleUsers ? eligibleForRole : users).map((member: any) => ({
+      value: member.id,
+      label: member.role ? `${member.name} (${member.role})` : member.name
+    }));
 
     return (
       <Card key={role.id} className={role.isCore ? "border-primary/30 bg-primary/5" : ""}>
@@ -132,37 +136,17 @@ export function StepTeamRoles({
                 {users.length} eligible
               </Badge>
             </div>
-            <Select 
+            <SearchableSelect 
               value={role.assigneeId || ""} 
               onValueChange={(val) => {
                 const newRoles = [...roles];
                 newRoles[globalIndex].assigneeId = val || null;
                 setRoles(newRoles);
               }}
-            >
-              <SelectTrigger data-testid={`select-role-assignee-${globalIndex}`}>
-                <SelectValue placeholder="Unassigned" />
-              </SelectTrigger>
-              <SelectContent>
-                {hasEligibleUsers || users.length > 0 ? (
-                  (hasEligibleUsers ? eligibleForRole : users).map((member: any) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-medium">
-                          {member.name?.charAt(0) || '?'}
-                        </div>
-                        <span>{member.name}</span>
-                        {member.role && <span className="text-xs text-muted-foreground">({member.role})</span>}
-                      </div>
-                    </SelectItem>
-                  ))
-                ) : (
-                  <div className="text-sm text-muted-foreground px-2 py-1.5">
-                    No users available
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
+              placeholder="Unassigned"
+              options={userOptions}
+              data-testid={`select-role-assignee-${globalIndex}`}
+            />
           </div>
         </CardContent>
       </Card>
@@ -174,16 +158,12 @@ export function StepTeamRoles({
       <div className="flex justify-end items-center">
         <div className="flex gap-2">
           {availableTemplates.length > 0 && (
-            <Select onValueChange={addRoleFromTemplate}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="Add from template..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableTemplates.map((rt: any) => (
-                  <SelectItem key={rt.id} value={rt.id}>{rt.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              onValueChange={addRoleFromTemplate}
+              placeholder="Add from template..."
+              options={templateOptions}
+              triggerClassName="w-[180px] h-9"
+            />
           )}
           <Button size="sm" onClick={addRole} data-testid="button-add-role">
             <Plus className="h-4 w-4 mr-2" /> Custom Role

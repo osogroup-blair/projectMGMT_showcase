@@ -9,13 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
@@ -328,45 +322,45 @@ export function TaskDependenciesTab({
                   <div className="flex flex-wrap gap-2 items-center">
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground whitespace-nowrap">Stage:</Label>
-                      <Select value={stageFilter} onValueChange={setStageFilter}>
-                        <SelectTrigger className="h-8 w-[160px]" data-testid="select-stage-filter">
-                          <SelectValue placeholder="All Stages" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Stages</SelectItem>
-                          {stages.map((stage: any) => (
-                            <SelectItem key={stage.id} value={stage.id}>{stage.label || stage.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        value={stageFilter}
+                        onValueChange={setStageFilter}
+                        placeholder="All Stages"
+                        options={[
+                          { value: "all", label: "All Stages" },
+                          ...stages.map((stage: any) => ({ value: stage.id, label: stage.label || stage.name }))
+                        ]}
+                        triggerClassName="h-8 w-[160px]"
+                        data-testid="select-stage-filter"
+                      />
                     </div>
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground whitespace-nowrap">Epic:</Label>
-                      <Select value={epicFilter} onValueChange={setEpicFilter}>
-                        <SelectTrigger className="h-8 w-[160px]" data-testid="select-epic-filter">
-                          <SelectValue placeholder="All Epics" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Epics</SelectItem>
-                          {allEpics.map((epic: any) => (
-                            <SelectItem key={epic.id} value={epic.id}>{epic.title || epic.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        value={epicFilter}
+                        onValueChange={setEpicFilter}
+                        placeholder="All Epics"
+                        options={[
+                          { value: "all", label: "All Epics" },
+                          ...allEpics.map((epic: any) => ({ value: epic.id, label: epic.title || epic.name }))
+                        ]}
+                        triggerClassName="h-8 w-[160px]"
+                        data-testid="select-epic-filter"
+                      />
                     </div>
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground whitespace-nowrap">Milestone:</Label>
-                      <Select value={milestoneFilter} onValueChange={setMilestoneFilter}>
-                        <SelectTrigger className="h-8 w-[160px]" data-testid="select-milestone-filter">
-                          <SelectValue placeholder="All Milestones" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Milestones</SelectItem>
-                          {milestones.map((ms: any) => (
-                            <SelectItem key={ms.id} value={ms.id}>{ms.title || ms.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect
+                        value={milestoneFilter}
+                        onValueChange={setMilestoneFilter}
+                        placeholder="All Milestones"
+                        options={[
+                          { value: "all", label: "All Milestones" },
+                          ...milestones.map((ms: any) => ({ value: ms.id, label: ms.title || ms.name }))
+                        ]}
+                        triggerClassName="h-8 w-[160px]"
+                        data-testid="select-milestone-filter"
+                      />
                     </div>
                     {(stageFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all" || searchQuery) && (
                       <Button 
@@ -633,41 +627,31 @@ export function TaskDependenciesTab({
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1">
                                 <Label className="text-xs">Stage</Label>
-                                <Select 
-                                  value={rule.stage} 
+                                <SearchableSelect
+                                  value={rule.stage}
                                   onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}
-                                >
-                                  <SelectTrigger className="h-8" data-testid={`select-rule-stage-${rule.id}`}>
-                                    <SelectValue placeholder="Any Stage" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">Any Stage</SelectItem>
-                                    {stages.map((stage: any) => (
-                                      <SelectItem key={stage.id} value={stage.id}>
-                                        {stage.label || stage.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  placeholder="Any Stage"
+                                  options={[
+                                    { value: "all", label: "Any Stage" },
+                                    ...stages.map((stage: any) => ({ value: stage.id, label: stage.label || stage.name }))
+                                  ]}
+                                  triggerClassName="h-8"
+                                  data-testid={`select-rule-stage-${rule.id}`}
+                                />
                               </div>
                               <div className="space-y-1">
                                 <Label className="text-xs">Epic</Label>
-                                <Select 
-                                  value={rule.epic} 
+                                <SearchableSelect
+                                  value={rule.epic}
                                   onValueChange={(v) => handleUpdateRule(rule.id, { epic: v })}
-                                >
-                                  <SelectTrigger className="h-8" data-testid={`select-rule-epic-${rule.id}`}>
-                                    <SelectValue placeholder="Any Epic" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">Any Epic</SelectItem>
-                                    {allEpics.map((epic: any) => (
-                                      <SelectItem key={epic.id} value={epic.id}>
-                                        {epic.title || epic.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  placeholder="Any Epic"
+                                  options={[
+                                    { value: "all", label: "Any Epic" },
+                                    ...allEpics.map((epic: any) => ({ value: epic.id, label: epic.title || epic.name }))
+                                  ]}
+                                  triggerClassName="h-8"
+                                  data-testid={`select-rule-epic-${rule.id}`}
+                                />
                               </div>
                             </div>
                             

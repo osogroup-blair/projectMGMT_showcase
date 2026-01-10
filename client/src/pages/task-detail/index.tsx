@@ -16,13 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -206,140 +200,86 @@ export default function TaskDetail() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Task Type</Label>
-                        <Select 
-                          value={task.taskTypeId || ""} 
+                        <SearchableSelect
+                          value={task.taskTypeId || ""}
                           onValueChange={(v) => handleUpdateTask("taskTypeId", v || null)}
-                        >
-                          <SelectTrigger data-testid="select-task-type">
-                            <div className="flex items-center gap-2">
-                              <Tag className="h-4 w-4 text-muted-foreground" />
-                              <span>{taskType?.name || "Select type"}</span>
-                            </div>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(taskTypes || []).map((tt: any) => (
-                              <SelectItem key={tt.id} value={tt.id}>
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-2 h-2 rounded-full" 
-                                    style={{ backgroundColor: tt.color || '#6b7280' }}
-                                  />
-                                  <span>{tt.name}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select type"
+                          options={(taskTypes || []).map((tt: any) => ({ value: tt.id, label: tt.name }))}
+                          data-testid="select-task-type"
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Status</Label>
-                        <Select 
-                          value={task.status} 
+                        <SearchableSelect
+                          value={task.status}
                           onValueChange={(v) => handleUpdateTask("status", v)}
-                        >
-                          <SelectTrigger data-testid="select-status">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map(status => (
-                              <SelectItem key={status} value={status}>{status}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select status"
+                          options={STATUS_OPTIONS.map(status => ({ value: status, label: status }))}
+                          data-testid="select-status"
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Stage</Label>
-                        <Select 
-                          value={task.stageId || ""} 
+                        <SearchableSelect
+                          value={task.stageId || ""}
                           onValueChange={(v) => handleUpdateTask("stageId", v)}
-                        >
-                          <SelectTrigger data-testid="select-stage">
-                            <SelectValue placeholder="Select stage" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stages.map((s: any) => (
-                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select stage"
+                          options={stages.map((s: any) => ({ value: s.id, label: s.name }))}
+                          data-testid="select-stage"
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Epic</Label>
-                        <Select 
-                          value={task.epicId || ""} 
+                        <SearchableSelect
+                          value={task.epicId || ""}
                           onValueChange={(v) => handleUpdateTask("epicId", v)}
-                        >
-                          <SelectTrigger data-testid="select-epic">
-                            <SelectValue placeholder="Select epic" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(allEpics || []).map((e: any) => (
-                              <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select epic"
+                          options={(allEpics || []).map((e: any) => ({ value: e.id, label: e.title }))}
+                          data-testid="select-epic"
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Assignee</Label>
-                        <Select 
-                          value={task.assigneeId || "unassigned"} 
+                        <SearchableSelect
+                          value={task.assigneeId || "unassigned"}
                           onValueChange={(v) => handleUpdateTask("assigneeId", v === "unassigned" ? null : v)}
-                        >
-                          <SelectTrigger data-testid="select-assignee">
-                            <div className="flex items-center gap-2">
-                              {task.assigneeId && getAssignee(task.assigneeId) ? (
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-[8px]">{getAssignee(task.assigneeId)?.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                              ) : <User className="h-4 w-4" />}
-                              <span className="truncate">{getAssignee(task.assigneeId)?.name || "Unassigned"}</span>
-                            </div>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned">Unassigned</SelectItem>
-                            {(users || []).map((member: any) => (
-                              <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select assignee"
+                          options={[
+                            { value: "unassigned", label: "Unassigned" },
+                            ...(users || []).map((member: any) => ({ value: member.id, label: member.name }))
+                          ]}
+                          data-testid="select-assignee"
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Priority</Label>
-                        <Select 
-                          value={task.priority} 
+                        <SearchableSelect
+                          value={task.priority}
                           onValueChange={(v) => handleUpdateTask("priority", v)}
-                        >
-                          <SelectTrigger data-testid="select-priority">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="High">High</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="Low">Low</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select priority"
+                          options={[
+                            { value: "High", label: "High" },
+                            { value: "Medium", label: "Medium" },
+                            { value: "Low", label: "Low" }
+                          ]}
+                          data-testid="select-priority"
+                        />
                       </div>
 
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Effort (Fibonacci)</Label>
-                        <Select 
-                          value={String(task.effort || "")} 
+                        <SearchableSelect
+                          value={String(task.effort || "")}
                           onValueChange={(v) => handleUpdateTask("effort", parseInt(v))}
-                        >
-                          <SelectTrigger data-testid="select-effort">
-                            <SelectValue placeholder="Select effort" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {EFFORT_VALUES.map(val => (
-                              <SelectItem key={val} value={String(val)}>{val}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select effort"
+                          options={EFFORT_VALUES.map(val => ({ value: String(val), label: String(val) }))}
+                          data-testid="select-effort"
+                        />
                       </div>
 
                       <div className="space-y-2">
@@ -354,23 +294,16 @@ export default function TaskDetail() {
 
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Milestone</Label>
-                        <Select 
-                          value={task.milestoneId || "none"} 
+                        <SearchableSelect
+                          value={task.milestoneId || "none"}
                           onValueChange={(v) => handleUpdateTask("milestoneId", v === "none" ? null : v)}
-                        >
-                          <SelectTrigger data-testid="select-milestone">
-                            <div className="flex items-center gap-2">
-                              <Flag className="h-4 w-4 text-muted-foreground" />
-                              <span className="truncate">{getMilestone(task.milestoneId)?.name || "No Milestone"}</span>
-                            </div>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {milestones.map((m: any) => (
-                              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select milestone"
+                          options={[
+                            { value: "none", label: "None" },
+                            ...milestones.map((m: any) => ({ value: m.id, label: m.name }))
+                          ]}
+                          data-testid="select-milestone"
+                        />
                       </div>
 
                       <div className="space-y-2">

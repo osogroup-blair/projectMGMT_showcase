@@ -55,7 +55,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
@@ -1577,58 +1577,60 @@ export default function SprintDetail() {
                             <div className="flex flex-wrap gap-2 items-center">
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs text-muted-foreground whitespace-nowrap">Stage:</Label>
-                                <Select value={stageFilter} onValueChange={setStageFilter}>
-                                  <SelectTrigger className="h-8 w-[180px]" data-testid="select-stage-filter">
-                                    <SelectValue placeholder="All Stages" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">All Stages</SelectItem>
-                                    {projectStages.map((stage: any) => (
-                                      <SelectItem key={stage.id} value={stage.id}>{stage.label || stage.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <SearchableSelect 
+                                  value={stageFilter} 
+                                  onValueChange={setStageFilter}
+                                  className="h-8 w-[180px]"
+                                  data-testid="select-stage-filter"
+                                  placeholder="All Stages"
+                                  options={[
+                                    { value: "all", label: "All Stages" },
+                                    ...projectStages.map((stage: any) => ({ value: stage.id, label: stage.label || stage.name }))
+                                  ]}
+                                />
                               </div>
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs text-muted-foreground whitespace-nowrap">Epic:</Label>
-                                <Select value={epicFilter} onValueChange={setEpicFilter}>
-                                  <SelectTrigger className="h-8 w-[180px]" data-testid="select-epic-filter">
-                                    <SelectValue placeholder="All Epics" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">All Epics</SelectItem>
-                                    {projectEpics.map((epic: any) => (
-                                      <SelectItem key={epic.id} value={epic.id}>{epic.title || epic.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <SearchableSelect 
+                                  value={epicFilter} 
+                                  onValueChange={setEpicFilter}
+                                  className="h-8 w-[180px]"
+                                  data-testid="select-epic-filter"
+                                  placeholder="All Epics"
+                                  options={[
+                                    { value: "all", label: "All Epics" },
+                                    ...projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title || epic.name }))
+                                  ]}
+                                />
                               </div>
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs text-muted-foreground whitespace-nowrap">Milestone:</Label>
-                                <Select value={milestoneFilter} onValueChange={setMilestoneFilter}>
-                                  <SelectTrigger className="h-8 w-[180px]" data-testid="select-milestone-filter">
-                                    <SelectValue placeholder="All Milestones" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">All Milestones</SelectItem>
-                                    {projectMilestones.map((ms: any) => (
-                                      <SelectItem key={ms.id} value={ms.id}>{ms.title || ms.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <SearchableSelect 
+                                  value={milestoneFilter} 
+                                  onValueChange={setMilestoneFilter}
+                                  className="h-8 w-[180px]"
+                                  data-testid="select-milestone-filter"
+                                  placeholder="All Milestones"
+                                  options={[
+                                    { value: "all", label: "All Milestones" },
+                                    ...projectMilestones.map((ms: any) => ({ value: ms.id, label: ms.title || ms.name }))
+                                  ]}
+                                />
                               </div>
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs text-muted-foreground whitespace-nowrap">Show:</Label>
-                                <Select value={showIncludedOnly === null ? "all" : showIncludedOnly ? "included" : "excluded"} onValueChange={(v) => setShowIncludedOnly(v === "all" ? null : v === "included")}>
-                                  <SelectTrigger className="h-8 w-[130px]" data-testid="select-included-filter">
-                                    <SelectValue placeholder="All Tasks" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all">All Tasks</SelectItem>
-                                    <SelectItem value="included">In Sprint</SelectItem>
-                                    <SelectItem value="excluded">Not In Sprint</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <SearchableSelect 
+                                  value={showIncludedOnly === null ? "all" : showIncludedOnly ? "included" : "excluded"} 
+                                  onValueChange={(v) => setShowIncludedOnly(v === "all" ? null : v === "included")}
+                                  className="h-8 w-[130px]"
+                                  data-testid="select-included-filter"
+                                  placeholder="All Tasks"
+                                  options={[
+                                    { value: "all", label: "All Tasks" },
+                                    { value: "included", label: "In Sprint" },
+                                    { value: "excluded", label: "Not In Sprint" }
+                                  ]}
+                                />
                               </div>
                               {(stageFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all" || showIncludedOnly !== null || manualScopeSearch) && (
                                 <Button 
@@ -1733,15 +1735,16 @@ export default function SprintDetail() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Label className="text-xs text-muted-foreground">View by:</Label>
-                                <Select value={matrixAxis} onValueChange={(v) => setMatrixAxis(v as "epics" | "milestones")}>
-                                  <SelectTrigger className="h-8 w-[140px]" data-testid="select-matrix-axis">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="epics">Epics</SelectItem>
-                                    <SelectItem value="milestones">Milestones</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <SearchableSelect 
+                                  value={matrixAxis} 
+                                  onValueChange={(v) => setMatrixAxis(v as "epics" | "milestones")}
+                                  className="h-8 w-[140px]"
+                                  data-testid="select-matrix-axis"
+                                  options={[
+                                    { value: "epics", label: "Epics" },
+                                    { value: "milestones", label: "Milestones" }
+                                  ]}
+                                />
                               </div>
                             </div>
                             <div className="overflow-x-auto">
@@ -1989,74 +1992,62 @@ export default function SprintDetail() {
                                       <div className="grid grid-cols-4 gap-4">
                                         <div className="space-y-1">
                                            <Label className="text-xs">Stage</Label>
-                                           <Select 
+                                           <SearchableSelect 
                                              value={rule.stage || "all"} 
                                              onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}
-                                           >
-                                             <SelectTrigger className="h-8" data-testid={`select-rule-stage-${rule.id}`}>
-                                               <SelectValue placeholder="Any Stage" />
-                                             </SelectTrigger>
-                                             <SelectContent>
-                                               <SelectItem value="all">Any Stage</SelectItem>
-                                               {projectStages.map((stage: any) => (
-                                                 <SelectItem key={stage.id} value={stage.id}>
-                                                   {stage.label || stage.name}
-                                                 </SelectItem>
-                                               ))}
-                                             </SelectContent>
-                                           </Select>
+                                             className="h-8"
+                                             data-testid={`select-rule-stage-${rule.id}`}
+                                             placeholder="Any Stage"
+                                             options={[
+                                               { value: "all", label: "Any Stage" },
+                                               ...projectStages.map((stage: any) => ({ value: stage.id, label: stage.label || stage.name }))
+                                             ]}
+                                           />
                                         </div>
                                         <div className="space-y-1">
                                            <Label className="text-xs">Milestone</Label>
-                                           <Select 
+                                           <SearchableSelect 
                                              value={rule.milestone || "all"} 
                                              onValueChange={(v) => handleUpdateRule(rule.id, { milestone: v })}
-                                           >
-                                             <SelectTrigger className="h-8" data-testid={`select-rule-milestone-${rule.id}`}>
-                                               <SelectValue placeholder="Any Milestone" />
-                                             </SelectTrigger>
-                                             <SelectContent>
-                                               <SelectItem value="all">Any Milestone</SelectItem>
-                                               {projectMilestones.map((ms: any) => (
-                                                 <SelectItem key={ms.id} value={ms.id}>
-                                                   {ms.title || ms.name}
-                                                 </SelectItem>
-                                               ))}
-                                             </SelectContent>
-                                           </Select>
+                                             className="h-8"
+                                             data-testid={`select-rule-milestone-${rule.id}`}
+                                             placeholder="Any Milestone"
+                                             options={[
+                                               { value: "all", label: "Any Milestone" },
+                                               ...projectMilestones.map((ms: any) => ({ value: ms.id, label: ms.title || ms.name }))
+                                             ]}
+                                           />
                                         </div>
                                         <div className="space-y-1">
                                            <Label className="text-xs">Epic Type</Label>
-                                           <Select 
+                                           <SearchableSelect 
                                              value={rule.epicType || "all"} 
                                              onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}
-                                           >
-                                             <SelectTrigger className="h-8" data-testid={`select-rule-epic-type-${rule.id}`}>
-                                               <SelectValue placeholder="Any Epic Type" />
-                                             </SelectTrigger>
-                                             <SelectContent>
-                                               <SelectItem value="all">Any Epic Type</SelectItem>
-                                               <SelectItem value="use_case">Use Case</SelectItem>
-                                               <SelectItem value="technical">Technical</SelectItem>
-                                             </SelectContent>
-                                           </Select>
+                                             className="h-8"
+                                             data-testid={`select-rule-epic-type-${rule.id}`}
+                                             placeholder="Any Epic Type"
+                                             options={[
+                                               { value: "all", label: "Any Epic Type" },
+                                               { value: "use_case", label: "Use Case" },
+                                               { value: "technical", label: "Technical" }
+                                             ]}
+                                           />
                                         </div>
                                         <div className="space-y-1">
                                            <Label className="text-xs">Task Type</Label>
-                                           <Select 
+                                           <SearchableSelect 
                                              value={rule.taskTemplateKey || "all"} 
                                              onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}
-                                           >
-                                             <SelectTrigger className="h-8" data-testid={`select-rule-task-type-${rule.id}`}>
-                                               <SelectValue placeholder="Any Task Type" />
-                                             </SelectTrigger>
-                                             <SelectContent>
-                                               <SelectItem value="all">Any Task Type</SelectItem>
-                                               <SelectItem value="design">Design</SelectItem>
-                                               <SelectItem value="development">Development</SelectItem>
-                                               <SelectItem value="testing">Testing</SelectItem>
-                                             </SelectContent>
-                                           </Select>
+                                             className="h-8"
+                                             data-testid={`select-rule-task-type-${rule.id}`}
+                                             placeholder="Any Task Type"
+                                             options={[
+                                               { value: "all", label: "Any Task Type" },
+                                               { value: "design", label: "Design" },
+                                               { value: "development", label: "Development" },
+                                               { value: "testing", label: "Testing" }
+                                             ]}
+                                           />
                                         </div>
                                       </div>
                                       

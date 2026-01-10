@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
@@ -637,28 +637,28 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Select value={selectedEpicId || "all"} onValueChange={(v) => setSelectedEpicId(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[200px]" data-testid="select-search-epic">
-                      <SelectValue placeholder="Filter by Epic" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Epics</SelectItem>
-                      {projectEpics.map((epic: any) => (
-                        <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={selectedStageId || "all"} onValueChange={(v) => setSelectedStageId(v === "all" ? "" : v)}>
-                    <SelectTrigger className="w-[200px]" data-testid="select-search-stage">
-                      <SelectValue placeholder="Filter by Stage" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Stages</SelectItem>
-                      {projectStages.map((stage: any) => (
-                        <SelectItem key={stage.id} value={stage.id}>{stage.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect 
+                    value={selectedEpicId || "all"} 
+                    onValueChange={(v) => setSelectedEpicId(v === "all" ? "" : v)}
+                    className="w-[200px]"
+                    data-testid="select-search-epic"
+                    placeholder="Filter by Epic"
+                    options={[
+                      { value: "all", label: "All Epics" },
+                      ...projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))
+                    ]}
+                  />
+                  <SearchableSelect 
+                    value={selectedStageId || "all"} 
+                    onValueChange={(v) => setSelectedStageId(v === "all" ? "" : v)}
+                    className="w-[200px]"
+                    data-testid="select-search-stage"
+                    placeholder="Filter by Stage"
+                    options={[
+                      { value: "all", label: "All Stages" },
+                      ...projectStages.map((stage: any) => ({ value: stage.id, label: stage.label }))
+                    ]}
+                  />
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto mt-3 border rounded-md">
@@ -730,68 +730,53 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Epic <span className="text-red-500">*</span></Label>
-                    <Select value={selectedEpicId} onValueChange={(v) => { setSelectedEpicId(v); setSelectedStageId(""); }}>
-                      <SelectTrigger data-testid="select-new-task-epic">
-                        <SelectValue placeholder="Select Epic first" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projectEpics.map((epic: any) => (
-                          <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect 
+                      value={selectedEpicId} 
+                      onValueChange={(v) => { setSelectedEpicId(v); setSelectedStageId(""); }}
+                      data-testid="select-new-task-epic"
+                      placeholder="Select Epic first"
+                      options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label>Stage <span className="text-red-500">*</span></Label>
-                    <Select 
+                    <SearchableSelect 
                       value={selectedStageId} 
                       onValueChange={setSelectedStageId}
                       disabled={!selectedEpicId}
-                    >
-                      <SelectTrigger data-testid="select-new-task-stage">
-                        <SelectValue placeholder={selectedEpicId ? "Select Stage" : "Select Epic first"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {projectStages.map((stage: any) => (
-                          <SelectItem key={stage.id} value={stage.id}>{stage.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      data-testid="select-new-task-stage"
+                      placeholder={selectedEpicId ? "Select Stage" : "Select Epic first"}
+                      options={projectStages.map((stage: any) => ({ value: stage.id, label: stage.label }))}
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Priority</Label>
-                    <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
-                      <SelectTrigger data-testid="select-new-task-priority">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Low">Low</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                        <SelectItem value="Critical">Critical</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect 
+                      value={newTaskPriority} 
+                      onValueChange={setNewTaskPriority}
+                      data-testid="select-new-task-priority"
+                      options={[
+                        { value: "Low", label: "Low" },
+                        { value: "Medium", label: "Medium" },
+                        { value: "High", label: "High" },
+                        { value: "Critical", label: "Critical" }
+                      ]}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label>Effort (Fibonacci) <span className="text-red-500">*</span></Label>
-                    <Select 
+                    <SearchableSelect 
                       value={newTaskEffort?.toString() || ""} 
                       onValueChange={(v) => setNewTaskEffort(v ? parseInt(v) : null)}
-                    >
-                      <SelectTrigger data-testid="select-new-task-effort">
-                        <SelectValue placeholder="Select effort" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EFFORT_VALUES.map((val) => (
-                          <SelectItem key={val} value={val.toString()}>{val}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      data-testid="select-new-task-effort"
+                      placeholder="Select effort"
+                      options={EFFORT_VALUES.map((val) => ({ value: val.toString(), label: val.toString() }))}
+                    />
                   </div>
                 </div>
               </div>

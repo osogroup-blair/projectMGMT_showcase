@@ -1,6 +1,6 @@
 import { ParseResult, extractUniqueUserIds } from "@/lib/import-parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -88,24 +88,16 @@ export function UserMappingStep({
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Select
+                            <SearchableSelect
                               value={mappedTo || '__unmapped__'}
                               onValueChange={(val) => handleUserMappingChange(externalId, val === '__unmapped__' ? '' : val)}
-                            >
-                              <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Select user..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__unmapped__" className="text-muted-foreground italic">
-                                  -- Leave unmapped --
-                                </SelectItem>
-                                {existingUsers.map((user: any) => (
-                                  <SelectItem key={user.id} value={user.id}>
-                                    {user.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              placeholder="Select user..."
+                              options={[
+                                { value: '__unmapped__', label: '-- Leave unmapped --' },
+                                ...existingUsers.map((user: any) => ({ value: user.id, label: user.name }))
+                              ]}
+                              triggerClassName="w-[200px]"
+                            />
                           </TableCell>
                           <TableCell>
                             {mappedUser ? (

@@ -1,0 +1,159 @@
+# Sprint Flow Board — “Now / Next” Workspace
+
+## Purpose
+Provide a single, focused workspace where the team can:
+- See what is actively flowing in the current sprint
+- Update what they are working on with confidence
+- Communicate progress without noise
+- Suggest work for the next sprint backlog without breaking focus
+
+This is a decision and communication surface, not a reporting tool.
+
+---
+
+## Page Layout (High Level)
+
+Sprint Header  
+- Sprint name, status, and remaining days  
+- Quick filters: My Work, Team, Blocked, Updated Today  
+
+Main Board  
+- Three columns: Not Started, In Progress, Blocked  
+- Drag-and-drop task cards  
+
+Persistent Footer Actions  
+- Post Update  
+- Suggest for Next Sprint  
+
+---
+
+## Sprint Flow Board
+
+### Columns
+- Not Started  
+- In Progress  
+- Blocked  
+
+Designed for flow and clarity, not over-modeling.
+
+---
+
+### Task Cards
+Each task card displays:
+- Task title
+- Parent epic or deliverable (subtle)
+- Assignee avatar
+- Current status
+- Last update timestamp
+
+Hover actions:
+- Drag handle
+- Post Update
+- Suggest for Next Sprint
+
+---
+
+## Filtering & Focus
+
+### Quick Filters
+- My Work
+- Team
+- Blocked
+- Updated Today
+
+### Secondary Filters
+- Epic
+- Deliverable
+- Task Type
+- Assignee
+
+Filters act as spotlights, not complex query builders.
+
+---
+
+## Posting Updates (Primary Interaction)
+
+### Entry Points
+- From a task card
+- From the footer “Post Update” button
+- Keyboard shortcut
+
+### Update Modal
+Prompt: “What’s your update?”
+
+Fields:
+- Status (auto-set from board column)
+- Short update text (1–3 sentences)
+- Optional blocker reason
+- Optional ETA change
+- Optional reference link
+
+Primary Action:
+- Post Update
+
+Behavior:
+- Timestamp and author automatically recorded
+- Task card highlights briefly after posting
+- Update appears in sprint insights
+
+Updates are status declarations, not discussion threads.
+
+---
+
+## Suggesting Work for Next Sprint
+
+### Entry Points
+- Task card overflow menu
+- Footer “Suggest for Next Sprint” button
+- Empty state prompt
+
+### Suggestion Drawer
+Fields:
+- Title (required)
+- Why this matters (optional)
+- Related epic or deliverable (optional)
+- Suggested size (S / M / L)
+
+Primary Action:
+- Add to Next Sprint Backlog
+
+Behavior:
+- Item is added to the next sprint backlog
+- Tagged with suggester, source sprint, and date
+- Visible to PMs and sprint planners for prioritization
+
+No commitment or prioritization happens at suggestion time.
+
+---
+
+## Social Accountability (Subtle)
+
+Visual signals only:
+- Updated today indicator
+- Needs update after a defined time threshold
+- Blocked for multiple days indicator
+
+No public shaming, counters, or loud alerts.
+
+---
+
+## Optional Right Rail (Collapsible)
+
+Sprint Pulse:
+- Percentage of tasks updated this week
+- Number of blocked tasks
+- Work distribution by assignee
+
+Recent Updates:
+- Read-only, chronological list of short updates
+
+---
+
+## Mental Model
+
+This UI should answer three questions instantly:
+1. What is moving right now?
+2. What am I responsible for today?
+3. What should we consider next without losing focus?
+
+The experience should feel lightweight, confident, and intentional.

@@ -13,13 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -233,17 +227,15 @@ export function StageTemplateEditor({
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
                         <Label>Priority</Label>
-                        <Select 
-                          value={currentTask.defaultPriority} 
+                        <SearchableSelect 
+                          value={currentTask.defaultPriority || ""} 
                           onValueChange={(v: any) => setCurrentTask({ ...currentTask, defaultPriority: v })}
-                        >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Low">Low</SelectItem>
-                            <SelectItem value="Medium">Medium</SelectItem>
-                            <SelectItem value="High">High</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          options={[
+                            { value: "Low", label: "Low" },
+                            { value: "Medium", label: "Medium" },
+                            { value: "High", label: "High" }
+                          ]}
+                        />
                       </div>
                       <div className="grid gap-2">
                         <Label>Est. Hours</Label>
@@ -256,18 +248,15 @@ export function StageTemplateEditor({
                     </div>
                     <div className="grid gap-2">
                       <Label>Assigned Role</Label>
-                      <Select 
+                      <SearchableSelect 
                         value={currentTask.assignedRoleId || "unassigned"} 
                         onValueChange={(v) => setCurrentTask({ ...currentTask, assignedRoleId: v === "unassigned" ? undefined : v })}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Select Role" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {roleTemplates.map(role => (
-                            <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select Role"
+                        options={[
+                          { value: "unassigned", label: "Unassigned" },
+                          ...roleTemplates.map(role => ({ value: role.id, label: role.name }))
+                        ]}
+                      />
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="sm" onClick={() => setIsTaskFormOpen(false)}>Cancel</Button>

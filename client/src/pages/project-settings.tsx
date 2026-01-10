@@ -18,13 +18,7 @@ import {
   CardDescription,
   CardFooter
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -150,19 +144,12 @@ export default function ProjectSettings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="framework">Project Framework</Label>
-                  <Select 
+                  <SearchableSelect 
                     value={formData.frameworkId} 
                     onValueChange={(val) => setFormData({...formData, frameworkId: val})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a framework" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FRAMEWORK_TEMPLATES.map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select a framework"
+                    options={FRAMEWORK_TEMPLATES.map(t => ({ value: t.id, label: t.name }))}
+                  />
                   <p className="text-xs text-muted-foreground">
                     Defines the overall stages and workflow methodology.
                   </p>
@@ -170,19 +157,12 @@ export default function ProjectSettings() {
 
                 <div className="space-y-2">
                   <Label htmlFor="mappingTemplate">Default Import Mapping</Label>
-                  <Select 
+                  <SearchableSelect 
                     value={formData.defaultMappingTemplateId} 
                     onValueChange={(val) => setFormData({...formData, defaultMappingTemplateId: val})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a mapping" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MAPPING_TEMPLATES.map(t => (
-                        <SelectItem key={t.id} value={t.id}>{t.name} ({t.dataType})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select a mapping"
+                    options={MAPPING_TEMPLATES.map(t => ({ value: t.id, label: `${t.name} (${t.dataType})` }))}
+                  />
                   <p className="text-xs text-muted-foreground">
                     Default field mapping configuration for imports.
                   </p>
@@ -218,24 +198,12 @@ export default function ProjectSettings() {
                       
                       <div className="space-y-2">
                         <Label>Status & Color</Label>
-                        <Select 
+                        <SearchableSelect 
                           value={stage.status}
                           onValueChange={(val) => handleStageChange(stage.id, 'status', val)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STAGE_STATUS_OPTIONS.map(option => (
-                              <SelectItem key={option.id} value={option.label}>
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-3 h-3 rounded-full ${option.color.split(' ')[0]}`} />
-                                  <span className="capitalize">{option.label}</span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Select status"
+                          options={STAGE_STATUS_OPTIONS.map(option => ({ value: option.label, label: option.label }))}
+                        />
                       </div>
 
                       <div className="col-span-1 md:col-span-2 space-y-2">

@@ -23,13 +23,7 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRoute, Link } from "wouter";
@@ -180,34 +174,22 @@ export default function StageViewSettings() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Sort Field</Label>
-                    <Select 
+                    <SearchableSelect 
                       value={config.sortField} 
                       onValueChange={(v) => setConfig({ ...config, sortField: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AVAILABLE_FIELDS.map(f => (
-                          <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={AVAILABLE_FIELDS.map(f => ({ value: f.id, label: f.label }))}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Direction</Label>
-                    <Select 
+                    <SearchableSelect 
                       value={config.sortDirection} 
                       onValueChange={(v: "asc" | "desc") => setConfig({ ...config, sortDirection: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="asc">Ascending (A-Z)</SelectItem>
-                        <SelectItem value="desc">Descending (Z-A)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      options={[
+                        { value: "asc", label: "Ascending (A-Z)" },
+                        { value: "desc", label: "Descending (Z-A)" }
+                      ]}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -222,16 +204,16 @@ export default function StageViewSettings() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Primary Metric</Label>
-                    <Select defaultValue="count">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select metric..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="count">Item Count</SelectItem>
-                        <SelectItem value="sum_hours">Sum of Hours</SelectItem>
-                        <SelectItem value="avg_priority">Average Priority</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect 
+                      value="count"
+                      onValueChange={() => {}}
+                      placeholder="Select metric..."
+                      options={[
+                        { value: "count", label: "Item Count" },
+                        { value: "sum_hours", label: "Sum of Hours" },
+                        { value: "avg_priority", label: "Average Priority" }
+                      ]}
+                    />
                   </div>
                   <div className="flex items-center gap-2 pt-4">
                     <Switch id="show-totals" defaultChecked />

@@ -16,9 +16,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Tabs, TabsContent, TabsList, TabsTrigger
 } from "@/components/ui/tabs";
@@ -229,71 +227,46 @@ function TaskDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="task-epic">Epic</Label>
-              <Select 
-                value={formData.epicId} 
-                onValueChange={(v) => setFormData({ ...formData, epicId: v, stageId: "" })} // Reset stage on epic change
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Epic" />
-                </SelectTrigger>
-                <SelectContent>
-                  {epics.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect 
+                value={formData.epicId || ""} 
+                onValueChange={(v) => setFormData({ ...formData, epicId: v, stageId: "" })}
+                placeholder="Select Epic"
+                options={epics.map(e => ({ value: e.id, label: e.title }))}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="task-stage">Stage</Label>
-              <Select 
-                value={formData.stageId} 
+              <SearchableSelect 
+                value={formData.stageId || ""} 
                 onValueChange={(v) => setFormData({ ...formData, stageId: v })}
                 disabled={!formData.epicId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableStages.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select Stage"
+                options={availableStages.map(s => ({ value: s.id, label: s.label }))}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="task-status">Status</Label>
-              <Select 
-                value={formData.status} 
+              <SearchableSelect 
+                value={formData.status || ""} 
                 onValueChange={(v) => setFormData({ ...formData, status: v as any })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Todo">Todo</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Review">Review</SelectItem>
-                  <SelectItem value="Done">Done</SelectItem>
-                </SelectContent>
-              </Select>
+                options={[
+                  { value: "Todo", label: "Todo" },
+                  { value: "In Progress", label: "In Progress" },
+                  { value: "Review", label: "Review" },
+                  { value: "Done", label: "Done" }
+                ]}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="task-assignee">Assignee</Label>
-              <Select 
-                value={formData.assigneeId} 
+              <SearchableSelect 
+                value={formData.assigneeId || ""} 
                 onValueChange={(v) => setFormData({ ...formData, assigneeId: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  {team.map(t => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Unassigned"
+                options={team.map(t => ({ value: t.id, label: t.name }))}
+              />
             </div>
           </div>
         </div>
@@ -718,39 +691,48 @@ function ScopeBuilder({
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                            <Label className="text-xs">Task Type</Label>
-                           <Select value={rule.taskTemplateKey || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}>
-                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Type" /></SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="all">Any Type</SelectItem>
-                               <SelectItem value="backend">Backend Task</SelectItem>
-                               <SelectItem value="frontend">Frontend Task</SelectItem>
-                               <SelectItem value="design">Design Task</SelectItem>
-                             </SelectContent>
-                           </Select>
+                           <SearchableSelect 
+                             value={rule.taskTemplateKey || "all"} 
+                             onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}
+                             className="h-8"
+                             placeholder="Any Type"
+                             options={[
+                               { value: "all", label: "Any Type" },
+                               { value: "backend", label: "Backend Task" },
+                               { value: "frontend", label: "Frontend Task" },
+                               { value: "design", label: "Design Task" }
+                             ]}
+                           />
                         </div>
                         <div className="space-y-1">
                            <Label className="text-xs">Stage</Label>
-                           <Select value={rule.stage || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}>
-                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Stage" /></SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="all">Any Stage</SelectItem>
-                               <SelectItem value="develop_solution">Develop Solution</SelectItem>
-                               <SelectItem value="validate_blueprints">Validate Blueprints</SelectItem>
-                               <SelectItem value="plan_strategy">Plan Strategy</SelectItem>
-                               <SelectItem value="enable_users">Enable Users</SelectItem>
-                             </SelectContent>
-                           </Select>
+                           <SearchableSelect 
+                             value={rule.stage || "all"} 
+                             onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}
+                             className="h-8"
+                             placeholder="Any Stage"
+                             options={[
+                               { value: "all", label: "Any Stage" },
+                               { value: "develop_solution", label: "Develop Solution" },
+                               { value: "validate_blueprints", label: "Validate Blueprints" },
+                               { value: "plan_strategy", label: "Plan Strategy" },
+                               { value: "enable_users", label: "Enable Users" }
+                             ]}
+                           />
                         </div>
                         <div className="space-y-1">
                            <Label className="text-xs">Epic Type</Label>
-                           <Select value={rule.epicType || "all"} onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}>
-                             <SelectTrigger className="h-8"><SelectValue placeholder="Any Epic Type" /></SelectTrigger>
-                             <SelectContent>
-                               <SelectItem value="all">Any Epic Type</SelectItem>
-                               <SelectItem value="use_case">Use Case</SelectItem>
-                               <SelectItem value="technical">Technical</SelectItem>
-                             </SelectContent>
-                           </Select>
+                           <SearchableSelect 
+                             value={rule.epicType || "all"} 
+                             onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}
+                             className="h-8"
+                             placeholder="Any Epic Type"
+                             options={[
+                               { value: "all", label: "Any Epic Type" },
+                               { value: "use_case", label: "Use Case" },
+                               { value: "technical", label: "Technical" }
+                             ]}
+                           />
                         </div>
                       </div>
                       <div className="bg-muted/30 p-2 rounded text-xs flex items-center gap-2 mt-2">
@@ -1059,47 +1041,32 @@ function MilestoneDetailPanel({
           
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Owner</Label>
-            <Select value={formData.ownerId} onValueChange={v => handleChange('ownerId', v)}>
-              <SelectTrigger className="bg-card">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <SelectValue />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                {team.map(t => (
-                   <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect 
+              value={formData.ownerId} 
+              onValueChange={v => handleChange('ownerId', v)}
+              triggerClassName="bg-card"
+              options={team.map(t => ({ value: t.id, label: t.name }))}
+            />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Status</Label>
-            <Select value={formData.status} onValueChange={v => handleChange('status', v)}>
-              <SelectTrigger className="bg-card">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(STATUS_CONFIG).slice(0, 5).map(([key, conf]) => (
-                   <SelectItem key={key} value={key}>{conf.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect 
+              value={formData.status} 
+              onValueChange={v => handleChange('status', v)}
+              triggerClassName="bg-card"
+              options={Object.entries(STATUS_CONFIG).slice(0, 5).map(([key, conf]) => ({ value: key, label: conf.label }))}
+            />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Phase</Label>
-            <Select value={formData.phase} onValueChange={v => handleChange('phase', v)}>
-              <SelectTrigger className="bg-card">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PHASES.map(p => (
-                   <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect 
+              value={formData.phase} 
+              onValueChange={v => handleChange('phase', v)}
+              triggerClassName="bg-card"
+              options={PHASES.map(p => ({ value: p.id, label: p.label }))}
+            />
           </div>
         </div>
         

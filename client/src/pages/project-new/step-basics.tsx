@@ -1,13 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { StepProps, getDefaultDueDate, DEFAULT_SPRINT_DURATION, DEFAULT_PROJECT_DURATION_WEEKS } from "./types";
 import { useEffect } from "react";
 
@@ -32,6 +26,14 @@ export function StepBasics({
       dueDate: prev.dueDate || getDefaultDueDate(newStartDate, DEFAULT_PROJECT_DURATION_WEEKS)
     }));
   };
+
+  const sprintDurationOptions = [
+    { value: "0", label: "No Sprints" },
+    { value: "1", label: "1 Week" },
+    { value: "2", label: "2 Weeks (Recommended)" },
+    { value: "3", label: "3 Weeks" },
+    { value: "4", label: "4 Weeks" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -99,21 +101,13 @@ export function StepBasics({
           </div>
           <div className="space-y-2">
             <Label>Sprint Duration</Label>
-            <Select 
+            <SearchableSelect 
               value={String(projectData.sprintDurationWeeks)} 
               onValueChange={(v) => setProjectData({...projectData, sprintDurationWeeks: parseInt(v)})}
-            >
-              <SelectTrigger data-testid="select-sprint-duration">
-                <SelectValue placeholder="Select sprint length..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">No Sprints</SelectItem>
-                <SelectItem value="1">1 Week</SelectItem>
-                <SelectItem value="2">2 Weeks (Recommended)</SelectItem>
-                <SelectItem value="3">3 Weeks</SelectItem>
-                <SelectItem value="4">4 Weeks</SelectItem>
-              </SelectContent>
-            </Select>
+              placeholder="Select sprint length..."
+              options={sprintDurationOptions}
+              data-testid="select-sprint-duration"
+            />
             <p className="text-xs text-muted-foreground">
               {projectData.sprintDurationWeeks > 0 
                 ? `Sprints will be automatically created based on project dates.`
@@ -122,19 +116,13 @@ export function StepBasics({
           </div>
           <div className="space-y-2">
             <Label>Project Owner</Label>
-            <Select 
+            <SearchableSelect 
               value={projectData.ownerId || ""} 
               onValueChange={(v) => setProjectData({...projectData, ownerId: v})}
-            >
-              <SelectTrigger data-testid="select-project-owner">
-                <SelectValue placeholder="Select project owner..." />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map(user => (
-                  <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              placeholder="Select project owner..."
+              options={users.map(user => ({ value: user.id, label: user.name }))}
+              data-testid="select-project-owner"
+            />
             <p className="text-xs text-muted-foreground">
               The person responsible for overall project delivery.
             </p>

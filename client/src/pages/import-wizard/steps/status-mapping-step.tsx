@@ -1,6 +1,6 @@
 import { ParseResult, extractUniqueStatuses, normalizeStatus } from "@/lib/import-parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
@@ -112,27 +112,13 @@ export function StatusMappingStep({
                             <ArrowRight className="h-4 w-4 text-muted-foreground inline" />
                           </TableCell>
                           <TableCell>
-                            <Select
+                            <SearchableSelect
                               value={mappedTo}
                               onValueChange={(val) => handleStatusMappingChange(externalStatus, val)}
-                            >
-                              <SelectTrigger className="w-[180px]">
-                                <SelectValue>
-                                  <Badge className={colorClass}>
-                                    {mappedTo}
-                                  </Badge>
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {STANDARD_STATUSES.map(status => (
-                                  <SelectItem key={status} value={status}>
-                                    <Badge className={STATUS_COLORS[status] || 'bg-muted'}>
-                                      {status}
-                                    </Badge>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              placeholder="Select status..."
+                              options={STANDARD_STATUSES.map(status => ({ value: status, label: status }))}
+                              triggerClassName="w-[180px]"
+                            />
                           </TableCell>
                         </TableRow>
                       );

@@ -29,13 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { 
   Table, 
   TableBody, 
@@ -500,37 +494,33 @@ export default function ProjectsList() {
           </div>
           
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[140px]">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="Status" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Upcoming">Upcoming</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-                <SelectItem value="On Hold">On Hold</SelectItem>
-                <SelectItem value="Overdue">Overdue</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect 
+              value={filterStatus} 
+              onValueChange={setFilterStatus}
+              className="w-[140px]"
+              placeholder="Status"
+              options={[
+                { value: "all", label: "All Statuses" },
+                { value: "In Progress", label: "In Progress" },
+                { value: "Upcoming", label: "Upcoming" },
+                { value: "Completed", label: "Completed" },
+                { value: "On Hold", label: "On Hold" },
+                { value: "Overdue", label: "Overdue" }
+              ]}
+            />
 
-            <Select value={filterRisk} onValueChange={setFilterRisk}>
-              <SelectTrigger className="w-[140px]">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
-                  <SelectValue placeholder="Risk Level" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Risks</SelectItem>
-                <SelectItem value="Low">Low Risk</SelectItem>
-                <SelectItem value="Medium">Medium Risk</SelectItem>
-                <SelectItem value="High">High Risk</SelectItem>
-              </SelectContent>
-            </Select>
+            <SearchableSelect 
+              value={filterRisk} 
+              onValueChange={setFilterRisk}
+              className="w-[140px]"
+              placeholder="Risk Level"
+              options={[
+                { value: "all", label: "All Risks" },
+                { value: "Low", label: "Low Risk" },
+                { value: "Medium", label: "Medium Risk" },
+                { value: "High", label: "High Risk" }
+              ]}
+            />
 
             <Button
               variant={filterFavorites ? "default" : "outline"}
@@ -686,7 +676,7 @@ export default function ProjectsList() {
                   {/* Inline Editable Status */}
                   <TableCell>
                     {editingId === project.id && editingField === "status" ? (
-                      <Select 
+                      <SearchableSelect 
                         value={editingValue as string} 
                         onValueChange={(val) => {
                           setEditingValue(val);
@@ -694,17 +684,15 @@ export default function ProjectsList() {
                           toast({ title: "Updated", description: "Project status has been updated." });
                           cancelInlineEdit();
                         }}
-                      >
-                        <SelectTrigger className="h-7 w-[120px] text-xs" autoFocus data-testid={`select-inline-status-${project.id}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Upcoming">Upcoming</SelectItem>
-                          <SelectItem value="In Progress">In Progress</SelectItem>
-                          <SelectItem value="On Hold">On Hold</SelectItem>
-                          <SelectItem value="Completed">Completed</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        className="h-7 w-[120px] text-xs"
+                        data-testid={`select-inline-status-${project.id}`}
+                        options={[
+                          { value: "Upcoming", label: "Upcoming" },
+                          { value: "In Progress", label: "In Progress" },
+                          { value: "On Hold", label: "On Hold" },
+                          { value: "Completed", label: "Completed" }
+                        ]}
+                      />
                     ) : (
                       <Badge 
                         variant="outline" 
@@ -861,37 +849,29 @@ export default function ProjectsList() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-status">Status</Label>
-                <Select 
+                <SearchableSelect 
                   value={formData.status} 
                   onValueChange={(val) => setFormData({...formData, status: val as any})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Upcoming">Upcoming</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="On Hold">On Hold</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="Select status"
+                  options={[
+                    { value: "Upcoming", label: "Upcoming" },
+                    { value: "In Progress", label: "In Progress" },
+                    { value: "On Hold", label: "On Hold" },
+                    { value: "Completed", label: "Completed" }
+                  ]}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-owner">Project Owner</Label>
-                <Select 
+                <SearchableSelect 
                   value={formData.ownerId || "unassigned"} 
                   onValueChange={(val) => setFormData({...formData, ownerId: val === "unassigned" ? undefined : val})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {(usersData || []).map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select owner"
+                  options={[
+                    { value: "unassigned", label: "Unassigned" },
+                    ...(usersData || []).map((user: any) => ({ value: user.id, label: user.name }))
+                  ]}
+                />
               </div>
             </div>
 
@@ -918,19 +898,16 @@ export default function ProjectsList() {
 
             <div className="space-y-2">
               <Label htmlFor="edit-risk">Risk Level</Label>
-              <Select 
+              <SearchableSelect 
                 value={formData.riskLevel} 
                 onValueChange={(val) => setFormData({...formData, riskLevel: val as any})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select risk level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                </SelectContent>
-              </Select>
+                placeholder="Select risk level"
+                options={[
+                  { value: "Low", label: "Low" },
+                  { value: "Medium", label: "Medium" },
+                  { value: "High", label: "High" }
+                ]}
+              />
             </div>
 
             <div className="space-y-2">

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Calendar } from "@/components/ui/calendar";
 import { 
   Clock, 
@@ -172,20 +172,13 @@ export function TaskCard({
             {/* Wide Layout - Single Row */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
               {/* Status Dropdown */}
-              <Select value={task.status} onValueChange={handleStatusChange}>
-                <SelectTrigger 
-                  className={cn("h-7 w-[110px] text-xs border-0 font-medium", STATUS_COLORS[task.status])}
-                  aria-label="Change status"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map(s => (
-                    <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={task.status}
+                onValueChange={handleStatusChange}
+                placeholder="Select status"
+                options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
+                triggerClassName={cn("h-7 w-[110px] text-xs border-0 font-medium", STATUS_COLORS[task.status])}
+              />
 
               {/* Epic Context */}
               {epicName && (
@@ -238,20 +231,13 @@ export function TaskCard({
               )}
 
               {/* Effort */}
-              <Select value={task.effort?.toString() || ""} onValueChange={handleEffortChange}>
-                <SelectTrigger 
-                  className="h-7 w-[60px] text-xs"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Change effort estimate"
-                >
-                  <SelectValue placeholder="—" />
-                </SelectTrigger>
-                <SelectContent>
-                  {EFFORT_VALUES.map(v => (
-                    <SelectItem key={v} value={v.toString()} className="text-xs">{v} pts</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={task.effort?.toString() || ""}
+                onValueChange={handleEffortChange}
+                placeholder="—"
+                options={EFFORT_VALUES.map(v => ({ value: v.toString(), label: `${v} pts` }))}
+                triggerClassName="h-7 w-[60px] text-xs"
+              />
 
               {/* Due Date */}
               <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
@@ -351,19 +337,13 @@ export function TaskCard({
             {/* Compact/Grid Layout - Stacked Rows */}
             {/* Top Row: Status only */}
             <div className="flex items-center justify-end">
-              <Select value={task.status} onValueChange={handleStatusChange}>
-                <SelectTrigger 
-                  className={cn("h-6 w-auto min-w-[80px] text-[10px] border-0 font-medium px-1.5", STATUS_COLORS[task.status])}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map(s => (
-                    <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={task.status}
+                onValueChange={handleStatusChange}
+                placeholder="Select status"
+                options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
+                triggerClassName={cn("h-6 w-auto min-w-[80px] text-[10px] border-0 font-medium px-1.5", STATUS_COLORS[task.status])}
+              />
             </div>
 
             {/* Middle Row: Title with Epic below */}
@@ -477,19 +457,13 @@ export function TaskCard({
               <div className="flex items-center gap-2">
                 {/* Effort */}
                 {!isCompact && (
-                  <Select value={task.effort?.toString() || ""} onValueChange={handleEffortChange}>
-                    <SelectTrigger 
-                      className="h-6 w-[50px] text-[10px] px-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <SelectValue placeholder="—" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EFFORT_VALUES.map(v => (
-                        <SelectItem key={v} value={v.toString()} className="text-xs">{v}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={task.effort?.toString() || ""}
+                    onValueChange={handleEffortChange}
+                    placeholder="—"
+                    options={EFFORT_VALUES.map(v => ({ value: v.toString(), label: v.toString() }))}
+                    triggerClassName="h-6 w-[50px] text-[10px] px-1"
+                  />
                 )}
 
                 {/* Due Date */}

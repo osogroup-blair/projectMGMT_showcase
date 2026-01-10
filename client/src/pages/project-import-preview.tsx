@@ -15,13 +15,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { 
   ArrowLeft, 
   CheckCircle, 
@@ -197,18 +191,19 @@ export default function ProjectImportPreview() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base font-semibold">Preview Data</CardTitle>
             <div className="w-[180px]">
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Rows</SelectItem>
-                  <SelectItem value="new">New Records</SelectItem>
-                  <SelectItem value="update">Updates</SelectItem>
-                  <SelectItem value="ignored">Ignored</SelectItem>
-                  <SelectItem value="error">Errors</SelectItem>
-                </SelectContent>
-              </Select>
+              <SearchableSelect 
+                value={filterStatus} 
+                onValueChange={setFilterStatus}
+                placeholder="Filter by status"
+                triggerClassName="h-8 text-xs"
+                options={[
+                  { value: "all", label: "All Rows" },
+                  { value: "new", label: "New Records" },
+                  { value: "update", label: "Updates" },
+                  { value: "ignored", label: "Ignored" },
+                  { value: "error", label: "Errors" },
+                ]}
+              />
             </div>
           </CardHeader>
           <CardContent className="p-0">

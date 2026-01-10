@@ -49,13 +49,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import {
@@ -973,16 +967,13 @@ export default function StageWorkspace() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-epic">Epic <span className="text-red-500">*</span></Label>
-                <Select value={newTaskEpicId} onValueChange={setNewTaskEpicId}>
-                  <SelectTrigger id="task-epic" data-testid="select-new-task-epic">
-                    <SelectValue placeholder="Select epic" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projectEpics.map((e: any) => (
-                      <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect 
+                  value={newTaskEpicId} 
+                  onValueChange={setNewTaskEpicId}
+                  data-testid="select-new-task-epic"
+                  placeholder="Select epic"
+                  options={projectEpics.map((e: any) => ({ value: e.id, label: e.title }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Stage</Label>
@@ -992,29 +983,25 @@ export default function StageWorkspace() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-priority">Priority</Label>
-                <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
-                  <SelectTrigger id="task-priority" data-testid="select-new-task-priority">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SearchableSelect 
+                  value={newTaskPriority} 
+                  onValueChange={setNewTaskPriority}
+                  data-testid="select-new-task-priority"
+                  options={[
+                    { value: "Low", label: "Low" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "High", label: "High" }
+                  ]}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="task-effort">Effort <span className="text-red-500">*</span></Label>
-                <Select value={newTaskEffort.toString()} onValueChange={(v) => setNewTaskEffort(parseInt(v))}>
-                  <SelectTrigger id="task-effort" data-testid="select-new-task-effort">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EFFORT_VALUES.map((val) => (
-                      <SelectItem key={val} value={val.toString()}>{val}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect 
+                  value={newTaskEffort.toString()} 
+                  onValueChange={(v) => setNewTaskEffort(parseInt(v))}
+                  data-testid="select-new-task-effort"
+                  options={EFFORT_VALUES.map((val) => ({ value: val.toString(), label: val.toString() }))}
+                />
               </div>
             </div>
           </div>

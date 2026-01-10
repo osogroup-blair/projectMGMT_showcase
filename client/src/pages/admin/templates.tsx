@@ -69,13 +69,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   ProjectTemplate,
@@ -715,20 +709,16 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
               <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
                  <Workflow className="h-4 w-4 text-muted-foreground" />
                  <span className="text-sm font-medium">Filter by Framework:</span>
-                 <Select 
-                    value={selectedFrameworkFilter} 
+                 <SearchableSelect
+                    value={selectedFrameworkFilter}
                     onValueChange={setSelectedFrameworkFilter}
-                 >
-                    <SelectTrigger className="w-[250px] h-8 text-xs">
-                      <SelectValue placeholder="All Frameworks" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Frameworks</SelectItem>
-                      {frameworkTemplates.map(fw => (
-                        <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                 </Select>
+                    placeholder="All Frameworks"
+                    triggerClassName="w-[250px] h-8 text-xs"
+                    options={[
+                      { value: "all", label: "All Frameworks" },
+                      ...frameworkTemplates.map(fw => ({ value: fw.id, label: fw.name }))
+                    ]}
+                 />
                  {selectedFrameworkFilter !== 'all' && (
                    <Button 
                     variant="ghost" 
@@ -788,21 +778,20 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
               <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
                 <ListTodo className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Filter by Priority:</span>
-                <Select 
-                  value={selectedPriorityFilter} 
+                <SearchableSelect
+                  value={selectedPriorityFilter}
                   onValueChange={setSelectedPriorityFilter}
-                >
-                  <SelectTrigger className="w-[180px] h-8 text-xs" data-testid="select-priority-filter">
-                    <SelectValue placeholder="All Priorities" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priorities</SelectItem>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="All Priorities"
+                  triggerClassName="w-[180px] h-8 text-xs"
+                  data-testid="select-priority-filter"
+                  options={[
+                    { value: "all", label: "All Priorities" },
+                    { value: "Low", label: "Low" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "High", label: "High" },
+                    { value: "Critical", label: "Critical" },
+                  ]}
+                />
                 {selectedPriorityFilter !== 'all' && (
                   <Button 
                     variant="ghost" 
@@ -845,29 +834,24 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
               <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Filter by Role Type:</span>
-                <Select 
-                  value={selectedRoleTypeFilter} 
+                <SearchableSelect
+                  value={selectedRoleTypeFilter}
                   onValueChange={setSelectedRoleTypeFilter}
-                >
-                  <SelectTrigger className="w-[200px] h-8 text-xs" data-testid="select-role-type-filter">
-                    <SelectValue placeholder="All Role Types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Role Types</SelectItem>
-                    {roleTypes.length > 0 ? (
-                      roleTypes.map((rt: any) => (
-                        <SelectItem key={rt.id} value={rt.label}>{rt.label}</SelectItem>
-                      ))
-                    ) : (
-                      <>
-                        <SelectItem value="Development">Development</SelectItem>
-                        <SelectItem value="Design">Design</SelectItem>
-                        <SelectItem value="Management">Management</SelectItem>
-                        <SelectItem value="Consulting">Consulting</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
+                  placeholder="All Role Types"
+                  triggerClassName="w-[200px] h-8 text-xs"
+                  data-testid="select-role-type-filter"
+                  options={[
+                    { value: "all", label: "All Role Types" },
+                    ...(roleTypes.length > 0
+                      ? roleTypes.map((rt: any) => ({ value: rt.label, label: rt.label }))
+                      : [
+                          { value: "Development", label: "Development" },
+                          { value: "Design", label: "Design" },
+                          { value: "Management", label: "Management" },
+                          { value: "Consulting", label: "Consulting" },
+                        ])
+                  ]}
+                />
                 {selectedRoleTypeFilter !== 'all' && (
                   <Button 
                     variant="ghost" 
@@ -954,23 +938,13 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Role Type</Label>
-                  <Select 
-                    value={formData.defaultRoleType} 
+                  <SearchableSelect
+                    value={formData.defaultRoleType}
                     onValueChange={(val) => setFormData({...formData, defaultRoleType: val})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roleTypes.length > 0 ? (
-                        roleTypes.map((rt: any) => (
-                          <SelectItem key={rt.id} value={rt.label}>{rt.label}</SelectItem>
-                        ))
-                      ) : (
-                        <div className="text-xs text-muted-foreground p-2">No role types defined. Add them in App Defaults.</div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select role type"
+                    emptyMessage={roleTypes.length === 0 ? "No role types defined. Add them in App Defaults." : "No results found."}
+                    options={roleTypes.map((rt: any) => ({ value: rt.label, label: rt.label }))}
+                  />
                 </div>
               </div>
             )}
@@ -980,17 +954,12 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
               <div className="space-y-6 pt-2">
                 <div className="space-y-3">
                   <Label>Assigned Framework</Label>
-                  <Select 
-                      value={formData.defaultFrameworkId} 
+                  <SearchableSelect
+                      value={formData.defaultFrameworkId}
                       onValueChange={(val) => setFormData({...formData, defaultFrameworkId: val})}
-                  >
-                      <SelectTrigger><SelectValue placeholder="Select a framework" /></SelectTrigger>
-                      <SelectContent>
-                          {frameworkTemplates.map(fw => (
-                              <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>
-                          ))}
-                      </SelectContent>
-                  </Select>
+                      placeholder="Select a framework"
+                      options={frameworkTemplates.map(fw => ({ value: fw.id, label: fw.name }))}
+                  />
                 </div>
 
                 <div className="space-y-3">
@@ -1140,17 +1109,16 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Priority</Label>
-                                <Select 
-                                    value={currentTask.defaultPriority} 
+                                <SearchableSelect
+                                    value={currentTask.defaultPriority}
                                     onValueChange={(val) => setCurrentTask({...currentTask, defaultPriority: val})}
-                                >
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Low">Low</SelectItem>
-                                        <SelectItem value="Medium">Medium</SelectItem>
-                                        <SelectItem value="High">High</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                    placeholder="Select priority"
+                                    options={[
+                                        { value: "Low", label: "Low" },
+                                        { value: "Medium", label: "Medium" },
+                                        { value: "High", label: "High" },
+                                    ]}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label>Est. Hours</Label>
@@ -1164,36 +1132,25 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
                         </div>
                         <div className="space-y-2">
                             <Label>Assigned Role</Label>
-                            <Select 
-                                value={currentTask.assignedRoleId} 
+                            <SearchableSelect
+                                value={currentTask.assignedRoleId}
                                 onValueChange={(val) => setCurrentTask({...currentTask, assignedRoleId: val})}
-                            >
-                                <SelectTrigger><SelectValue placeholder="Select a role..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                                    {roleTemplates.map(role => (
-                                        <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                placeholder="Select a role..."
+                                options={[
+                                    { value: "unassigned", label: "Unassigned" },
+                                    ...roleTemplates.map(role => ({ value: role.id, label: role.name }))
+                                ]}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label>Required Role Type (Fallback)</Label>
-                            <Select 
-                                value={currentTask.requiredRole} 
+                            <SearchableSelect
+                                value={currentTask.requiredRole}
                                 onValueChange={(val) => setCurrentTask({...currentTask, requiredRole: val})}
-                            >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {roleTypes.length > 0 ? (
-                                      roleTypes.map((rt: any) => (
-                                        <SelectItem key={rt.id} value={rt.label}>{rt.label}</SelectItem>
-                                      ))
-                                    ) : (
-                                      <div className="text-xs text-muted-foreground p-2">No role types defined. Add them in App Defaults.</div>
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                placeholder="Select role type"
+                                emptyMessage={roleTypes.length === 0 ? "No role types defined. Add them in App Defaults." : "No results found."}
+                                options={roleTypes.map((rt: any) => ({ value: rt.label, label: rt.label }))}
+                            />
                         </div>
                         <div className="flex justify-end gap-2 pt-2">
                             <Button variant="ghost" size="sm" onClick={() => setIsTaskFormOpen(false)}>Cancel</Button>
@@ -1432,15 +1389,15 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
 
                 <div className="space-y-2">
                   <Label>Conflict Resolution</Label>
-                  <Select value={importMode} onValueChange={(v: "skip" | "overwrite") => setImportMode(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="skip">Skip existing templates</SelectItem>
-                      <SelectItem value="overwrite">Overwrite existing templates</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={importMode}
+                    onValueChange={(v: string) => setImportMode(v as "skip" | "overwrite")}
+                    placeholder="Select conflict resolution"
+                    options={[
+                      { value: "skip", label: "Skip existing templates" },
+                      { value: "overwrite", label: "Overwrite existing templates" },
+                    ]}
+                  />
                   <p className="text-xs text-muted-foreground">
                     {importMode === "skip" 
                       ? "Templates with matching IDs will be skipped."

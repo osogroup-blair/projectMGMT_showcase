@@ -41,7 +41,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useRoute } from "wouter";
@@ -401,21 +401,19 @@ export default function MilestoneOverview() {
                   </h1>
                 )}
                 {isEditingStatus ? (
-                  <Select 
+                  <SearchableSelect 
                     value={milestone.status || "planned"} 
                     onValueChange={(value) => handleSaveStatus(value)}
-                  >
-                    <SelectTrigger className="h-7 w-32 text-sm" data-testid="select-milestone-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="planned">Planned</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="achieved">Achieved</SelectItem>
-                      <SelectItem value="slipped">Slipped</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    className="h-7 w-32 text-sm"
+                    data-testid="select-milestone-status"
+                    options={[
+                      { value: "planned", label: "Planned" },
+                      { value: "in_progress", label: "In Progress" },
+                      { value: "achieved", label: "Achieved" },
+                      { value: "slipped", label: "Slipped" },
+                      { value: "cancelled", label: "Cancelled" }
+                    ]}
+                  />
                 ) : (
                   <Badge 
                     variant="outline" 
@@ -539,19 +537,14 @@ export default function MilestoneOverview() {
                     <p className="text-xs text-muted-foreground">Owner</p>
                     {isEditingOwner ? (
                       <div onClick={(e) => e.stopPropagation()}>
-                        <Select 
+                        <SearchableSelect 
                           value={milestone.ownerId || ""} 
                           onValueChange={(value) => handleSaveOwner(value)}
-                        >
-                          <SelectTrigger className="h-7 text-sm mt-1" data-testid="select-milestone-owner">
-                            <SelectValue placeholder="Select owner" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(users || []).map((u: any) => (
-                              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          className="h-7 text-sm mt-1"
+                          data-testid="select-milestone-owner"
+                          placeholder="Select owner"
+                          options={(users || []).map((u: any) => ({ value: u.id, label: u.name }))}
+                        />
                       </div>
                     ) : (
                       <p className="font-medium group flex items-center gap-1">
@@ -573,20 +566,17 @@ export default function MilestoneOverview() {
                     <p className="text-xs text-muted-foreground">Stage</p>
                     {isEditingStage ? (
                       <div onClick={(e) => e.stopPropagation()}>
-                        <Select 
+                        <SearchableSelect 
                           value={milestone.stageId || "__none__"} 
                           onValueChange={(value) => handleSaveStage(value)}
-                        >
-                          <SelectTrigger className="h-7 text-sm mt-1" data-testid="select-milestone-stage">
-                            <SelectValue placeholder="Select stage" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">No stage</SelectItem>
-                            {milestoneStages.map((s: any) => (
-                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          className="h-7 text-sm mt-1"
+                          data-testid="select-milestone-stage"
+                          placeholder="Select stage"
+                          options={[
+                            { value: "__none__", label: "No stage" },
+                            ...milestoneStages.map((s: any) => ({ value: s.id, label: s.name }))
+                          ]}
+                        />
                       </div>
                     ) : (
                       <p className="font-medium group flex items-center gap-1">
@@ -1013,28 +1003,28 @@ function TasksTab({
                 />
               </div>
               <div className="flex gap-2">
-                <Select value={selectedEpicId || "all"} onValueChange={(v) => setSelectedEpicId(v === "all" ? "" : v)}>
-                  <SelectTrigger className="w-[200px]" data-testid="select-search-epic">
-                    <SelectValue placeholder="Filter by Epic" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Epics</SelectItem>
-                    {epics.map((epic: any) => (
-                      <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedStageId || "all"} onValueChange={(v) => setSelectedStageId(v === "all" ? "" : v)}>
-                  <SelectTrigger className="w-[200px]" data-testid="select-search-stage">
-                    <SelectValue placeholder="Filter by Stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Stages</SelectItem>
-                    {stages.map((stage: any) => (
-                      <SelectItem key={stage.id} value={stage.id}>{stage.label || stage.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect 
+                  value={selectedEpicId || "all"} 
+                  onValueChange={(v) => setSelectedEpicId(v === "all" ? "" : v)}
+                  className="w-[200px]"
+                  data-testid="select-search-epic"
+                  placeholder="Filter by Epic"
+                  options={[
+                    { value: "all", label: "All Epics" },
+                    ...epics.map((epic: any) => ({ value: epic.id, label: epic.title }))
+                  ]}
+                />
+                <SearchableSelect 
+                  value={selectedStageId || "all"} 
+                  onValueChange={(v) => setSelectedStageId(v === "all" ? "" : v)}
+                  className="w-[200px]"
+                  data-testid="select-search-stage"
+                  placeholder="Filter by Stage"
+                  options={[
+                    { value: "all", label: "All Stages" },
+                    ...stages.map((stage: any) => ({ value: stage.id, label: stage.label || stage.name }))
+                  ]}
+                />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto mt-3 border rounded-md">
@@ -1106,68 +1096,53 @@ function TasksTab({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Epic <span className="text-red-500">*</span></Label>
-                  <Select value={selectedEpicId} onValueChange={(v) => { setSelectedEpicId(v); setSelectedStageId(""); }}>
-                    <SelectTrigger data-testid="select-new-task-epic">
-                      <SelectValue placeholder="Select Epic first" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {epics.map((epic: any) => (
-                        <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect 
+                    value={selectedEpicId} 
+                    onValueChange={(v) => { setSelectedEpicId(v); setSelectedStageId(""); }}
+                    data-testid="select-new-task-epic"
+                    placeholder="Select Epic first"
+                    options={epics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label>Stage <span className="text-red-500">*</span></Label>
-                  <Select 
+                  <SearchableSelect 
                     value={selectedStageId} 
                     onValueChange={setSelectedStageId}
                     disabled={!selectedEpicId}
-                  >
-                    <SelectTrigger data-testid="select-new-task-stage">
-                      <SelectValue placeholder={selectedEpicId ? "Select Stage" : "Select Epic first"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stages.map((stage: any) => (
-                        <SelectItem key={stage.id} value={stage.id}>{stage.label || stage.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    data-testid="select-new-task-stage"
+                    placeholder={selectedEpicId ? "Select Stage" : "Select Epic first"}
+                    options={stages.map((stage: any) => ({ value: stage.id, label: stage.label || stage.name }))}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Priority</Label>
-                  <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
-                    <SelectTrigger data-testid="select-new-task-priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Low">Low</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Critical">Critical</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect 
+                    value={newTaskPriority} 
+                    onValueChange={setNewTaskPriority}
+                    data-testid="select-new-task-priority"
+                    options={[
+                      { value: "Low", label: "Low" },
+                      { value: "Medium", label: "Medium" },
+                      { value: "High", label: "High" },
+                      { value: "Critical", label: "Critical" }
+                    ]}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label>Effort (Fibonacci) <span className="text-red-500">*</span></Label>
-                  <Select 
+                  <SearchableSelect 
                     value={newTaskEffort?.toString() || ""} 
                     onValueChange={(v) => setNewTaskEffort(v ? parseInt(v) : null)}
-                  >
-                    <SelectTrigger data-testid="select-new-task-effort">
-                      <SelectValue placeholder="Select effort" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EFFORT_VALUES.map((val) => (
-                        <SelectItem key={val} value={val.toString()}>{val}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    data-testid="select-new-task-effort"
+                    placeholder="Select effort"
+                    options={EFFORT_VALUES.map((val) => ({ value: val.toString(), label: val.toString() }))}
+                  />
                 </div>
               </div>
             </div>
@@ -1600,55 +1575,48 @@ function ScopeDefinitionTab({
                         <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-1">
                              <Label className="text-xs">Stage</Label>
-                             <Select 
+                             <SearchableSelect 
                                value={rule.stage || "all"} 
                                onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}
-                             >
-                               <SelectTrigger className="h-8" data-testid={`select-rule-stage-${rule.id}`}>
-                                 <SelectValue placeholder="Any Stage" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                 <SelectItem value="all">Any Stage</SelectItem>
-                                 {stages.map((stage: any) => (
-                                   <SelectItem key={stage.id} value={stage.id}>
-                                     {stage.label || stage.name}
-                                   </SelectItem>
-                                 ))}
-                               </SelectContent>
-                             </Select>
+                               className="h-8"
+                               data-testid={`select-rule-stage-${rule.id}`}
+                               placeholder="Any Stage"
+                               options={[
+                                 { value: "all", label: "Any Stage" },
+                                 ...stages.map((stage: any) => ({ value: stage.id, label: stage.label || stage.name }))
+                               ]}
+                             />
                           </div>
                           <div className="space-y-1">
                              <Label className="text-xs">Epic Type</Label>
-                             <Select 
+                             <SearchableSelect 
                                value={rule.epicType || "all"} 
                                onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}
-                             >
-                               <SelectTrigger className="h-8" data-testid={`select-rule-epic-type-${rule.id}`}>
-                                 <SelectValue placeholder="Any Epic Type" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                 <SelectItem value="all">Any Epic Type</SelectItem>
-                                 <SelectItem value="use_case">Use Case</SelectItem>
-                                 <SelectItem value="technical">Technical</SelectItem>
-                               </SelectContent>
-                             </Select>
+                               className="h-8"
+                               data-testid={`select-rule-epic-type-${rule.id}`}
+                               placeholder="Any Epic Type"
+                               options={[
+                                 { value: "all", label: "Any Epic Type" },
+                                 { value: "use_case", label: "Use Case" },
+                                 { value: "technical", label: "Technical" }
+                               ]}
+                             />
                           </div>
                           <div className="space-y-1">
                              <Label className="text-xs">Task Type</Label>
-                             <Select 
+                             <SearchableSelect 
                                value={rule.taskTemplateKey || "all"} 
                                onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}
-                             >
-                               <SelectTrigger className="h-8" data-testid={`select-rule-task-type-${rule.id}`}>
-                                 <SelectValue placeholder="Any Type" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                 <SelectItem value="all">Any Type</SelectItem>
-                                 <SelectItem value="backend">Backend Task</SelectItem>
-                                 <SelectItem value="frontend">Frontend Task</SelectItem>
-                                 <SelectItem value="design">Design Task</SelectItem>
-                               </SelectContent>
-                             </Select>
+                               className="h-8"
+                               data-testid={`select-rule-task-type-${rule.id}`}
+                               placeholder="Any Type"
+                               options={[
+                                 { value: "all", label: "Any Type" },
+                                 { value: "backend", label: "Backend Task" },
+                                 { value: "frontend", label: "Frontend Task" },
+                                 { value: "design", label: "Design Task" }
+                               ]}
+                             />
                           </div>
                         </div>
 
@@ -1758,44 +1726,46 @@ function ScopeDefinitionTab({
                <div className="flex flex-wrap gap-2 items-center">
                  <div className="flex items-center gap-2">
                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Stage:</Label>
-                   <Select value={stageFilter} onValueChange={setStageFilter}>
-                     <SelectTrigger className="h-8 w-[180px]" data-testid="select-stage-filter">
-                       <SelectValue placeholder="All Stages" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="all">All Stages</SelectItem>
-                       {stages.map((stage: any) => (
-                         <SelectItem key={stage.id} value={stage.id}>{stage.label}</SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
+                   <SearchableSelect 
+                     value={stageFilter} 
+                     onValueChange={setStageFilter}
+                     className="h-8 w-[180px]"
+                     data-testid="select-stage-filter"
+                     placeholder="All Stages"
+                     options={[
+                       { value: "all", label: "All Stages" },
+                       ...stages.map((stage: any) => ({ value: stage.id, label: stage.label }))
+                     ]}
+                   />
                  </div>
                  <div className="flex items-center gap-2">
                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Epic:</Label>
-                   <Select value={epicFilter} onValueChange={setEpicFilter}>
-                     <SelectTrigger className="h-8 w-[180px]" data-testid="select-epic-filter">
-                       <SelectValue placeholder="All Epics" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="all">All Epics</SelectItem>
-                       {epics.map((epic: any) => (
-                         <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
+                   <SearchableSelect 
+                     value={epicFilter} 
+                     onValueChange={setEpicFilter}
+                     className="h-8 w-[180px]"
+                     data-testid="select-epic-filter"
+                     placeholder="All Epics"
+                     options={[
+                       { value: "all", label: "All Epics" },
+                       ...epics.map((epic: any) => ({ value: epic.id, label: epic.title }))
+                     ]}
+                   />
                  </div>
                  <div className="flex items-center gap-2">
                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Show:</Label>
-                   <Select value={showLinkedOnly === null ? "all" : showLinkedOnly ? "linked" : "unlinked"} onValueChange={(v) => setShowLinkedOnly(v === "all" ? null : v === "linked")}>
-                     <SelectTrigger className="h-8 w-[130px]" data-testid="select-linked-filter">
-                       <SelectValue placeholder="All Tasks" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="all">All Tasks</SelectItem>
-                       <SelectItem value="linked">Included</SelectItem>
-                       <SelectItem value="unlinked">Not Included</SelectItem>
-                     </SelectContent>
-                   </Select>
+                   <SearchableSelect 
+                     value={showLinkedOnly === null ? "all" : showLinkedOnly ? "linked" : "unlinked"} 
+                     onValueChange={(v) => setShowLinkedOnly(v === "all" ? null : v === "linked")}
+                     className="h-8 w-[130px]"
+                     data-testid="select-linked-filter"
+                     placeholder="All Tasks"
+                     options={[
+                       { value: "all", label: "All Tasks" },
+                       { value: "linked", label: "Included" },
+                       { value: "unlinked", label: "Not Included" }
+                     ]}
+                   />
                  </div>
                  {(stageFilter !== "all" || epicFilter !== "all" || showLinkedOnly !== null || manualSearch) && (
                    <Button 

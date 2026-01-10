@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
@@ -20,6 +20,7 @@ import {
   AlertCircle, 
   ArrowRight,
   ChevronRight,
+  ChevronDown,
   Target,
   TrendingUp,
   Users,
@@ -99,28 +100,37 @@ const StatusDropdown = ({
   onStatusChange: (taskId: string, newStatus: string) => void;
 }) => {
   const normalizeStatus = (s: string) => s.toLowerCase();
-  const className = STATUS_STYLES[normalizeStatus(currentStatus)] || "bg-gray-100 text-gray-700 border-gray-200";
+  const getStatusClassName = (status: string) => 
+    STATUS_STYLES[normalizeStatus(status)] || "bg-gray-100 text-gray-700 border-gray-200";
   
   return (
-    <Select 
-      value={currentStatus} 
-      onValueChange={(value) => onStatusChange(taskId, value)}
-    >
-      <SelectTrigger 
-        className="h-6 w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0"
-        onClick={(e) => e.stopPropagation()}
+    <div onClick={(e) => e.stopPropagation()}>
+      <SearchableSelect 
+        value={currentStatus} 
+        onValueChange={(value) => onStatusChange(taskId, value)}
         data-testid={`status-dropdown-${taskId}`}
-      >
-        <Badge variant="outline" className={cn("capitalize whitespace-nowrap text-xs cursor-pointer", className)}>
-          {currentStatus}
-        </Badge>
-      </SelectTrigger>
-      <SelectContent>
-        {["Todo", "In Progress", "Review", "Done"].map((s) => (
-          <SelectItem key={s} value={s}>{s}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        triggerClassName="h-auto w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0"
+        options={[
+          { value: "Todo", label: "Todo" },
+          { value: "In Progress", label: "In Progress" },
+          { value: "Review", label: "Review" },
+          { value: "Done", label: "Done" }
+        ]}
+        renderTrigger={(selectedOption) => (
+          <Badge variant="outline" className={cn("capitalize whitespace-nowrap text-xs cursor-pointer", getStatusClassName(selectedOption?.label || currentStatus))}>
+            {selectedOption?.label || currentStatus}
+            <ChevronDown className="ml-1 h-3 w-3" />
+          </Badge>
+        )}
+        renderOption={(option, isSelected) => (
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className={cn("capitalize whitespace-nowrap text-xs", getStatusClassName(option.label))}>
+              {option.label}
+            </Badge>
+          </div>
+        )}
+      />
+    </div>
   );
 };
 
@@ -676,30 +686,38 @@ function CurrentSprintWidget({ projectId, sprint, tasks, onStatusChange }: Curre
         )}
       </div>
       {onStatusChange && (
-        <Select 
-          value={task.status} 
-          onValueChange={(value) => onStatusChange(task.id, value)}
-        >
-          <SelectTrigger 
-            className="h-6 w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "capitalize whitespace-nowrap text-[10px] cursor-pointer",
-                STATUS_STYLES[task.status?.toLowerCase()] || "bg-gray-100 text-gray-700"
-              )}
-            >
-              {task.status}
-            </Badge>
-          </SelectTrigger>
-          <SelectContent>
-            {["To Do", "In Progress", "Blocked", "Done"].map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div onClick={(e) => e.stopPropagation()}>
+          <SearchableSelect 
+            value={task.status} 
+            onValueChange={(value) => onStatusChange(task.id, value)}
+            triggerClassName="h-auto w-auto border-0 bg-transparent p-0 shadow-none focus:ring-0"
+            options={[
+              { value: "To Do", label: "To Do" },
+              { value: "In Progress", label: "In Progress" },
+              { value: "Blocked", label: "Blocked" },
+              { value: "Done", label: "Done" }
+            ]}
+            renderTrigger={(selectedOption) => {
+              const getClassName = (status: string) => 
+                STATUS_STYLES[status.toLowerCase()] || "bg-gray-100 text-gray-700 border-gray-200";
+              return (
+                <Badge variant="outline" className={cn("capitalize whitespace-nowrap text-xs cursor-pointer", getClassName(selectedOption?.label || task.status))}>
+                  {selectedOption?.label || task.status}
+                  <ChevronDown className="ml-1 h-3 w-3" />
+                </Badge>
+              );
+            }}
+            renderOption={(option) => {
+              const getClassName = (status: string) => 
+                STATUS_STYLES[status.toLowerCase()] || "bg-gray-100 text-gray-700 border-gray-200";
+              return (
+                <Badge variant="outline" className={cn("capitalize whitespace-nowrap text-xs", getClassName(option.label))}>
+                  {option.label}
+                </Badge>
+              );
+            }}
+          />
+        </div>
       )}
     </div>
   );
@@ -854,37 +872,31 @@ export function DashboardFilterControls({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <Select 
+      <SearchableSelect 
         value={filters.range} 
         onValueChange={(value: TimeRange) => onFiltersChange({ ...filters, range: value })}
-      >
-        <SelectTrigger className="w-[130px] h-8 text-xs" data-testid="range-selector">
-          <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="week">This Week</SelectItem>
-          <SelectItem value="nextWeek">Next Week</SelectItem>
-          <SelectItem value="30days">30 Days</SelectItem>
-          <SelectItem value="60days">60 Days</SelectItem>
-          <SelectItem value="90days">90 Days</SelectItem>
-        </SelectContent>
-      </Select>
+        className="w-[130px] h-8 text-xs"
+        data-testid="range-selector"
+        options={[
+          { value: "week", label: "This Week" },
+          { value: "nextWeek", label: "Next Week" },
+          { value: "30days", label: "30 Days" },
+          { value: "60days", label: "60 Days" },
+          { value: "90days", label: "90 Days" }
+        ]}
+      />
       
-      <Select 
+      <SearchableSelect 
         value={filters.assigneeScope} 
         onValueChange={(value: AssigneeScope) => onFiltersChange({ ...filters, assigneeScope: value })}
-      >
-        <SelectTrigger className="w-[120px] h-8 text-xs" data-testid="scope-selector">
-          <Users className="h-3.5 w-3.5 mr-1.5" />
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="me">Assigned to me</SelectItem>
-          <SelectItem value="team">My team</SelectItem>
-          <SelectItem value="all">Everyone</SelectItem>
-        </SelectContent>
-      </Select>
+        className="w-[120px] h-8 text-xs"
+        data-testid="scope-selector"
+        options={[
+          { value: "me", label: "Assigned to me" },
+          { value: "team", label: "My team" },
+          { value: "all", label: "Everyone" }
+        ]}
+      />
     </div>
   );
 }
@@ -989,37 +1001,31 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
           </div>
           
           <div className="flex items-center gap-3">
-            <Select 
+            <SearchableSelect 
               value={filters.range} 
               onValueChange={(value: TimeRange) => updateFilters({ ...filters, range: value })}
-            >
-              <SelectTrigger className="w-[140px]" data-testid="range-selector">
-                <CalendarDays className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="nextWeek">Next Week</SelectItem>
-                <SelectItem value="30days">30 Days</SelectItem>
-                <SelectItem value="60days">60 Days</SelectItem>
-                <SelectItem value="90days">90 Days</SelectItem>
-              </SelectContent>
-            </Select>
+              className="w-[140px]"
+              data-testid="range-selector"
+              options={[
+                { value: "week", label: "This Week" },
+                { value: "nextWeek", label: "Next Week" },
+                { value: "30days", label: "30 Days" },
+                { value: "60days", label: "60 Days" },
+                { value: "90days", label: "90 Days" }
+              ]}
+            />
             
-            <Select 
+            <SearchableSelect 
               value={filters.assigneeScope} 
               onValueChange={(value: AssigneeScope) => updateFilters({ ...filters, assigneeScope: value })}
-            >
-              <SelectTrigger className="w-[130px]" data-testid="scope-selector">
-                <Users className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="me">Assigned to me</SelectItem>
-                <SelectItem value="team">My team</SelectItem>
-                <SelectItem value="all">Everyone</SelectItem>
-              </SelectContent>
-            </Select>
+              className="w-[130px]"
+              data-testid="scope-selector"
+              options={[
+                { value: "me", label: "Assigned to me" },
+                { value: "team", label: "My team" },
+                { value: "all", label: "Everyone" }
+              ]}
+            />
           </div>
 
           <SummaryBar summary={dashboard.summary} />

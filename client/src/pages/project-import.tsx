@@ -8,13 +8,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -116,16 +110,12 @@ export default function ProjectImport() {
             {mode === "existing" && (
               <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
                 <Label>Select Target Project</Label>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a project..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((p: any) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect 
+                  value={selectedProject} 
+                  onValueChange={setSelectedProject}
+                  placeholder="Select a project..."
+                  options={projects.map((p: any) => ({ value: p.id, label: p.name }))}
+                />
               </div>
             )}
           </CardContent>

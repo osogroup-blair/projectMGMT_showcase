@@ -41,13 +41,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Dialog,
   DialogContent,
@@ -378,67 +372,54 @@ export default function TaskBoard() {
               />
             </div>
             <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-              <Select value={groupBy} onValueChange={(v: any) => setGroupBy(v)}>
-                <SelectTrigger className="w-[140px]">
-                  <div className="flex items-center gap-2">
-                    <LayoutGrid className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Group By" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="stage">Stage</SelectItem>
-                  <SelectItem value="status">Status</SelectItem>
-                  <SelectItem value="epic">Epic</SelectItem>
-                  <SelectItem value="assignee">Assignee</SelectItem>
-                  <SelectItem value="milestone">Milestone</SelectItem>
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={groupBy}
+                onValueChange={(v: any) => setGroupBy(v)}
+                placeholder="Group By"
+                options={[
+                  { value: "stage", label: "Stage" },
+                  { value: "status", label: "Status" },
+                  { value: "epic", label: "Epic" },
+                  { value: "assignee", label: "Assignee" },
+                  { value: "milestone", label: "Milestone" }
+                ]}
+                triggerClassName="w-[140px]"
+              />
 
-              <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Assignee" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Assignees</SelectItem>
-                  {users.map((member: any) => (
-                    <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={assigneeFilter}
+                onValueChange={setAssigneeFilter}
+                placeholder="Assignee"
+                options={[
+                  { value: "all", label: "All Assignees" },
+                  ...users.map((member: any) => ({ value: member.id, label: member.name }))
+                ]}
+                triggerClassName="w-[160px]"
+              />
 
-              <Select value={milestoneFilter} onValueChange={setMilestoneFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <div className="flex items-center gap-2">
-                    <Flag className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Milestone" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Milestones</SelectItem>
-                  {milestones.map((m: any) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={milestoneFilter}
+                onValueChange={setMilestoneFilter}
+                placeholder="Milestone"
+                options={[
+                  { value: "all", label: "All Milestones" },
+                  ...milestones.map((m: any) => ({ value: m.id, label: m.name }))
+                ]}
+                triggerClassName="w-[160px]"
+              />
 
-              <Select value={sprintFilter} onValueChange={setSprintFilter}>
-                <SelectTrigger className="w-[160px]" data-testid="select-sprint-filter">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Sprint" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sprints</SelectItem>
-                  <SelectItem value="backlog">Backlog</SelectItem>
-                  {projectSprints.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={sprintFilter}
+                onValueChange={setSprintFilter}
+                placeholder="Sprint"
+                options={[
+                  { value: "all", label: "All Sprints" },
+                  { value: "backlog", label: "Backlog" },
+                  ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                ]}
+                triggerClassName="w-[160px]"
+                data-testid="select-sprint-filter"
+              />
               
               <Button variant="outline" size="icon">
                 <Filter className="h-4 w-4" />
@@ -623,20 +604,17 @@ export default function TaskBoard() {
                       )}
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={task.sprintId || "backlog"} 
+                      <SearchableSelect
+                        value={task.sprintId || "backlog"}
                         onValueChange={(v) => updateTask({ id: task.id, updates: { sprintId: v === "backlog" ? undefined : v } })}
-                      >
-                        <SelectTrigger className="h-8" data-testid={`select-sprint-${task.id}`}>
-                          <SelectValue placeholder="Backlog" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="backlog">Backlog</SelectItem>
-                          {projectSprints.map((s: any) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Backlog"
+                        options={[
+                          { value: "backlog", label: "Backlog" },
+                          ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                        ]}
+                        triggerClassName="h-8"
+                        data-testid={`select-sprint-${task.id}`}
+                      />
                     </div>
                     <div className="cursor-pointer" onClick={() => handleOpenEdit(task)}>
                       <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priority.color)}>
@@ -689,91 +667,60 @@ export default function TaskBoard() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="stage">Stage <span className="text-destructive">*</span></Label>
-                  <Select 
-                    value={formData.stageId} 
+                  <SearchableSelect
+                    value={formData.stageId}
                     onValueChange={(v) => setFormData({ ...formData, stageId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select stage" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stages.map(stage => (
-                        <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select stage"
+                    options={stages.map(stage => ({ value: stage.id, label: stage.name }))}
+                  />
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="epic">Epic <span className="text-destructive">*</span></Label>
-                  <Select 
-                    value={formData.epicId || ""} 
+                  <SearchableSelect
+                    value={formData.epicId || ""}
                     onValueChange={(v) => setFormData({ ...formData, epicId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select epic" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projectEpics.map((epic: any) => (
-                        <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select epic"
+                    options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="assignee">Assignee</Label>
-                  <Select 
-                    value={formData.assigneeId} 
+                  <SearchableSelect
+                    value={formData.assigneeId}
                     onValueChange={(v) => setFormData({ ...formData, assigneeId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Unassigned" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((member: any) => (
-                        <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Unassigned"
+                    options={users.map((member: any) => ({ value: member.id, label: member.name }))}
+                  />
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="effort">Effort</Label>
-                  <Select 
-                    value={formData.effort?.toString() || "5"} 
+                  <SearchableSelect
+                    value={formData.effort?.toString() || "5"}
                     onValueChange={(v) => setFormData({ ...formData, effort: parseInt(v) })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select effort" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EFFORT_VALUES.map((value) => (
-                        <SelectItem key={value} value={value.toString()}>{value}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select effort"
+                    options={EFFORT_VALUES.map(value => ({ value: value.toString(), label: value.toString() }))}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="priority">Priority</Label>
-                  <Select 
-                    value={formData.priority} 
+                  <SearchableSelect
+                    value={formData.priority}
                     onValueChange={(v: any) => setFormData({ ...formData, priority: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select priority"
+                    options={[
+                      { value: "High", label: "High" },
+                      { value: "Medium", label: "Medium" },
+                      { value: "Low", label: "Low" }
+                    ]}
+                  />
                 </div>
 
                 <div className="grid gap-2">
@@ -790,20 +737,15 @@ export default function TaskBoard() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="milestone">Milestone (Optional)</Label>
-                  <Select 
-                    value={formData.milestoneId || "none"} 
+                  <SearchableSelect
+                    value={formData.milestoneId || "none"}
                     onValueChange={(v) => setFormData({ ...formData, milestoneId: v === "none" ? undefined : v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select milestone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {milestones?.map((m: any) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select milestone"
+                    options={[
+                      { value: "none", label: "None" },
+                      ...(milestones?.map((m: any) => ({ value: m.id, label: m.name })) || [])
+                    ]}
+                  />
                 </div>
 
                 <div className="grid gap-2">
@@ -1290,91 +1232,60 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="stage">Stage <span className="text-destructive">*</span></Label>
-                <Select 
-                  value={formData.stageId} 
+                <SearchableSelect
+                  value={formData.stageId}
                   onValueChange={(v) => setFormData({ ...formData, stageId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stages.map(stage => (
-                      <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select stage"
+                  options={stages.map(stage => ({ value: stage.id, label: stage.name }))}
+                />
               </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="epic">Epic <span className="text-destructive">*</span></Label>
-                <Select 
-                  value={formData.epicId || ""} 
+                <SearchableSelect
+                  value={formData.epicId || ""}
                   onValueChange={(v) => setFormData({ ...formData, epicId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select epic" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projectEpics.map((epic: any) => (
-                      <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select epic"
+                  options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="assignee">Assignee</Label>
-                <Select 
-                  value={formData.assigneeId} 
+                <SearchableSelect
+                  value={formData.assigneeId}
                   onValueChange={(v) => setFormData({ ...formData, assigneeId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Unassigned" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((member: any) => (
-                      <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Unassigned"
+                  options={users.map((member: any) => ({ value: member.id, label: member.name }))}
+                />
               </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="effort">Effort</Label>
-                <Select 
-                  value={formData.effort?.toString() || "5"} 
+                <SearchableSelect
+                  value={formData.effort?.toString() || "5"}
                   onValueChange={(v) => setFormData({ ...formData, effort: parseInt(v) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select effort" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EFFORT_VALUES.map((value) => (
-                      <SelectItem key={value} value={value.toString()}>{value}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select effort"
+                  options={EFFORT_VALUES.map(value => ({ value: value.toString(), label: value.toString() }))}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="priority">Priority</Label>
-                <Select 
-                  value={formData.priority} 
+                <SearchableSelect
+                  value={formData.priority}
                   onValueChange={(v: any) => setFormData({ ...formData, priority: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="Low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="Select priority"
+                  options={[
+                    { value: "High", label: "High" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "Low", label: "Low" }
+                  ]}
+                />
               </div>
 
               <div className="grid gap-2">
@@ -1391,20 +1302,15 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="milestone">Milestone</Label>
-                <Select 
-                  value={formData.milestoneId || "none"} 
+                <SearchableSelect
+                  value={formData.milestoneId || "none"}
                   onValueChange={(v) => setFormData({ ...formData, milestoneId: v === "none" ? undefined : v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="No milestone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Milestone</SelectItem>
-                    {milestones.map((m: any) => (
-                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="No milestone"
+                  options={[
+                    { value: "none", label: "No Milestone" },
+                    ...milestones.map((m: any) => ({ value: m.id, label: m.name }))
+                  ]}
+                />
               </div>
 
               <div className="grid gap-2">

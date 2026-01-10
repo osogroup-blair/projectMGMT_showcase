@@ -53,13 +53,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Popover,
   PopoverContent,
@@ -813,94 +807,66 @@ export default function EpicDetail() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Stage *</Label>
-                <Select
+                <SearchableSelect
                   value={formData.stageId}
                   onValueChange={(value) => setFormData({ ...formData, stageId: value })}
-                >
-                  <SelectTrigger data-testid="select-task-stage">
-                    <SelectValue placeholder="Select stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {epicStages.map((stage: any) => (
-                      <SelectItem key={stage.id} value={stage.id}>
-                        {stage.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  data-testid="select-task-stage"
+                  placeholder="Select stage"
+                  options={epicStages.map((stage: any) => ({ value: stage.id, label: stage.name }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select
+                <SearchableSelect
                   value={formData.status}
                   onValueChange={(value: any) => setFormData({ ...formData, status: value })}
-                >
-                  <SelectTrigger data-testid="select-task-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Todo">Todo</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Review">Review</SelectItem>
-                    <SelectItem value="Done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
+                  data-testid="select-task-status"
+                  placeholder="Select status"
+                  options={[
+                    { value: "Todo", label: "Todo" },
+                    { value: "In Progress", label: "In Progress" },
+                    { value: "Review", label: "Review" },
+                    { value: "Done", label: "Done" }
+                  ]}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Priority</Label>
-                <Select
+                <SearchableSelect
                   value={formData.priority}
                   onValueChange={(value: any) => setFormData({ ...formData, priority: value })}
-                >
-                  <SelectTrigger data-testid="select-task-priority">
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                  </SelectContent>
-                </Select>
+                  data-testid="select-task-priority"
+                  placeholder="Select priority"
+                  options={[
+                    { value: "Low", label: "Low" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "High", label: "High" }
+                  ]}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Effort (Story Points)</Label>
-                <Select
+                <SearchableSelect
                   value={String(formData.effort)}
                   onValueChange={(value) => setFormData({ ...formData, effort: Number(value) })}
-                >
-                  <SelectTrigger data-testid="select-task-effort">
-                    <SelectValue placeholder="Select effort" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EFFORT_VALUES.map((val) => (
-                      <SelectItem key={val} value={String(val)}>
-                        {val} points
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  data-testid="select-task-effort"
+                  placeholder="Select effort"
+                  options={EFFORT_VALUES.map((val) => ({ value: String(val), label: `${val} points` }))}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Assignee</Label>
-                <Select
+                <SearchableSelect
                   value={formData.assigneeId}
                   onValueChange={(value) => setFormData({ ...formData, assigneeId: value })}
-                >
-                  <SelectTrigger data-testid="select-task-assignee">
-                    <SelectValue placeholder="Select assignee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users?.map((user: any) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  data-testid="select-task-assignee"
+                  placeholder="Select assignee"
+                  options={users?.map((user: any) => ({ value: user.id, label: user.name })) || []}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="task-deadline">Deadline</Label>

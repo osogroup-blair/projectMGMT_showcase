@@ -36,7 +36,7 @@ import { TaskFilterModal, TaskFilters, emptyFilters, getActiveFilterCount } from
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EFFORT_VALUES } from "@shared/schema";
 
 const PRIORITY_CONFIG: Record<string, { color: string; bgColor: string }> = {
@@ -528,43 +528,38 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             </div>
             <div className="h-4 w-px bg-border" />
             <div className="flex items-center gap-2">
-              <Select onValueChange={(v) => handleBulkStatus(v)} disabled={isBulkUpdating}>
-                <SelectTrigger className="h-8 w-[130px] text-xs" data-testid="bulk-status-select">
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                  <span>Set Status</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {["Todo", "In Progress", "Review", "Done"].map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                onValueChange={(v) => handleBulkStatus(v)}
+                disabled={isBulkUpdating}
+                placeholder="Set Status"
+                options={["Todo", "In Progress", "Review", "Done"].map(s => ({ value: s, label: s }))}
+                triggerClassName="h-8 w-[130px] text-xs"
+                data-testid="bulk-status-select"
+              />
 
-              <Select onValueChange={(v) => handleBulkAssign(v === "unassigned" ? null : v)} disabled={isBulkUpdating}>
-                <SelectTrigger className="h-8 w-[130px] text-xs" data-testid="bulk-assignee-select">
-                  <Users className="h-3.5 w-3.5 mr-1.5" />
-                  <span>Assign To</span>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {(users || []).map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                onValueChange={(v) => handleBulkAssign(v === "unassigned" ? null : v)}
+                disabled={isBulkUpdating}
+                placeholder="Assign To"
+                options={[
+                  { value: "unassigned", label: "Unassigned" },
+                  ...(users || []).map((u: any) => ({ value: u.id, label: u.name }))
+                ]}
+                triggerClassName="h-8 w-[130px] text-xs"
+                data-testid="bulk-assignee-select"
+              />
 
-              <Select onValueChange={(v) => handleBulkSprint(v === "backlog" ? null : v)} disabled={isBulkUpdating}>
-                <SelectTrigger className="h-8 w-[140px] text-xs" data-testid="bulk-sprint-select">
-                  <Play className="h-3.5 w-3.5 mr-1.5" />
-                  <span>Add to Sprint</span>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="backlog">Backlog</SelectItem>
-                  {projectSprints.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                onValueChange={(v) => handleBulkSprint(v === "backlog" ? null : v)}
+                disabled={isBulkUpdating}
+                placeholder="Add to Sprint"
+                options={[
+                  { value: "backlog", label: "Backlog" },
+                  ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                ]}
+                triggerClassName="h-8 w-[140px] text-xs"
+                data-testid="bulk-sprint-select"
+              />
             </div>
             <div className="ml-auto">
               <Button 
@@ -710,116 +705,71 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
                     {/* Stage - Inline Dropdown */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={task.stageId || "none"} 
+                      <SearchableSelect
+                        value={task.stageId || "none"}
                         onValueChange={(v) => updateTask({ id: task.id, updates: { stageId: v === "none" ? null : v } })}
-                      >
-                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2" data-testid={`select-stage-${task.id}`}>
-                          <SelectValue placeholder="—">
-                            {stage?.name || "—"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">—</SelectItem>
-                          {stages.map((s: any) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="—"
+                        options={[
+                          { value: "none", label: "—" },
+                          ...stages.map((s: any) => ({ value: s.id, label: s.name }))
+                        ]}
+                        triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
+                        data-testid={`select-stage-${task.id}`}
+                      />
                     </TableCell>
 
                     {/* Status - Inline Dropdown */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={task.status} 
+                      <SearchableSelect
+                        value={task.status}
                         onValueChange={(v) => updateTask({ id: task.id, updates: { status: v } })}
-                      >
-                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2" data-testid={`select-status-${task.id}`}>
-                          <Badge 
-                            variant="secondary" 
-                            className={cn("font-normal text-xs", statusConfig.bgColor, statusConfig.color)}
-                          >
-                            {task.status}
-                          </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["Todo", "In Progress", "Review", "Done"].map((s) => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Status"
+                        options={["Todo", "In Progress", "Review", "Done"].map(s => ({ value: s, label: s }))}
+                        triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
+                        data-testid={`select-status-${task.id}`}
+                      />
                     </TableCell>
 
                     {/* Sprint - Inline Dropdown (already working) */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={task.sprintId || "backlog"} 
+                      <SearchableSelect
+                        value={task.sprintId || "backlog"}
                         onValueChange={(v) => updateTask({ id: task.id, updates: { sprintId: v === "backlog" ? null : v } })}
-                      >
-                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2" data-testid={`select-sprint-${task.id}`}>
-                          <SelectValue placeholder="Backlog" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="backlog">Backlog</SelectItem>
-                          {projectSprints.map((s: any) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Backlog"
+                        options={[
+                          { value: "backlog", label: "Backlog" },
+                          ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                        ]}
+                        triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
+                        data-testid={`select-sprint-${task.id}`}
+                      />
                     </TableCell>
 
                     {/* Priority - Inline Dropdown */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={task.priority} 
+                      <SearchableSelect
+                        value={task.priority}
                         onValueChange={(v) => updateTask({ id: task.id, updates: { priority: v } })}
-                      >
-                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-1" data-testid={`select-priority-${task.id}`}>
-                          <span className={cn(
-                            "text-xs font-medium px-2 py-0.5 rounded-full",
-                            priorityConfig.bgColor,
-                            priorityConfig.color
-                          )}>
-                            {task.priority}
-                          </span>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {["Low", "Medium", "High", "Critical"].map((p) => (
-                            <SelectItem key={p} value={p}>{p}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Priority"
+                        options={["Low", "Medium", "High", "Critical"].map(p => ({ value: p, label: p }))}
+                        triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-1"
+                        data-testid={`select-priority-${task.id}`}
+                      />
                     </TableCell>
 
                     {/* Assignee - Inline Dropdown */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Select 
-                        value={task.assigneeId || "unassigned"} 
+                      <SearchableSelect
+                        value={task.assigneeId || "unassigned"}
                         onValueChange={(v) => updateTask({ id: task.id, updates: { assigneeId: v === "unassigned" ? null : v } })}
-                      >
-                        <SelectTrigger className="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2" data-testid={`select-assignee-${task.id}`}>
-                          {assignee ? (
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5">
-                                <AvatarFallback className="text-[8px]">
-                                  {assignee.name?.substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs truncate max-w-[60px]">
-                                {assignee.name?.split(' ')[0]}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {(users || []).map((u: any) => (
-                            <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="—"
+                        options={[
+                          { value: "unassigned", label: "Unassigned" },
+                          ...(users || []).map((u: any) => ({ value: u.id, label: u.name }))
+                        ]}
+                        triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
+                        data-testid={`select-assignee-${task.id}`}
+                      />
                     </TableCell>
 
                     {/* Due Date - Inline Input */}
@@ -1014,91 +964,66 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-epic">Epic *</Label>
-                <Select value={newTaskEpicId} onValueChange={setNewTaskEpicId}>
-                  <SelectTrigger data-testid="select-create-task-epic">
-                    <SelectValue placeholder="Select an epic" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projectEpics.map((epic: any) => (
-                      <SelectItem key={epic.id} value={epic.id}>{epic.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={newTaskEpicId}
+                  onValueChange={setNewTaskEpicId}
+                  placeholder="Select an epic"
+                  options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
+                  data-testid="select-create-task-epic"
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="task-stage">Stage *</Label>
-                <Select value={newTaskStageId} onValueChange={setNewTaskStageId}>
-                  <SelectTrigger data-testid="select-create-task-stage">
-                    <SelectValue placeholder="Select a stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stages.map((stage: any) => (
-                      <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={newTaskStageId}
+                  onValueChange={setNewTaskStageId}
+                  placeholder="Select a stage"
+                  options={stages.map((stage: any) => ({ value: stage.id, label: stage.name }))}
+                  data-testid="select-create-task-stage"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-type">Task Type</Label>
-                <Select value={newTaskTypeId} onValueChange={setNewTaskTypeId}>
-                  <SelectTrigger data-testid="select-create-task-type">
-                    <div className="flex items-center gap-2">
-                      <Tag className="h-4 w-4 text-muted-foreground" />
-                      <SelectValue placeholder="Select type" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(taskTypes || []).map((tt: any) => (
-                      <SelectItem key={tt.id} value={tt.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-2 h-2 rounded-full" 
-                            style={{ backgroundColor: tt.color || '#6b7280' }}
-                          />
-                          <span>{tt.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={newTaskTypeId}
+                  onValueChange={setNewTaskTypeId}
+                  placeholder="Select type"
+                  options={(taskTypes || []).map((tt: any) => ({ value: tt.id, label: tt.name }))}
+                  data-testid="select-create-task-type"
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="task-priority">Priority</Label>
-                <Select value={newTaskPriority} onValueChange={setNewTaskPriority}>
-                  <SelectTrigger data-testid="select-create-task-priority">
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={newTaskPriority}
+                  onValueChange={setNewTaskPriority}
+                  placeholder="Select priority"
+                  options={[
+                    { value: "Low", label: "Low" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "High", label: "High" },
+                    { value: "Critical", label: "Critical" }
+                  ]}
+                  data-testid="select-create-task-priority"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="task-effort">Effort</Label>
-                <Select 
-                  value={newTaskEffort.toString()} 
+                <SearchableSelect
+                  value={newTaskEffort.toString()}
                   onValueChange={(v) => setNewTaskEffort(Number(v))}
-                >
-                  <SelectTrigger data-testid="select-create-task-effort">
-                    <SelectValue placeholder="Select effort" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EFFORT_VALUES.map((val) => (
-                      <SelectItem key={val} value={val.toString()}>{val} pts</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select effort"
+                  options={EFFORT_VALUES.map(val => ({ value: val.toString(), label: `${val} pts` }))}
+                  data-testid="select-create-task-effort"
+                />
               </div>
             </div>
           </div>

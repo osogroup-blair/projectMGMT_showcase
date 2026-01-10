@@ -45,13 +45,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { TEAM, TeamMember } from "@/lib/mock-data";
 import { useToast } from "@/hooks/use-toast";
 
@@ -287,21 +281,18 @@ export default function UserManagement({ embedded = false }: UserManagementProps
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="role">Primary Role</Label>
-                <Select 
-                  value={formData.role} 
+                <SearchableSelect
+                  value={formData.role}
                   onValueChange={(v) => setFormData({ ...formData, role: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Product Manager">Product Manager</SelectItem>
-                    <SelectItem value="Project Manager">Project Manager</SelectItem>
-                    <SelectItem value="UX Designer">UX Designer</SelectItem>
-                    <SelectItem value="Senior Developer">Senior Developer</SelectItem>
-                    <SelectItem value="CEO">CEO</SelectItem>
-                  </SelectContent>
-                </Select>
+                  placeholder="Select role"
+                  options={[
+                    { value: "Product Manager", label: "Product Manager" },
+                    { value: "Project Manager", label: "Project Manager" },
+                    { value: "UX Designer", label: "UX Designer" },
+                    { value: "Senior Developer", label: "Senior Developer" },
+                    { value: "CEO", label: "CEO" },
+                  ]}
+                />
               </div>
             </div>
             <DialogFooter>

@@ -5,13 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Accordion,
   AccordionContent,
@@ -255,6 +249,34 @@ export function StepStageConfig({
     setFrameworkPanelOpen(false);
   };
 
+  const stageTemplateOptions = stageTemplates.map((template: any) => ({
+    value: template.id,
+    label: `${template.name} (${template.defaultTasks?.length || 0} tasks)`
+  }));
+
+  const scopeOptions = [
+    { value: "once", label: "Once" },
+    { value: "per_epic", label: "Per Epic" },
+  ];
+
+  const priorityOptions = [
+    { value: "Low", label: "Low" },
+    { value: "Medium", label: "Medium" },
+    { value: "High", label: "High" },
+  ];
+
+  const scopeTypeOptions = [
+    { value: "stage", label: "All tasks in Stage" },
+    { value: "deliverable", label: "All tasks in Deliverable" },
+    { value: "epic", label: "All tasks in Epic" },
+    { value: "all", label: "All project tasks" },
+  ];
+
+  const completionModeOptions = [
+    { value: "all_tasks", label: "All tasks completed" },
+    { value: "percentage", label: "Percentage completed" },
+  ];
+
   return (
     <div className="flex flex-col h-full">
       <div className="sticky top-0 z-10 bg-background pb-4 border-b mb-4">
@@ -305,18 +327,11 @@ export function StepStageConfig({
                       
                       <div className="pt-4 border-t mt-4">
                         <p className="text-sm font-medium mb-3">Or add individual stage templates:</p>
-                        <Select onValueChange={applyStageTemplate}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a stage template..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stageTemplates.map((template: any) => (
-                              <SelectItem key={template.id} value={template.id}>
-                                {template.name} ({template.defaultTasks?.length || 0} tasks)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect
+                          onValueChange={applyStageTemplate}
+                          placeholder="Select a stage template..."
+                          options={stageTemplateOptions}
+                        />
                       </div>
                     </>
                   ) : (
@@ -488,18 +503,15 @@ export function StepStageConfig({
                               <ListTodo className="h-4 w-4" /> Tasks
                             </Label>
                             <div className="flex gap-2">
-                              <Select onValueChange={(templateId) => applyTaskTemplate(stageIndex, templateId)}>
-                                <SelectTrigger className="h-8 w-48">
-                                  <SelectValue placeholder="Add from template..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {taskTemplates.map((template: any) => (
-                                    <SelectItem key={template.id} value={template.id}>
-                                      {template.title}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <SearchableSelect
+                                onValueChange={(templateId) => applyTaskTemplate(stageIndex, templateId)}
+                                placeholder="Add from template..."
+                                options={taskTemplates.map((template: any) => ({
+                                  value: template.id,
+                                  label: template.title
+                                }))}
+                                triggerClassName="h-8 w-48"
+                              />
                               <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
                                 <Plus className="h-3 w-3 mr-1" /> Custom
                               </Button>
@@ -524,31 +536,18 @@ export function StepStageConfig({
                                           placeholder="Task title..."
                                         />
                                         <div className="grid grid-cols-3 gap-2">
-                                          <Select
+                                          <SearchableSelect
                                             value={task.scope}
                                             onValueChange={(v) => updateTask(stageIndex, taskIndex, { scope: v as 'once' | 'per_epic' })}
-                                          >
-                                            <SelectTrigger className="h-8">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="once">Once</SelectItem>
-                                              <SelectItem value="per_epic">Per Epic</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                          <Select
+                                            options={scopeOptions}
+                                            triggerClassName="h-8"
+                                          />
+                                          <SearchableSelect
                                             value={task.priority}
                                             onValueChange={(v) => updateTask(stageIndex, taskIndex, { priority: v })}
-                                          >
-                                            <SelectTrigger className="h-8">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="Low">Low</SelectItem>
-                                              <SelectItem value="Medium">Medium</SelectItem>
-                                              <SelectItem value="High">High</SelectItem>
-                                            </SelectContent>
-                                          </Select>
+                                            options={priorityOptions}
+                                            triggerClassName="h-8"
+                                          />
                                           <Input
                                             type="number"
                                             value={task.estimateHours}
@@ -646,6 +645,10 @@ export function StepStageConfig({
               >
                 {milestones.map((milestone, index) => {
                   const rule = getMilestoneRule(milestone);
+                  const stageOptions = stages.map((s, idx) => ({
+                    value: s.id,
+                    label: s.name || `Stage ${idx + 1}`
+                  }));
                   return (
                   <AccordionItem 
                     key={milestone.id} 
@@ -714,7 +717,7 @@ export function StepStageConfig({
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
                                 <Label className="text-xs text-muted-foreground">Scope Type</Label>
-                                <Select
+                                <SearchableSelect
                                   value={rule.scopeType}
                                   onValueChange={(v) => {
                                     const newMs = [...milestones];
@@ -725,23 +728,15 @@ export function StepStageConfig({
                                     newMs[index].rule.scopeEntityId = undefined;
                                     setMilestones(newMs);
                                   }}
-                                >
-                                  <SelectTrigger className="h-9">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="stage">All tasks in Stage</SelectItem>
-                                    <SelectItem value="deliverable">All tasks in Deliverable</SelectItem>
-                                    <SelectItem value="epic">All tasks in Epic</SelectItem>
-                                    <SelectItem value="all">All project tasks</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                  options={scopeTypeOptions}
+                                  triggerClassName="h-9"
+                                />
                               </div>
                               
                               {rule.scopeType === 'stage' && (
                                 <div className="space-y-1">
                                   <Label className="text-xs text-muted-foreground">Stage</Label>
-                                  <Select
+                                  <SearchableSelect
                                     value={rule.scopeEntityId || ""}
                                     onValueChange={(v) => {
                                       const newMs = [...milestones];
@@ -751,22 +746,10 @@ export function StepStageConfig({
                                       newMs[index].rule.scopeEntityId = v;
                                       setMilestones(newMs);
                                     }}
-                                  >
-                                    <SelectTrigger className="h-9">
-                                      <SelectValue placeholder="Select stage..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {stages.length > 0 ? (
-                                        stages.map((s, idx) => (
-                                          <SelectItem key={s.id} value={s.id}>
-                                            {s.name || `Stage ${idx + 1}`}
-                                          </SelectItem>
-                                        ))
-                                      ) : (
-                                        <div className="text-sm text-muted-foreground px-2 py-1.5">No stages defined</div>
-                                      )}
-                                    </SelectContent>
-                                  </Select>
+                                    placeholder="Select stage..."
+                                    options={stageOptions}
+                                    triggerClassName="h-9"
+                                  />
                                 </div>
                               )}
                               
@@ -794,7 +777,7 @@ export function StepStageConfig({
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
                                 <Label className="text-xs text-muted-foreground">Completion Mode</Label>
-                                <Select
+                                <SearchableSelect
                                   value={rule.completionMode}
                                   onValueChange={(v) => {
                                     const newMs = [...milestones];
@@ -804,15 +787,9 @@ export function StepStageConfig({
                                     newMs[index].rule.completionMode = v as any;
                                     setMilestones(newMs);
                                   }}
-                                >
-                                  <SelectTrigger className="h-9">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="all_tasks">All tasks completed</SelectItem>
-                                    <SelectItem value="percentage">Percentage completed</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                  options={completionModeOptions}
+                                  triggerClassName="h-9"
+                                />
                               </div>
                               
                               {rule.completionMode === 'percentage' && (

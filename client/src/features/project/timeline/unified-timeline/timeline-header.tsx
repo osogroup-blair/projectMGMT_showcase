@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import type { ViewMode, LayerVisibility, LayerType } from "./types";
@@ -67,18 +67,19 @@ export function TimelineHeader({
           </span>
         </div>
 
-        <Select value={viewMode} onValueChange={(v) => onViewModeChange(v as ViewMode)}>
-          <SelectTrigger className="w-32" data-testid="select-view-mode">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="day">Day</SelectItem>
-            <SelectItem value="week">Week</SelectItem>
-            <SelectItem value="month">Month</SelectItem>
-            <SelectItem value="quarter">Quarter</SelectItem>
-            <SelectItem value="year">Year</SelectItem>
-          </SelectContent>
-        </Select>
+        <SearchableSelect 
+          value={viewMode} 
+          onValueChange={(v) => onViewModeChange(v as ViewMode)}
+          className="w-32"
+          data-testid="select-view-mode"
+          options={[
+            { value: "day", label: "Day" },
+            { value: "week", label: "Week" },
+            { value: "month", label: "Month" },
+            { value: "quarter", label: "Quarter" },
+            { value: "year", label: "Year" }
+          ]}
+        />
       </div>
 
       <div className="flex items-center gap-6 flex-wrap">

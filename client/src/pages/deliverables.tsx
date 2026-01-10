@@ -49,13 +49,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
 import { STAGE_TEMPLATES } from "@/lib/mock-data";
@@ -727,19 +721,14 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                             {isEditingThis && editingField === "owner" ? (
                               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 <User className="h-3.5 w-3.5" />
-                                <Select 
+                                <SearchableSelect 
                                   value={deliverable.ownerId || ""} 
                                   onValueChange={(value) => handleOwnerChange(deliverable.id, value)}
-                                >
-                                  <SelectTrigger className="h-6 text-xs w-32" data-testid={`select-owner-${deliverable.id}`}>
-                                    <SelectValue placeholder="Select owner" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {(users || []).map((u: any) => (
-                                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                  placeholder="Select owner"
+                                  triggerClassName="h-6 text-xs w-32"
+                                  data-testid={`select-owner-${deliverable.id}`}
+                                  options={(users || []).map((u: any) => ({ value: u.id, label: u.name }))}
+                                />
                                 <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEditing}>
                                   <X className="h-3 w-3" />
                                 </Button>

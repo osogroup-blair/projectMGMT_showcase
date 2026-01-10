@@ -38,13 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Table,
   TableBody,
@@ -374,27 +368,16 @@ export default function RoleAssignments() {
             <div className="grid gap-6 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="user">Team Member</Label>
-                <Select 
-                  value={formData.userId} 
+                <SearchableSelect 
+                  value={formData.userId || ""} 
                   onValueChange={(v) => setFormData({ ...formData, userId: v })}
                   disabled={!!editingAssignment}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a team member" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {editingAssignment && (
-                      <SelectItem value={editingAssignment.userId}>
-                        {TEAM.find(u => u.id === editingAssignment.userId)?.name}
-                      </SelectItem>
-                    )}
-                    {availableUsers.map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select a team member"
+                  options={[
+                    ...(editingAssignment ? [{ value: editingAssignment.userId, label: TEAM.find(u => u.id === editingAssignment.userId)?.name || "" }] : []),
+                    ...availableUsers.map(user => ({ value: user.id, label: user.name }))
+                  ]}
+                />
               </div>
 
               <div className="flex items-center justify-between rounded-lg border p-3">
