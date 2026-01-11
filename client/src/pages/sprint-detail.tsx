@@ -172,33 +172,6 @@ export default function SprintDetail() {
     [allSprints, sprintId]
   );
 
-  const projectSprints = useMemo(() =>
-    (allSprints || []).filter((s: any) => s.projectId === projectId),
-    [allSprints, projectId]
-  );
-
-  const sortedProjectSprints = useMemo(() => 
-    [...projectSprints].sort((a: any, b: any) => {
-      if (a.startDate && b.startDate) {
-        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-      }
-      return a.name.localeCompare(b.name);
-    }),
-    [projectSprints]
-  );
-
-  const currentSprintIndex = useMemo(() => 
-    sortedProjectSprints.findIndex((s: any) => s.id === sprintId),
-    [sortedProjectSprints, sprintId]
-  );
-
-  const prevSprint = currentSprintIndex > 0 ? sortedProjectSprints[currentSprintIndex - 1] : null;
-  const nextSprint = currentSprintIndex < sortedProjectSprints.length - 1 ? sortedProjectSprints[currentSprintIndex + 1] : null;
-
-  const handleSprintNavigation = (targetSprintId: string) => {
-    setLocation(`/projects/${projectId}/sprints/${targetSprintId}?tab=${activeTab}`);
-  };
-
   const sprintTasks = useMemo(() => 
     (allTasks || []).filter((t: any) => t.sprintId === sprintId),
     [allTasks, sprintId]
@@ -1102,51 +1075,6 @@ export default function SprintDetail() {
   return (
     <Shell>
       <div className="space-y-6">
-        {/* Sprint Navigator */}
-        {sortedProjectSprints.length > 1 && (
-          <div className="flex items-center justify-center gap-2 pb-2 border-b" data-testid="sprint-navigator">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => prevSprint && handleSprintNavigation(prevSprint.id)}
-              disabled={!prevSprint}
-              className="gap-1"
-              data-testid="button-prev-sprint"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Previous</span>
-            </Button>
-            
-            <div className="w-64">
-              <SearchableSelect
-                value={sprintId}
-                onValueChange={handleSprintNavigation}
-                options={sortedProjectSprints.map((s: any) => ({
-                  value: s.id,
-                  label: s.name,
-                  description: s.startDate ? `${formatDate(new Date(s.startDate), "MMM d")} - ${s.endDate ? formatDate(new Date(s.endDate), "MMM d") : "No end"}` : undefined
-                }))}
-                placeholder="Select sprint..."
-                searchPlaceholder="Search sprints..."
-                emptyMessage="No sprints found"
-                data-testid="select-sprint-navigator"
-              />
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => nextSprint && handleSprintNavigation(nextSprint.id)}
-              disabled={!nextSprint}
-              className="gap-1"
-              data-testid="button-next-sprint"
-            >
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className={cn("p-3 rounded-lg", statusConfig.bgColor)}>

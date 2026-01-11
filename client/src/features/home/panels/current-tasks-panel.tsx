@@ -4,6 +4,7 @@ import { useCurrentUser } from "@/context/current-user-context";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { useStatusOptions } from "@/hooks/use-nexus-data";
 
 interface StatusOption {
   id: string;
@@ -63,14 +64,7 @@ export function CurrentTasksPanel() {
     enabled: !!currentUserId,
   });
 
-  const { data: statusOptions = [] } = useQuery({
-    queryKey: ["/api/admin/statusOptions"],
-    queryFn: async () => {
-      const response = await fetch("/api/admin/statusOptions");
-      if (!response.ok) throw new Error("Failed to fetch status options");
-      return response.json();
-    },
-  });
+  const { data: statusOptions = [] } = useStatusOptions();
 
   const { data: sprints = [] } = useQuery({
     queryKey: ["/api/sprints"],
