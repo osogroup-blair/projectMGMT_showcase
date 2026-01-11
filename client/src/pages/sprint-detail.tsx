@@ -2599,6 +2599,9 @@ export default function SprintDetail() {
                         users: users || [],
                         onAssigneeChange: handleAssigneeChange,
                         onAddComment: handleAddComment,
+                        onDueDateChange: (taskId, date) => {
+                          updateTask({ id: taskId, updates: { deadline: date?.toISOString().split('T')[0] || null } });
+                        },
                       }}
                       onTaskMove={handleTaskMove}
                       onBlockerRequested={handleBlockerRequested}

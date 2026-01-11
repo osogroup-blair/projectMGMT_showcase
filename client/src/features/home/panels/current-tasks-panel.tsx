@@ -203,6 +203,7 @@ export function CurrentTasksPanel() {
           users: users,
           onAssigneeChange: handleAssigneeChange,
           onAddComment: handleAddComment,
+          onDueDateChange: handleDueDateChange,
         }}
         onTaskMove={handleTaskMove}
       />

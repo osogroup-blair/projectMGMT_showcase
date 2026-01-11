@@ -487,6 +487,9 @@ export default function TaskBoard() {
                   onAssigneeChange: (taskId, assigneeId) => {
                     updateTask({ id: taskId, updates: { assigneeId } });
                   },
+                  onDueDateChange: (taskId, date) => {
+                    updateTask({ id: taskId, updates: { deadline: date?.toISOString().split('T')[0] || null } });
+                  },
                 }}
                 onTaskMove={(taskId, newStatus) => {
                   updateTask({ id: taskId, updates: { status: newStatus } });

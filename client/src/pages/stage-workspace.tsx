@@ -931,7 +931,7 @@ export default function StageWorkspace() {
                     tasks={tasks}
                     users={team}
                     epics={projectEpics}
-                    milestones={stageMilestones}
+                    milestones={milestones || []}
                     projectId={projectId}
                     boardId={`stage-${stageId}`}
                     showFilters={false}
@@ -942,6 +942,9 @@ export default function StageWorkspace() {
                       users: team,
                       onAssigneeChange: (taskId, assigneeId) => {
                         updateTask({ id: taskId, updates: { assigneeId } });
+                      },
+                      onDueDateChange: (taskId, date) => {
+                        updateTask({ id: taskId, updates: { deadline: date?.toISOString().split('T')[0] || null } });
                       },
                     }}
                     onTaskMove={(taskId, newStatus) => {

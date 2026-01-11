@@ -1063,6 +1063,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               users: users || [],
               onAssigneeChange: handleHoverAssigneeChange,
               onAddComment: handleHoverAddComment,
+              onDueDateChange: (taskId, date) => {
+                updateTask({ id: taskId, updates: { deadline: date?.toISOString().split('T')[0] || null } });
+              },
             }}
             onTaskMove={(taskId, newStatus) => {
               updateTask({ id: taskId, updates: { status: newStatus } });

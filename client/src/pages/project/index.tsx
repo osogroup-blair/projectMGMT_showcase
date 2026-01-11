@@ -1156,6 +1156,9 @@ export default function ProjectOverview() {
                               users: users || [],
                               onAssigneeChange: handleHoverAssigneeChange,
                               onAddComment: handleHoverAddComment,
+                              onDueDateChange: (taskId, date) => {
+                                updateTask({ id: taskId, updates: { deadline: date?.toISOString().split('T')[0] || null } });
+                              },
                             }}
                             onTaskMove={handleTaskMove}
                             onBlockerRequested={handleBlockerRequested}
