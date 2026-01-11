@@ -63,7 +63,7 @@ export function TaskSidebarTabs({
   };
 
   return (
-    <Tabs defaultValue="subtasks" className="w-full">
+    <Tabs defaultValue="comments" className="w-full">
       <TabsList className="w-full grid grid-cols-3">
         <TabsTrigger value="comments" className="text-xs" data-testid="sidebar-tab-comments">
           <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
