@@ -920,6 +920,7 @@ export default function ProjectWizard() {
             assignedEpicId: task.assignedEpicId,
             assignedEpicTitle: task.assignedEpicTitle,
             mappingStatus: task.mappingStatus,
+            assigneeId: task.assigneeId || null,
             startDate: task.startDate || stage.startDate || null,
             deadline: task.deadline || stage.endDate || null
           }))

@@ -4047,7 +4047,50 @@ export async function registerRoutes(
             }
           } else if (taskDraft.scope === 'per_epic') {
             const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
-            for (const businessEpic of businessEpics) {
+            
+            // If there are business epics, create a task for each one
+            if (businessEpics.length > 0) {
+              for (const businessEpic of businessEpics) {
+                const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                try {
+                  await storage.createTask({
+                    id: taskId,
+                    project: projectName,
+                    projectId: projectId!,
+                    title: taskDraft.title,
+                    description: taskDraft.description || "",
+                    status: "Todo",
+                    priority: taskDraft.priority || "Medium",
+                    stageId: createdStage.createdStageId,
+                    epicId: businessEpic.id,
+                    effort: 1,
+                    deadline: taskDeadline,
+                    estimateHours: taskDraft.estimateHours || 0,
+                    assigneeId: taskDraft.assigneeId || null,
+                    tags: []
+                  } as any);
+                  
+                  entityResults.push({
+                    entityType: 'task',
+                    id: taskId,
+                    name: `${taskDraft.title} (${businessEpic.title})`,
+                    success: true,
+                    parentId: createdStage.createdStageId
+                  });
+                } catch (e: any) {
+                  entityResults.push({
+                    entityType: 'task',
+                    id: taskId,
+                    name: `${taskDraft.title} (${businessEpic.title})`,
+                    success: false,
+                    error: e.message,
+                    parentId: createdStage.createdStageId
+                  });
+                }
+              }
+            } else if (productManagementEpicId) {
+              // FALLBACK: No business epics exist, create task under Product Management epic
+              console.log(`[FULL-CREATE] No business epics for per_epic task "${taskDraft.title}", falling back to Product Management epic`);
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               try {
                 await storage.createTask({
@@ -4059,7 +4102,7 @@ export async function registerRoutes(
                   status: "Todo",
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
-                  epicId: businessEpic.id,
+                  epicId: productManagementEpicId,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
@@ -4070,7 +4113,7 @@ export async function registerRoutes(
                 entityResults.push({
                   entityType: 'task',
                   id: taskId,
-                  name: `${taskDraft.title} (${businessEpic.title})`,
+                  name: taskDraft.title,
                   success: true,
                   parentId: createdStage.createdStageId
                 });
@@ -4078,7 +4121,51 @@ export async function registerRoutes(
                 entityResults.push({
                   entityType: 'task',
                   id: taskId,
-                  name: `${taskDraft.title} (${businessEpic.title})`,
+                  name: taskDraft.title || 'Unknown Task',
+                  success: false,
+                  error: e.message,
+                  parentId: createdStage.createdStageId
+                });
+              }
+            } else {
+              console.log(`[FULL-CREATE] WARNING: Task "${taskDraft.title}" skipped - no epics available`);
+            }
+          } else {
+            // CATCH-ALL: Unknown scope, create under Product Management epic as fallback
+            console.log(`[FULL-CREATE] Unknown scope "${taskDraft.scope}" for task "${taskDraft.title}", falling back to Product Management epic`);
+            if (productManagementEpicId) {
+              const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
+              try {
+                await storage.createTask({
+                  id: taskId,
+                  project: projectName,
+                  projectId: projectId!,
+                  title: taskDraft.title,
+                  description: taskDraft.description || "",
+                  status: "Todo",
+                  priority: taskDraft.priority || "Medium",
+                  stageId: createdStage.createdStageId,
+                  epicId: productManagementEpicId,
+                  effort: 1,
+                  deadline: taskDeadline,
+                  estimateHours: taskDraft.estimateHours || 0,
+                  assigneeId: taskDraft.assigneeId || null,
+                  tags: []
+                } as any);
+                
+                entityResults.push({
+                  entityType: 'task',
+                  id: taskId,
+                  name: taskDraft.title,
+                  success: true,
+                  parentId: createdStage.createdStageId
+                });
+              } catch (e: any) {
+                entityResults.push({
+                  entityType: 'task',
+                  id: taskId,
+                  name: taskDraft.title || 'Unknown Task',
                   success: false,
                   error: e.message,
                   parentId: createdStage.createdStageId
