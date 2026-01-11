@@ -32,6 +32,7 @@ import { Link } from "wouter";
 import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKanbanColumns, type KanbanColumn, getTargetStatusForColumn } from "@/hooks/use-kanban-columns";
+import { TaskHoverCard, type EnrichedTask } from "./task-hover-card";
 
 interface Task {
   id: string;
@@ -45,6 +46,21 @@ interface Task {
   blocked?: boolean;
   blockerReason?: string;
   updatedAt?: string;
+  description?: string;
+  priority?: string;
+  estimateHours?: number;
+  projectId?: string;
+  projectName?: string;
+  epicName?: string;
+  deliverableId?: string;
+  deliverableName?: string;
+  sprintId?: string;
+  sprintName?: string;
+  milestoneName?: string;
+  assigneeName?: string;
+  stageId?: string;
+  stageName?: string;
+  tags?: string[];
 }
 
 interface User {
@@ -62,6 +78,26 @@ interface Milestone {
   title: string;
 }
 
+interface StatusOption {
+  id: string;
+  label: string;
+  color?: string;
+}
+
+interface Sprint {
+  id: string;
+  name: string;
+}
+
+interface HoverCardConfig {
+  enabled: boolean;
+  statusOptions?: StatusOption[];
+  sprints?: Sprint[];
+  onStatusChange?: (taskId: string, newStatus: string) => void;
+  onBlockedToggle?: (taskId: string, blocked: boolean, reason?: string) => void;
+  onSprintChange?: (taskId: string, sprintId: string | null) => void;
+}
+
 interface PortableKanbanProps {
   tasks: Task[];
   users?: User[];
@@ -74,6 +110,7 @@ interface PortableKanbanProps {
   isReadOnly?: boolean;
   signalFilter?: "blocked" | "overdue" | "stale" | null;
   showFilters?: boolean;
+  hoverCard?: HoverCardConfig; // Enable hover cards with enriched task details
   onTaskMove?: (taskId: string, newStatus: string, blockerReason?: string) => void;
   onBlockerRequested?: (taskId: string) => void;
   className?: string;
@@ -153,6 +190,7 @@ function SortableTaskCard({
   onMoveRight,
   onMoveToColumn,
   isReadOnly,
+  hoverCard,
 }: {
   task: Task;
   user?: User;
@@ -168,6 +206,7 @@ function SortableTaskCard({
   onMoveRight?: () => void;
   onMoveToColumn?: (columnId: string) => void;
   isReadOnly?: boolean;
+  hoverCard?: HoverCardConfig;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -182,36 +221,62 @@ function SortableTaskCard({
   const canMoveLeft = columnIndex > 0;
   const canMoveRight = columnIndex < columnsCount - 1;
 
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn("group", isDragging && "opacity-50")}
-      {...attributes}
+  const enrichedTask: EnrichedTask = {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    priority: task.priority,
+    effort: task.effort,
+    estimateHours: task.estimateHours,
+    assigneeId: task.assigneeId,
+    assigneeName: task.assigneeName || user?.name,
+    deadline: task.deadline,
+    blocked: task.blocked,
+    blockerReason: task.blockerReason,
+    projectId: task.projectId || projectId,
+    projectName: task.projectName,
+    epicId: task.epicId,
+    epicName: task.epicName || epic?.title,
+    deliverableId: task.deliverableId,
+    deliverableName: task.deliverableName,
+    sprintId: task.sprintId,
+    sprintName: task.sprintName,
+    milestoneId: task.milestoneId,
+    milestoneName: task.milestoneName,
+    stageId: task.stageId,
+    stageName: task.stageName,
+    tags: task.tags,
+    updatedAt: task.updatedAt,
+  };
+
+  const cardContent = (
+    <Card
+      className={cn(
+        "p-3 cursor-grab active:cursor-grabbing transition-all",
+        task.blocked && "border-l-4 border-l-amber-500",
+        isOverdue && !task.blocked && "border-l-4 border-l-red-500",
+        isStale && !task.blocked && !isOverdue && "border-l-4 border-l-orange-400"
+      )}
     >
-      <Card
-        className={cn(
-          "p-3 cursor-grab active:cursor-grabbing transition-all",
-          task.blocked && "border-l-4 border-l-amber-500",
-          isOverdue && !task.blocked && "border-l-4 border-l-red-500",
-          isStale && !task.blocked && !isOverdue && "border-l-4 border-l-orange-400"
-        )}
-      >
-        <div className="flex items-start gap-2">
-          <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity" {...listeners}>
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            {epic && (
-              <p className="text-[10px] text-muted-foreground mb-0.5 truncate">{epic.title}</p>
-            )}
-            <Link
-              href={`/projects/${projectId}/tasks/${task.id}`}
-              className="font-medium text-sm hover:text-primary line-clamp-2"
-              data-testid={`task-link-${task.id}`}
-            >
-              {task.title}
-            </Link>
+      <div className="flex items-start gap-2">
+        <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity" {...listeners}>
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div className="flex-1 min-w-0">
+          {task.projectName && (
+            <p className="text-[10px] text-primary/70 font-medium mb-0.5 truncate">{task.projectName}</p>
+          )}
+          {(epic || task.epicName) && (
+            <p className="text-[10px] text-muted-foreground mb-0.5 truncate">{task.epicName || epic?.title}</p>
+          )}
+          <Link
+            href={`/projects/${task.projectId || projectId}/tasks/${task.id}`}
+            className="font-medium text-sm hover:text-primary line-clamp-2"
+            data-testid={`task-link-${task.id}`}
+          >
+            {task.title}
+          </Link>
             {task.blocked && task.blockerReason && (
               <p className="text-xs text-amber-600 mt-1 line-clamp-1">{task.blockerReason}</p>
             )}
@@ -321,6 +386,30 @@ function SortableTaskCard({
           </div>
         </div>
       </Card>
+  );
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn("group", isDragging && "opacity-50")}
+      {...attributes}
+    >
+      {hoverCard?.enabled ? (
+        <TaskHoverCard
+          task={enrichedTask}
+          statusOptions={hoverCard.statusOptions}
+          sprints={hoverCard.sprints}
+          onStatusChange={hoverCard.onStatusChange}
+          onBlockedToggle={hoverCard.onBlockedToggle}
+          onSprintChange={hoverCard.onSprintChange}
+          disabled={isReadOnly}
+        >
+          {cardContent}
+        </TaskHoverCard>
+      ) : (
+        cardContent
+      )}
     </div>
   );
 }
@@ -391,6 +480,7 @@ export function PortableKanban({
   isReadOnly,
   signalFilter,
   showFilters = true,
+  hoverCard,
   onTaskMove,
   onBlockerRequested,
   className,
@@ -753,6 +843,7 @@ export function PortableKanban({
                               onMoveRight={() => handleMoveTask(task.id, "right")}
                               onMoveToColumn={(targetColId) => handleMoveToColumn(task.id, targetColId)}
                               isReadOnly={isReadOnly}
+                              hoverCard={hoverCard}
                             />
                           ))}
                         </DroppableColumn>
