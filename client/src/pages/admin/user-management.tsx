@@ -243,6 +243,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [mergeSource, setMergeSource] = useState<UserPublic | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserPublic | null>(null);
 
   const queryOptions: UseUsersOptions = {
     search: searchQuery || undefined,
@@ -414,6 +415,18 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     try {
       await deactivateUser.mutateAsync(id);
       toast({ title: "User Deactivated", description: "User has been deactivated." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteConfirmUser) return;
+    try {
+      await bulkDelete.mutateAsync([deleteConfirmUser.id]);
+      toast({ title: "User Deleted", description: `${deleteConfirmUser.name || deleteConfirmUser.email} has been permanently deleted.` });
+      setDeleteConfirmUser(null);
+      setSelectedIds(new Set());
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -1061,10 +1074,18 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
-                              className="text-destructive"
+                              className="text-amber-600"
                               onClick={() => handleDeactivate(user.id)}
                             >
+                              <UserX className="h-4 w-4 mr-2" />
                               Deactivate
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => setDeleteConfirmUser(user)}
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Delete Permanently
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1498,6 +1519,28 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               >
                 {unlinkIdentity.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Unlink
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!deleteConfirmUser} onOpenChange={() => setDeleteConfirmUser(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete User Permanently</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to permanently delete <strong>{deleteConfirmUser?.name || deleteConfirmUser?.email}</strong>? 
+                This action cannot be undone and will remove all associated data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteUser}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {bulkDelete.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Delete Permanently
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
