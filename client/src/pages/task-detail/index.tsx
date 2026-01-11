@@ -387,6 +387,8 @@ export default function TaskDetail() {
                   task={task} 
                   projectId={projectId}
                   updateTask={handleUpdateTask}
+                  epic={epic}
+                  deliverable={deliverable}
                 />
               </TabsContent>
 
