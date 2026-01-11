@@ -1,6 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "../data/storage";
+import * as userManagementService from "../services/user-management";
+import { requireAuth, requirePermission, requireSelfOrRole } from "../middleware/require-permission";
+import { 
+  UserPermissions,
+  createUserRequestSchema,
+  updateUserRequestSchema,
+} from "@shared/contracts/user-management";
 import { 
   insertProjectSchema,
   insertDeliverableSchema,
@@ -573,40 +580,60 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  // Users
+  // Users (with permission middleware)
   app.get("/api/users", async (req, res) => {
-    const users = await storage.getUsers();
-    res.json(users);
+    try {
+      const { search, role, limit, offset } = req.query;
+      const result = await userManagementService.listUsers({
+        search: search as string,
+        role: role as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined,
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   app.get("/api/users/:id", async (req, res) => {
-    const user = await storage.getUserById(req.params.id);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json(user);
+    try {
+      const user = await userManagementService.getUserById(req.params.id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
-  app.post("/api/users", async (req, res) => {
+  app.post("/api/users", requireAuth(), requirePermission(UserPermissions.USERS_CREATE), async (req, res) => {
     try {
-      const validated = insertUserSchema.parse(req.body);
-      const user = await storage.createUser(validated);
+      const validated = createUserRequestSchema.parse(req.body);
+      const user = await userManagementService.createUser(validated);
       res.status(201).json(user);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.patch("/api/users/:id", async (req, res) => {
+  app.patch("/api/users/:id", requireAuth(), requireSelfOrRole("id", "admin", "manager"), async (req, res) => {
     try {
-      const user = await storage.updateUser(req.params.id, req.body);
+      const validated = updateUserRequestSchema.parse(req.body);
+      const user = await userManagementService.updateUser(req.params.id, validated);
+      if (!user) return res.status(404).json({ error: "User not found" });
       res.json(user);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   });
 
-  app.delete("/api/users/:id", async (req, res) => {
-    await storage.deleteUser(req.params.id);
-    res.status(204).send();
+  app.delete("/api/users/:id", requireAuth(), requirePermission(UserPermissions.USERS_DELETE), async (req, res) => {
+    try {
+      await userManagementService.deactivateUser(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Activity
