@@ -10,7 +10,10 @@ import {
   Loader2,
   ChevronRight,
   Clock,
-  Plus
+  Plus,
+  Filter,
+  X,
+  ListTodo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -47,7 +50,7 @@ export default function DeliverableDetail() {
   const { data: allDeliverables, isLoading: isDeliverablesLoading, update: updateDeliverable } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
-  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, create: createTask } = useTasks();
   const { data: projectStages } = useProjectStages();
   const { data: deliverableTypes = [] } = useDeliverableTypes();
   const { data: epicTypes = [] } = useEpicTypes();
@@ -60,6 +63,13 @@ export default function DeliverableDetail() {
     dueDate: ""
   });
   const [isEditingDates, setIsEditingDates] = useState(false);
+
+  // Epic Type Filter state
+  const [epicTypeFilter, setEpicTypeFilter] = useState<string | null>(null);
+
+  // Inline task creation state
+  const [creatingTaskForEpic, setCreatingTaskForEpic] = useState<string | null>(null);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
 
   // Create Epic dialog state
   const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
@@ -139,10 +149,15 @@ export default function DeliverableDetail() {
     return d;
   }, [allDeliverables, deliverableId]);
 
-  const epics = useMemo(() => 
+  const allDeliverableEpics = useMemo(() => 
     allEpics?.filter((e: any) => e.deliverableId === deliverableId) || [], 
     [allEpics, deliverableId]
   );
+
+  const epics = useMemo(() => {
+    if (!epicTypeFilter) return allDeliverableEpics;
+    return allDeliverableEpics.filter((e: any) => e.typeId === epicTypeFilter);
+  }, [allDeliverableEpics, epicTypeFilter]);
 
   const owner = useMemo(() => 
     users?.find((u: any) => u.id === deliverable?.ownerId), 
@@ -162,6 +177,58 @@ export default function DeliverableDetail() {
         description: typeId ? `Type set to "${deliverableTypes.find((t: any) => t.id === typeId)?.name}"` : "Type removed"
       });
     }
+  };
+
+  const handleCreateTask = (epicId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!newTaskTitle.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a task title.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const taskId = `t${Date.now()}`;
+    const defaultDeadline = deliverable?.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    createTask({
+      id: taskId,
+      title: newTaskTitle.trim(),
+      description: "",
+      project: project?.name || "Project",
+      projectId: projectId,
+      status: "To Do",
+      priority: "Medium",
+      epicId: epicId,
+      deadline: defaultDeadline,
+      effort: 1,
+    });
+
+    toast({
+      title: "Task Created",
+      description: `"${newTaskTitle.trim()}" has been added to the epic.`
+    });
+
+    setNewTaskTitle("");
+    setCreatingTaskForEpic(null);
+  };
+
+  const handleCancelTaskCreation = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setNewTaskTitle("");
+    setCreatingTaskForEpic(null);
+  };
+
+  const handleStartTaskCreation = (epicId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCreatingTaskForEpic(epicId);
+    setNewTaskTitle("");
   };
 
   const getTasksForEpic = (epicId: string) => {
@@ -487,12 +554,42 @@ export default function DeliverableDetail() {
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Epics ({epics.length})</h2>
-            <Button onClick={() => setIsCreateEpicOpen(true)} className="gap-1.5" data-testid="button-add-epic">
-              <Plus className="h-4 w-4" />
-              Add Epic
-            </Button>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-lg font-semibold">
+              Epics ({epics.length}{epicTypeFilter ? ` of ${allDeliverableEpics.length}` : ''})
+            </h2>
+            <div className="flex items-center gap-2">
+              {epicTypes.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <SearchableSelect
+                    value={epicTypeFilter || ""}
+                    onValueChange={(value) => setEpicTypeFilter(value || null)}
+                    placeholder="All Types"
+                    data-testid="select-epic-type-filter"
+                    options={[
+                      { value: "", label: "All Types" },
+                      ...epicTypes.map((type: any) => ({ value: type.id, label: type.name }))
+                    ]}
+                  />
+                  {epicTypeFilter && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      onClick={() => setEpicTypeFilter(null)}
+                      data-testid="button-clear-epic-filter"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
+              <Button onClick={() => setIsCreateEpicOpen(true)} className="gap-1.5" data-testid="button-add-epic">
+                <Plus className="h-4 w-4" />
+                Add Epic
+              </Button>
+            </div>
           </div>
 
           {epics.length > 0 ? (
@@ -582,6 +679,63 @@ export default function DeliverableDetail() {
                             </div>
                             <ChevronRight className="h-5 w-5 text-muted-foreground" />
                           </div>
+                        </div>
+
+                        {/* Inline Task Creation */}
+                        <div className="mt-4 pt-3 border-t">
+                          {creatingTaskForEpic === epic.id ? (
+                            <div className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
+                              <ListTodo className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <Input
+                                placeholder="Enter task title..."
+                                value={newTaskTitle}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  setNewTaskTitle(e.target.value);
+                                }}
+                                onKeyDown={(e) => {
+                                  e.stopPropagation();
+                                  if (e.key === 'Enter') {
+                                    handleCreateTask(epic.id, e as any);
+                                  } else if (e.key === 'Escape') {
+                                    handleCancelTaskCreation(e as any);
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
+                                className="flex-1 h-8"
+                                data-testid={`input-new-task-${epic.id}`}
+                              />
+                              <Button 
+                                size="sm" 
+                                className="h-8"
+                                onClick={(e) => handleCreateTask(epic.id, e)}
+                                data-testid={`button-save-task-${epic.id}`}
+                              >
+                                Add
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="h-8"
+                                onClick={handleCancelTaskCreation}
+                                data-testid={`button-cancel-task-${epic.id}`}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => handleStartTaskCreation(epic.id, e)}
+                              data-testid={`button-add-task-${epic.id}`}
+                            >
+                              <Plus className="h-4 w-4" />
+                              Add Task
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
