@@ -5,9 +5,28 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Plus, Trash2, Users, AlertCircle, Shield, Layers, CheckCircle2, AlertTriangle } from "lucide-react";
-import { StepProps, WizardRole, CORE_PROJECT_ROLES } from "./types";
-import { useMemo } from "react";
+import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Plus, 
+  Trash2, 
+  Users, 
+  AlertCircle, 
+  Shield, 
+  Layers, 
+  CheckCircle2, 
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  ListTodo,
+  UserPlus
+} from "lucide-react";
+import { StepProps, WizardRole, WizardStage, WizardTaskDraft, CORE_PROJECT_ROLES } from "./types";
+import { useMemo, useState } from "react";
 
 interface TaskAssignmentStats {
   totalTasks: number;
@@ -24,8 +43,13 @@ export function StepTeamRoles({
   users,
   eligibleUsers,
   stages,
+  setStages,
   deliverables,
 }: StepProps) {
+  const [taskAssignmentOpen, setTaskAssignmentOpen] = useState(true);
+  const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
+  const [bulkAssigneeId, setBulkAssigneeId] = useState<string>("");
+
   const taskAssignmentStats = useMemo<TaskAssignmentStats>(() => {
     let totalTasks = 0;
     let assignedTasks = 0;
@@ -109,6 +133,64 @@ export function StepTeamRoles({
     if (!roleTypeId) return users;
     const eligible = eligibleUsers.get(roleTypeId);
     return eligible && eligible.length > 0 ? eligible : users;
+  };
+
+  const unassignedTasksByStage = useMemo(() => {
+    const result: { stage: WizardStage; tasks: WizardTaskDraft[] }[] = [];
+    
+    stages.forEach(stage => {
+      const unassigned = (stage.tasks || []).filter(task => !task.assigneeId);
+      if (unassigned.length > 0) {
+        result.push({ stage, tasks: unassigned });
+      }
+    });
+    
+    return result;
+  }, [stages]);
+
+  const taskAssigneeOptions = useMemo(() => {
+    return users.map((user: any) => ({
+      value: user.id,
+      label: user.name || user.email || user.id
+    }));
+  }, [users]);
+
+  const assignTaskToUser = (stageId: string, taskId: string, userId: string | null) => {
+    setStages(prev => prev.map(stage => {
+      if (stage.id !== stageId) return stage;
+      return {
+        ...stage,
+        tasks: stage.tasks.map(task => {
+          if (task.id !== taskId) return task;
+          return { ...task, assigneeId: userId || undefined };
+        })
+      };
+    }));
+  };
+
+  const bulkAssignAllUnassigned = (userId: string) => {
+    if (!userId) return;
+    
+    setStages(prev => prev.map(stage => ({
+      ...stage,
+      tasks: stage.tasks.map(task => {
+        if (task.assigneeId) return task;
+        return { ...task, assigneeId: userId };
+      })
+    })));
+    setBulkAssigneeId("");
+  };
+
+  const toggleStageExpanded = (stageId: string) => {
+    setExpandedStages(prev => {
+      const next = new Set(prev);
+      if (next.has(stageId)) {
+        next.delete(stageId);
+      } else {
+        next.add(stageId);
+      }
+      return next;
+    });
   };
 
   const coreRoles = roles.filter(r => r.isCore);
@@ -243,6 +325,127 @@ export function StepTeamRoles({
           )}
         </div>
       )}
+
+      {unassignedTasksByStage.length > 0 && (
+        <Collapsible open={taskAssignmentOpen} onOpenChange={setTaskAssignmentOpen}>
+          <Card className="border-blue-200 bg-blue-50/30">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-blue-50/50 transition-colors py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ListTodo className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-base">Assign Unassigned Tasks</CardTitle>
+                    <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                      {taskAssignmentStats.unassignedTasks} tasks
+                    </Badge>
+                  </div>
+                  {taskAssignmentOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-4">
+                <div className="flex items-center gap-4 p-3 bg-white rounded-lg border">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Bulk assign all unassigned tasks</p>
+                    <p className="text-xs text-muted-foreground">
+                      Quickly assign all {taskAssignmentStats.unassignedTasks} unassigned tasks to one person
+                    </p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <SearchableSelect
+                      value={bulkAssigneeId}
+                      onValueChange={setBulkAssigneeId}
+                      options={taskAssigneeOptions}
+                      placeholder="Select person..."
+                      className="w-[200px]"
+                      data-testid="bulk-assign-select"
+                    />
+                    <Button 
+                      size="sm" 
+                      onClick={() => bulkAssignAllUnassigned(bulkAssigneeId)}
+                      disabled={!bulkAssigneeId}
+                      data-testid="bulk-assign-btn"
+                    >
+                      <UserPlus className="h-4 w-4 mr-1" />
+                      Assign All
+                    </Button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Or assign tasks individually by stage:</p>
+                  
+                  {unassignedTasksByStage.map(({ stage, tasks }) => (
+                    <Collapsible 
+                      key={stage.id} 
+                      open={expandedStages.has(stage.id)}
+                      onOpenChange={() => toggleStageExpanded(stage.id)}
+                    >
+                      <Card className="bg-white">
+                        <CollapsibleTrigger asChild>
+                          <CardHeader className="py-3 px-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{stage.name}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {tasks.length} unassigned
+                                </Badge>
+                              </div>
+                              {expandedStages.has(stage.id) ? (
+                                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </CardHeader>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <CardContent className="pt-0 pb-3 px-4">
+                            <div className="space-y-2">
+                              {tasks.map(task => (
+                                <div 
+                                  key={task.id}
+                                  className="flex items-center justify-between p-2 bg-muted/20 rounded-md gap-3"
+                                  data-testid={`task-row-${task.id}`}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{task.title}</p>
+                                    {task.assignedEpicTitle && (
+                                      <p className="text-xs text-muted-foreground truncate">
+                                        Epic: {task.assignedEpicTitle}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <SearchableSelect
+                                    value={task.assigneeId || ""}
+                                    onValueChange={(val) => assignTaskToUser(stage.id, task.id, val || null)}
+                                    options={[
+                                      { value: "", label: "Unassigned" },
+                                      ...taskAssigneeOptions
+                                    ]}
+                                    placeholder="Assign to..."
+                                    className="w-[180px] shrink-0"
+                                    data-testid={`task-assign-${task.id}`}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </CollapsibleContent>
+                      </Card>
+                    </Collapsible>
+                  ))}
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
+
+      <Separator className="my-2" />
 
       <div className="flex justify-end items-center">
         <div className="flex gap-2">
