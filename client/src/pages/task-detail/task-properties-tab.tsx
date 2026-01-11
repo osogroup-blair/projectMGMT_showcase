@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Tag } from "lucide-react";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
-import { EFFORT_VALUES } from "@shared/schema";
 
 interface TaskPropertiesTabProps {
   task: any;
@@ -61,17 +60,6 @@ export function TaskPropertiesTab({
               placeholder="Select stage"
               options={stages.map((s: any) => ({ value: s.id, label: s.name }))}
               data-testid="select-stage"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Effort (Fibonacci)</Label>
-            <SearchableSelect
-              value={String(task.effort || "")}
-              onValueChange={(v) => updateTask("effort", parseInt(v))}
-              placeholder="Select effort"
-              options={EFFORT_VALUES.map(val => ({ value: String(val), label: String(val) }))}
-              data-testid="select-effort"
             />
           </div>
 

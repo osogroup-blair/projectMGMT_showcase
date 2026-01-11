@@ -15,8 +15,25 @@ import {
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
-  Gauge
+  Gauge,
+  Trash2
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,6 +87,8 @@ export default function TaskDetail() {
   
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const searchParams = new URLSearchParams(searchString);
   const tabParam = searchParams.get("tab") as TabValue | null;
@@ -82,7 +101,7 @@ export default function TaskDetail() {
   };
 
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
-  const { data: allTasks, isLoading: isTasksLoading, update: updateTask } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, update: updateTask, remove: deleteTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
@@ -127,6 +146,27 @@ export default function TaskDetail() {
       title: "Task Updated",
       description: "Changes saved successfully.",
     });
+  };
+
+  const handleDeleteTask = async () => {
+    if (!task) return;
+    setIsDeleting(true);
+    try {
+      await deleteTask(task.id);
+      toast({
+        title: "Task Deleted",
+        description: `"${task.title}" has been deleted.`,
+      });
+      setDeleteConfirmOpen(false);
+      setLocation(`/projects/${projectId}/tasks`);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to delete task.",
+        variant: "destructive",
+      });
+      setIsDeleting(false);
+    }
   };
 
   const getAssignee = (id?: string | null) => users?.find((u: any) => u.id === id);
@@ -211,9 +251,23 @@ export default function TaskDetail() {
                   onChange={(e) => handleUpdateTask("title", e.target.value)}
                   data-testid="input-task-title"
                 />
-                <Button variant="ghost" size="icon" data-testid="button-task-menu">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" data-testid="button-task-menu">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                      data-testid="menu-delete-task"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Task
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/30 rounded-lg">
@@ -455,6 +509,36 @@ export default function TaskDetail() {
           )}
         </PanelGroup>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{task.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTask}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="confirm-delete-task"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Shell>
   );
 }
