@@ -188,83 +188,18 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
               Current Projects
             </TabsTrigger>
             <TabsTrigger 
-              value="today" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
-            >
-              <LayoutDashboard className="w-4 h-4 mr-2" />
-              Today
-            </TabsTrigger>
-            <TabsTrigger 
-              value="week" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
-            >
-              <CalendarDays className="w-4 h-4 mr-2" />
-              My Week
-            </TabsTrigger>
-            <TabsTrigger 
-              value="quarter" 
+              value="upcoming" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
             >
               <Target className="w-4 h-4 mr-2" />
-              This Quarter
+              Upcoming Milestones
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="projects" className="mt-0">
-             <div className="bg-card/50 rounded-xl p-6 border shadow-sm">
-                <CurrentProjectsPanel />
-             </div>
-          </TabsContent>
-
-          <TabsContent value="today" className="mt-0">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Column: Daily Calendar (5 cols) */}
-                <div className="lg:col-span-5 space-y-6">
-                  <div className="h-[800px]">
-                     <DailyCalendar 
-                       date={homeState.today} 
-                       events={todayEvents} 
-                       tasks={tasks}
-                     />
-                  </div>
-                </div>
-
-                {/* Right Column: Today's Tasks & Focus (7 cols) */}
-                <div className="lg:col-span-7 space-y-8">
-                  <div className="bg-card/50 rounded-xl p-1">
-                    <TodayTasksPanel tasks={tasks} />
-                  </div>
-                </div>
-              </div>
-              
-              {createPortal(
-                <DragOverlay dropAnimation={dropAnimation}>
-                  {activeTask ? <TaskCard task={activeTask} /> : null}
-                </DragOverlay>,
-                document.body
-              )}
-            </DndContext>
-          </TabsContent>
-
-          <TabsContent value="week" className="mt-0">
-             <div className="space-y-6">
-               <div className="bg-card/50 rounded-xl p-6 border shadow-sm">
-                  <WeekPlanner dayPlans={dayPlans} />
-               </div>
-             </div>
-          </TabsContent>
-
-          <TabsContent value="quarter" className="mt-0">
+          <TabsContent value="upcoming" className="mt-0">
             <div className="bg-card rounded-xl border shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Quarterly Roadmap</h2>
-              <p className="text-muted-foreground text-sm">Milestones and key deliverables for Q4 2024.</p>
+              <h2 className="text-lg font-semibold mb-4">Upcoming Milestones</h2>
+              <p className="text-muted-foreground text-sm">Key milestones and upcoming deadlines across your projects.</p>
               <div className="mt-6 space-y-6">
                  {homeState.upcomingMilestones.map(milestone => (
                    <div key={milestone.id} className="flex items-start gap-4 p-4 border rounded-lg bg-background hover:border-primary/50 transition-colors">
@@ -278,12 +213,17 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                        </div>
                        <p className="text-sm text-muted-foreground">{milestone.projectName}</p>
                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                         <span>Due: {new Date(milestone.targetDate).toLocaleDateString()}</span>
+                         <span>Due: {milestone.targetDate ? new Date(milestone.targetDate).toLocaleDateString() : 'No date'}</span>
                          <span>{milestone.percentComplete}% Complete</span>
                        </div>
                      </div>
                    </div>
                  ))}
+                 {homeState.upcomingMilestones.length === 0 && (
+                   <div className="text-center py-8">
+                     <p className="text-muted-foreground">No upcoming milestones found.</p>
+                   </div>
+                 )}
               </div>
             </div>
           </TabsContent>
