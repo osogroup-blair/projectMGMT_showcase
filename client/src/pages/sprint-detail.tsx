@@ -50,7 +50,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useRoute, useSearch, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables, useSprintScopeTargets, useSuggestedTasks, useProjectStages } from "@/hooks/use-nexus-data";
+import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables, useSprintScopeTargets, useSuggestedTasks, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -119,6 +119,7 @@ export default function SprintDetail() {
 
   const scopeTargets = useSprintScopeTargets(sprintId);
   const { data: suggestedTasks = [], isLoading: loadingSuggested } = useSuggestedTasks(sprintId);
+  const { data: taskTypes } = useResolvedTaskTypes(projectId);
 
   const sprint = useMemo(() => 
     (allSprints || []).find((s: any) => s.id === sprintId),
@@ -167,6 +168,8 @@ export default function SprintDetail() {
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [epicFilter, setEpicFilter] = useState<string>("all");
   const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [taskTypeFilter, setTaskTypeFilter] = useState<string>("all");
   const [showIncludedOnly, setShowIncludedOnly] = useState<boolean | null>(null);
   const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({});
   const [sprintScopeRules, setSprintScopeRules] = useState<any[]>([]);
@@ -539,9 +542,19 @@ export default function SprintDetail() {
   }, [sprintTasks, allMilestones]);
 
   // Scope Planner data
+  const projectDeliverables = useMemo(() => 
+    (allDeliverables || []).filter((d: any) => d.projectId === projectId),
+    [allDeliverables, projectId]
+  );
+
+  const projectDeliverableIds = useMemo(() => 
+    new Set(projectDeliverables.map((d: any) => d.id)),
+    [projectDeliverables]
+  );
+
   const projectEpics = useMemo(() => 
-    (allEpics || []).filter((e: any) => e.projectId === projectId),
-    [allEpics, projectId]
+    (allEpics || []).filter((e: any) => projectDeliverableIds.has(e.deliverableId)),
+    [allEpics, projectDeliverableIds]
   );
 
   const projectMilestones = useMemo(() => 
@@ -758,6 +771,18 @@ export default function SprintDetail() {
     return allMatchedTasks.filter(t => sprintTaskIds.includes(t.id));
   }, [allMatchedTasks, sprintTaskIds]);
 
+  // Helper to check if a task's deadline is outside sprint dates
+  const isDeadlineOutsideSprint = (taskDeadline?: string) => {
+    if (!taskDeadline || !sprint) return false;
+    const deadline = new Date(taskDeadline);
+    const sprintStart = sprint.startDate ? new Date(sprint.startDate) : null;
+    const sprintEnd = sprint.endDate ? new Date(sprint.endDate) : null;
+    
+    if (sprintStart && deadline < sprintStart) return true;
+    if (sprintEnd && deadline > sprintEnd) return true;
+    return false;
+  };
+
   // Filtered tasks for manual adjustments tab
   const filteredManualTasks = useMemo(() => {
     return projectTasks.filter(t => {
@@ -774,28 +799,45 @@ export default function SprintDetail() {
       const matchesStage = stageFilter === "all" || t.stageId === stageFilter;
       const matchesEpic = epicFilter === "all" || t.epicId === epicFilter;
       const matchesMilestone = milestoneFilter === "all" || t.milestoneId === milestoneFilter;
+      const matchesStatus = statusFilter === "all" || t.status === statusFilter;
+      const matchesTaskType = taskTypeFilter === "all" || t.taskTypeId === taskTypeFilter;
       
       const isInSprint = sprintTaskIds.includes(t.id);
       const matchesIncludedFilter = showIncludedOnly === null || 
         (showIncludedOnly === true && isInSprint) || 
         (showIncludedOnly === false && !isInSprint);
       
-      return matchesSearch && matchesStage && matchesEpic && matchesMilestone && matchesIncludedFilter;
+      return matchesSearch && matchesStage && matchesEpic && matchesMilestone && matchesStatus && matchesTaskType && matchesIncludedFilter;
     });
-  }, [projectTasks, projectEpics, projectMilestones, manualScopeSearch, stageFilter, epicFilter, milestoneFilter, showIncludedOnly, sprintTaskIds]);
+  }, [projectTasks, projectEpics, projectMilestones, manualScopeSearch, stageFilter, epicFilter, milestoneFilter, statusFilter, taskTypeFilter, showIncludedOnly, sprintTaskIds]);
 
   // Toggle task in/out of sprint
   const handleToggleTaskInSprint = async (taskId: string) => {
     const isInSprint = sprintTaskIds.includes(taskId);
+    const task = projectTasks.find((t: any) => t.id === taskId);
     
     if (isInSprint) {
       // Remove from sprint
       updateTask({ id: taskId, updates: { sprintId: null } });
       toast({ title: "Task removed from sprint" });
     } else {
-      // Add to sprint
-      updateTask({ id: taskId, updates: { sprintId } });
-      toast({ title: "Task added to sprint" });
+      // Add to sprint - set default deadline to sprint end date if no deadline exists
+      const updates: any = { sprintId };
+      if (!task?.deadline && sprint?.endDate) {
+        updates.deadline = sprint.endDate;
+      }
+      updateTask({ id: taskId, updates });
+      
+      // Show warning if deadline is outside sprint
+      if (task?.deadline && isDeadlineOutsideSprint(task.deadline)) {
+        toast({ 
+          title: "Task added to sprint", 
+          description: "Warning: Task deadline is outside sprint dates.",
+          variant: "destructive"
+        });
+      } else {
+        toast({ title: "Task added to sprint" });
+      }
     }
   };
 
@@ -1645,6 +1687,37 @@ export default function SprintDetail() {
                                 />
                               </div>
                               <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground whitespace-nowrap">Status:</Label>
+                                <SearchableSelect 
+                                  value={statusFilter} 
+                                  onValueChange={setStatusFilter}
+                                  className="h-8 w-[140px]"
+                                  data-testid="select-status-filter"
+                                  placeholder="All Statuses"
+                                  options={[
+                                    { value: "all", label: "All Statuses" },
+                                    { value: "Todo", label: "Todo" },
+                                    { value: "In Progress", label: "In Progress" },
+                                    { value: "Review", label: "Review" },
+                                    { value: "Done", label: "Done" }
+                                  ]}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground whitespace-nowrap">Type:</Label>
+                                <SearchableSelect 
+                                  value={taskTypeFilter} 
+                                  onValueChange={setTaskTypeFilter}
+                                  className="h-8 w-[140px]"
+                                  data-testid="select-tasktype-filter"
+                                  placeholder="All Types"
+                                  options={[
+                                    { value: "all", label: "All Types" },
+                                    ...(taskTypes || []).map((tt: any) => ({ value: tt.id, label: tt.name }))
+                                  ]}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
                                 <Label className="text-xs text-muted-foreground whitespace-nowrap">Show:</Label>
                                 <SearchableSelect 
                                   value={showIncludedOnly === null ? "all" : showIncludedOnly ? "included" : "excluded"} 
@@ -1659,7 +1732,7 @@ export default function SprintDetail() {
                                   ]}
                                 />
                               </div>
-                              {(stageFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all" || showIncludedOnly !== null || manualScopeSearch) && (
+                              {(stageFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all" || statusFilter !== "all" || taskTypeFilter !== "all" || showIncludedOnly !== null || manualScopeSearch) && (
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 
@@ -1668,6 +1741,8 @@ export default function SprintDetail() {
                                     setStageFilter("all");
                                     setEpicFilter("all");
                                     setMilestoneFilter("all");
+                                    setStatusFilter("all");
+                                    setTaskTypeFilter("all");
                                     setShowIncludedOnly(null);
                                     setManualScopeSearch("");
                                   }}
@@ -1686,18 +1761,20 @@ export default function SprintDetail() {
                                   <TableHead className="w-[50px]"></TableHead>
                                   <TableHead>Task</TableHead>
                                   <TableHead>Epic</TableHead>
-                                  <TableHead>Milestone</TableHead>
                                   <TableHead>Status</TableHead>
+                                  <TableHead>Due Date</TableHead>
                                   <TableHead className="text-right">In Sprint</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {filteredManualTasks.slice(0, 20).map((task: any) => {
+                                {filteredManualTasks.slice(0, 50).map((task: any) => {
                                   const isInSprint = sprintTaskIds.includes(task.id);
                                   const epic = projectEpics.find((e: any) => e.id === task.epicId);
+                                  const taskType = (taskTypes || []).find((tt: any) => tt.id === task.taskTypeId);
+                                  const isOutsideSprint = isInSprint && isDeadlineOutsideSprint(task.deadline);
 
                                   return (
-                                    <TableRow key={task.id}>
+                                    <TableRow key={task.id} className={cn(isOutsideSprint && "bg-amber-50")}>
                                       <TableCell>
                                         <CheckSquare 
                                           className={cn(
@@ -1709,19 +1786,43 @@ export default function SprintDetail() {
                                         />
                                       </TableCell>
                                       <TableCell className="font-medium">
-                                        {task.title || task.name}
+                                        <div className="flex items-center gap-2">
+                                          {task.title || task.name}
+                                          {taskType && (
+                                            <span 
+                                              className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                              style={{ backgroundColor: `${taskType.color}20`, color: taskType.color }}
+                                            >
+                                              {taskType.name}
+                                            </span>
+                                          )}
+                                        </div>
                                         <div className="text-xs text-muted-foreground truncate max-w-[200px]">{task.description}</div>
                                       </TableCell>
                                       <TableCell className="text-xs text-muted-foreground">
                                         {epic?.title || epic?.name || "No Epic"}
                                       </TableCell>
-                                      <TableCell className="text-xs text-muted-foreground">
-                                        {getMilestoneName(task.milestoneId)}
-                                      </TableCell>
                                       <TableCell>
                                         <Badge variant="outline" className="text-xs font-normal">
                                           {task.status}
                                         </Badge>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className={cn(
+                                          "flex items-center gap-1 text-xs",
+                                          isOutsideSprint && "text-amber-700 font-medium"
+                                        )}>
+                                          {task.deadline ? (
+                                            <>
+                                              {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                              {isOutsideSprint && (
+                                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                              )}
+                                            </>
+                                          ) : (
+                                            <span className="text-muted-foreground">No date</span>
+                                          )}
+                                        </div>
                                       </TableCell>
                                       <TableCell className="text-right">
                                         {isInSprint ? (
