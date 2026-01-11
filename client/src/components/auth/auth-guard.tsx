@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2 } from "lucide-react";
+import { Loader2, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -46,6 +48,12 @@ export function AuthGuard({
           <div className="text-center">
             <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
             <p className="text-muted-foreground mt-2">You don't have permission to view this page.</p>
+            <Link href="/">
+              <Button className="mt-4" data-testid="button-go-home">
+                <Home className="h-4 w-4 mr-2" />
+                Go to Home
+              </Button>
+            </Link>
           </div>
         </div>
       );
@@ -61,6 +69,12 @@ export function AuthGuard({
           <div className="text-center">
             <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
             <p className="text-muted-foreground mt-2">You don't have the required permissions.</p>
+            <Link href="/">
+              <Button className="mt-4" data-testid="button-go-home">
+                <Home className="h-4 w-4 mr-2" />
+                Go to Home
+              </Button>
+            </Link>
           </div>
         </div>
       );
