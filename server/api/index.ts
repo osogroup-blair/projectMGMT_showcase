@@ -3980,6 +3980,7 @@ export async function registerRoutes(
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
+                  assigneeId: taskDraft.assigneeId || null,
                   tags: []
                 } as any);
                 
@@ -4022,6 +4023,7 @@ export async function registerRoutes(
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
+                  assigneeId: taskDraft.assigneeId || null,
                   tags: []
                 } as any);
                 
@@ -4061,6 +4063,7 @@ export async function registerRoutes(
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
+                  assigneeId: taskDraft.assigneeId || null,
                   tags: []
                 } as any);
                 
