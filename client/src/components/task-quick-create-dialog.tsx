@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -32,6 +32,8 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
   
   const [title, setTitle] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [epicId, setEpicId] = useState("");
+  const [stageId, setStageId] = useState("");
   const [deadline, setDeadline] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
   const [priority, setPriority] = useState("Medium");
   const [error, setError] = useState("");
@@ -44,6 +46,31 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
       return response.json();
     },
   });
+
+  const { data: epics = [], isLoading: epicsLoading } = useQuery({
+    queryKey: ["/api/projects", projectId, "epics"],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/epics`);
+      if (!response.ok) throw new Error("Failed to fetch epics");
+      return response.json();
+    },
+    enabled: !!projectId,
+  });
+
+  const { data: stages = [], isLoading: stagesLoading } = useQuery({
+    queryKey: ["/api/projects", projectId, "stages"],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/stages`);
+      if (!response.ok) throw new Error("Failed to fetch stages");
+      return response.json();
+    },
+    enabled: !!projectId,
+  });
+
+  useEffect(() => {
+    setEpicId("");
+    setStageId("");
+  }, [projectId]);
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: any) => {
@@ -72,6 +99,8 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
   const resetForm = () => {
     setTitle("");
     setProjectId("");
+    setEpicId("");
+    setStageId("");
     setDeadline(format(addDays(new Date(), 7), "yyyy-MM-dd"));
     setPriority("Medium");
     setError("");
@@ -96,6 +125,14 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
       setError("Please select a project");
       return;
     }
+    if (!epicId) {
+      setError("Please select an epic");
+      return;
+    }
+    if (!stageId) {
+      setError("Please select a stage");
+      return;
+    }
 
     const selectedProject = projects.find((p: any) => p.id === projectId);
     
@@ -103,6 +140,8 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
       title: title.trim(),
       projectId,
       project: selectedProject?.name || "Unknown Project",
+      epicId,
+      stageId,
       deadline,
       priority,
       assigneeId: currentUserId,
@@ -115,7 +154,7 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
         <DialogHeader>
           <DialogTitle>Add Task</DialogTitle>
           <DialogDescription>
-            Quickly add a new task to your project.
+            Select a project first, then choose the epic and stage for your task.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -146,6 +185,53 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
                 </SelectContent>
               </Select>
             </div>
+            
+            {projectId && (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="epic">Epic</Label>
+                  <Select value={epicId} onValueChange={setEpicId} disabled={epicsLoading}>
+                    <SelectTrigger data-testid="select-epic">
+                      <SelectValue placeholder={epicsLoading ? "Loading epics..." : "Select an epic"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {epics.map((epic: any) => (
+                        <SelectItem key={epic.id} value={epic.id}>
+                          {epic.title}
+                        </SelectItem>
+                      ))}
+                      {epics.length === 0 && !epicsLoading && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No epics found for this project
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="stage">Stage</Label>
+                  <Select value={stageId} onValueChange={setStageId} disabled={stagesLoading}>
+                    <SelectTrigger data-testid="select-stage">
+                      <SelectValue placeholder={stagesLoading ? "Loading stages..." : "Select a stage"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stages.map((stage: any) => (
+                        <SelectItem key={stage.id} value={stage.id}>
+                          {stage.name}
+                        </SelectItem>
+                      ))}
+                      {stages.length === 0 && !stagesLoading && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No stages found for this project
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
             <div className="grid gap-2">
               <Label htmlFor="deadline">Due Date</Label>
               <Input
