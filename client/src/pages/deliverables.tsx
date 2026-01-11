@@ -99,7 +99,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { data: statusOptions = [] } = useStatusOptions();
   const { data: allSprints = [], isLoading: isSprintsLoading } = useSprints();
   const { data: allMilestones = [], isLoading: isMilestonesLoading } = useMilestones();
-  const { statuses: taskStatuses, statusLabels, getStatusBgColor, getStatusTextColor, defaultStatus } = useTaskStatuses();
+  const { statuses: taskStatuses, statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor, defaultStatus } = useTaskStatuses();
   const { updateAsync: updateEpicAsync } = useEpics();
 
   const projectSprints = useMemo(() => 
@@ -1158,20 +1158,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                       <div className="flex items-center gap-3">
                                                         <div 
                                                           className="w-2 h-2 rounded-full shrink-0"
-                                                          style={{
-                                                            backgroundColor: (() => {
-                                                              const bgClass = getStatusBgColor(task.status);
-                                                              if (bgClass.includes("green")) return "#22c55e";
-                                                              if (bgClass.includes("blue")) return "#3b82f6";
-                                                              if (bgClass.includes("amber") || bgClass.includes("yellow")) return "#f59e0b";
-                                                              if (bgClass.includes("red")) return "#ef4444";
-                                                              if (bgClass.includes("purple")) return "#a855f7";
-                                                              if (bgClass.includes("orange")) return "#f97316";
-                                                              if (bgClass.includes("cyan") || bgClass.includes("teal")) return "#14b8a6";
-                                                              if (bgClass.includes("pink")) return "#ec4899";
-                                                              return "#94a3b8";
-                                                            })()
-                                                          }}
+                                                          style={{ backgroundColor: getStatusAccentColor(task.status) }}
                                                         />
 
                                                         <div className="flex-1 min-w-0">

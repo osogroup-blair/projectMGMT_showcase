@@ -17,6 +17,7 @@ interface TaskStatusUtils {
   getStatusColor: (status: string) => string;
   getStatusBgColor: (status: string) => string;
   getStatusTextColor: (status: string) => string;
+  getStatusAccentColor: (status: string) => string;
   isNotStartedStatus: (status: string) => boolean;
   isInProgressStatus: (status: string) => boolean;
   isCompletedStatus: (status: string) => boolean;
@@ -41,6 +42,40 @@ function extractTextColor(colorString: string): string {
   if (!colorString) return "text-slate-700";
   const match = colorString.match(/text-[\w-]+/);
   return match ? match[0] : "text-slate-700";
+}
+
+function bgClassToHex(bgClass: string): string {
+  const colorMap: Record<string, string> = {
+    "green": "#22c55e",
+    "emerald": "#10b981",
+    "teal": "#14b8a6",
+    "cyan": "#06b6d4",
+    "blue": "#3b82f6",
+    "indigo": "#6366f1",
+    "purple": "#a855f7",
+    "violet": "#8b5cf6",
+    "pink": "#ec4899",
+    "rose": "#f43f5e",
+    "red": "#ef4444",
+    "orange": "#f97316",
+    "amber": "#f59e0b",
+    "yellow": "#eab308",
+    "lime": "#84cc16",
+    "slate": "#64748b",
+    "gray": "#6b7280",
+    "grey": "#6b7280",
+    "zinc": "#71717a",
+    "neutral": "#737373",
+    "stone": "#78716c",
+  };
+  
+  const normalized = bgClass.toLowerCase();
+  for (const [colorName, hex] of Object.entries(colorMap)) {
+    if (normalized.includes(colorName)) {
+      return hex;
+    }
+  }
+  return "#94a3b8";
 }
 
 export function useTaskStatuses(): TaskStatusUtils {
@@ -92,6 +127,11 @@ export function useTaskStatuses(): TaskStatusUtils {
     return extractTextColor(statusColorMap[status] || "");
   };
 
+  const getStatusAccentColor = (status: string): string => {
+    const bgClass = getStatusBgColor(status);
+    return bgClassToHex(bgClass);
+  };
+
   const isNotStartedStatus = (status: string): boolean => {
     return matchesPattern(status, NOT_STARTED_PATTERNS);
   };
@@ -112,6 +152,7 @@ export function useTaskStatuses(): TaskStatusUtils {
     getStatusColor,
     getStatusBgColor,
     getStatusTextColor,
+    getStatusAccentColor,
     isNotStartedStatus,
     isInProgressStatus,
     isCompletedStatus,
