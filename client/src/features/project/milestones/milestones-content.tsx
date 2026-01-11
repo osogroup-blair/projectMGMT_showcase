@@ -47,6 +47,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { MilestoneScopeInline } from "./milestone-scope-inline";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
@@ -685,37 +687,34 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {editingMilestoneId === milestone.id && editingField === "targetDate" ? (
-                            <div className="flex items-center gap-1">
-                              <Input
-                                ref={inputRef}
-                                type="date"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleDateChange(milestone.id, editValue);
-                                  if (e.key === "Escape") cancelEditing();
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <div 
+                                className="flex items-center gap-1.5 cursor-pointer hover:text-primary group"
+                                data-testid={`editable-date-${milestone.id}`}
+                              >
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                                {milestone.targetDate ? (
+                                  new Date(milestone.targetDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                                ) : (
+                                  <span className="italic">Not set</span>
+                                )}
+                                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={milestone.targetDate ? new Date(milestone.targetDate) : undefined}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    handleDateChange(milestone.id, date.toISOString().split('T')[0]);
+                                  }
                                 }}
-                                onBlur={() => handleDateChange(milestone.id, editValue)}
-                                className="h-7 text-xs w-[130px]"
-                                data-testid={`input-milestone-date-${milestone.id}`}
+                                initialFocus
                               />
-                            </div>
-                          ) : (
-                            <div 
-                              className="flex items-center gap-1.5 cursor-pointer hover:text-primary group"
-                              onClick={() => startEditing(milestone.id, "targetDate", milestone.targetDate ? new Date(milestone.targetDate).toISOString().split('T')[0] : "")}
-                              data-testid={`editable-date-${milestone.id}`}
-                            >
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                              {milestone.targetDate ? (
-                                new Date(milestone.targetDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-                              ) : (
-                                <span className="italic">Not set</span>
-                              )}
-                              <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          )}
+                            </PopoverContent>
+                          </Popover>
                         </TableCell>
                         <TableCell>
                           {editingMilestoneId === milestone.id && editingField === "owner" ? (
