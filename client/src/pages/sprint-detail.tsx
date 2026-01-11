@@ -175,6 +175,7 @@ export default function SprintDetail() {
   const [pendingBlockerTaskId, setPendingBlockerTaskId] = useState<string | null>(null);
   const [signalFilter, setSignalFilter] = useState<"blocked" | "overdue" | "stale" | null>(null);
   const [pulseCollapsed, setPulseCollapsed] = useState(false);
+  const [goalMetricsOpen, setGoalMetricsOpen] = useState(true);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -1105,32 +1106,90 @@ export default function SprintDetail() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4 bg-muted/30 rounded-lg border">
-          <div className="text-center">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-xs text-muted-foreground">Total Tasks</div>
+        <Collapsible open={goalMetricsOpen} onOpenChange={setGoalMetricsOpen}>
+          <div className="border rounded-lg bg-card">
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center justify-between w-full p-4 text-left hover:bg-muted/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  {goalMetricsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <span className="font-medium">Sprint Goal & Metrics</span>
+                </div>
+                {!goalMetricsOpen && (
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>{stats.done}/{stats.total} tasks</span>
+                    <span>{stats.percent}% complete</span>
+                  </div>
+                )}
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 pt-0 border-t">
+                {/* Goal & Success Criteria - Left Side */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Sprint Goal</h3>
+                    {!isEditingGoal && !isReadOnly && (
+                      <Button variant="ghost" size="sm" onClick={() => setIsEditingGoal(true)} data-testid="button-edit-goal">
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingGoal && !isReadOnly ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        ref={goalInputRef}
+                        value={editGoal}
+                        onChange={(e) => setEditGoal(e.target.value)}
+                        placeholder="What do you want to achieve in this sprint? Include success criteria."
+                        className="min-h-[100px]"
+                        data-testid="input-edit-goal"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveGoal} data-testid="button-save-goal">Save</Button>
+                        <Button size="sm" variant="outline" onClick={() => setIsEditingGoal(false)} data-testid="button-cancel-goal">Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {sprint.goal || "No goal set for this sprint. Define what you want to achieve."}
+                    </p>
+                  )}
+                </div>
+
+                {/* Metrics - Right Side */}
+                <div className="space-y-3">
+                  <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">Sprint Metrics</h3>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                    <div className="text-center p-3 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold">{stats.total}</div>
+                      <div className="text-xs text-muted-foreground">Total Tasks</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">{stats.done}</div>
+                      <div className="text-xs text-muted-foreground">Completed</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
+                      <div className="text-xs text-muted-foreground">In Progress</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold text-slate-600">{stats.toDo}</div>
+                      <div className="text-xs text-muted-foreground">To Do</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold">{stats.percent}%</div>
+                      <div className="text-xs text-muted-foreground">Progress</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold">{stats.totalEffort}</div>
+                      <div className="text-xs text-muted-foreground">Story Points</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CollapsibleContent>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{stats.done}</div>
-            <div className="text-xs text-muted-foreground">Completed</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-            <div className="text-xs text-muted-foreground">In Progress</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-slate-600">{stats.toDo}</div>
-            <div className="text-xs text-muted-foreground">To Do</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold">{stats.percent}%</div>
-            <div className="text-xs text-muted-foreground">Progress</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold">{stats.totalEffort}</div>
-            <div className="text-xs text-muted-foreground">Story Points</div>
-          </div>
-        </div>
+        </Collapsible>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
@@ -1169,42 +1228,6 @@ export default function SprintDetail() {
           </TabsList>
 
           <TabsContent value="plan" className="mt-6">
-            {/* Sprint Goal & Success Criteria - Above tabs */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center justify-between">
-                  Sprint Goal & Success Criteria
-                  {!isEditingGoal && !isReadOnly && (
-                    <Button variant="ghost" size="sm" onClick={() => setIsEditingGoal(true)} data-testid="button-edit-goal">
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isEditingGoal && !isReadOnly ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      ref={goalInputRef}
-                      value={editGoal}
-                      onChange={(e) => setEditGoal(e.target.value)}
-                      placeholder="What do you want to achieve in this sprint? Include success criteria."
-                      className="min-h-[100px]"
-                      data-testid="input-edit-goal"
-                    />
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={handleSaveGoal} data-testid="button-save-goal">Save</Button>
-                      <Button size="sm" variant="outline" onClick={() => setIsEditingGoal(false)} data-testid="button-cancel-goal">Cancel</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground whitespace-pre-wrap">
-                    {sprint.goal || "No goal set for this sprint. Define what you want to achieve."}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Sub-navigation tabs matching Milestone pattern */}
             <Tabs value={planSubTab} onValueChange={(v) => setPlanSubTab(v as "tasks" | "scope" | "details")} className="w-full">
               <TabsList className="grid w-full grid-cols-3 max-w-lg mb-6">
