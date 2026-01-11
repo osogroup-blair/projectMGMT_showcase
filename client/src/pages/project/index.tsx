@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils";
 import { UnifiedTimeline } from "@/features/project/timeline/unified-timeline";
 import { useMemo, useState, useEffect } from "react";
 import { ProjectDashboard } from "@/features/project/dashboard/types";
-import { differenceInDays, parseISO } from "date-fns";
+import { differenceInDays, parseISO, format } from "date-fns";
 import { TimeHorizonDashboard, DashboardFilterControls, type DashboardFilters } from "@/features/dashboard";
 
 // Mock Data Types
@@ -1093,6 +1093,10 @@ export default function ProjectOverview() {
                             epics={projectEpics || []}
                             projectId={projectId}
                             boardId={`project-dashboard-${projectId}`}
+                            title={selectedSprint?.name}
+                            timeframe={selectedSprint?.startDate && selectedSprint?.endDate 
+                              ? `${format(parseISO(selectedSprint.startDate), "MMM d")} - ${format(parseISO(selectedSprint.endDate), "MMM d, yyyy")}`
+                              : undefined}
                             onTaskMove={handleTaskMove}
                             onBlockerRequested={handleBlockerRequested}
                           />
