@@ -804,7 +804,7 @@ export function PortableKanban({
                 className={cn(
                   "flex flex-col rounded-lg transition-all duration-200",
                   col.bgColor, col.borderColor, "border",
-                  collapsed ? "w-12 flex-shrink-0" : "flex-1 min-w-[200px]"
+                  collapsed ? "w-12 flex-shrink-0" : "w-[280px] flex-shrink-0"
                 )}
                 data-testid={`column-${col.id}`}
               >
