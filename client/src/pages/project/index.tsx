@@ -71,7 +71,7 @@ import { TaskListContent } from "@/features/project/tasks/task-list-content";
 import { MilestonesContent } from "@/features/project/milestones/milestones-content";
 import { StagesContent } from "@/features/project/stages/stages-content";
 import { SprintsContent } from "@/features/project/sprints/sprints-content";
-import { FlowBoard } from "@/features/project/sprints/flow-board";
+import { PortableKanban } from "@/components/kanban";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
 import { NextSprintBacklog } from "@/features/project/sprints/next-sprint-backlog";
@@ -1087,7 +1087,7 @@ export default function ProjectOverview() {
                             </div>
                           </div>
 
-                          <FlowBoard
+                          <PortableKanban
                             tasks={sprintTasks}
                             users={users || []}
                             epics={projectEpics || []}

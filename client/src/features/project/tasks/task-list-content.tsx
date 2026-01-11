@@ -38,6 +38,7 @@ import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpi
 import { Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TaskFilterModal, TaskFilters, emptyFilters, getActiveFilterCount } from "./task-filter-modal";
+import { PortableKanban } from "@/components/kanban";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -997,143 +998,22 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           </Table>
         </div>
       ) : viewMode === "kanban" ? (
-        /* Kanban View */
-        <div className="flex gap-4 overflow-x-auto pb-4" data-testid="kanban-board">
-          {["Todo", "In Progress", "Review", "Done"].map((status) => {
-            const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.Todo;
-            const columnTasks = tasksByStatus[status] || [];
-            
-            return (
-              <div 
-                key={status}
-                className="flex-shrink-0 w-72 bg-muted/30 rounded-lg border"
-                data-testid={`kanban-column-${status.toLowerCase().replace(' ', '-')}`}
-              >
-                <div className={cn(
-                  "flex items-center justify-between p-3 border-b",
-                  statusConfig.bgColor
-                )}>
-                  <div className="flex items-center gap-2">
-                    <span className={cn("font-medium text-sm", statusConfig.color)}>
-                      {status}
-                    </span>
-                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                      {columnTasks.length}
-                    </Badge>
-                  </div>
-                </div>
-                <ScrollArea className="h-[calc(100vh-320px)] min-h-[400px]">
-                  <div className="p-2 space-y-2">
-                    {columnTasks.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">
-                        No tasks
-                      </div>
-                    ) : (
-                      columnTasks.map((task: any) => {
-                        const assignee = getAssignee(task.assigneeId);
-                        const epic = getEpic(task.epicId);
-                        const taskType = getTaskType(task.taskTypeId);
-                        const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
-                        const isOverdue = new Date(task.deadline) < new Date() && task.status !== "Done";
-
-                        return (
-                          <Card 
-                            key={task.id}
-                            className={cn(
-                              "hover:shadow-md transition-shadow cursor-pointer group",
-                              selectedTaskIds.has(task.id) && "ring-2 ring-primary"
-                            )}
-                            data-testid={`kanban-card-${task.id}`}
-                          >
-                            <CardContent className="p-3">
-                              <div className="flex items-start gap-2 mb-2">
-                                <Checkbox
-                                  checked={selectedTaskIds.has(task.id)}
-                                  onCheckedChange={() => toggleSelectTask(task.id)}
-                                  aria-label={`Select task ${task.title}`}
-                                  className="mt-0.5"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                                    <h4 className="font-medium text-sm hover:text-primary line-clamp-2">
-                                      {task.title}
-                                    </h4>
-                                  </Link>
-                                </div>
-                              </div>
-                              
-                              <div className="flex flex-wrap gap-1 mb-2">
-                                {taskType && (
-                                  <span 
-                                    className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                                    style={{ 
-                                      backgroundColor: `${taskType.color}20`, 
-                                      color: taskType.color 
-                                    }}
-                                  >
-                                    {taskType.name}
-                                  </span>
-                                )}
-                                <Badge 
-                                  variant="secondary"
-                                  className={cn("text-[10px]", priorityConfig.bgColor, priorityConfig.color)}
-                                >
-                                  {task.priority}
-                                </Badge>
-                              </div>
-                              
-                              {epic && (
-                                <p className="text-xs text-muted-foreground truncate mb-2">
-                                  {epic.title}
-                                </p>
-                              )}
-
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <div className="flex items-center gap-1.5">
-                                  {assignee ? (
-                                    <>
-                                      <Avatar className="h-5 w-5">
-                                        <AvatarFallback className="text-[8px]">
-                                          {assignee.name?.substring(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="truncate max-w-[60px]">{assignee.name?.split(' ')[0]}</span>
-                                    </>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">Unassigned</span>
-                                  )}
-                                </div>
-                                {task.deadline && (
-                                  <div className={cn(
-                                    "flex items-center gap-1",
-                                    isOverdue && "text-red-600 font-medium"
-                                  )}>
-                                    <Calendar className="h-3 w-3" />
-                                    {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="mt-2 pt-2 border-t flex gap-1">
-                                <SearchableSelect
-                                  value={task.status}
-                                  onValueChange={(v) => updateTask({ id: task.id, updates: { status: v } })}
-                                  placeholder="Status"
-                                  options={["Todo", "In Progress", "Review", "Done"].map(s => ({ value: s, label: s }))}
-                                  triggerClassName="h-6 text-[10px] flex-1"
-                                  data-testid={`kanban-select-status-${task.id}`}
-                                />
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })
-                    )}
-                  </div>
-                </ScrollArea>
-              </div>
-            );
-          })}
+        /* Kanban View - Uses App Defaults columns */
+        <div className="h-[calc(100vh-320px)] min-h-[400px]" data-testid="kanban-board">
+          <PortableKanban
+            tasks={filteredTasks}
+            users={users || []}
+            epics={projectEpics || []}
+            milestones={projectMilestones || []}
+            projectId={projectId}
+            showFilters={false}
+            onTaskMove={(taskId, newStatus) => {
+              updateTask({ id: taskId, updates: { status: newStatus } });
+            }}
+            onBlockerRequested={(taskId) => {
+              updateTask({ id: taskId, updates: { status: "Blocked", blocked: true } });
+            }}
+          />
         </div>
       ) : (
         /* Card View */

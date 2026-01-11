@@ -61,7 +61,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
-import { FlowBoard } from "@/features/project/sprints/flow-board";
+import { PortableKanban } from "@/components/kanban";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { PulsePanel } from "@/features/project/sprints/pulse-panel";
 import { SprintSignalsBar } from "@/features/project/sprints/sprint-signals-bar";
@@ -2484,7 +2484,7 @@ export default function SprintDetail() {
                     onFilterChange={setSignalFilter}
                   />
                   <CardContent className="flex-1 p-3 overflow-hidden">
-                    <FlowBoard
+                    <PortableKanban
                       tasks={sprintTasks}
                       users={users || []}
                       epics={allEpics || []}
