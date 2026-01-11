@@ -56,6 +56,11 @@ import {
 import { seedDatabase } from "../db/seed";
 import { db } from "../db";
 
+// Helper to extract authenticated user ID from request
+function getAuthUserId(req: any): string | null {
+  return req.user?.claims?.sub || null;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -85,8 +90,13 @@ export async function registerRoutes(
 
   app.post("/api/projects", async (req, res) => {
     try {
+      const userId = getAuthUserId(req);
       const validated = insertProjectSchema.parse(req.body);
-      const project = await storage.createProject(validated);
+      const project = await storage.createProject({
+        ...validated,
+        createdBy: userId,
+        updatedBy: userId,
+      });
       
       // Auto-generate sprints if sprintDurationWeeks is set
       if (project && project.sprintDurationWeeks && project.sprintDurationWeeks > 0 && project.startDate && project.deadline) {
@@ -125,7 +135,12 @@ export async function registerRoutes(
 
   app.patch("/api/projects/:id", async (req, res) => {
     try {
-      const project = await storage.updateProject(req.params.id, req.body);
+      const userId = getAuthUserId(req);
+      const project = await storage.updateProject(req.params.id, {
+        ...req.body,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      });
       res.json(project);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -165,7 +180,12 @@ export async function registerRoutes(
 
   app.patch("/api/projects/:projectId/deliverables/:deliverableId", async (req, res) => {
     try {
-      const deliverable = await storage.updateDeliverable(req.params.deliverableId, req.body);
+      const userId = getAuthUserId(req);
+      const deliverable = await storage.updateDeliverable(req.params.deliverableId, {
+        ...req.body,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      });
       res.json(deliverable);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -315,8 +335,13 @@ export async function registerRoutes(
 
   app.post("/api/deliverables", async (req, res) => {
     try {
+      const userId = getAuthUserId(req);
       const validated = insertDeliverableSchema.parse(req.body);
-      const deliverable = await storage.createDeliverable(validated);
+      const deliverable = await storage.createDeliverable({
+        ...validated,
+        createdBy: userId,
+        updatedBy: userId,
+      });
       res.status(201).json(deliverable);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -325,7 +350,12 @@ export async function registerRoutes(
 
   app.patch("/api/deliverables/:id", async (req, res) => {
     try {
-      const deliverable = await storage.updateDeliverable(req.params.id, req.body);
+      const userId = getAuthUserId(req);
+      const deliverable = await storage.updateDeliverable(req.params.id, {
+        ...req.body,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      });
       res.json(deliverable);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -351,8 +381,13 @@ export async function registerRoutes(
 
   app.post("/api/epics", async (req, res) => {
     try {
+      const userId = getAuthUserId(req);
       const validated = insertEpicSchema.parse(req.body);
-      const epic = await storage.createEpic(validated);
+      const epic = await storage.createEpic({
+        ...validated,
+        createdBy: userId,
+        updatedBy: userId,
+      });
       res.status(201).json(epic);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -361,7 +396,12 @@ export async function registerRoutes(
 
   app.patch("/api/epics/:id", async (req, res) => {
     try {
-      const epic = await storage.updateEpic(req.params.id, req.body);
+      const userId = getAuthUserId(req);
+      const epic = await storage.updateEpic(req.params.id, {
+        ...req.body,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      });
       res.json(epic);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -387,6 +427,7 @@ export async function registerRoutes(
 
   app.post("/api/tasks", async (req, res) => {
     try {
+      const userId = getAuthUserId(req);
       const validated = insertTaskSchema.parse(req.body);
       
       // Server-side validation: Epic, Stage, and TaskType are required for task creation
@@ -400,7 +441,11 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Task type is required for task creation" });
       }
       
-      const task = await storage.createTask(validated);
+      const task = await storage.createTask({
+        ...validated,
+        createdBy: userId,
+        updatedBy: userId,
+      });
       res.status(201).json(task);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -441,6 +486,7 @@ export async function registerRoutes(
       // Generate unique ID
       const taskId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+      const userId = getAuthUserId(req);
       const taskData = {
         id: taskId,
         title: title.trim(),
@@ -453,6 +499,8 @@ export async function registerRoutes(
         epicId,
         stageId,
         taskTypeId,
+        createdBy: userId,
+        updatedBy: userId,
       };
 
       const task = await storage.createTask(taskData);
@@ -465,13 +513,17 @@ export async function registerRoutes(
 
   app.patch("/api/tasks/:id", async (req, res) => {
     try {
+      const userId = getAuthUserId(req);
       const updates = { ...req.body };
       if (updates.updatedAt && typeof updates.updatedAt === 'string') {
         updates.updatedAt = new Date(updates.updatedAt);
+      } else {
+        updates.updatedAt = new Date();
       }
       if (updates.dueDate && typeof updates.dueDate === 'string') {
         updates.dueDate = new Date(updates.dueDate);
       }
+      updates.updatedBy = userId;
       const task = await storage.updateTask(req.params.id, updates);
       res.json(task);
     } catch (error: any) {
@@ -498,8 +550,13 @@ export async function registerRoutes(
 
   app.post("/api/milestones", async (req, res) => {
     try {
+      const userId = getAuthUserId(req);
       const validated = insertMilestoneSchema.parse(req.body);
-      const milestone = await storage.createMilestone(validated);
+      const milestone = await storage.createMilestone({
+        ...validated,
+        createdBy: userId,
+        updatedBy: userId,
+      });
       res.status(201).json(milestone);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -508,7 +565,12 @@ export async function registerRoutes(
 
   app.patch("/api/milestones/:id", async (req, res) => {
     try {
-      const milestone = await storage.updateMilestone(req.params.id, req.body);
+      const userId = getAuthUserId(req);
+      const milestone = await storage.updateMilestone(req.params.id, {
+        ...req.body,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      });
       res.json(milestone);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1930,8 +1992,13 @@ export async function registerRoutes(
 
   app.post("/api/sprints", async (req, res) => {
     try {
+      const userId = getAuthUserId(req);
       const validated = insertSprintSchema.parse(req.body);
-      const sprint = await storage.createSprint(validated);
+      const sprint = await storage.createSprint({
+        ...validated,
+        createdBy: userId,
+        updatedBy: userId,
+      });
       res.status(201).json(sprint);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1940,7 +2007,12 @@ export async function registerRoutes(
 
   app.patch("/api/sprints/:id", async (req, res) => {
     try {
-      const sprint = await storage.updateSprint(req.params.id, req.body);
+      const userId = getAuthUserId(req);
+      const sprint = await storage.updateSprint(req.params.id, {
+        ...req.body,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      });
       res.json(sprint);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
