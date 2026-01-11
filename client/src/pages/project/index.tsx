@@ -946,12 +946,6 @@ export default function ProjectOverview() {
                   Stages
                 </TabsTrigger>
               </TabsList>
-              {activeTab === "overview" && (
-                <DashboardFilterControls
-                  filters={dashboardFilters}
-                  onFiltersChange={setDashboardFilters}
-                />
-              )}
             </div>
           </div>
 
@@ -1100,44 +1094,7 @@ export default function ProjectOverview() {
                   {dashboardSection === "current-sprint" && (
                     <>
                       {projectSprints.length > 0 ? (
-                        <div className="space-y-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <SearchableSelect
-                                value={selectedSprintId || ""}
-                                onValueChange={(val) => setSelectedSprintId(val)}
-                                placeholder="Select sprint..."
-                                options={projectSprints.map((sprint: any) => ({
-                                  value: sprint.id,
-                                  label: sprint.name,
-                                }))}
-                                triggerClassName="min-w-[200px]"
-                              />
-                              {selectedSprint && (
-                                <>
-                                  <Badge variant={selectedSprint.status === "active" ? "default" : "secondary"} className="capitalize">
-                                    {selectedSprint.status}
-                                  </Badge>
-                                  {selectedSprint.endDate && (
-                                    <span className="text-sm text-muted-foreground">
-                                      {Math.max(0, differenceInDays(parseISO(selectedSprint.endDate), new Date()))} days remaining
-                                    </span>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {selectedSprint && (
-                                <Link href={`/projects/${projectId}/sprints/${selectedSprint.id}?tab=run`}>
-                                  <Button variant="outline" size="sm" className="gap-2">
-                                    <Settings className="h-4 w-4" />
-                                    Sprint Details
-                                  </Button>
-                                </Link>
-                              )}
-                            </div>
-                          </div>
-
+                        <div className="space-y-4">
                           <PortableKanban
                             tasks={sprintTasks}
                             users={users || []}
@@ -1145,7 +1102,38 @@ export default function ProjectOverview() {
                             milestones={milestones}
                             projectId={projectId}
                             boardId={`project-dashboard-${projectId}`}
-                            title={selectedSprint?.name || "Sprint Tasks"}
+                            titleSlot={
+                              <div className="flex items-center gap-2">
+                                <SearchableSelect
+                                  value={selectedSprintId || ""}
+                                  onValueChange={(val) => setSelectedSprintId(val)}
+                                  placeholder="Select sprint..."
+                                  options={projectSprints.map((sprint: any) => ({
+                                    value: sprint.id,
+                                    label: sprint.name,
+                                  }))}
+                                  triggerClassName="h-7 text-sm font-medium min-w-[160px]"
+                                />
+                                {selectedSprint && (
+                                  <>
+                                    <Badge variant={selectedSprint.status === "active" ? "default" : "secondary"} className="capitalize text-xs h-5">
+                                      {selectedSprint.status}
+                                    </Badge>
+                                    {selectedSprint.endDate && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {Math.max(0, differenceInDays(parseISO(selectedSprint.endDate), new Date()))}d left
+                                      </span>
+                                    )}
+                                    <Link href={`/projects/${projectId}/sprints/${selectedSprint.id}?tab=run`}>
+                                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1">
+                                        <Settings className="h-3 w-3" />
+                                        Details
+                                      </Button>
+                                    </Link>
+                                  </>
+                                )}
+                              </div>
+                            }
                             timeframe={selectedSprint?.startDate && selectedSprint?.endDate 
                               ? `${format(parseISO(selectedSprint.startDate), "MMM d")} - ${format(parseISO(selectedSprint.endDate), "MMM d, yyyy")}`
                               : undefined}

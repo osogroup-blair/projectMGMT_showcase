@@ -101,6 +101,7 @@ interface PortableKanbanProps {
   projectId: string;
   boardId?: string; // Used for persisting column collapse state
   title?: string; // Board title (e.g., sprint name)
+  titleSlot?: React.ReactNode; // Custom title slot for complex headers (replaces title)
   timeframe?: string; // Date range (e.g., "Jan 6 - Jan 20, 2026")
   isReadOnly?: boolean;
   signalFilter?: "blocked" | "overdue" | "stale" | null;
@@ -482,6 +483,7 @@ export function PortableKanban({
   projectId,
   boardId,
   title,
+  titleSlot,
   timeframe,
   isReadOnly,
   signalFilter,
@@ -683,13 +685,15 @@ export function PortableKanban({
 
   return (
     <div className={cn("flex flex-col h-full gap-3", className)}>
-      {(title || timeframe || showAddTask) && (
+      {(title || titleSlot || timeframe || showAddTask) && (
         <div className="flex items-center justify-between gap-3 pb-1">
           <div className="flex items-center gap-3">
-            {title && (
+            {titleSlot ? (
+              titleSlot
+            ) : title ? (
               <h3 className="text-lg font-semibold" data-testid="kanban-title">{title}</h3>
-            )}
-            {timeframe && (
+            ) : null}
+            {timeframe && !titleSlot && (
               <span className="text-sm text-muted-foreground" data-testid="kanban-timeframe">{timeframe}</span>
             )}
           </div>
