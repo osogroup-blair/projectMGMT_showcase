@@ -135,6 +135,27 @@ export default function EpicDetail() {
   const owner = useMemo(() => users?.find((u: any) => u.id === epic?.ownerId), [users, epic]);
   const epicType = useMemo(() => epicTypes.find((t: any) => t.id === epic?.typeId), [epicTypes, epic]);
 
+  // Enriched tasks for Kanban view with all required metadata
+  const enrichedTasks = useMemo(() => {
+    return tasks.map((task: any) => {
+      const assignee = users?.find((u: any) => u.id === task.assigneeId);
+      const stage = projectStages?.find((s: any) => s.id === task.stageId);
+      const sprint = allSprints?.find((s: any) => s.id === task.sprintId);
+      return {
+        ...task,
+        projectId,
+        projectName: project?.name,
+        epicId,
+        epicName: epic?.title,
+        deliverableId: epic?.deliverableId,
+        deliverableName: deliverable?.title,
+        assigneeName: assignee?.name,
+        stageName: stage?.name,
+        sprintName: sprint?.name,
+      };
+    });
+  }, [tasks, users, projectStages, allSprints, project, epic, deliverable, projectId, epicId]);
+
   const handleUpdateEpicType = (typeId: string | null) => {
     if (epic) {
       updateEpic({ id: epic.id, updates: { typeId } });
@@ -147,13 +168,13 @@ export default function EpicDetail() {
 
   // Filter tasks based on active filters
   const filteredTasks = useMemo(() => {
-    return tasks.filter((task: any) => {
+    return enrichedTasks.filter((task: any) => {
       if (filters.status.length > 0 && !filters.status.includes(task.status)) return false;
       if (filters.priority.length > 0 && !filters.priority.includes(task.priority)) return false;
       if (filters.assigneeId.length > 0 && !filters.assigneeId.includes(task.assigneeId)) return false;
       return true;
     });
-  }, [tasks, filters]);
+  }, [enrichedTasks, filters]);
 
   const activeFilterCount = filters.status.length + filters.priority.length + filters.assigneeId.length;
 
@@ -856,13 +877,13 @@ export default function EpicDetail() {
           )}
 
           {viewMode === "status" && (
-            <div className="flex-1 p-4">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <PortableKanban
                 tasks={filteredTasks}
                 users={users || []}
                 projectId={projectId}
                 boardId={`epic-${epicId}-kanban`}
-                showFilters={false}
+                showFilters={true}
                 showAssigneeFilter={true}
                 showAddTask={true}
                 onAddTask={() => handleOpenCreate()}
