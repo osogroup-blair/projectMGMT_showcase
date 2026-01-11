@@ -426,33 +426,50 @@ export default function ImportSummary() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Imported Status</TableHead>
+                          <TableHead></TableHead>
+                          <TableHead>Target Status</TableHead>
                           <TableHead>Confidence</TableHead>
-                          <TableHead>Map To</TableHead>
+                          <TableHead>Change</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {statusMappings.map((mapping) => (
-                          <TableRow key={mapping.sourceStatus} data-testid={`status-mapping-row-${mapping.sourceStatus}`}>
-                            <TableCell>
-                              <Badge variant="outline">{mapping.sourceStatus}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <ConfidenceBadge confidence={mapping.confidence} />
-                            </TableCell>
-                            <TableCell>
-                              <SearchableSelect
-                                value={mapping.mappedStatusId || ''}
-                                onValueChange={(val) => handleStatusMappingChange(mapping.sourceStatus, val)}
-                                options={statusSelectOptions}
-                                placeholder={mapping.mappedStatus || "Select status..."}
-                                searchPlaceholder="Search statuses..."
-                                emptyMessage="No statuses found."
-                                className="w-[220px]"
-                                data-testid={`status-select-${mapping.sourceStatus}`}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {statusMappings.map((mapping) => {
+                          const targetStatus = taskStatuses.find((s: any) => 
+                            s.id === mapping.mappedStatusId || s.label === mapping.mappedStatus
+                          );
+                          const targetColor = targetStatus?.color || 'bg-muted text-muted-foreground';
+                          
+                          return (
+                            <TableRow key={mapping.sourceStatus} data-testid={`status-mapping-row-${mapping.sourceStatus}`}>
+                              <TableCell>
+                                <Badge variant="outline" className="font-mono">{mapping.sourceStatus}</Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <ArrowRight className="h-4 w-4 text-muted-foreground inline" />
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={`font-normal ${targetColor}`}>
+                                  {mapping.mappedStatus || 'Not mapped'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <ConfidenceBadge confidence={mapping.confidence} />
+                              </TableCell>
+                              <TableCell>
+                                <SearchableSelect
+                                  value={mapping.mappedStatusId || ''}
+                                  onValueChange={(val) => handleStatusMappingChange(mapping.sourceStatus, val)}
+                                  options={statusSelectOptions}
+                                  placeholder="Select..."
+                                  searchPlaceholder="Search statuses..."
+                                  emptyMessage="No statuses found."
+                                  className="w-[180px]"
+                                  data-testid={`status-select-${mapping.sourceStatus}`}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   )}
