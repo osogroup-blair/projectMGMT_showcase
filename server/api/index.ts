@@ -2,12 +2,19 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "../data/storage";
 import * as userManagementService from "../services/user-management";
+import * as identityService from "../services/user-management/identity-service";
 import { requireAuth, requirePermission, requireRole, requireSelfOrRole } from "../middleware/require-permission";
 import { 
   UserPermissions,
   createUserRequestSchema,
   updateUserRequestSchema,
 } from "@shared/contracts/user-management";
+import { 
+  linkIdentityRequestSchema,
+  updateIdentityRequestSchema,
+  updateProfileRequestSchema,
+  AvailableSystems,
+} from "@shared/contracts/user-identity";
 import { 
   insertProjectSchema,
   insertDeliverableSchema,
@@ -771,6 +778,128 @@ export async function registerRoutes(
       res.json({ deactivated: count });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Available external systems for identity linking
+  app.get("/api/identity/systems", requireAuth(), async (req, res) => {
+    res.json(AvailableSystems);
+  });
+
+  // User Profile with Identities
+  app.get("/api/users/:id/profile", requireAuth(), requireSelfOrRole("id", "admin", "manager"), async (req, res) => {
+    try {
+      const profile = await identityService.getUserProfileWithIdentities(req.params.id);
+      if (!profile) return res.status(404).json({ error: "User not found" });
+      res.json(profile);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update user profile (not identities)
+  app.patch("/api/users/:id/profile", requireAuth(), requireSelfOrRole("id", "admin", "manager"), async (req, res) => {
+    try {
+      const validated = updateProfileRequestSchema.parse(req.body);
+      const userId = getAuthUserId(req);
+      const profile = await identityService.updateUserProfile(req.params.id, validated, userId || undefined);
+      if (!profile) return res.status(404).json({ error: "User not found" });
+      res.json(profile);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get user identities
+  app.get("/api/users/:userId/identities", requireAuth(), requireSelfOrRole("userId", "admin", "manager"), async (req, res) => {
+    try {
+      const identities = await identityService.getUserIdentities(req.params.userId);
+      res.json(identities);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Link a new identity to user
+  app.post("/api/users/:userId/identities", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
+    try {
+      const validated = linkIdentityRequestSchema.parse(req.body);
+      const userId = getAuthUserId(req);
+      const identity = await identityService.linkIdentityToUser(req.params.userId, validated, userId || undefined);
+      res.status(201).json(identity);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get single identity
+  app.get("/api/identities/:identityId", requireAuth(), async (req, res) => {
+    try {
+      const identity = await identityService.getIdentityById(req.params.identityId);
+      if (!identity) return res.status(404).json({ error: "Identity not found" });
+      res.json(identity);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update identity
+  app.patch("/api/identities/:identityId", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
+    try {
+      const validated = updateIdentityRequestSchema.parse(req.body);
+      const userId = getAuthUserId(req);
+      const identity = await identityService.updateIdentity(req.params.identityId, validated, userId || undefined);
+      if (!identity) return res.status(404).json({ error: "Identity not found" });
+      res.json(identity);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Unlink identity from user
+  app.delete("/api/users/:userId/identities/:identityId", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
+    try {
+      await identityService.unlinkIdentityFromUser(req.params.userId, req.params.identityId);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Find identity by external reference
+  app.get("/api/identities/lookup", requireAuth(), async (req, res) => {
+    try {
+      const { systemId, externalUserId, workspaceId } = req.query;
+      if (!systemId || !externalUserId) {
+        return res.status(400).json({ error: "systemId and externalUserId are required" });
+      }
+      const identity = await identityService.findIdentityByExternal(
+        systemId as string,
+        externalUserId as string,
+        workspaceId as string | undefined
+      );
+      if (!identity) return res.status(404).json({ error: "Identity not found" });
+      res.json(identity);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Merge users (admin only)
+  app.post("/api/users/merge", requireAuth(), requireRole("admin"), async (req, res) => {
+    try {
+      const { sourceUserId, targetUserId, conflictResolution } = req.body;
+      if (!sourceUserId || !targetUserId) {
+        return res.status(400).json({ error: "sourceUserId and targetUserId are required" });
+      }
+      const userId = getAuthUserId(req);
+      const result = await identityService.mergeUsers(
+        { sourceUserId, targetUserId, conflictResolution },
+        userId || 'system'
+      );
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   });
 
