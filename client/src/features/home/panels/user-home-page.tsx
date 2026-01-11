@@ -163,8 +163,16 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
            </div>
         </div>
 
-        <Tabs defaultValue="projects" className="space-y-6">
+        <Tabs defaultValue="tasks" className="space-y-6">
           <TabsList className="bg-transparent p-0 border-b w-full justify-start rounded-none h-auto gap-6">
+            <TabsTrigger 
+              value="tasks" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
+              data-testid="tab-current-tasks"
+            >
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Current Tasks
+            </TabsTrigger>
             <TabsTrigger 
               value="projects" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
@@ -192,14 +200,6 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
             >
               <Target className="w-4 h-4 mr-2" />
               This Quarter
-            </TabsTrigger>
-            <TabsTrigger 
-              value="tasks" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
-              data-testid="tab-current-tasks"
-            >
-              <ClipboardList className="w-4 h-4 mr-2" />
-              Current Tasks
             </TabsTrigger>
           </TabsList>
 
