@@ -8,7 +8,7 @@ import { TaskCard } from "./task-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, Target, Briefcase } from "lucide-react";
+import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, Target, Briefcase, ClipboardList } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCurrentUser } from "@/context/current-user-context";
@@ -29,6 +29,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CurrentProjectsPanel } from "./current-projects-panel";
+import { CurrentTasksPanel } from "./current-tasks-panel";
 
 interface UserHomePageProps {
   homeState: UserHomeState;
@@ -192,6 +193,14 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
               <Target className="w-4 h-4 mr-2" />
               This Quarter
             </TabsTrigger>
+            <TabsTrigger 
+              value="tasks" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
+              data-testid="tab-current-tasks"
+            >
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Current Tasks
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="projects" className="mt-0">
@@ -269,6 +278,12 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                    </div>
                  ))}
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tasks" className="mt-0" data-testid="tab-content-current-tasks">
+            <div className="bg-card/50 rounded-xl p-6 border shadow-sm">
+              <CurrentTasksPanel />
             </div>
           </TabsContent>
         </Tabs>
