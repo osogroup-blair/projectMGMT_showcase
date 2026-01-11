@@ -1388,7 +1388,41 @@ export default function SprintDetail() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">Sprint Backlog</CardTitle>
+                      <div className="flex items-center gap-4">
+                        <CardTitle className="text-base">Sprint Backlog</CardTitle>
+                        {selectedTaskIds.size > 0 && !isReadOnly && (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{selectedTaskIds.size} selected</Badge>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => setShowBulkEditDialog(true)}
+                              data-testid="button-bulk-edit"
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setShowBulkRemoveDialog(true)}
+                              data-testid="button-bulk-remove"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => setSelectedTaskIds(new Set())}
+                              data-testid="button-clear-selection"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                       {!isReadOnly && (
                         <Button size="sm" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks">
                           <Plus className="h-4 w-4 mr-1" />
@@ -1415,6 +1449,21 @@ export default function SprintDetail() {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            {!isReadOnly && (
+                              <TableHead className="w-[40px]">
+                                <Checkbox
+                                  checked={sprintTasks.length > 0 && selectedTaskIds.size === sprintTasks.length}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedTaskIds(new Set(sprintTasks.map((t: any) => t.id)));
+                                    } else {
+                                      setSelectedTaskIds(new Set());
+                                    }
+                                  }}
+                                  data-testid="checkbox-select-all"
+                                />
+                              </TableHead>
+                            )}
                             <TableHead className="w-[30%]">Task</TableHead>
                             <TableHead>Epic</TableHead>
                             <TableHead>Status</TableHead>
@@ -1433,7 +1482,26 @@ export default function SprintDetail() {
                             const isOutsideSprint = isDeadlineOutsideSprint(task.deadline);
 
                             return (
-                              <TableRow key={task.id} data-testid={`row-task-${task.id}`} className={cn(isOutsideSprint && "bg-amber-50")}>
+                              <TableRow key={task.id} data-testid={`row-task-${task.id}`} className={cn(isOutsideSprint && "bg-amber-50", selectedTaskIds.has(task.id) && "bg-muted/50")}>
+                                {!isReadOnly && (
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={selectedTaskIds.has(task.id)}
+                                      onCheckedChange={(checked) => {
+                                        setSelectedTaskIds(prev => {
+                                          const newSet = new Set(prev);
+                                          if (checked) {
+                                            newSet.add(task.id);
+                                          } else {
+                                            newSet.delete(task.id);
+                                          }
+                                          return newSet;
+                                        });
+                                      }}
+                                      data-testid={`checkbox-task-${task.id}`}
+                                    />
+                                  </TableCell>
+                                )}
                                 <TableCell>
                                   {!isReadOnly && editingTaskId === task.id && editingField === "title" ? (
                                     <Input
@@ -3040,6 +3108,199 @@ export default function SprintDetail() {
               data-testid="button-confirm-scope-change"
             >
               Change to {pendingScopeMode && pendingScopeMode.charAt(0).toUpperCase() + pendingScopeMode.slice(1)}s
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Remove from Sprint Dialog */}
+      <Dialog open={showBulkRemoveDialog} onOpenChange={setShowBulkRemoveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Remove Tasks from Sprint?
+            </DialogTitle>
+            <DialogDescription>
+              This will remove {selectedTaskIds.size} task{selectedTaskIds.size !== 1 ? "s" : ""} from this sprint. 
+              The tasks will not be deleted, they will just be unassigned from the sprint.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowBulkRemoveDialog(false)}
+              data-testid="button-cancel-bulk-remove"
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  await Promise.all(
+                    Array.from(selectedTaskIds).map(taskId =>
+                      updateTask({ id: taskId, updates: { sprintId: null } })
+                    )
+                  );
+                  toast({ title: `Removed ${selectedTaskIds.size} task${selectedTaskIds.size !== 1 ? "s" : ""} from sprint` });
+                  setSelectedTaskIds(new Set());
+                  setShowBulkRemoveDialog(false);
+                  queryClient.invalidateQueries({ queryKey: ["tasks"] });
+                } catch (error) {
+                  toast({ title: "Failed to remove tasks", variant: "destructive" });
+                }
+              }}
+              data-testid="button-confirm-bulk-remove"
+            >
+              Remove from Sprint
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Edit Dialog */}
+      <Dialog open={showBulkEditDialog} onOpenChange={(open) => {
+        setShowBulkEditDialog(open);
+        if (!open) {
+          setBulkEditField("");
+          setBulkEditValue("");
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Bulk Edit {selectedTaskIds.size} Task{selectedTaskIds.size !== 1 ? "s" : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Select a field to update for all selected tasks.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Field to update</Label>
+              <Select value={bulkEditField} onValueChange={setBulkEditField}>
+                <SelectTrigger data-testid="select-bulk-field">
+                  <SelectValue placeholder="Select a field" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                  <SelectItem value="effort">Effort (Story Points)</SelectItem>
+                  <SelectItem value="assigneeId">Assignee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {bulkEditField === "status" && (
+              <div className="space-y-2">
+                <Label>New Status</Label>
+                <Select value={bulkEditValue} onValueChange={setBulkEditValue}>
+                  <SelectTrigger data-testid="select-bulk-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formattedStatusOptions.map((status: any) => (
+                      <SelectItem key={status.id} value={status.label}>
+                        <div className="flex items-center gap-2">
+                          <span className={cn("w-2 h-2 rounded-full", status.color?.split(" ")[0] || "bg-gray-200")} />
+                          {status.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {bulkEditField === "priority" && (
+              <div className="space-y-2">
+                <Label>New Priority</Label>
+                <Select value={bulkEditValue} onValueChange={setBulkEditValue}>
+                  <SelectTrigger data-testid="select-bulk-priority">
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {bulkEditField === "effort" && (
+              <div className="space-y-2">
+                <Label>New Effort</Label>
+                <Input 
+                  type="number" 
+                  value={bulkEditValue} 
+                  onChange={(e) => setBulkEditValue(e.target.value)}
+                  placeholder="Enter story points"
+                  data-testid="input-bulk-effort"
+                />
+              </div>
+            )}
+
+            {bulkEditField === "assigneeId" && (
+              <div className="space-y-2">
+                <Label>New Assignee</Label>
+                <Select value={bulkEditValue} onValueChange={setBulkEditValue}>
+                  <SelectTrigger data-testid="select-bulk-assignee">
+                    <SelectValue placeholder="Select assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {(users || []).map((user: any) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name || user.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowBulkEditDialog(false)}
+              data-testid="button-cancel-bulk-edit"
+            >
+              Cancel
+            </Button>
+            <Button 
+              disabled={!bulkEditField || !bulkEditValue}
+              onClick={async () => {
+                try {
+                  const updates: Record<string, any> = {};
+                  if (bulkEditField === "effort") {
+                    updates.effort = parseInt(bulkEditValue) || null;
+                  } else if (bulkEditField === "assigneeId") {
+                    updates.assigneeId = bulkEditValue === "unassigned" ? null : bulkEditValue;
+                  } else {
+                    updates[bulkEditField] = bulkEditValue;
+                  }
+                  
+                  await Promise.all(
+                    Array.from(selectedTaskIds).map(taskId =>
+                      updateTask({ id: taskId, updates })
+                    )
+                  );
+                  toast({ title: `Updated ${selectedTaskIds.size} task${selectedTaskIds.size !== 1 ? "s" : ""}` });
+                  setSelectedTaskIds(new Set());
+                  setShowBulkEditDialog(false);
+                  setBulkEditField("");
+                  setBulkEditValue("");
+                  queryClient.invalidateQueries({ queryKey: ["tasks"] });
+                } catch (error) {
+                  toast({ title: "Failed to update tasks", variant: "destructive" });
+                }
+              }}
+              data-testid="button-confirm-bulk-edit"
+            >
+              Update Tasks
             </Button>
           </DialogFooter>
         </DialogContent>
