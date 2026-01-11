@@ -88,6 +88,7 @@ import {
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
 import { EFFORT_VALUES } from "@shared/schema";
+import { PortableKanban } from "@/components/kanban";
 
 export default function StageWorkspace() {
   const [match, params] = useRoute("/projects/:projectId/stages/:stageId");
@@ -99,7 +100,7 @@ export default function StageWorkspace() {
   // Database hooks
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
-  const { data: allTasks, isLoading: isTasksLoading, create: createTask } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask } = useTasks();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allMilestones, isLoading: isMilestonesLoading, createAsync: createMilestone } = useMilestones();
@@ -136,6 +137,7 @@ export default function StageWorkspace() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [taskViewMode, setTaskViewMode] = useState<"list" | "kanban">("kanban");
   const [currentViewId, setCurrentViewId] = useState<string>("default");
   const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -900,114 +902,99 @@ export default function StageWorkspace() {
                   </Button>
                 </div>
                 <div className="flex items-center border rounded-md overflow-hidden bg-background">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none hover:bg-muted">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn("h-8 w-8 rounded-none", taskViewMode === "list" && "bg-muted")}
+                    onClick={() => setTaskViewMode("list")}
+                    data-testid="button-view-list"
+                  >
                     <List className="h-4 w-4" />
                   </Button>
                   <div className="w-px h-4 bg-border" />
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none bg-muted hover:bg-muted">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={cn("h-8 w-8 rounded-none", taskViewMode === "kanban" && "bg-muted")}
+                    onClick={() => setTaskViewMode("kanban")}
+                    data-testid="button-view-kanban"
+                  >
                     <Kanban className="h-4 w-4" />
-                  </Button>
-                  <div className="w-px h-4 bg-border" />
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none hover:bg-muted">
-                    <Calendar className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
 
               {/* Task List/Board */}
-              <ScrollArea className="flex-1 p-4 bg-muted/10">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 h-full">
-                  {statusLabels.map(columnStatus => (
-                    <div key={columnStatus} className="flex flex-col gap-3 min-w-[280px]">
-                      <div className="flex items-center justify-between px-1">
-                        <h3 className="font-medium text-sm text-muted-foreground flex items-center gap-2">
-                          <span 
-                            className={cn("w-2 h-2 rounded-full", getStatusBgColor(columnStatus))}
-                          />
-                          {columnStatus}
-                        </h3>
-                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground font-medium">
-                          {tasks.filter((t: any) => t.status === columnStatus).length}
-                        </span>
-                      </div>
-                      
-                      <div className="flex flex-col gap-3">
-                        {tasks.filter((t: any) => t.status === columnStatus).map((task: any) => {
-                          const assignee = getAssignee(task.assigneeId);
-                          return (
-                            <Card key={task.id} className="shadow-sm hover:shadow-md transition-shadow cursor-pointer border-l-4" style={{ borderLeftColor: task.priority === 'High' ? '#ef4444' : task.priority === 'Medium' ? '#f59e0b' : '#3b82f6' }}>
-                              <CardContent className="p-3 space-y-3">
-                                <div className="space-y-1">
-                                  <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                                    <h4 className="text-sm font-medium hover:text-primary leading-tight hover:underline decoration-primary/30 underline-offset-2">
-                                      {task.title}
-                                    </h4>
-                                  </Link>
-                                  <div className="flex flex-wrap gap-1">
-                                    {task.tags?.map((tag: string) => (
-                                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                                
-                                {/* Deadline with inheritance indicator */}
-                                {task.deadline && (
-                                  <div className="flex items-center gap-1.5 text-[10px]">
-                                    <Calendar className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-muted-foreground">
-                                      {format(parseISO(task.deadline), "MMM d")}
-                                    </span>
-                                    {stage?.endDate && task.deadline === stage.endDate && (
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className="flex items-center gap-0.5 text-blue-600 bg-blue-50 px-1 py-0.5 rounded text-[9px] font-medium">
-                                            <ArrowDown className="h-2.5 w-2.5" />
-                                            Stage
-                                          </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Deadline inherited from stage end date</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    )}
-                                  </div>
-                                )}
-                                
-                                <div className="flex items-center justify-between pt-1">
-                                  <div className="flex items-center gap-2">
-                                    {assignee ? (
-                                      <Avatar className="h-6 w-6 border border-background">
-                                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                          {assignee.name?.substring(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    ) : (
-                                      <div className="h-6 w-6 rounded-full border border-dashed flex items-center justify-center">
-                                        <Plus className="h-3 w-3 text-muted-foreground" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  {task.estimateHours && (
-                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1 bg-muted/50 px-1.5 py-0.5 rounded">
-                                      <Clock className="h-3 w-3" />
-                                      {task.estimateHours}h
-                                    </span>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                        <Button variant="ghost" className="w-full justify-start text-muted-foreground text-sm h-8 hover:bg-muted/50 border border-transparent border-dashed hover:border-border" onClick={handleOpenCreateTask}>
-                          <Plus className="h-3 w-3 mr-2" /> Add Task
+              {taskViewMode === "kanban" ? (
+                <div className="flex-1 p-4 bg-muted/10 h-[calc(100vh-400px)] min-h-[400px]">
+                  <PortableKanban
+                    tasks={tasks}
+                    users={team}
+                    epics={projectEpics}
+                    milestones={stageMilestones}
+                    projectId={projectId}
+                    boardId={`stage-${stageId}`}
+                    showFilters={false}
+                    showAddTask={true}
+                    onAddTask={handleOpenCreateTask}
+                    hoverCard={{
+                      enabled: true,
+                      users: team,
+                      onAssigneeChange: (taskId, assigneeId) => {
+                        updateTask({ id: taskId, updates: { assigneeId } });
+                      },
+                    }}
+                    onTaskMove={(taskId, newStatus) => {
+                      updateTask({ id: taskId, updates: { status: newStatus } });
+                      toast({ title: "Task Updated", description: `Task moved to ${newStatus}` });
+                    }}
+                  />
+                </div>
+              ) : (
+                <ScrollArea className="flex-1 p-4 bg-muted/10">
+                  <div className="space-y-2">
+                    {tasks.map((task: any) => {
+                      const assignee = getAssignee(task.assigneeId);
+                      return (
+                        <Card key={task.id} className="shadow-sm hover:shadow-md transition-shadow">
+                          <CardContent className="p-3 flex items-center gap-4">
+                            <div className="flex-1 min-w-0">
+                              <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                                <h4 className="text-sm font-medium hover:text-primary truncate hover:underline">
+                                  {task.title}
+                                </h4>
+                              </Link>
+                            </div>
+                            <Badge variant="outline" className={cn("text-xs", getStatusBgColor(task.status))}>
+                              {task.status}
+                            </Badge>
+                            {assignee && (
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-[10px]">
+                                  {assignee.name?.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                            {task.deadline && (
+                              <span className="text-xs text-muted-foreground">
+                                {format(parseISO(task.deadline), "MMM d")}
+                              </span>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                    {tasks.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>No tasks in this stage yet.</p>
+                        <Button variant="outline" className="mt-2" onClick={handleOpenCreateTask}>
+                          <Plus className="h-4 w-4 mr-2" /> Create Task
                         </Button>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
             </div>
           </TabsContent>
         </Tabs>
