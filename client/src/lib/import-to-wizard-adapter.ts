@@ -85,7 +85,36 @@ export interface UserMappingEntry {
 export interface StatusMappingEntry {
   sourceStatus: string;
   mappedStatus: string;
+  mappedStatusId?: string;
   confidence: ConfidenceLevel;
+}
+
+export interface SystemUser {
+  id: string;
+  name?: string;
+  email?: string;
+  username?: string;
+}
+
+export interface SystemUserIdentity {
+  userId: string;
+  externalSystem: string;
+  externalUserId: string;
+  externalDisplayName?: string;
+  externalEmail?: string;
+}
+
+export interface SystemStatus {
+  id: string;
+  label: string;
+  order?: number;
+  isDefault?: boolean;
+}
+
+export interface ImportAdapterOptions {
+  systemUsers?: SystemUser[];
+  userIdentities?: SystemUserIdentity[];
+  systemStatuses?: SystemStatus[];
 }
 
 export interface ImportAdapterResult {
@@ -560,48 +589,232 @@ function extractMilestones(entities: ParsedEntity[]): ImportedMilestone[] {
   });
 }
 
-function extractUsers(entities: ParsedEntity[]): UserMappingEntry[] {
+function normalizeString(s: string | undefined | null): string {
+  if (!s) return '';
+  return s.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+function matchUserByNameOrEmail(
+  sourceName: string | undefined,
+  sourceEmail: string | undefined,
+  sourceExternalId: string | undefined,
+  systemUsers: SystemUser[],
+  userIdentities: SystemUserIdentity[]
+): { userId?: string; userName?: string; confidence: ConfidenceLevel } {
+  const normalizedName = normalizeString(sourceName);
+  const normalizedEmail = normalizeString(sourceEmail);
+  const normalizedExternalId = sourceExternalId?.trim();
+  
+  if (normalizedExternalId) {
+    const identityMatch = userIdentities.find(
+      i => i.externalUserId === normalizedExternalId
+    );
+    if (identityMatch) {
+      const user = systemUsers.find(u => u.id === identityMatch.userId);
+      return { userId: identityMatch.userId, userName: user?.name, confidence: 'high' };
+    }
+  }
+  
+  if (normalizedEmail) {
+    const emailMatch = systemUsers.find(
+      u => normalizeString(u.email) === normalizedEmail
+    );
+    if (emailMatch) {
+      return { userId: emailMatch.id, userName: emailMatch.name, confidence: 'high' };
+    }
+    
+    const identityEmailMatch = userIdentities.find(
+      i => normalizeString(i.externalEmail) === normalizedEmail
+    );
+    if (identityEmailMatch) {
+      const user = systemUsers.find(u => u.id === identityEmailMatch.userId);
+      return { userId: identityEmailMatch.userId, userName: user?.name, confidence: 'high' };
+    }
+  }
+  
+  if (normalizedName) {
+    const exactNameMatch = systemUsers.find(
+      u => normalizeString(u.name) === normalizedName
+    );
+    if (exactNameMatch) {
+      return { userId: exactNameMatch.id, userName: exactNameMatch.name, confidence: 'high' };
+    }
+    
+    const identityNameMatch = userIdentities.find(
+      i => normalizeString(i.externalDisplayName) === normalizedName
+    );
+    if (identityNameMatch) {
+      const user = systemUsers.find(u => u.id === identityNameMatch.userId);
+      return { userId: identityNameMatch.userId, userName: user?.name, confidence: 'high' };
+    }
+    
+    const fuzzyNameMatch = systemUsers.find(u => {
+      const userName = normalizeString(u.name);
+      if (!userName || !normalizedName) return false;
+      return userName.includes(normalizedName) || normalizedName.includes(userName);
+    });
+    if (fuzzyNameMatch) {
+      return { userId: fuzzyNameMatch.id, userName: fuzzyNameMatch.name, confidence: 'medium' };
+    }
+    
+    const usernameMatch = systemUsers.find(
+      u => normalizeString(u.username) === normalizedName
+    );
+    if (usernameMatch) {
+      return { userId: usernameMatch.id, userName: usernameMatch.name, confidence: 'medium' };
+    }
+  }
+  
+  return { confidence: 'low' };
+}
+
+function extractUsers(
+  entities: ParsedEntity[],
+  systemUsers: SystemUser[] = [],
+  userIdentities: SystemUserIdentity[] = []
+): UserMappingEntry[] {
   const userEntity = entities.find(e => e.entityType === 'Users');
-  const userIds = new Set<string>();
+  const userRefs = new Map<string, { name?: string; email?: string; externalId?: string }>();
   
   entities.forEach(entity => {
     entity.rows.forEach(row => {
-      if (row.assigneeId) userIds.add(row.assigneeId);
-      if (row.ownerId) userIds.add(row.ownerId);
-      if (row.managerId) userIds.add(row.managerId);
+      if (row.assigneeId) {
+        userRefs.set(row.assigneeId, {
+          name: row.assigneeName || row.assignee,
+          email: row.assigneeEmail,
+          externalId: row.assigneeId
+        });
+      }
+      if (row.ownerId) {
+        userRefs.set(row.ownerId, {
+          name: row.ownerName || row.owner,
+          email: row.ownerEmail,
+          externalId: row.ownerId
+        });
+      }
+      if (row.managerId) {
+        userRefs.set(row.managerId, {
+          name: row.managerName || row.manager,
+          email: row.managerEmail,
+          externalId: row.managerId
+        });
+      }
+      if (row.assignee && typeof row.assignee === 'string' && !row.assigneeId) {
+        userRefs.set(row.assignee, { name: row.assignee });
+      }
       if (Array.isArray(row.assigneeIds)) {
-        row.assigneeIds.forEach((id: string) => userIds.add(id));
+        row.assigneeIds.forEach((id: string) => {
+          if (!userRefs.has(id)) {
+            userRefs.set(id, { externalId: id });
+          }
+        });
       }
     });
   });
   
-  const mappings: UserMappingEntry[] = [];
-  
   if (userEntity) {
     userEntity.rows.forEach(row => {
-      mappings.push({
-        sourceId: row.id || row.email,
-        sourceName: row.name || row.displayName,
-        sourceEmail: row.email,
-        confidence: 'medium',
-        action: 'map'
-      });
-      userIds.delete(row.id);
+      const id = row.id || row.email || row.name;
+      if (id) {
+        userRefs.set(id, {
+          name: row.name || row.displayName || row.username,
+          email: row.email,
+          externalId: row.id
+        });
+      }
     });
   }
   
-  userIds.forEach(id => {
+  const mappings: UserMappingEntry[] = [];
+  
+  userRefs.forEach((info, sourceId) => {
+    const match = matchUserByNameOrEmail(
+      info.name,
+      info.email,
+      info.externalId,
+      systemUsers,
+      userIdentities
+    );
+    
     mappings.push({
-      sourceId: id,
-      confidence: 'low',
-      action: 'map'
+      sourceId,
+      sourceName: info.name,
+      sourceEmail: info.email,
+      mappedToId: match.userId,
+      mappedToName: match.userName,
+      confidence: match.confidence,
+      action: match.userId ? 'map' : 'unassigned'
     });
   });
   
   return mappings;
 }
 
-function extractStatuses(entities: ParsedEntity[]): StatusMappingEntry[] {
+function matchStatusToSystemStatus(
+  sourceStatus: string,
+  systemStatuses: SystemStatus[]
+): { mappedStatus: string; mappedStatusId?: string; confidence: ConfidenceLevel } {
+  const normalized = normalizeString(sourceStatus);
+  
+  const exactMatch = systemStatuses.find(
+    s => normalizeString(s.label) === normalized
+  );
+  if (exactMatch) {
+    return { mappedStatus: exactMatch.label, mappedStatusId: exactMatch.id, confidence: 'high' };
+  }
+  
+  const partialMatch = systemStatuses.find(s => {
+    const statusLabel = normalizeString(s.label);
+    return statusLabel.includes(normalized) || normalized.includes(statusLabel);
+  });
+  if (partialMatch) {
+    return { mappedStatus: partialMatch.label, mappedStatusId: partialMatch.id, confidence: 'medium' };
+  }
+  
+  const statusCategories: Record<string, string[]> = {
+    'not_started': ['todo', 'to do', 'to_do', 'backlog', 'pending', 'open', 'new', 'not started'],
+    'in_progress': ['in progress', 'in_progress', 'inprogress', 'active', 'working', 'doing', 'started'],
+    'review': ['review', 'in review', 'in_review', 'testing', 'qa', 'approval', 'pending review'],
+    'blocked': ['blocked', 'on hold', 'on_hold', 'waiting', 'paused', 'stalled'],
+    'done': ['done', 'completed', 'complete', 'finished', 'closed', 'resolved', 'approved']
+  };
+  
+  let category: string | undefined;
+  for (const [cat, patterns] of Object.entries(statusCategories)) {
+    if (patterns.some(p => normalized === p || normalized.includes(p) || p.includes(normalized))) {
+      category = cat;
+      break;
+    }
+  }
+  
+  if (category) {
+    const categoryMatch = systemStatuses.find(s => {
+      const sNorm = normalizeString(s.label);
+      const patterns = statusCategories[category!];
+      return patterns.some(p => sNorm === p || sNorm.includes(p) || p.includes(sNorm));
+    });
+    if (categoryMatch) {
+      return { mappedStatus: categoryMatch.label, mappedStatusId: categoryMatch.id, confidence: 'medium' };
+    }
+  }
+  
+  const defaultStatus = systemStatuses.find(s => s.isDefault);
+  if (defaultStatus) {
+    return { mappedStatus: defaultStatus.label, mappedStatusId: defaultStatus.id, confidence: 'low' };
+  }
+  
+  if (systemStatuses.length > 0) {
+    const first = systemStatuses[0];
+    return { mappedStatus: first.label, mappedStatusId: first.id, confidence: 'low' };
+  }
+  
+  return { mappedStatus: normalizeStatus(sourceStatus), confidence: 'low' };
+}
+
+function extractStatuses(
+  entities: ParsedEntity[],
+  systemStatuses: SystemStatus[] = []
+): StatusMappingEntry[] {
   const statuses = new Set<string>();
   
   entities.forEach(entity => {
@@ -610,14 +823,30 @@ function extractStatuses(entities: ParsedEntity[]): StatusMappingEntry[] {
     });
   });
   
-  return Array.from(statuses).map(status => ({
-    sourceStatus: status,
-    mappedStatus: normalizeStatus(status),
-    confidence: normalizeStatus(status) !== status ? 'high' : 'medium'
-  }));
+  return Array.from(statuses).map(status => {
+    if (systemStatuses.length > 0) {
+      const match = matchStatusToSystemStatus(status, systemStatuses);
+      return {
+        sourceStatus: status,
+        mappedStatus: match.mappedStatus,
+        mappedStatusId: match.mappedStatusId,
+        confidence: match.confidence
+      };
+    }
+    return {
+      sourceStatus: status,
+      mappedStatus: normalizeStatus(status),
+      confidence: normalizeStatus(status) !== status ? 'high' as const : 'medium' as const
+    };
+  });
 }
 
-export function convertImportToWizardData(parseResult: ParseResult): ImportAdapterResult {
+export function convertImportToWizardData(
+  parseResult: ParseResult,
+  options: ImportAdapterOptions = {}
+): ImportAdapterResult {
+  const { systemUsers = [], userIdentities = [], systemStatuses = [] } = options;
+  
   const warnings: string[] = [...parseResult.warnings];
   const errors: string[] = [...parseResult.errors];
   
@@ -627,8 +856,8 @@ export function convertImportToWizardData(parseResult: ParseResult): ImportAdapt
   const stages = extractStages(parseResult.entities);
   const tasks = extractTasks(parseResult.entities, stages, deliverables);
   const milestones = extractMilestones(parseResult.entities);
-  const userMappings = extractUsers(parseResult.entities);
-  const statusMappings = extractStatuses(parseResult.entities);
+  const userMappings = extractUsers(parseResult.entities, systemUsers, userIdentities);
+  const statusMappings = extractStatuses(parseResult.entities, systemStatuses);
   
   tasks.forEach(task => {
     const stage = stages.find(s => s.id === task.stageId);
