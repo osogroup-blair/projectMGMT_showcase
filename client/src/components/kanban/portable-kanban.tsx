@@ -79,25 +79,10 @@ interface Milestone {
   title: string;
 }
 
-interface StatusOption {
-  id: string;
-  label: string;
-  color?: string;
-}
-
-interface Sprint {
-  id: string;
-  name: string;
-}
-
 interface HoverCardConfig {
   enabled: boolean;
-  statusOptions?: StatusOption[];
-  sprints?: Sprint[]; // @deprecated - kept for backward compatibility
-  onStatusChange?: (taskId: string, newStatus: string) => void;
-  onBlockedToggle?: (taskId: string, blocked: boolean, reason?: string) => void;
-  onSprintChange?: (taskId: string, sprintId: string | null) => void; // @deprecated - kept for backward compatibility
-  onDueDateChange?: (taskId: string, date: Date | null) => void;
+  users?: User[];
+  onAssigneeChange?: (taskId: string, assigneeId: string | null) => void;
   onAddComment?: (taskId: string, comment: string) => void;
 }
 
@@ -401,10 +386,8 @@ function SortableTaskCard({
       {hoverCard?.enabled ? (
         <TaskHoverCard
           task={enrichedTask}
-          statusOptions={hoverCard.statusOptions}
-          onStatusChange={hoverCard.onStatusChange}
-          onBlockedToggle={hoverCard.onBlockedToggle}
-          onDueDateChange={hoverCard.onDueDateChange}
+          users={hoverCard.users}
+          onAssigneeChange={hoverCard.onAssigneeChange}
           onAddComment={hoverCard.onAddComment}
           disabled={isReadOnly}
         >

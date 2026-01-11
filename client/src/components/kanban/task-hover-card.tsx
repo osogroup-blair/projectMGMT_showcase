@@ -5,11 +5,10 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ExternalLink,
   Calendar as CalendarIcon,
@@ -19,13 +18,14 @@ import {
   Layers,
   Target,
   User,
+  UserPlus,
   Flag,
   Hash,
-  ShieldAlert,
-  ShieldCheck,
   MessageSquarePlus,
   Send,
   ChevronRight,
+  Check,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,19 +58,16 @@ export interface EnrichedTask {
   updatedAt?: string;
 }
 
-interface StatusOption {
+interface UserOption {
   id: string;
-  label: string;
-  color?: string;
+  name: string;
 }
 
 interface TaskHoverCardProps {
   task: EnrichedTask;
   children: React.ReactNode;
-  statusOptions?: StatusOption[];
-  onStatusChange?: (taskId: string, newStatus: string) => void;
-  onBlockedToggle?: (taskId: string, blocked: boolean, reason?: string) => void;
-  onDueDateChange?: (taskId: string, date: Date | null) => void;
+  users?: UserOption[];
+  onAssigneeChange?: (taskId: string, assigneeId: string | null) => void;
   onAddComment?: (taskId: string, comment: string) => void;
   disabled?: boolean;
 }
@@ -78,16 +75,14 @@ interface TaskHoverCardProps {
 export function TaskHoverCard({
   task,
   children,
-  statusOptions = [],
-  onStatusChange,
-  onBlockedToggle,
-  onDueDateChange,
+  users = [],
+  onAssigneeChange,
   onAddComment,
   disabled = false,
 }: TaskHoverCardProps) {
   const [commentText, setCommentText] = useState("");
   const [showCommentInput, setShowCommentInput] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [showAssignPopover, setShowAssignPopover] = useState(false);
 
   const dueDate = task.deadline ? parseISO(task.deadline) : null;
   const daysUntilDue = dueDate ? differenceInDays(dueDate, new Date()) : null;
@@ -109,11 +104,18 @@ export function TaskHoverCard({
     }
   };
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (onDueDateChange) {
-      onDueDateChange(task.id, date || null);
+  const handleAssignUser = (userId: string) => {
+    if (onAssigneeChange) {
+      onAssigneeChange(task.id, userId);
     }
-    setDatePickerOpen(false);
+    setShowAssignPopover(false);
+  };
+
+  const handleUnassign = () => {
+    if (onAssigneeChange) {
+      onAssigneeChange(task.id, null);
+    }
+    setShowAssignPopover(false);
   };
 
   return (
@@ -275,7 +277,7 @@ export function TaskHoverCard({
             </>
           )}
 
-          {!disabled && (statusOptions.length > 0 || onBlockedToggle || onDueDateChange || onAddComment) && (
+          {!disabled && (onAssigneeChange || onAddComment) && (
             <>
               <Separator />
               <div className="space-y-2">
@@ -283,66 +285,53 @@ export function TaskHoverCard({
                   Quick Actions
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {statusOptions.length > 0 && onStatusChange && (
-                    <Select
-                      value={task.status}
-                      onValueChange={(value) => onStatusChange(task.id, value)}
-                    >
-                      <SelectTrigger className="h-7 text-xs w-auto min-w-[100px]" data-testid={`hover-status-select-${task.id}`}>
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((opt) => (
-                          <SelectItem key={opt.id} value={opt.label} className="text-xs">
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  {onBlockedToggle && (
-                    <Button
-                      variant={task.blocked ? "default" : "outline"}
-                      size="sm"
-                      className="h-7 text-xs gap-1"
-                      onClick={() => onBlockedToggle(task.id, !task.blocked)}
-                      data-testid={`hover-toggle-blocked-${task.id}`}
-                    >
-                      {task.blocked ? (
-                        <>
-                          <ShieldCheck className="h-3 w-3" />
-                          Unblock
-                        </>
-                      ) : (
-                        <>
-                          <ShieldAlert className="h-3 w-3" />
-                          Block
-                        </>
-                      )}
-                    </Button>
-                  )}
-
-                  {onDueDateChange && (
-                    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                  {onAssigneeChange && (
+                    <Popover open={showAssignPopover} onOpenChange={setShowAssignPopover}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs gap-1"
-                          data-testid={`hover-due-date-${task.id}`}
+                          data-testid={`hover-assign-${task.id}`}
                         >
-                          <CalendarIcon className="h-3 w-3" />
-                          Due Date
+                          <UserPlus className="h-3 w-3" />
+                          {task.assigneeId ? "Reassign" : "Assign"}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dueDate || undefined}
-                          onSelect={handleDateSelect}
-                          initialFocus
-                        />
+                      <PopoverContent className="w-48 p-0" align="start">
+                        <div className="p-2 border-b">
+                          <p className="text-xs font-medium">Assign to</p>
+                        </div>
+                        <ScrollArea className="h-[200px]">
+                          <div className="p-1">
+                            {task.assigneeId && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start h-7 text-xs gap-2 text-muted-foreground"
+                                onClick={handleUnassign}
+                              >
+                                <X className="h-3 w-3" />
+                                Unassign
+                              </Button>
+                            )}
+                            {users.map((user) => (
+                              <Button
+                                key={user.id}
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start h-7 text-xs gap-2"
+                                onClick={() => handleAssignUser(user.id)}
+                              >
+                                <User className="h-3 w-3" />
+                                {user.name}
+                                {task.assigneeId === user.id && (
+                                  <Check className="h-3 w-3 ml-auto text-primary" />
+                                )}
+                              </Button>
+                            ))}
+                          </div>
+                        </ScrollArea>
                       </PopoverContent>
                     </Popover>
                   )}
