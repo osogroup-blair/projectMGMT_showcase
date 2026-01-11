@@ -57,10 +57,13 @@ export function MilestoneScopeInline({
   const [epicFilter, setEpicFilter] = useState("all");
   const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({});
 
-  const rules = useMemo(() => {
-    const found = scopeRules.find((r: any) => r.milestoneId === milestone.id);
-    return found || { milestoneId: milestone.id, rules: [] };
+  const existingRecord = useMemo(() => {
+    return scopeRules.find((r: any) => r.milestoneId === milestone.id);
   }, [scopeRules, milestone.id]);
+
+  const rules = useMemo(() => {
+    return existingRecord || { milestoneId: milestone.id, rules: [] };
+  }, [existingRecord, milestone.id]);
 
   const linkedTaskIds = useMemo(() => 
     links.map((l: any) => l.taskId),
@@ -142,35 +145,48 @@ export function MilestoneScopeInline({
       active: true
     };
     
-    const updatedRules = {
-      milestoneId: milestone.id,
-      rules: [...(rules.rules || []), newRule]
-    };
-    
-    const existing = scopeRules.find((r: any) => r.milestoneId === milestone.id);
-    if (existing) {
-      onUpdateScopeRule(updatedRules);
+    if (existingRecord?.id) {
+      // Update existing record
+      onUpdateScopeRule({
+        id: existingRecord.id,
+        milestoneId: milestone.id,
+        rules: [...(rules.rules || []), newRule]
+      });
     } else {
-      onCreateScopeRule(updatedRules);
+      // Create new record
+      onCreateScopeRule({
+        milestoneId: milestone.id,
+        rules: [newRule]
+      });
     }
   };
 
   const handleUpdateRule = (ruleId: string, updates: any) => {
-    const updatedRules = {
+    if (!existingRecord?.id) {
+      toast({ title: "Error", description: "Cannot update rules - no existing record found.", variant: "destructive" });
+      return;
+    }
+    
+    onUpdateScopeRule({
+      id: existingRecord.id,
       milestoneId: milestone.id,
       rules: (rules.rules || []).map((r: any) => 
         r.id === ruleId ? { ...r, ...updates } : r
       )
-    };
-    onUpdateScopeRule(updatedRules);
+    });
   };
 
   const handleDeleteRule = (ruleId: string) => {
-    const updatedRules = {
+    if (!existingRecord?.id) {
+      toast({ title: "Error", description: "Cannot delete rule - no existing record found.", variant: "destructive" });
+      return;
+    }
+    
+    onUpdateScopeRule({
+      id: existingRecord.id,
       milestoneId: milestone.id,
       rules: (rules.rules || []).filter((r: any) => r.id !== ruleId)
-    };
-    onUpdateScopeRule(updatedRules);
+    });
   };
 
   const handleApplyRules = () => {
