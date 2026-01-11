@@ -92,10 +92,12 @@ interface Sprint {
 interface HoverCardConfig {
   enabled: boolean;
   statusOptions?: StatusOption[];
-  sprints?: Sprint[];
+  sprints?: Sprint[]; // @deprecated - kept for backward compatibility
   onStatusChange?: (taskId: string, newStatus: string) => void;
   onBlockedToggle?: (taskId: string, blocked: boolean, reason?: string) => void;
-  onSprintChange?: (taskId: string, sprintId: string | null) => void;
+  onSprintChange?: (taskId: string, sprintId: string | null) => void; // @deprecated - kept for backward compatibility
+  onDueDateChange?: (taskId: string, date: Date | null) => void;
+  onAddComment?: (taskId: string, comment: string) => void;
 }
 
 interface PortableKanbanProps {
@@ -399,10 +401,10 @@ function SortableTaskCard({
         <TaskHoverCard
           task={enrichedTask}
           statusOptions={hoverCard.statusOptions}
-          sprints={hoverCard.sprints}
           onStatusChange={hoverCard.onStatusChange}
           onBlockedToggle={hoverCard.onBlockedToggle}
-          onSprintChange={hoverCard.onSprintChange}
+          onDueDateChange={hoverCard.onDueDateChange}
+          onAddComment={hoverCard.onAddComment}
           disabled={isReadOnly}
         >
           {cardContent}

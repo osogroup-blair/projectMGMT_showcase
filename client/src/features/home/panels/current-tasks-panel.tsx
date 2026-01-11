@@ -3,6 +3,7 @@ import { PortableKanban } from "@/components/kanban/portable-kanban";
 import { useCurrentUser } from "@/context/current-user-context";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { format } from "date-fns";
 
 interface StatusOption {
   id: string;
@@ -49,7 +50,7 @@ interface User {
 }
 
 export function CurrentTasksPanel() {
-  const { currentUserId, currentUser } = useCurrentUser();
+  const { currentUserId } = useCurrentUser();
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
@@ -102,6 +103,20 @@ export function CurrentTasksPanel() {
     },
   });
 
+  const addCommentMutation = useMutation({
+    mutationFn: async ({ taskId, comment }: { taskId: string; comment: string }) => {
+      const response = await apiRequest("POST", `/api/comments`, {
+        taskId,
+        content: comment,
+        authorId: currentUserId,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/home/tasks"] });
+    },
+  });
+
   const handleStatusChange = (taskId: string, newStatus: string) => {
     updateTaskMutation.mutate({ taskId, updates: { status: newStatus } });
   };
@@ -110,8 +125,13 @@ export function CurrentTasksPanel() {
     updateTaskMutation.mutate({ taskId, updates: { blocked } });
   };
 
-  const handleSprintChange = (taskId: string, sprintId: string | null) => {
-    updateTaskMutation.mutate({ taskId, updates: { sprintId } });
+  const handleDueDateChange = (taskId: string, date: Date | null) => {
+    const deadline = date ? format(date, "yyyy-MM-dd") : undefined;
+    updateTaskMutation.mutate({ taskId, updates: { deadline } });
+  };
+
+  const handleAddComment = (taskId: string, comment: string) => {
+    addCommentMutation.mutate({ taskId, comment });
   };
 
   const handleTaskMove = (taskId: string, newStatus: string) => {
@@ -150,11 +170,6 @@ export function CurrentTasksPanel() {
     color: s.color,
   }));
 
-  const formattedSprints: { id: string; name: string }[] = sprints.map((s: Sprint) => ({
-    id: s.id,
-    name: s.name,
-  }));
-
   if (tasksLoading) {
     return (
       <div className="flex items-center justify-center h-[500px]">
@@ -186,10 +201,10 @@ export function CurrentTasksPanel() {
         hoverCard={{
           enabled: true,
           statusOptions: formattedStatusOptions,
-          sprints: formattedSprints,
           onStatusChange: handleStatusChange,
           onBlockedToggle: handleBlockedToggle,
-          onSprintChange: handleSprintChange,
+          onDueDateChange: handleDueDateChange,
+          onAddComment: handleAddComment,
         }}
         onTaskMove={handleTaskMove}
       />
