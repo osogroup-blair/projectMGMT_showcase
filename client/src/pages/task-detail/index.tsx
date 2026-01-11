@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   MoreHorizontal, 
@@ -10,7 +10,12 @@ import {
   Layers,
   Target,
   Tag,
-  GripVertical
+  GripVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Gauge
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +47,6 @@ import { EFFORT_VALUES } from "@shared/schema";
 import { TaskOverviewTab } from "./task-overview-tab";
 import { TaskSubtasksTab } from "./task-subtasks-tab";
 import { TaskAttachmentsTab } from "./task-attachments-tab";
-import { TaskDependenciesTab } from "./task-dependencies-tab";
 import { TaskHistoryTab } from "./task-history-tab";
 import { TaskPropertiesTab } from "./task-properties-tab";
 import { TaskSidebarTabs } from "./task-sidebar-tabs";
@@ -53,7 +57,7 @@ const PRIORITY_CONFIG = {
   "Low": { color: "text-slate-600 bg-slate-100", label: "Low" }
 };
 
-const VALID_TABS = ["overview", "subtasks", "attachments", "dependents", "properties", "history"] as const;
+const VALID_TABS = ["overview", "subtasks", "attachments", "properties", "history"] as const;
 type TabValue = typeof VALID_TABS[number];
 
 export default function TaskDetail() {
@@ -63,6 +67,9 @@ export default function TaskDetail() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const searchString = useSearch();
+  
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   
   const searchParams = new URLSearchParams(searchString);
   const tabParam = searchParams.get("tab") as TabValue | null;
@@ -158,7 +165,8 @@ export default function TaskDetail() {
     <Shell>
       <div className="h-[calc(100vh-120px)]">
         <PanelGroup direction="horizontal" autoSaveId="task-detail-layout">
-          <Panel defaultSize={70} minSize={50}>
+          {!leftPanelCollapsed && (
+            <Panel defaultSize={rightPanelCollapsed ? 100 : 70} minSize={40}>
             <div className="pr-4 space-y-6 h-full overflow-y-auto">
             <div className="space-y-4">
               {/* Project Breadcrumb */}
@@ -236,6 +244,18 @@ export default function TaskDetail() {
                 </div>
                 <Separator orientation="vertical" className="h-6" />
                 <div className="flex items-center gap-2">
+                  <Gauge className="h-4 w-4 text-muted-foreground" />
+                  <SearchableSelect
+                    value={String(task.effort || "")}
+                    onValueChange={(v) => handleUpdateTask("effort", parseInt(v))}
+                    placeholder="Effort"
+                    options={EFFORT_VALUES.map(val => ({ value: String(val), label: String(val) }))}
+                    className="w-[80px] h-8"
+                    data-testid="inline-select-effort"
+                  />
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <Input 
                     type="number" 
@@ -301,13 +321,6 @@ export default function TaskDetail() {
                   Attachments
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="dependents" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-                  data-testid="tab-dependents"
-                >
-                  Dependencies
-                </TabsTrigger>
-                <TabsTrigger 
                   value="properties" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
                   data-testid="tab-properties"
@@ -348,21 +361,6 @@ export default function TaskDetail() {
                 />
               </TabsContent>
 
-              <TabsContent value="dependents" className="pt-6">
-                <TaskDependenciesTab 
-                  task={task}
-                  projectId={projectId}
-                  allTasks={allTasks || []}
-                  stages={stages}
-                  allEpics={allEpics || []}
-                  milestones={milestones}
-                  dependsOn={dependsOn}
-                  dependents={dependents}
-                  addDependency={addDependency}
-                  removeDependency={removeDependency}
-                />
-              </TabsContent>
-
               <TabsContent value="properties" className="pt-6">
                 <TaskPropertiesTab 
                   task={task}
@@ -382,13 +380,40 @@ export default function TaskDetail() {
             </Tabs>
             </div>
           </Panel>
+          )}
 
-          <PanelResizeHandle className="w-2 flex items-center justify-center hover:bg-muted/50 transition-colors">
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </PanelResizeHandle>
+          {!leftPanelCollapsed && !rightPanelCollapsed && (
+            <PanelResizeHandle className="w-2 flex items-center justify-center hover:bg-muted/50 transition-colors">
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </PanelResizeHandle>
+          )}
 
-          <Panel defaultSize={30} minSize={20} maxSize={45}>
-            <div className="pl-4 space-y-6 h-full overflow-y-auto">
+          {!rightPanelCollapsed && (
+            <Panel defaultSize={leftPanelCollapsed ? 100 : 30} minSize={25} maxSize={leftPanelCollapsed ? 100 : 50}>
+            <div className="pl-4 space-y-4 h-full overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
+                  data-testid="button-toggle-left-panel"
+                >
+                  {leftPanelCollapsed ? (
+                    <><PanelLeftOpen className="h-4 w-4 mr-1" /> Show Main</>
+                  ) : (
+                    <><PanelLeftClose className="h-4 w-4 mr-1" /> Full Width</>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRightPanelCollapsed(true)}
+                  data-testid="button-close-right-panel"
+                >
+                  <PanelRightClose className="h-4 w-4" />
+                </Button>
+              </div>
+              
               <TaskSidebarTabs 
                 task={task} 
                 projectId={projectId} 
@@ -397,6 +422,12 @@ export default function TaskDetail() {
                 dependsOn={dependsOn}
                 dependents={dependents}
                 isLoadingDeps={isDepsLoading}
+                allTasks={allTasks || []}
+                stages={stages}
+                allEpics={allEpics || []}
+                milestones={milestones}
+                addDependency={addDependency}
+                removeDependency={removeDependency}
               />
 
               <Card className="bg-muted/10 border-dashed">
@@ -408,6 +439,20 @@ export default function TaskDetail() {
               </Card>
             </div>
           </Panel>
+          )}
+
+          {rightPanelCollapsed && !leftPanelCollapsed && (
+            <div className="flex items-start p-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRightPanelCollapsed(false)}
+                data-testid="button-open-right-panel"
+              >
+                <PanelRightOpen className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </PanelGroup>
       </div>
     </Shell>
