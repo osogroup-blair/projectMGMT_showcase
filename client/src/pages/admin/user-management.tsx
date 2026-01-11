@@ -76,6 +76,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -90,6 +91,8 @@ import {
   useDeactivateUser,
   useBulkUpdateRole,
   useBulkDeactivate,
+  useBulkActivate,
+  useBulkDelete,
   useUserProfile,
   useLinkIdentity,
   useUnlinkIdentity,
@@ -260,6 +263,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const deactivateUser = useDeactivateUser();
   const bulkUpdateRole = useBulkUpdateRole();
   const bulkDeactivate = useBulkDeactivate();
+  const bulkActivate = useBulkActivate();
+  const bulkDelete = useBulkDelete();
   const { data: systems = [] } = useAvailableSystems();
   const { data: profileData, refetch: refetchProfile } = useUserProfile(identityUserId || undefined);
   const linkIdentity = useLinkIdentity();
@@ -322,6 +327,26 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     try {
       await bulkDeactivate.mutateAsync(Array.from(selectedIds));
       toast({ title: "Users Deactivated", description: `Deactivated ${selectedIds.size} users.` });
+      setSelectedIds(new Set());
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleBulkActivate = async () => {
+    try {
+      await bulkActivate.mutateAsync(Array.from(selectedIds));
+      toast({ title: "Users Activated", description: `Activated ${selectedIds.size} users.` });
+      setSelectedIds(new Set());
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      await bulkDelete.mutateAsync(Array.from(selectedIds));
+      toast({ title: "Users Deleted", description: `Deleted ${selectedIds.size} users permanently.` });
       setSelectedIds(new Set());
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -844,15 +869,50 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       <DropdownMenuItem onClick={() => handleBulkRoleChange("viewer")}>Set as Viewer</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-destructive hover:text-destructive"
-                    onClick={handleBulkDeactivate}
-                  >
-                    <UserX className="h-3.5 w-3.5 mr-1" />
-                    Deactivate
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <UserX className="h-3.5 w-3.5 mr-1" />
+                        Status
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={handleBulkActivate}>
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-green-500" />
+                        Activate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleBulkDeactivate} className="text-destructive">
+                        <UserX className="h-3.5 w-3.5 mr-1.5" />
+                        Deactivate
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {selectedIds.size} users?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. The selected users will be permanently deleted from the system.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Delete Users
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
                     Clear selection
                   </Button>

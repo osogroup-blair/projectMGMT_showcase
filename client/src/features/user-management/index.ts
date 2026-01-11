@@ -7,6 +7,8 @@ export {
   useDeactivateUser,
   useBulkUpdateRole,
   useBulkDeactivate,
+  useBulkActivate,
+  useBulkDelete,
   type UseUsersOptions 
 } from "./hooks/use-users-api";
 

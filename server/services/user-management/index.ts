@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import { users } from "@shared/models/auth";
 import { tasks } from "@shared/schema";
-import { eq, ilike, or, sql, desc, asc, and, isNull, isNotNull, lt, gt, exists, notExists } from "drizzle-orm";
+import { eq, ilike, or, sql, desc, asc, and, isNull, isNotNull, lt, gt, exists, notExists, inArray } from "drizzle-orm";
 import type { 
   ListUsersRequest, 
   ListUsersResponse, 
@@ -88,13 +88,13 @@ export async function listUsers(params: ListUsersRequest): Promise<ListUsersResp
   if (hasTasks === "yes") {
     conditions.push(
       exists(
-        db.select({ one: sql`1` }).from(tasks).where(eq(tasks.ownerId, users.id))
+        db.select({ one: sql`1` }).from(tasks).where(eq(tasks.assigneeId, users.id))
       )
     );
   } else if (hasTasks === "no") {
     conditions.push(
       notExists(
-        db.select({ one: sql`1` }).from(tasks).where(eq(tasks.ownerId, users.id))
+        db.select({ one: sql`1` }).from(tasks).where(eq(tasks.assigneeId, users.id))
       )
     );
   }
@@ -196,25 +196,53 @@ export async function deleteUser(id: string): Promise<boolean> {
 }
 
 export async function bulkUpdateRole(ids: string[], role: string): Promise<number> {
-  const result = await db
+  if (ids.length === 0) return 0;
+  
+  await db
     .update(users)
     .set({ 
       systemRole: role,
       updatedAt: new Date(),
     })
-    .where(sql`${users.id} = ANY(${ids})`);
+    .where(inArray(users.id, ids));
 
   return ids.length;
 }
 
 export async function bulkDeactivate(ids: string[]): Promise<number> {
-  const result = await db
+  if (ids.length === 0) return 0;
+  
+  await db
     .update(users)
     .set({ 
       status: "Deactivated",
       updatedAt: new Date(),
     })
-    .where(sql`${users.id} = ANY(${ids})`);
+    .where(inArray(users.id, ids));
+
+  return ids.length;
+}
+
+export async function bulkActivate(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  
+  await db
+    .update(users)
+    .set({ 
+      status: "Active",
+      updatedAt: new Date(),
+    })
+    .where(inArray(users.id, ids));
+
+  return ids.length;
+}
+
+export async function bulkDelete(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  
+  await db
+    .delete(users)
+    .where(inArray(users.id, ids));
 
   return ids.length;
 }

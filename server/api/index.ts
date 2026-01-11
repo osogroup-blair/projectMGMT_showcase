@@ -782,6 +782,32 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/users/bulk/activate", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids)) {
+        return res.status(400).json({ error: "ids array is required" });
+      }
+      const count = await userManagementService.bulkActivate(ids);
+      res.json({ activated: count });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/users/bulk", requireAuth(), requireRole("admin"), async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids)) {
+        return res.status(400).json({ error: "ids array is required" });
+      }
+      const count = await userManagementService.bulkDelete(ids);
+      res.json({ deleted: count });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Available external systems for identity linking
   app.get("/api/identity/systems", requireAuth(), async (req, res) => {
     res.json(AvailableSystems);
