@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from "express";
 import { RolePermissions, SystemRole, UserPermission } from "@shared/contracts/user-management";
+import { authStorage } from "../replit_integrations/auth/storage";
 
 export function requireAuth(): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -12,67 +13,112 @@ export function requireAuth(): RequestHandler {
 }
 
 export function requirePermission(permission: UserPermission): RequestHandler {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
       res.status(401).json({ error: "Authentication required" });
       return;
     }
 
-    const user = req.user as any;
-    const userRole = (user.systemRole || "member") as SystemRole;
-    const rolePermissions = RolePermissions[userRole] || [];
-    const userPermissions = user.permissions || [];
+    try {
+      const passportUser = req.user as any;
+      const userId = passportUser.claims?.sub || passportUser.id;
+      const dbUser = await authStorage.getUser(userId);
+      
+      if (!dbUser) {
+        res.status(403).json({ error: "User not found" });
+        return;
+      }
 
-    const hasPermission = 
-      rolePermissions.includes(permission) || 
-      userPermissions.includes(permission);
+      const userRole = (dbUser.systemRole || "member") as SystemRole;
+      const rolePermissions = RolePermissions[userRole] || [];
+      const userPermissions = dbUser.permissions || [];
 
-    if (!hasPermission) {
-      res.status(403).json({ error: "Insufficient permissions" });
-      return;
+      const hasPermission = 
+        rolePermissions.includes(permission) || 
+        userPermissions.includes(permission);
+
+      if (!hasPermission) {
+        res.status(403).json({ error: "Insufficient permissions" });
+        return;
+      }
+
+      next();
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      res.status(500).json({ error: "Failed to check permissions" });
     }
-
-    next();
   };
 }
 
 export function requireRole(...roles: SystemRole[]): RequestHandler {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
       res.status(401).json({ error: "Authentication required" });
       return;
     }
 
-    const user = req.user as any;
-    const userRole = (user.systemRole || "member") as SystemRole;
+    try {
+      const passportUser = req.user as any;
+      const userId = passportUser.claims?.sub || passportUser.id;
+      const dbUser = await authStorage.getUser(userId);
+      
+      if (!dbUser) {
+        res.status(403).json({ error: "User not found" });
+        return;
+      }
 
-    if (!roles.includes(userRole)) {
-      res.status(403).json({ error: "Insufficient role permissions" });
-      return;
+      const userRole = (dbUser.systemRole || "member") as SystemRole;
+
+      if (!roles.includes(userRole)) {
+        res.status(403).json({ error: "Insufficient role permissions" });
+        return;
+      }
+
+      next();
+    } catch (error) {
+      console.error("Error checking role:", error);
+      res.status(500).json({ error: "Failed to check role" });
     }
-
-    next();
   };
 }
 
 export function requireSelfOrRole(userIdParam: string, ...roles: SystemRole[]): RequestHandler {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
       res.status(401).json({ error: "Authentication required" });
       return;
     }
 
-    const user = req.user as any;
-    const targetUserId = req.params[userIdParam];
-    const isSelf = user.id === targetUserId;
-    const userRole = (user.systemRole || "member") as SystemRole;
-    const hasRole = roles.includes(userRole);
+    try {
+      const passportUser = req.user as any;
+      const userId = passportUser.claims?.sub || passportUser.id;
+      const targetUserId = req.params[userIdParam];
+      const isSelf = userId === targetUserId;
+      
+      if (isSelf) {
+        next();
+        return;
+      }
 
-    if (!isSelf && !hasRole) {
-      res.status(403).json({ error: "You can only modify your own profile or need admin privileges" });
-      return;
+      const dbUser = await authStorage.getUser(userId);
+      
+      if (!dbUser) {
+        res.status(403).json({ error: "User not found" });
+        return;
+      }
+
+      const userRole = (dbUser.systemRole || "member") as SystemRole;
+      const hasRole = roles.includes(userRole);
+
+      if (!hasRole) {
+        res.status(403).json({ error: "You can only modify your own profile or need admin privileges" });
+        return;
+      }
+
+      next();
+    } catch (error) {
+      console.error("Error checking self or role:", error);
+      res.status(500).json({ error: "Failed to check permissions" });
     }
-
-    next();
   };
 }
