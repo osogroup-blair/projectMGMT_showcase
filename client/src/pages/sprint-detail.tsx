@@ -2208,6 +2208,7 @@ export default function SprintDetail() {
                       tasks={sprintTasks}
                       users={users || []}
                       epics={allEpics || []}
+                      milestones={projectMilestones}
                       projectId={projectId}
                       isReadOnly={isReadOnly}
                       signalFilter={signalFilter}

@@ -90,8 +90,8 @@ export function PulsePanel({
   );
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="py-3 px-4 flex-row items-center justify-between border-b">
+    <Card className="h-full flex flex-col overflow-hidden">
+      <CardHeader className="py-3 px-4 flex-row items-center justify-between border-b shrink-0">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <MessageSquare className="h-4 w-4" />
           Team Pulse
@@ -102,7 +102,7 @@ export function PulsePanel({
           </Badge>
         )}
       </CardHeader>
-      <CardContent className="p-3 flex-1 flex flex-col min-h-0 overflow-hidden">
+      <CardContent className="p-3 flex-1 flex flex-col min-h-0 overflow-auto">
         {composerOpen ? (
           <div className="mb-3">
             <PulseComposer
@@ -129,8 +129,8 @@ export function PulsePanel({
           </Button>
         )}
 
-        <ScrollArea className="flex-1">
-          <div className="space-y-3">
+        <ScrollArea className="flex-1 h-full">
+          <div className="space-y-3 pb-4">
             {groupedUpdates.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No pulse updates yet. Be the first to share!

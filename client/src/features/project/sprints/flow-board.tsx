@@ -23,8 +23,11 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
-import { Circle, Clock, CheckCircle2, AlertOctagon, GripVertical } from "lucide-react";
+import { Circle, Clock, CheckCircle2, AlertOctagon, GripVertical, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Task {
@@ -34,6 +37,7 @@ interface Task {
   effort?: number;
   assigneeId?: string;
   epicId?: string;
+  milestoneId?: string;
   deadline?: string;
   blocked?: boolean;
   blockerReason?: string;
@@ -50,10 +54,16 @@ interface Epic {
   title: string;
 }
 
+interface Milestone {
+  id: string;
+  title: string;
+}
+
 interface FlowBoardProps {
   tasks: Task[];
   users: User[];
   epics: Epic[];
+  milestones?: Milestone[];
   projectId: string;
   isReadOnly?: boolean;
   signalFilter?: "blocked" | "overdue" | "stale" | null;
@@ -100,16 +110,24 @@ function SortableTaskCard({
   epic,
   projectId,
   columnId,
+  columnIndex,
   isOverdue,
-  isStale
+  isStale,
+  onMoveLeft,
+  onMoveRight,
+  isReadOnly
 }: { 
   task: Task; 
   user?: User; 
   epic?: Epic;
   projectId: string;
   columnId: string;
+  columnIndex: number;
   isOverdue: boolean;
   isStale: boolean;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  isReadOnly?: boolean;
 }) {
   const {
     attributes,
@@ -127,6 +145,9 @@ function SortableTaskCard({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const canMoveLeft = columnIndex > 0;
+  const canMoveRight = columnIndex < COLUMNS.length - 1;
 
   return (
     <div
@@ -184,13 +205,49 @@ function SortableTaskCard({
                   </Badge>
                 )}
               </div>
-              {user && (
-                <Avatar className="h-5 w-5">
-                  <AvatarFallback className="text-[10px]">
-                    {user.name?.charAt(0) || "?"}
-                  </AvatarFallback>
-                </Avatar>
-              )}
+              <div className="flex items-center gap-1">
+                {!isReadOnly && (
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {canMoveLeft && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onMoveLeft?.();
+                        }}
+                        data-testid={`task-move-left-${task.id}`}
+                      >
+                        <ChevronLeft className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {canMoveRight && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onMoveRight?.();
+                        }}
+                        data-testid={`task-move-right-${task.id}`}
+                      >
+                        <ChevronRight className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {user && (
+                  <Avatar className="h-5 w-5">
+                    <AvatarFallback className="text-[10px]">
+                      {user.name?.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -256,6 +313,7 @@ export function FlowBoard({
   tasks, 
   users, 
   epics,
+  milestones = [],
   projectId, 
   isReadOnly,
   signalFilter,
@@ -263,6 +321,10 @@ export function FlowBoard({
   onBlockerRequested
 }: FlowBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [epicFilter, setEpicFilter] = useState<string>("all");
+  const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -292,15 +354,49 @@ export function FlowBoard({
     return updated < threeDaysAgo && task.status === "In Progress";
   };
 
+  const hasActiveFilters = searchQuery || assigneeFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all";
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setAssigneeFilter("all");
+    setEpicFilter("all");
+    setMilestoneFilter("all");
+  };
+
   const filteredTasks = useMemo(() => {
-    if (!signalFilter) return tasks;
-    return tasks.filter(t => {
-      if (signalFilter === "blocked") return t.blocked;
-      if (signalFilter === "overdue") return isTaskOverdue(t);
-      if (signalFilter === "stale") return isTaskStale(t);
-      return true;
-    });
-  }, [tasks, signalFilter]);
+    let result = tasks;
+
+    if (signalFilter) {
+      result = result.filter(t => {
+        if (signalFilter === "blocked") return t.blocked;
+        if (signalFilter === "overdue") return isTaskOverdue(t);
+        if (signalFilter === "stale") return isTaskStale(t);
+        return true;
+      });
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(t => 
+        t.title.toLowerCase().includes(query) ||
+        t.id.toLowerCase().includes(query)
+      );
+    }
+
+    if (assigneeFilter !== "all") {
+      result = result.filter(t => t.assigneeId === assigneeFilter);
+    }
+
+    if (epicFilter !== "all") {
+      result = result.filter(t => t.epicId === epicFilter);
+    }
+
+    if (milestoneFilter !== "all") {
+      result = result.filter(t => t.milestoneId === milestoneFilter);
+    }
+
+    return result;
+  }, [tasks, signalFilter, searchQuery, assigneeFilter, epicFilter, milestoneFilter]);
 
   const columnTasks = useMemo(() => {
     return COLUMNS.reduce((acc, col) => {
@@ -318,6 +414,29 @@ export function FlowBoard({
       }
     }
     return undefined;
+  };
+
+  const getColumnIndex = (columnId: string): number => {
+    return COLUMNS.findIndex(c => c.id === columnId);
+  };
+
+  const handleMoveTask = (taskId: string, direction: "left" | "right") => {
+    const currentColumnId = findColumnByTaskId(taskId);
+    if (!currentColumnId) return;
+    
+    const currentIndex = getColumnIndex(currentColumnId);
+    const targetIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
+    
+    if (targetIndex < 0 || targetIndex >= COLUMNS.length) return;
+    
+    const targetColumn = COLUMNS[targetIndex];
+    const newStatus = targetColumn.statuses[0];
+    
+    if (newStatus === "Blocked") {
+      onBlockerRequested(taskId);
+    } else {
+      onTaskMove(taskId, newStatus);
+    }
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -362,71 +481,131 @@ export function FlowBoard({
   };
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="grid grid-cols-4 gap-3 h-full">
-        {COLUMNS.map((col) => {
-          const Icon = col.icon;
-          const colTasks = columnTasks[col.id] || [];
-
-          return (
-            <div 
-              key={col.id} 
-              className={cn("flex flex-col rounded-lg", col.bgColor, col.borderColor, "border")}
-              data-testid={`column-${col.id}`}
-            >
-              <div className={cn("flex items-center gap-2 p-3 border-b", col.borderColor)}>
-                <Icon className={cn("h-4 w-4", col.color)} />
-                <span className={cn("font-medium text-sm", col.color)}>
-                  {col.title}
-                </span>
-                <Badge variant="secondary" className="ml-auto text-xs">
-                  {colTasks.length}
-                </Badge>
-              </div>
-              <ScrollArea className="flex-1 p-2">
-                <SortableContext
-                  items={colTasks.map(t => t.id)}
-                  strategy={verticalListSortingStrategy}
-                  id={col.id}
-                >
-                  <DroppableColumn id={col.id}>
-                    {colTasks.map((task) => (
-                      <SortableTaskCard
-                        key={task.id}
-                        task={task}
-                        user={getUser(task.assigneeId)}
-                        epic={getEpic(task.epicId)}
-                        projectId={projectId}
-                        columnId={col.id}
-                        isOverdue={isTaskOverdue(task)}
-                        isStale={isTaskStale(task)}
-                      />
-                    ))}
-                  </DroppableColumn>
-                </SortableContext>
-              </ScrollArea>
-            </div>
-          );
-        })}
+    <div className="flex flex-col h-full gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 h-9"
+            data-testid="input-search-tasks"
+          />
+        </div>
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className="w-[140px] h-9" data-testid="select-assignee-filter">
+            <SelectValue placeholder="Assignee" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Assignees</SelectItem>
+            {users.map(u => (
+              <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={epicFilter} onValueChange={setEpicFilter}>
+          <SelectTrigger className="w-[140px] h-9" data-testid="select-epic-filter">
+            <SelectValue placeholder="Epic" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Epics</SelectItem>
+            {epics.map(e => (
+              <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {milestones.length > 0 && (
+          <Select value={milestoneFilter} onValueChange={setMilestoneFilter}>
+            <SelectTrigger className="w-[140px] h-9" data-testid="select-milestone-filter">
+              <SelectValue placeholder="Milestone" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Milestones</SelectItem>
+              {milestones.map(m => (
+                <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1" data-testid="button-clear-filters">
+            <X className="h-3 w-3" />
+            Clear
+          </Button>
+        )}
       </div>
 
-      <DragOverlay>
-        {activeTask && (
-          <TaskCard
-            task={activeTask}
-            user={getUser(activeTask.assigneeId)}
-            epic={getEpic(activeTask.epicId)}
-            projectId={projectId}
-            isOverdue={isTaskOverdue(activeTask)}
-            isStale={isTaskStale(activeTask)}
-          />
-        )}
-      </DragOverlay>
-    </DndContext>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-4 gap-3 flex-1 min-h-0">
+          {COLUMNS.map((col, colIndex) => {
+            const Icon = col.icon;
+            const colTasks = columnTasks[col.id] || [];
+
+            return (
+              <div 
+                key={col.id} 
+                className={cn("flex flex-col rounded-lg", col.bgColor, col.borderColor, "border")}
+                data-testid={`column-${col.id}`}
+              >
+                <div className={cn("flex items-center gap-2 p-3 border-b", col.borderColor)}>
+                  <Icon className={cn("h-4 w-4", col.color)} />
+                  <span className={cn("font-medium text-sm", col.color)}>
+                    {col.title}
+                  </span>
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {colTasks.length}
+                  </Badge>
+                </div>
+                <ScrollArea className="flex-1 p-2">
+                  <SortableContext
+                    items={colTasks.map(t => t.id)}
+                    strategy={verticalListSortingStrategy}
+                    id={col.id}
+                  >
+                    <DroppableColumn id={col.id}>
+                      {colTasks.map((task) => (
+                        <SortableTaskCard
+                          key={task.id}
+                          task={task}
+                          user={getUser(task.assigneeId)}
+                          epic={getEpic(task.epicId)}
+                          projectId={projectId}
+                          columnId={col.id}
+                          columnIndex={colIndex}
+                          isOverdue={isTaskOverdue(task)}
+                          isStale={isTaskStale(task)}
+                          onMoveLeft={() => handleMoveTask(task.id, "left")}
+                          onMoveRight={() => handleMoveTask(task.id, "right")}
+                          isReadOnly={isReadOnly}
+                        />
+                      ))}
+                    </DroppableColumn>
+                  </SortableContext>
+                </ScrollArea>
+              </div>
+            );
+          })}
+        </div>
+
+        <DragOverlay>
+          {activeTask && (
+            <TaskCard
+              task={activeTask}
+              user={getUser(activeTask.assigneeId)}
+              epic={getEpic(activeTask.epicId)}
+              projectId={projectId}
+              isOverdue={isTaskOverdue(activeTask)}
+              isStale={isTaskStale(activeTask)}
+            />
+          )}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }
