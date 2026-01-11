@@ -1071,8 +1071,8 @@ export default function ProjectWizard() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <Card className="min-h-[500px] flex flex-col">
-            <CardHeader className="border-b pb-4">
+        <Card className="min-h-[500px] flex flex-col overflow-hidden">
+            <CardHeader className="bg-muted/50 border-b py-4">
               <div className="flex items-center justify-between gap-4">
                 <Button 
                     variant="outline" 
@@ -1089,7 +1089,7 @@ export default function ProjectWizard() {
                     onValueChange={(val) => handleStepSelect(Number(val))}
                     disabled={isCreating}
                   >
-                    <SelectTrigger className="w-[280px]" data-testid="select-step">
+                    <SelectTrigger className="w-[280px] bg-background shadow-sm" data-testid="select-step">
                       <SelectValue>
                         Step {currentStep}: {STEPS[currentStep - 1]?.title}
                       </SelectValue>
