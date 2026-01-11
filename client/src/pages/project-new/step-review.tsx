@@ -39,6 +39,31 @@ export function StepReview({
 
   const isLargeProject = totalTasks > 100;
 
+  const tasksByAssignee = (() => {
+    const counts: Record<string, { name: string; once: number; perEpic: number }> = {};
+    const allTasks = stages.flatMap(s => s.tasks);
+    
+    allTasks.forEach(task => {
+      const assigneeId = task.assigneeId || 'unassigned';
+      const user = users.find((u: any) => u.id === assigneeId);
+      const name = user?.name || 'Unassigned';
+      
+      if (!counts[assigneeId]) {
+        counts[assigneeId] = { name, once: 0, perEpic: 0 };
+      }
+      
+      if (task.scope === 'per_epic') {
+        counts[assigneeId].perEpic += totalEpics;
+      } else {
+        counts[assigneeId].once += 1;
+      }
+    });
+    
+    return Object.entries(counts)
+      .map(([id, data]) => ({ id, ...data, total: data.once + data.perEpic }))
+      .sort((a, b) => b.total - a.total);
+  })();
+
   return (
     <div className="space-y-6">
       {isLargeProject && (
@@ -113,6 +138,42 @@ export function StepReview({
                 <p className="text-xs text-muted-foreground">
                   {perEpicTasks.length} task draft(s) × {totalEpics} epic(s) = {perEpicTaskCount} tasks
                 </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Users className="h-4 w-4" /> Task Assignments by User
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {tasksByAssignee.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No tasks defined</p>
+              ) : (
+                <div className="space-y-2">
+                  {tasksByAssignee.map(({ id, name, once, perEpic, total }) => (
+                    <div key={id} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className={id === 'unassigned' ? 'text-muted-foreground italic' : ''}>
+                          {name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs font-normal">
+                          {total} task{total !== 1 ? 's' : ''}
+                        </Badge>
+                        {once > 0 && perEpic > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ({once} once, {perEpic} per-epic)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>

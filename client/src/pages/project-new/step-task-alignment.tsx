@@ -285,7 +285,7 @@ export function StepTaskAlignment({
             
             <Separator />
             
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2">
               {orphanedTasks.map(task => (
                 <div 
                   key={task.id} 
@@ -344,7 +344,7 @@ export function StepTaskAlignment({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            <div className="space-y-2">
               {mappedTasks.map(task => {
                 const epic = allEpics.find(e => e.id === task.assignedEpicId);
                 return (
