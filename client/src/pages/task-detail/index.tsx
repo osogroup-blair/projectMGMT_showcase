@@ -132,6 +132,8 @@ export default function TaskDetail() {
     [taskTypes, task]
   );
 
+  const { statuses: taskStatusOptions, getStatusColor } = useTaskStatuses();
+
   const isLoading = isProjectLoading || isTasksLoading || isUsersLoading || isEpicsLoading || 
     isDeliverablesLoading || isMilestonesLoading || isStagesLoading || isTaskTypesLoading;
 
@@ -271,18 +273,16 @@ export default function TaskDetail() {
 
               <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <SearchableSelect
-                    value={task.assigneeId || "unassigned"}
-                    onValueChange={(v) => handleUpdateTask("assigneeId", v === "unassigned" ? null : v)}
-                    placeholder="Assignee"
-                    options={[
-                      { value: "unassigned", label: "Unassigned" },
-                      ...(users || []).map((member: any) => ({ value: member.id, label: member.name }))
-                    ]}
-                    className="w-[140px] h-8"
-                    data-testid="inline-select-assignee"
-                  />
+                  <div className={cn("px-2 py-1 rounded text-xs font-medium border shadow-sm", getStatusColor(task.status))}>
+                    <SearchableSelect
+                      value={task.status || ""}
+                      onValueChange={(v) => handleUpdateTask("status", v)}
+                      placeholder="Status"
+                      options={taskStatusOptions.map(s => ({ value: s.label, label: s.label }))}
+                      className="border-none bg-transparent h-auto p-0 min-w-[80px] shadow-none focus:ring-0"
+                      data-testid="inline-select-status"
+                    />
+                  </div>
                 </div>
                 <Separator orientation="vertical" className="h-6" />
                 <div className="flex items-center gap-2">
@@ -319,6 +319,21 @@ export default function TaskDetail() {
                     data-testid="inline-input-estimate"
                   />
                   <span className="text-sm text-muted-foreground">hrs</span>
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <SearchableSelect
+                    value={task.assigneeId || "unassigned"}
+                    onValueChange={(v) => handleUpdateTask("assigneeId", v === "unassigned" ? null : v)}
+                    placeholder="Assignee"
+                    options={[
+                      { value: "unassigned", label: "Unassigned" },
+                      ...(users || []).map((member: any) => ({ value: member.id, label: member.name }))
+                    ]}
+                    className="w-[140px] h-8"
+                    data-testid="inline-select-assignee"
+                  />
                 </div>
                 <Separator orientation="vertical" className="h-6" />
                 <div className="flex items-center gap-2">
