@@ -3,15 +3,11 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users (Team Members)
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  email: text("email").unique(),
-  status: text("status").notNull().default("Offline"),
-  avatar: text("avatar"),
-});
+// Re-export auth schema (users and sessions tables)
+export * from "./models/auth";
+
+// Import users from auth for relations
+import { users } from "./models/auth";
 
 // Framework Templates
 export const frameworkTemplates = pgTable("framework_templates", {

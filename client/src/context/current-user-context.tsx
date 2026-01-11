@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, ReactNode } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { useUsers } from "@/hooks/use-nexus-data";
 
 interface CurrentUserContextType {
@@ -12,24 +13,21 @@ interface CurrentUserContextType {
 const CurrentUserContext = createContext<CurrentUserContextType | undefined>(undefined);
 
 export function CurrentUserProvider({ children }: { children: ReactNode }) {
+  const { user: authUser, isLoading: authLoading } = useAuth();
   const { data: users, isLoading: usersLoading } = useUsers();
-  const [currentUserId, setCurrentUserId] = useState<string>("");
-  const [hasInitialized, setHasInitialized] = useState(false);
 
-  useEffect(() => {
-    if (!usersLoading && users !== undefined && !hasInitialized) {
-      if (users.length > 0) {
-        setCurrentUserId(users[0].id);
-      }
-      setHasInitialized(true);
-    } else if (users && users.length > 0 && currentUserId && !users.find((u: any) => u.id === currentUserId)) {
-      setCurrentUserId(users[0].id);
-    }
-  }, [users, usersLoading, currentUserId, hasInitialized]);
+  const currentUserId = authUser?.id || "";
+  const currentUser = authUser ? {
+    ...authUser,
+    name: authUser.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.email,
+    role: authUser.jobTitle || "Team Member",
+    avatar: authUser.avatar || authUser.profileImageUrl,
+  } : null;
 
-  const currentUser = users?.find((u: any) => u.id === currentUserId) || null;
-  
-  const isLoading = usersLoading || !hasInitialized;
+  const isLoading = authLoading || usersLoading;
+
+  const setCurrentUserId = (_id: string) => {
+  };
 
   return (
     <CurrentUserContext.Provider value={{ 

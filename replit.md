@@ -22,6 +22,27 @@ The backend operates on Node.js with Express and TypeScript, exposing RESTful AP
 
 The core data model follows a hierarchical structure: Projects, Deliverables, Epics, Tasks, Milestones, Stages, and Sprints. Supporting entities include Users, Roles, Assignments, Views, Guidance Items, and various template types. The model also incorporates User Preferences, Work Blocks, and Day Plans for personalized planning.
 
+### Authentication
+
+The platform uses Replit Auth with OpenID Connect for authentication, supporting Google, GitHub, Apple, and email sign-in methods.
+
+**Key Files:**
+- `server/replit_integrations/auth/` - Auto-generated auth module (avoid modifying)
+- `shared/models/auth.ts` - User schema with auth fields
+- `client/src/components/auth/auth-guard.tsx` - Route protection component
+- `client/src/pages/landing/index.tsx` - Landing page for unauthenticated users
+
+**Auth Flow:**
+1. Unauthenticated users see landing page with "Sign in with Google" button
+2. `/api/login` initiates OIDC flow
+3. Callback upserts user by ID (matching email to claim existing accounts)
+4. Authenticated users access protected routes
+
+**RBAC Support (Future):**
+- `systemRole` field: 'admin' | 'manager' | 'member' | 'viewer' (default: 'member')
+- `permissions` array: Granular permission strings
+- `AuthGuard` component accepts `requiredRoles` and `requiredPermissions` props
+
 ### API Structure
 
 API routes are RESTful, organized logically around core entities (e.g., `/api/projects`, `/api/users`, `/api/sprints`) and nested resources (e.g., `/api/projects/:projectId/deliverables`). Specific endpoints handle project import workflows and home page data aggregation.

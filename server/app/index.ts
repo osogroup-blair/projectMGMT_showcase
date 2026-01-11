@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { connectWithRetry, isDatabaseConnected, setDatabaseReady } from "../db";
 import { isApplicationReady } from "./readiness";
+import { setupAuth, registerAuthRoutes } from "../replit_integrations/auth";
 
 const app = express();
 const httpServer = createServer(app);
@@ -167,6 +168,11 @@ app.use((req, res, next) => {
         };
         backgroundRetry();
       }
+
+      // Setup auth BEFORE registering other routes
+      await setupAuth(app);
+      registerAuthRoutes(app);
+      log('Auth routes configured');
 
       await registerRoutes(httpServer, app);
       log('API routes registered');

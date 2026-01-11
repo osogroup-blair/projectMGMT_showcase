@@ -1,4 +1,4 @@
-import { Search, ChevronDown, Bell } from "lucide-react";
+import { Search, Bell, LogOut, User, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,16 +13,26 @@ import logo from "@assets/image_1765392085901.png";
 import { useCurrentUser } from "@/context/current-user-context";
 
 export function TopNav() {
-  const { currentUser, users, setCurrentUserId } = useCurrentUser();
+  const { currentUser } = useCurrentUser();
   
-  const firstName = currentUser?.name?.split(" ")[0] || "User";
-  const initials = currentUser?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) || "U";
+  const displayName = currentUser?.name || 
+    `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 
+    currentUser?.email || 
+    "User";
+  const firstName = displayName.split(" ")[0] || "User";
+  const initials = displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) || "U";
+  const avatarUrl = currentUser?.avatar || currentUser?.profileImageUrl;
+  const userRole = currentUser?.role || currentUser?.jobTitle || "Team Member";
 
   const getTimeGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
     if (hour < 17) return "Good afternoon";
     return "Good evening";
+  };
+
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
   };
 
   return (
@@ -57,38 +67,40 @@ export function TopNav() {
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="button-user-dropdown">
                 <div className="text-right hidden sm:block">
-                  <div className="text-sm font-medium">{currentUser?.name || "Select User"}</div>
-                  <div className="text-xs text-sidebar-foreground/70">{currentUser?.role || "No role"}</div>
+                  <div className="text-sm font-medium">{displayName}</div>
+                  <div className="text-xs text-sidebar-foreground/70">{userRole}</div>
                 </div>
                 <Avatar className="h-8 w-8 border border-sidebar-border">
-                  <AvatarImage src={currentUser?.avatar || "https://github.com/shadcn.png"} />
+                  <AvatarImage src={avatarUrl} />
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <ChevronDown className="h-4 w-4 text-sidebar-foreground/70" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Switch User</DropdownMenuLabel>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{displayName}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{currentUser?.email}</p>
+                </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {users.map((user: any) => (
-                <DropdownMenuItem 
-                  key={user.id} 
-                  onClick={() => setCurrentUserId(user.id)}
-                  className={user.id === currentUser?.id ? "bg-accent" : ""}
-                  data-testid={`menu-item-user-${user.id}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={user.avatar} />
-                      <AvatarFallback>{user.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="text-sm font-medium">{user.name}</div>
-                      <div className="text-xs text-muted-foreground">{user.role}</div>
-                    </div>
-                  </div>
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuItem data-testid="menu-item-profile">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem data-testid="menu-item-settings">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={handleLogout}
+                className="text-destructive focus:text-destructive"
+                data-testid="menu-item-logout"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

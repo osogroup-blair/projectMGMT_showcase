@@ -6,15 +6,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrentUserProvider } from "@/context/current-user-context";
 import { ImportProvider } from "@/context/import-context";
 import { CreationReportProvider } from "@/context/creation-report-context";
+import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
+
+import LandingPage from "@/pages/landing";
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
-
 import ProjectsList from "@/pages/projects-list";
-
 import ProjectImport from "@/pages/project-import";
-
 import ProjectImportMapping from "@/pages/project-import-mapping";
-
 import ProjectImportPreview from "@/pages/project-import-preview";
 import ProjectOverview from "@/pages/project";
 import StageDesigner from "@/pages/stage-designer";
@@ -44,7 +44,7 @@ import ProjectTools from "@/pages/project-tools";
 import ImportWizard from "@/pages/import-wizard";
 import ImportUpload from "@/pages/import-upload";
 
-function Router() {
+function ProtectedRoutes() {
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -84,19 +84,42 @@ function Router() {
   );
 }
 
+function AuthenticatedApp() {
+  const { user, isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LandingPage />;
+  }
+
+  return (
+    <CurrentUserProvider>
+      <ImportProvider>
+        <CreationReportProvider>
+          <TooltipProvider>
+            <Toaster />
+            <ProtectedRoutes />
+          </TooltipProvider>
+        </CreationReportProvider>
+      </ImportProvider>
+    </CurrentUserProvider>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <CurrentUserProvider>
-        <ImportProvider>
-          <CreationReportProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Router />
-            </TooltipProvider>
-          </CreationReportProvider>
-        </ImportProvider>
-      </CurrentUserProvider>
+      <AuthenticatedApp />
     </QueryClientProvider>
   );
 }
