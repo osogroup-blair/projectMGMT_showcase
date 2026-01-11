@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2, GripVertical, AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, AlertTriangle, ArrowRight, Loader2, Map } from "lucide-react";
 import { useStatusOptions } from "@/hooks/use-nexus-data";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { StatusOption } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
@@ -310,6 +311,114 @@ function StatusMapperDialog({
   );
 }
 
+interface StatusUsageMapDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  statuses: StatusOption[];
+  type: "project" | "task";
+  usageCountsMap: Record<string, StatusUsageCounts>;
+}
+
+function StatusUsageMapDialog({
+  open,
+  onOpenChange,
+  statuses,
+  type,
+  usageCountsMap,
+}: StatusUsageMapDialogProps) {
+  const entityLabels = [
+    { key: "tasks", label: "Tasks" },
+    { key: "projects", label: "Projects" },
+    { key: "deliverables", label: "Deliverables" },
+    { key: "epics", label: "Epics" },
+    { key: "sprints", label: "Sprints" },
+    { key: "milestones", label: "Milestones" },
+    { key: "projectStages", label: "Stages" },
+    { key: "workBlocks", label: "Work Blocks" },
+  ] as const;
+
+  const statusesWithUsage = statuses.map(status => ({
+    status,
+    usage: usageCountsMap[status.label] || null,
+  }));
+
+  const totalItems = statusesWithUsage.reduce((sum, { usage }) => sum + (usage?.total || 0), 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Map className="h-5 w-5 text-blue-500" />
+            {type === "project" ? "Project" : "Task"} Status Usage Map
+          </DialogTitle>
+          <DialogDescription>
+            Overview of {totalItems} items across all {type} statuses.
+          </DialogDescription>
+        </DialogHeader>
+        
+        <ScrollArea className="max-h-[400px] pr-4">
+          <div className="space-y-4">
+            {statusesWithUsage.map(({ status, usage }) => {
+              const entityBreakdown = usage 
+                ? entityLabels.filter(e => (usage[e.key as keyof StatusUsageCounts] as number) > 0)
+                : [];
+              const hasUsage = usage && usage.total > 0;
+              
+              return (
+                <div 
+                  key={status.id}
+                  className={cn(
+                    "p-3 rounded-lg border",
+                    hasUsage ? "bg-muted/30" : "bg-muted/10 opacity-60"
+                  )}
+                  data-testid={`usage-map-row-${status.id}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge 
+                      variant="outline" 
+                      className={cn("font-normal border-0", status.color)}
+                    >
+                      {status.label}
+                    </Badge>
+                    <span className="text-sm font-medium">
+                      {usage?.total || 0} items
+                    </span>
+                  </div>
+                  
+                  {hasUsage && entityBreakdown.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {entityBreakdown.map(e => (
+                        <Badge 
+                          key={e.key} 
+                          variant="secondary" 
+                          className="text-xs font-normal"
+                        >
+                          {usage[e.key as keyof StatusUsageCounts]} {e.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {!hasUsage && (
+                    <p className="text-xs text-muted-foreground">No items using this status</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="button-close-usage-map">
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function StatusOptionsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -338,6 +447,9 @@ export function StatusOptionsTab() {
   const [statusToRemap, setStatusToRemap] = useState<StatusOption | null>(null);
   const [pendingNewLabel, setPendingNewLabel] = useState<string>("");
   const [isRemapping, setIsRemapping] = useState(false);
+
+  const [projectMapOpen, setProjectMapOpen] = useState(false);
+  const [taskMapOpen, setTaskMapOpen] = useState(false);
 
   const { data: usageCountsMap = {} } = useQuery({
     queryKey: ["statusUsageCounts", allStatusOptions.map(s => s.label).join(",")],
@@ -550,9 +662,14 @@ export function StatusOptionsTab() {
                 <CardTitle>Project Statuses</CardTitle>
                 <CardDescription>Define the available status options for projects.</CardDescription>
               </div>
-              <Button size="sm" onClick={() => handleOpenEdit("project")} data-testid="button-add-project-status">
-                <Plus className="h-4 w-4 mr-2" /> Add Status
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setProjectMapOpen(true)} data-testid="button-map-project-status">
+                  <Map className="h-4 w-4 mr-2" /> Map
+                </Button>
+                <Button size="sm" onClick={() => handleOpenEdit("project")} data-testid="button-add-project-status">
+                  <Plus className="h-4 w-4 mr-2" /> Add Status
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -592,9 +709,14 @@ export function StatusOptionsTab() {
                 <CardTitle>Task Statuses</CardTitle>
                 <CardDescription>Define the workflow states for tasks. This order determines Kanban column order.</CardDescription>
               </div>
-              <Button size="sm" onClick={() => handleOpenEdit("task")} data-testid="button-add-task-status">
-                <Plus className="h-4 w-4 mr-2" /> Add Status
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setTaskMapOpen(true)} data-testid="button-map-task-status">
+                  <Map className="h-4 w-4 mr-2" /> Map
+                </Button>
+                <Button size="sm" onClick={() => handleOpenEdit("task")} data-testid="button-add-task-status">
+                  <Plus className="h-4 w-4 mr-2" /> Add Status
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -682,6 +804,22 @@ export function StatusOptionsTab() {
         onConfirm={handleRemapConfirm}
         usageCounts={statusToRemap ? usageCountsMap[statusToRemap.label] : null}
         isRemapping={isRemapping}
+      />
+
+      <StatusUsageMapDialog
+        open={projectMapOpen}
+        onOpenChange={setProjectMapOpen}
+        statuses={projectStatuses}
+        type="project"
+        usageCountsMap={usageCountsMap}
+      />
+
+      <StatusUsageMapDialog
+        open={taskMapOpen}
+        onOpenChange={setTaskMapOpen}
+        statuses={taskStatuses}
+        type="task"
+        usageCountsMap={usageCountsMap}
       />
     </>
   );
