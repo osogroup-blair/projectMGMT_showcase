@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -26,8 +26,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "wouter";
-import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2 } from "lucide-react";
+import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKanbanColumns, type KanbanColumn, getTargetStatusForColumn } from "@/hooks/use-kanban-columns";
 
@@ -66,12 +68,52 @@ interface PortableKanbanProps {
   epics?: Epic[];
   milestones?: Milestone[];
   projectId: string;
+  boardId?: string; // Used for persisting column collapse state
   isReadOnly?: boolean;
   signalFilter?: "blocked" | "overdue" | "stale" | null;
   showFilters?: boolean;
   onTaskMove?: (taskId: string, newStatus: string, blockerReason?: string) => void;
   onBlockerRequested?: (taskId: string) => void;
   className?: string;
+}
+
+// Helper hook for persisting collapsed columns state
+function useCollapsedColumns(boardId: string) {
+  const storageKey = `kanban-collapsed-${boardId}`;
+  
+  const [collapsedColumnIds, setCollapsedColumnIds] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(collapsedColumnIds)));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [collapsedColumnIds, storageKey]);
+
+  const toggleColumn = useCallback((columnId: string) => {
+    setCollapsedColumnIds(prev => {
+      const next = new Set(prev);
+      if (next.has(columnId)) {
+        next.delete(columnId);
+      } else {
+        next.add(columnId);
+      }
+      return next;
+    });
+  }, []);
+
+  const isCollapsed = useCallback((columnId: string) => collapsedColumnIds.has(columnId), [collapsedColumnIds]);
+
+  return { collapsedColumnIds, toggleColumn, isCollapsed };
 }
 
 function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
@@ -102,10 +144,12 @@ function SortableTaskCard({
   columnId,
   columnIndex,
   columnsCount,
+  columns,
   isOverdue,
   isStale,
   onMoveLeft,
   onMoveRight,
+  onMoveToColumn,
   isReadOnly,
 }: {
   task: Task;
@@ -115,10 +159,12 @@ function SortableTaskCard({
   columnId: string;
   columnIndex: number;
   columnsCount: number;
+  columns: KanbanColumn[];
   isOverdue: boolean;
   isStale: boolean;
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
+  onMoveToColumn?: (columnId: string) => void;
   isReadOnly?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -218,6 +264,49 @@ function SortableTaskCard({
                         <ChevronRight className="h-3 w-3" />
                       </Button>
                     )}
+                    {/* Quick Move Dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid={`task-quick-move-${task.id}`}
+                        >
+                          <MoreVertical className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuLabel className="text-xs flex items-center gap-1.5">
+                          <MoveRight className="h-3 w-3" />
+                          Move to column
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {columns.map((col) => {
+                          const ColIcon = col.icon;
+                          const isCurrent = col.id === columnId;
+                          return (
+                            <DropdownMenuItem
+                              key={col.id}
+                              disabled={isCurrent}
+                              className={cn("gap-2 text-xs", isCurrent && "opacity-50")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isCurrent) {
+                                  onMoveToColumn?.(col.id);
+                                }
+                              }}
+                              data-testid={`task-move-to-${col.id}-${task.id}`}
+                            >
+                              <ColIcon className={cn("h-3 w-3", col.color)} />
+                              {col.title}
+                              {isCurrent && <span className="ml-auto text-muted-foreground">(current)</span>}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )}
                 {user && (
@@ -294,6 +383,7 @@ export function PortableKanban({
   epics = [],
   milestones = [],
   projectId,
+  boardId,
   isReadOnly,
   signalFilter,
   showFilters = true,
@@ -302,6 +392,7 @@ export function PortableKanban({
   className,
 }: PortableKanbanProps) {
   const { columns, isLoading: columnsLoading } = useKanbanColumns();
+  const { toggleColumn, isCollapsed } = useCollapsedColumns(boardId || projectId);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
@@ -405,6 +496,19 @@ export function PortableKanban({
     if (targetIndex < 0 || targetIndex >= columns.length) return;
 
     const targetColumn = columns[targetIndex];
+    const newStatus = getTargetStatusForColumn(targetColumn);
+
+    if (newStatus.toLowerCase() === "blocked") {
+      onBlockerRequested?.(taskId);
+    } else {
+      onTaskMove?.(taskId, newStatus);
+    }
+  };
+
+  const handleMoveToColumn = (taskId: string, targetColumnId: string) => {
+    const targetColumn = columns.find((c) => c.id === targetColumnId);
+    if (!targetColumn) return;
+
     const newStatus = getTargetStatusForColumn(targetColumn);
 
     if (newStatus.toLowerCase() === "blocked") {
@@ -541,50 +645,107 @@ export function PortableKanban({
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div
-          className="grid gap-3 flex-1 min-h-0"
-          style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}
-        >
+        <div className="flex gap-3 flex-1 min-h-0 overflow-x-auto">
           {columns.map((col, colIndex) => {
             const Icon = col.icon;
             const colTasks = columnTasks[col.id] || [];
+            const collapsed = isCollapsed(col.id);
 
             return (
               <div
                 key={col.id}
-                className={cn("flex flex-col rounded-lg", col.bgColor, col.borderColor, "border")}
+                className={cn(
+                  "flex flex-col rounded-lg transition-all duration-200",
+                  col.bgColor, col.borderColor, "border",
+                  collapsed ? "w-12 flex-shrink-0" : "flex-1 min-w-[200px]"
+                )}
                 data-testid={`column-${col.id}`}
               >
-                <div className={cn("flex items-center gap-2 p-3 border-b", col.borderColor)}>
-                  <Icon className={cn("h-4 w-4", col.color)} />
-                  <span className={cn("font-medium text-sm", col.color)}>{col.title}</span>
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    {colTasks.length}
-                  </Badge>
-                </div>
-                <ScrollArea className="flex-1 p-2">
-                  <SortableContext items={colTasks.map((t) => t.id)} strategy={verticalListSortingStrategy} id={col.id}>
-                    <DroppableColumn id={col.id}>
-                      {colTasks.map((task) => (
-                        <SortableTaskCard
-                          key={task.id}
-                          task={task}
-                          user={getUser(task.assigneeId)}
-                          epic={getEpic(task.epicId)}
-                          projectId={projectId}
-                          columnId={col.id}
-                          columnIndex={colIndex}
-                          columnsCount={columns.length}
-                          isOverdue={isTaskOverdue(task)}
-                          isStale={isTaskStale(task)}
-                          onMoveLeft={() => handleMoveTask(task.id, "left")}
-                          onMoveRight={() => handleMoveTask(task.id, "right")}
-                          isReadOnly={isReadOnly}
-                        />
-                      ))}
-                    </DroppableColumn>
-                  </SortableContext>
-                </ScrollArea>
+                {collapsed ? (
+                  /* Collapsed Column */
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => toggleColumn(col.id)}
+                          className={cn(
+                            "flex flex-col items-center gap-2 py-3 px-2 h-full cursor-pointer hover:bg-muted/50 transition-colors",
+                            col.borderColor
+                          )}
+                          data-testid={`button-expand-column-${col.id}`}
+                        >
+                          <PanelLeft className={cn("h-4 w-4", col.color)} />
+                          <Badge variant="secondary" className="text-xs px-1.5">
+                            {colTasks.length}
+                          </Badge>
+                          <span
+                            className={cn("font-medium text-xs writing-mode-vertical", col.color)}
+                            style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+                          >
+                            {col.title}
+                          </span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>Expand {col.title} ({colTasks.length} tasks)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  /* Expanded Column */
+                  <>
+                    <div className={cn("flex items-center gap-2 p-3 border-b", col.borderColor)}>
+                      <Icon className={cn("h-4 w-4", col.color)} />
+                      <span className={cn("font-medium text-sm", col.color)}>{col.title}</span>
+                      <Badge variant="secondary" className="ml-auto text-xs">
+                        {colTasks.length}
+                      </Badge>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => toggleColumn(col.id)}
+                              data-testid={`button-collapse-column-${col.id}`}
+                            >
+                              <PanelLeftClose className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Collapse column</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <ScrollArea className="flex-1 p-2">
+                      <SortableContext items={colTasks.map((t) => t.id)} strategy={verticalListSortingStrategy} id={col.id}>
+                        <DroppableColumn id={col.id}>
+                          {colTasks.map((task) => (
+                            <SortableTaskCard
+                              key={task.id}
+                              task={task}
+                              user={getUser(task.assigneeId)}
+                              epic={getEpic(task.epicId)}
+                              projectId={projectId}
+                              columnId={col.id}
+                              columnIndex={colIndex}
+                              columnsCount={columns.length}
+                              columns={columns}
+                              isOverdue={isTaskOverdue(task)}
+                              isStale={isTaskStale(task)}
+                              onMoveLeft={() => handleMoveTask(task.id, "left")}
+                              onMoveRight={() => handleMoveTask(task.id, "right")}
+                              onMoveToColumn={(targetColId) => handleMoveToColumn(task.id, targetColId)}
+                              isReadOnly={isReadOnly}
+                            />
+                          ))}
+                        </DroppableColumn>
+                      </SortableContext>
+                    </ScrollArea>
+                  </>
+                )}
               </div>
             );
           })}

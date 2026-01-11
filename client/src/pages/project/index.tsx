@@ -1092,6 +1092,7 @@ export default function ProjectOverview() {
                             users={users || []}
                             epics={projectEpics || []}
                             projectId={projectId}
+                            boardId={`project-dashboard-${projectId}`}
                             onTaskMove={handleTaskMove}
                             onBlockerRequested={handleBlockerRequested}
                           />

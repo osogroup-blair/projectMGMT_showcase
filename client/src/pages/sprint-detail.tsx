@@ -2490,6 +2490,7 @@ export default function SprintDetail() {
                       epics={allEpics || []}
                       milestones={projectMilestones}
                       projectId={projectId}
+                      boardId={`sprint-${sprintId}`}
                       isReadOnly={isReadOnly}
                       signalFilter={signalFilter}
                       onTaskMove={handleTaskMove}

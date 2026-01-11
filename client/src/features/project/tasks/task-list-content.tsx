@@ -1006,6 +1006,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             epics={projectEpics || []}
             milestones={(milestones || []).filter((m: any) => m.projectId === project?.id)}
             projectId={projectId}
+            boardId={`project-tasks-${projectId}`}
             showFilters={false}
             onTaskMove={(taskId, newStatus) => {
               updateTask({ id: taskId, updates: { status: newStatus } });
