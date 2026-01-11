@@ -343,32 +343,6 @@ export default function EpicDetail() {
   return (
     <Shell>
       <div className="h-[calc(100vh-8rem)] flex flex-col">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm mb-4 shrink-0">
-          <Link href={`/projects/${projectId}`} className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Project
-          </Link>
-          <span className="text-border">|</span>
-          <Link href={`/projects/${projectId}?tab=deliverables`} className="text-muted-foreground hover:text-primary transition-colors">
-            Deliverables
-          </Link>
-          <span className="text-muted-foreground">→</span>
-          {deliverable ? (
-            <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`} className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-              <Package className="h-3.5 w-3.5" />
-              {deliverable.title}
-            </Link>
-          ) : (
-            <span className="text-muted-foreground">Unknown Deliverable</span>
-          )}
-          <span className="text-muted-foreground">→</span>
-          <span className="font-medium text-foreground flex items-center gap-1">
-            <Layers className="h-3.5 w-3.5" />
-            {epic.title}
-          </span>
-        </div>
-
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
           <div className="flex justify-between items-start gap-4">
@@ -576,7 +550,7 @@ export default function EpicDetail() {
         </div>
 
         {/* Tasks grouped by Stage or Sprint */}
-        <div className="flex-1 min-h-0 border rounded-lg bg-muted/5 overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-[400px] border rounded-lg bg-muted/5 overflow-hidden flex flex-col">
           <div className="p-3 border-b bg-background font-medium text-sm flex items-center justify-between overflow-x-auto">
             <div className="flex items-center gap-4 min-w-max">
               <button
