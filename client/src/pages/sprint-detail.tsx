@@ -63,6 +63,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { PortableKanban } from "@/components/kanban";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { PulsePanel } from "@/features/project/sprints/pulse-panel";
@@ -1466,16 +1468,26 @@ export default function SprintDetail() {
                                       onValueChange={(value) => updateTask({ id: task.id, updates: { status: value } })}
                                     >
                                       <SelectTrigger className="h-7 w-[120px] border-0 bg-transparent p-0">
-                                        <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0 cursor-pointer")}>
-                                          <TaskStatusIcon className="h-3 w-3 mr-1" />
-                                          {task.status}
-                                        </Badge>
+                                        {(() => {
+                                          const statusOption = formattedStatusOptions.find((s: any) => s.id === task.status || s.label === task.status);
+                                          const colorClass = statusOption?.color || taskStatus.bgColor + " " + taskStatus.color;
+                                          return (
+                                            <Badge variant="outline" className={cn(colorClass, "border-0 cursor-pointer")}>
+                                              <TaskStatusIcon className="h-3 w-3 mr-1" />
+                                              {statusOption?.label || task.status}
+                                            </Badge>
+                                          );
+                                        })()}
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="Todo">Todo</SelectItem>
-                                        <SelectItem value="In Progress">In Progress</SelectItem>
-                                        <SelectItem value="Review">Review</SelectItem>
-                                        <SelectItem value="Done">Done</SelectItem>
+                                        {formattedStatusOptions.map((status: any) => (
+                                          <SelectItem key={status.id} value={status.id}>
+                                            <div className="flex items-center gap-2">
+                                              <span className={cn("w-2 h-2 rounded-full", status.color?.split(" ")[0] || "bg-gray-200")} />
+                                              {status.label}
+                                            </div>
+                                          </SelectItem>
+                                        ))}
                                       </SelectContent>
                                     </Select>
                                   ) : (
@@ -1520,21 +1532,59 @@ export default function SprintDetail() {
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <div className={cn(
-                                    "flex items-center gap-1 text-sm",
-                                    isOutsideSprint && "text-amber-700 font-medium"
-                                  )}>
-                                    {task.deadline ? (
-                                      <>
-                                        {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                        {isOutsideSprint && (
-                                          <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                                        )}
-                                      </>
-                                    ) : (
-                                      <span className="text-muted-foreground">-</span>
-                                    )}
-                                  </div>
+                                  {!isReadOnly ? (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className={cn(
+                                            "h-7 px-2 justify-start font-normal",
+                                            isOutsideSprint && "text-amber-700 font-medium",
+                                            !task.deadline && "text-muted-foreground"
+                                          )}
+                                        >
+                                          <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                                          {task.deadline ? (
+                                            <>
+                                              {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                              {isOutsideSprint && (
+                                                <AlertTriangle className="h-3.5 w-3.5 ml-1 text-amber-600" />
+                                              )}
+                                            </>
+                                          ) : (
+                                            "Set date"
+                                          )}
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                          mode="single"
+                                          selected={task.deadline ? new Date(task.deadline) : undefined}
+                                          onSelect={(date) => {
+                                            handleDueDateChange(task.id, date || null);
+                                          }}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                  ) : (
+                                    <div className={cn(
+                                      "flex items-center gap-1 text-sm",
+                                      isOutsideSprint && "text-amber-700 font-medium"
+                                    )}>
+                                      {task.deadline ? (
+                                        <>
+                                          {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                          {isOutsideSprint && (
+                                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                          )}
+                                        </>
+                                      ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                      )}
+                                    </div>
+                                  )}
                                 </TableCell>
                                 <TableCell>
                                   {!isReadOnly ? (
