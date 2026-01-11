@@ -356,6 +356,18 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
     cancelEditing();
   };
 
+  const handleStatusChange = (milestoneId: string, newStatus: string) => {
+    updateMilestone({ id: milestoneId, updates: { status: newStatus } });
+    toast({ title: "Status updated" });
+    cancelEditing();
+  };
+
+  const handleDateChange = (milestoneId: string, newDate: string) => {
+    updateMilestone({ id: milestoneId, updates: { targetDate: newDate } });
+    toast({ title: "Target date updated" });
+    cancelEditing();
+  };
+
   useEffect(() => {
     if (editingField === "name" || editingField === "targetDate") {
       inputRef.current?.focus();
@@ -575,58 +587,144 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                           </Button>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-0.5">
-                            <span 
-                              className="font-medium hover:text-primary cursor-pointer"
-                              onClick={() => {
-                                setExpandedMilestoneId(isExpanded ? null : milestone.id);
-                                setActiveInternalTab("tasks");
-                              }}
-                            >
-                              {milestone.name}
-                            </span>
-                            {milestone.description && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{milestone.description}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn(
-                            "font-normal text-xs",
-                            milestone.status === "achieved" || milestone.status === "Completed" 
-                              ? "bg-green-50 text-green-700 border-green-200" 
-                              : milestone.status === "in_progress" || milestone.status === "In Progress"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : milestone.status === "slipped" || milestone.status === "Blocked"
-                              ? "bg-red-50 text-red-700 border-red-200"
-                              : "bg-slate-50 text-slate-700 border-slate-200"
-                          )}>
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {status.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {milestone.targetDate ? (
-                            <div className="flex items-center gap-1.5">
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                              {new Date(milestone.targetDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {editingMilestoneId === milestone.id && editingField === "name" ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                ref={inputRef}
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEdit(milestone.id, "name");
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                className="h-7 text-sm"
+                                data-testid={`input-milestone-name-${milestone.id}`}
+                              />
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => saveEdit(milestone.id, "name")}>
+                                <Check className="h-3.5 w-3.5 text-green-600" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={cancelEditing}>
+                                <X className="h-3.5 w-3.5 text-red-600" />
+                              </Button>
                             </div>
                           ) : (
-                            <span className="italic">Not set</span>
+                            <div className="space-y-0.5 group">
+                              <div className="flex items-center gap-1.5">
+                                <span 
+                                  className="font-medium hover:text-primary cursor-pointer"
+                                  onClick={() => startEditing(milestone.id, "name", milestone.name)}
+                                  data-testid={`editable-name-${milestone.id}`}
+                                >
+                                  {milestone.name}
+                                </span>
+                                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                              {milestone.description && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{milestone.description}</p>
+                              )}
+                            </div>
                           )}
                         </TableCell>
                         <TableCell>
-                          {owner ? (
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5">
-                                <AvatarFallback className="text-[8px]">
-                                  {owner.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-xs truncate max-w-[80px]">{owner.name?.split(' ')[0]}</span>
+                          {editingMilestoneId === milestone.id && editingField === "status" ? (
+                            <SearchableSelect
+                              value={editValue}
+                              onValueChange={(v) => handleStatusChange(milestone.id, v)}
+                              className="w-[130px] h-7 text-xs"
+                              placeholder="Status"
+                              options={[
+                                { value: "planned", label: "Planned" },
+                                { value: "in_progress", label: "In Progress" },
+                                { value: "achieved", label: "Achieved" },
+                                { value: "slipped", label: "Slipped" },
+                                { value: "cancelled", label: "Cancelled" }
+                              ]}
+                              data-testid={`select-milestone-status-${milestone.id}`}
+                            />
+                          ) : (
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                "font-normal text-xs cursor-pointer hover:ring-1 hover:ring-primary/50",
+                                milestone.status === "achieved" || milestone.status === "Completed" 
+                                  ? "bg-green-50 text-green-700 border-green-200" 
+                                  : milestone.status === "in_progress" || milestone.status === "In Progress"
+                                  ? "bg-blue-50 text-blue-700 border-blue-200"
+                                  : milestone.status === "slipped" || milestone.status === "Blocked"
+                                  ? "bg-red-50 text-red-700 border-red-200"
+                                  : "bg-slate-50 text-slate-700 border-slate-200"
+                              )}
+                              onClick={() => startEditing(milestone.id, "status", milestone.status || "planned")}
+                              data-testid={`editable-status-${milestone.id}`}
+                            >
+                              <StatusIcon className="h-3 w-3 mr-1" />
+                              {status.label}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {editingMilestoneId === milestone.id && editingField === "targetDate" ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                ref={inputRef}
+                                type="date"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleDateChange(milestone.id, editValue);
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                onBlur={() => handleDateChange(milestone.id, editValue)}
+                                className="h-7 text-xs w-[130px]"
+                                data-testid={`input-milestone-date-${milestone.id}`}
+                              />
                             </div>
                           ) : (
-                            <span className="text-xs text-muted-foreground italic">—</span>
+                            <div 
+                              className="flex items-center gap-1.5 cursor-pointer hover:text-primary group"
+                              onClick={() => startEditing(milestone.id, "targetDate", milestone.targetDate ? new Date(milestone.targetDate).toISOString().split('T')[0] : "")}
+                              data-testid={`editable-date-${milestone.id}`}
+                            >
+                              <CalendarIcon className="h-3.5 w-3.5" />
+                              {milestone.targetDate ? (
+                                new Date(milestone.targetDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                              ) : (
+                                <span className="italic">Not set</span>
+                              )}
+                              <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingMilestoneId === milestone.id && editingField === "owner" ? (
+                            <SearchableSelect
+                              value={editValue}
+                              onValueChange={(v) => handleOwnerChange(milestone.id, v)}
+                              className="w-[130px] h-7 text-xs"
+                              placeholder="Select owner"
+                              options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
+                              data-testid={`select-milestone-owner-${milestone.id}`}
+                            />
+                          ) : (
+                            <div 
+                              className="flex items-center gap-2 cursor-pointer hover:text-primary group"
+                              onClick={() => startEditing(milestone.id, "owner", milestone.ownerId || "")}
+                              data-testid={`editable-owner-${milestone.id}`}
+                            >
+                              {owner ? (
+                                <>
+                                  <Avatar className="h-5 w-5">
+                                    <AvatarFallback className="text-[8px]">
+                                      {owner.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-xs truncate max-w-[80px]">{owner.name?.split(' ')[0]}</span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                              )}
+                              <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
                           )}
                         </TableCell>
                         <TableCell className="text-sm">
