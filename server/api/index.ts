@@ -55,6 +55,9 @@ import {
 // Import seed function
 import { seedDatabase } from "../db/seed";
 import { db } from "../db";
+import { sql } from "drizzle-orm";
+import { users } from "@shared/models/auth";
+import { tasks, projects } from "@shared/schema";
 
 // Helper to extract authenticated user ID from request
 function getAuthUserId(req: any): string | null {
@@ -640,6 +643,47 @@ export async function registerRoutes(
   app.delete("/api/milestoneTaskLinks/:id", async (req, res) => {
     await storage.deleteMilestoneTaskLink(req.params.id);
     res.status(204).send();
+  });
+
+  // Users with task/project counts (for impersonate dropdown)
+  app.get("/api/users/with-counts", requireAuth(), async (req, res) => {
+    try {
+      const allUsers = await db.select().from(users);
+      const taskCounts = await db
+        .select({ 
+          assigneeId: tasks.assigneeId, 
+          count: sql<number>`count(*)::int` 
+        })
+        .from(tasks)
+        .groupBy(tasks.assigneeId);
+      
+      const projectCounts = await db
+        .select({ 
+          ownerId: projects.ownerId, 
+          count: sql<number>`count(*)::int` 
+        })
+        .from(projects)
+        .groupBy(projects.ownerId);
+
+      const taskCountMap = new Map(taskCounts.filter(t => t.assigneeId).map(t => [t.assigneeId, t.count]));
+      const projectCountMap = new Map(projectCounts.filter(p => p.ownerId).map(p => [p.ownerId, p.count]));
+
+      const usersWithCounts = allUsers.map(u => ({
+        id: u.id,
+        name: u.name,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        profileImageUrl: u.profileImageUrl,
+        systemRole: u.systemRole,
+        taskCount: taskCountMap.get(u.id) || 0,
+        projectCount: projectCountMap.get(u.id) || 0,
+      }));
+
+      res.json(usersWithCounts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Users (with permission middleware)

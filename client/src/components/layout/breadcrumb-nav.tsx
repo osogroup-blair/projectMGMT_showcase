@@ -1,7 +1,7 @@
-import { ChevronRight, Home as HomeIcon, ArrowLeft, UserCog, X, Eye } from "lucide-react";
+import { ChevronRight, Home as HomeIcon, ArrowLeft, UserCog, X, Eye, ListTodo, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link, useSearch } from "wouter";
-import { useProjects, useMilestones, useSprints, useUsers } from "@/hooks/use-nexus-data";
+import { useProjects, useMilestones, useSprints } from "@/hooks/use-nexus-data";
 import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PROJECT_STAGES } from "@/lib/mock-data";
@@ -35,8 +35,27 @@ export function BreadcrumbNav() {
   const { data: projects } = useProjects();
   const { data: allMilestones } = useMilestones();
   const { data: allSprints } = useSprints();
-  const { data: usersData } = useUsers();
   const { user, isAdmin, isImpersonating, realUser, impersonate, stopImpersonation, isImpersonating_loading, isStoppingImpersonation } = useAuth();
+  
+  const { data: usersWithCounts } = useQuery<Array<{
+    id: string;
+    name: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    profileImageUrl: string | null;
+    systemRole: string | null;
+    taskCount: number;
+    projectCount: number;
+  }>>({
+    queryKey: ["/api/users/with-counts"],
+    queryFn: async () => {
+      const res = await fetch("/api/users/with-counts", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isAdmin,
+  });
   const [userSearch, setUserSearch] = useState("");
 
   const activeTab = useMemo(() => {
@@ -118,16 +137,16 @@ export function BreadcrumbNav() {
   const handleGoBack = () => window.history.back();
   
   const filteredUsers = useMemo(() => {
-    const users = usersData || [];
+    const users = usersWithCounts || [];
     if (!userSearch.trim()) return users;
     const search = userSearch.toLowerCase();
-    return users.filter((u: any) => 
+    return users.filter((u) => 
       u.name?.toLowerCase().includes(search) || 
       u.email?.toLowerCase().includes(search) ||
       u.firstName?.toLowerCase().includes(search) ||
       u.lastName?.toLowerCase().includes(search)
     );
-  }, [usersData, userSearch]);
+  }, [usersWithCounts, userSearch]);
 
   const getInitials = (name?: string | null, email?: string | null) => {
     if (name) {
@@ -316,28 +335,39 @@ export function BreadcrumbNav() {
                     data-testid="input-user-search"
                   />
                 </div>
-                <ScrollArea className="h-[200px]">
-                  {filteredUsers.slice(0, 20).map((u: any) => (
+                <ScrollArea className="h-[240px]">
+                  {filteredUsers.slice(0, 20).map((u) => (
                     <DropdownMenuItem 
                       key={u.id}
                       onClick={() => handleImpersonate(u.id)}
                       disabled={isImpersonating_loading || u.id === user?.id}
-                      className="cursor-pointer"
+                      className="cursor-pointer py-2"
                       data-testid={`impersonate-user-${u.id}`}
                     >
                       <div className="flex items-center gap-2 w-full">
-                        <Avatar className="h-6 w-6">
+                        <Avatar className="h-7 w-7">
                           <AvatarFallback className="text-xs bg-primary/10 text-primary">
                             {getInitials(u.name, u.email)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium truncate">{u.name || u.firstName || "Unknown"}</p>
-                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-medium truncate">{u.name || u.firstName || "Unknown"}</p>
+                            {u.systemRole === "admin" && (
+                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Admin</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                            <span className="flex items-center gap-0.5">
+                              <ListTodo className="h-3 w-3" />
+                              {u.taskCount}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <FolderKanban className="h-3 w-3" />
+                              {u.projectCount}
+                            </span>
+                          </div>
                         </div>
-                        {u.systemRole === "admin" && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Admin</span>
-                        )}
                       </div>
                     </DropdownMenuItem>
                   ))}
