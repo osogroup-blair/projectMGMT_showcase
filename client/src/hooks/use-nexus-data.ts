@@ -350,6 +350,8 @@ export function useTaskComments(taskId: string) {
       return response.json();
     },
     enabled: !!taskId,
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
   const create = useMutation({
