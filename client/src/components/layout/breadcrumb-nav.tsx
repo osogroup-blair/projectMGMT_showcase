@@ -1,4 +1,4 @@
-import { ChevronRight, Home as HomeIcon, ArrowLeft, UserCog, X, Eye, ListTodo, FolderKanban } from "lucide-react";
+import { ChevronRight, Home as HomeIcon, ArrowLeft, UserCog, X, Eye, ListTodo, FolderKanban, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link, useSearch } from "wouter";
 import { useProjects, useMilestones, useSprints } from "@/hooks/use-nexus-data";
@@ -6,17 +6,20 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PROJECT_STAGES } from "@/lib/mock-data";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 const TAB_LABELS: Record<string, string> = {
   overview: "Dashboard",
@@ -56,7 +59,7 @@ export function BreadcrumbNav() {
     },
     enabled: isAdmin,
   });
-  const [userSearch, setUserSearch] = useState("");
+  const [impersonateOpen, setImpersonateOpen] = useState(false);
 
   const activeTab = useMemo(() => {
     const params = new URLSearchParams(searchString);
@@ -135,18 +138,6 @@ export function BreadcrumbNav() {
   });
 
   const handleGoBack = () => window.history.back();
-  
-  const filteredUsers = useMemo(() => {
-    const users = usersWithCounts || [];
-    if (!userSearch.trim()) return users;
-    const search = userSearch.toLowerCase();
-    return users.filter((u) => 
-      u.name?.toLowerCase().includes(search) || 
-      u.email?.toLowerCase().includes(search) ||
-      u.firstName?.toLowerCase().includes(search) ||
-      u.lastName?.toLowerCase().includes(search)
-    );
-  }, [usersWithCounts, userSearch]);
 
   const getInitials = (name?: string | null, email?: string | null) => {
     if (name) {
@@ -157,7 +148,7 @@ export function BreadcrumbNav() {
 
   const handleImpersonate = (userId: string) => {
     impersonate(userId);
-    setUserSearch("");
+    setImpersonateOpen(false);
   };
 
   const isProjectOverviewPage = pathSegments.length === 2 && pathSegments[0] === "projects";
@@ -311,74 +302,68 @@ export function BreadcrumbNav() {
               </Button>
             </div>
           ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <Popover open={impersonateOpen} onOpenChange={setImpersonateOpen}>
+              <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   className="h-8 gap-2 text-xs"
                   data-testid="button-impersonate"
+                  role="combobox"
+                  aria-expanded={impersonateOpen}
                 >
                   <UserCog className="h-4 w-4" />
                   Impersonate
+                  <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72">
-                <DropdownMenuLabel>View as another user</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <div className="p-2">
-                  <Input 
-                    placeholder="Search users..." 
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                    className="h-8 text-xs"
-                    data-testid="input-user-search"
-                  />
-                </div>
-                <ScrollArea className="h-[240px]">
-                  {filteredUsers.slice(0, 20).map((u) => (
-                    <DropdownMenuItem 
-                      key={u.id}
-                      onClick={() => handleImpersonate(u.id)}
-                      disabled={isImpersonating_loading || u.id === user?.id}
-                      className="cursor-pointer py-2"
-                      data-testid={`impersonate-user-${u.id}`}
-                    >
-                      <div className="flex items-center gap-2 w-full">
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {getInitials(u.name, u.email)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-medium truncate">{u.name || u.firstName || "Unknown"}</p>
-                            {u.systemRole === "admin" && (
-                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Admin</span>
-                            )}
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-0">
+                <Command>
+                  <CommandInput placeholder="Search users..." data-testid="input-user-search" />
+                  <CommandList>
+                    <CommandEmpty>No users found</CommandEmpty>
+                    <CommandGroup heading="Users">
+                      {(usersWithCounts || []).map((u) => (
+                        <CommandItem 
+                          key={u.id}
+                          value={`${u.name || ''} ${u.firstName || ''} ${u.lastName || ''} ${u.email || ''}`}
+                          onSelect={() => handleImpersonate(u.id)}
+                          disabled={isImpersonating_loading || u.id === user?.id}
+                          className="cursor-pointer py-2"
+                          data-testid={`impersonate-user-${u.id}`}
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            <Avatar className="h-7 w-7">
+                              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                                {getInitials(u.name, u.email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-medium truncate">{u.name || u.firstName || "Unknown"}</p>
+                                {u.systemRole === "admin" && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Admin</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                <span className="flex items-center gap-0.5">
+                                  <ListTodo className="h-3 w-3" />
+                                  {u.taskCount} tasks
+                                </span>
+                                <span className="flex items-center gap-0.5">
+                                  <FolderKanban className="h-3 w-3" />
+                                  {u.projectCount} projects
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                            <span className="flex items-center gap-0.5">
-                              <ListTodo className="h-3 w-3" />
-                              {u.taskCount}
-                            </span>
-                            <span className="flex items-center gap-0.5">
-                              <FolderKanban className="h-3 w-3" />
-                              {u.projectCount}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                  {filteredUsers.length === 0 && (
-                    <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-                      No users found
-                    </div>
-                  )}
-                </ScrollArea>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           )}
         </div>
       )}
