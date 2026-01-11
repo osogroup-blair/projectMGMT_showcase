@@ -103,12 +103,15 @@ export function CurrentTasksPanel() {
     },
   });
 
+  const currentUser = users.find((u: User) => u.id === currentUserId);
+
   const addCommentMutation = useMutation({
     mutationFn: async ({ taskId, comment }: { taskId: string; comment: string }) => {
       const response = await apiRequest("POST", `/api/comments`, {
         taskId,
-        content: comment,
+        body: comment,
         authorId: currentUserId,
+        authorName: currentUser?.name || "Unknown User",
       });
       return response.json();
     },

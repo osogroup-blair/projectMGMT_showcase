@@ -83,11 +83,12 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const { data: statusOptions = [] } = useStatusOptions();
 
   const addCommentMutation = useMutation({
-    mutationFn: async ({ taskId, comment, authorId }: { taskId: string; comment: string; authorId: string }) => {
+    mutationFn: async ({ taskId, comment, authorId, authorName }: { taskId: string; comment: string; authorId: string; authorName: string }) => {
       const response = await apiRequest("POST", `/api/comments`, {
         taskId,
-        content: comment,
+        body: comment,
         authorId,
+        authorName,
       });
       return response.json();
     },
@@ -114,8 +115,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   };
 
   const handleHoverAddComment = (taskId: string, comment: string) => {
-    if (currentUser?.id) {
-      addCommentMutation.mutate({ taskId, comment, authorId: currentUser.id });
+    if (currentUser?.id && currentUser?.name) {
+      addCommentMutation.mutate({ taskId, comment, authorId: currentUser.id, authorName: currentUser.name });
     }
   };
 
