@@ -23,13 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import {
   Table,
   TableBody,
@@ -129,6 +123,26 @@ export default function ImportSummary() {
       .map(([id, data]) => ({ id, ...data }))
       .sort((a, b) => b.count - a.count);
   }, [state.adapterResult, userMappings]);
+
+  const userSelectOptions: SearchableSelectOption[] = useMemo(() => {
+    const options: SearchableSelectOption[] = [
+      { value: 'unassigned', label: 'Leave unassigned' }
+    ];
+    systemUsers.forEach((user: any) => {
+      options.push({
+        value: user.id,
+        label: user.name || user.email || user.id
+      });
+    });
+    return options;
+  }, [systemUsers]);
+
+  const statusSelectOptions: SearchableSelectOption[] = useMemo(() => {
+    return taskStatuses.map((status: any) => ({
+      value: status.id,
+      label: status.label
+    }));
+  }, [taskStatuses]);
 
   if (!state.isImportMode || !state.adapterResult) {
     return (
@@ -294,24 +308,16 @@ export default function ImportSummary() {
                               <ConfidenceBadge confidence={mapping.confidence} />
                             </TableCell>
                             <TableCell>
-                              <Select
+                              <SearchableSelect
                                 value={mapping.mappedToId || 'unassigned'}
                                 onValueChange={(val) => handleUserMappingChange(mapping.sourceId, val)}
-                              >
-                                <SelectTrigger className="w-[200px]" data-testid={`user-select-${mapping.sourceId}`}>
-                                  <SelectValue placeholder="Select user..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="unassigned">
-                                    <span className="text-muted-foreground">Leave unassigned</span>
-                                  </SelectItem>
-                                  {systemUsers.map((user: any) => (
-                                    <SelectItem key={user.id} value={user.id}>
-                                      {user.name || user.email || user.id}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                options={userSelectOptions}
+                                placeholder="Select user..."
+                                searchPlaceholder="Search users..."
+                                emptyMessage="No users found."
+                                className="w-[220px]"
+                                data-testid={`user-select-${mapping.sourceId}`}
+                              />
                             </TableCell>
                           </TableRow>
                         ))}
@@ -368,21 +374,16 @@ export default function ImportSummary() {
                               <ConfidenceBadge confidence={mapping.confidence} />
                             </TableCell>
                             <TableCell>
-                              <Select
+                              <SearchableSelect
                                 value={mapping.mappedStatusId || ''}
                                 onValueChange={(val) => handleStatusMappingChange(mapping.sourceStatus, val)}
-                              >
-                                <SelectTrigger className="w-[200px]" data-testid={`status-select-${mapping.sourceStatus}`}>
-                                  <SelectValue placeholder={mapping.mappedStatus || "Select status..."} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {taskStatuses.map((status: any) => (
-                                    <SelectItem key={status.id} value={status.id}>
-                                      {status.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                options={statusSelectOptions}
+                                placeholder={mapping.mappedStatus || "Select status..."}
+                                searchPlaceholder="Search statuses..."
+                                emptyMessage="No statuses found."
+                                className="w-[220px]"
+                                data-testid={`status-select-${mapping.sourceStatus}`}
+                              />
                             </TableCell>
                           </TableRow>
                         ))}
