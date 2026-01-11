@@ -1536,9 +1536,9 @@ export default function SprintDetail() {
                                       value={task.status}
                                       onValueChange={(value) => updateTask({ id: task.id, updates: { status: value } })}
                                     >
-                                      <SelectTrigger className="h-7 w-[120px] border-0 bg-transparent p-0">
+                                      <SelectTrigger className="h-7 w-[130px] border-0 bg-transparent p-0">
                                         {(() => {
-                                          const statusOption = formattedStatusOptions.find((s: any) => s.id === task.status || s.label === task.status);
+                                          const statusOption = formattedStatusOptions.find((s: any) => s.label === task.status);
                                           const colorClass = statusOption?.color || taskStatus.bgColor + " " + taskStatus.color;
                                           return (
                                             <Badge variant="outline" className={cn(colorClass, "border-0 cursor-pointer")}>
@@ -1550,7 +1550,7 @@ export default function SprintDetail() {
                                       </SelectTrigger>
                                       <SelectContent>
                                         {formattedStatusOptions.map((status: any) => (
-                                          <SelectItem key={status.id} value={status.id}>
+                                          <SelectItem key={status.id} value={status.label}>
                                             <div className="flex items-center gap-2">
                                               <span className={cn("w-2 h-2 rounded-full", status.color?.split(" ")[0] || "bg-gray-200")} />
                                               {status.label}
