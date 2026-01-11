@@ -204,7 +204,7 @@ export default function TaskDetail() {
   return (
     <Shell>
       <div className="h-[calc(100vh-120px)]">
-        <PanelGroup direction="horizontal" autoSaveId="task-detail-layout">
+        <PanelGroup direction="horizontal">
           {!leftPanelCollapsed && (
             <Panel defaultSize={rightPanelCollapsed ? 100 : 70} minSize={40}>
             <div className="pr-4 space-y-6 h-full overflow-y-auto">
