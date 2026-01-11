@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { useStatusOptions } from "@/hooks/use-nexus-data";
+import { invalidateTaskQueries } from "@/lib/query-invalidation";
 
 interface StatusOption {
   id: string;
@@ -105,7 +106,7 @@ export function CurrentTasksPanel() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/home/tasks"] });
+      invalidateTaskQueries(queryClient);
     },
   });
 
@@ -122,7 +123,7 @@ export function CurrentTasksPanel() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/home/tasks"] });
+      invalidateTaskQueries(queryClient);
     },
   });
 

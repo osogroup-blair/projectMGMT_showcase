@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useCurrentUser } from "@/context/current-user-context";
 import { format, addDays } from "date-fns";
+import { invalidateTaskQueries } from "@/lib/query-invalidation";
 
 interface TaskQuickCreateDialogProps {
   open: boolean;
@@ -95,8 +96,7 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/home/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      invalidateTaskQueries(queryClient);
       resetForm();
       onOpenChange(false);
       onSuccess?.();
