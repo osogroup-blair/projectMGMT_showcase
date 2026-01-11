@@ -38,10 +38,18 @@ The platform uses Replit Auth with OpenID Connect for authentication, supporting
 3. Callback upserts user by ID (matching email to claim existing accounts)
 4. Authenticated users access protected routes
 
-**RBAC Support (Future):**
+**RBAC Support:**
 - `systemRole` field: 'admin' | 'manager' | 'member' | 'viewer' (default: 'member')
 - `permissions` array: Granular permission strings
 - `AuthGuard` component accepts `requiredRoles` and `requiredPermissions` props
+- Permission middleware in `server/middleware/require-permission.ts` enforces route-level access control
+
+**User Management Architecture:**
+- Contracts: `shared/contracts/user-management.ts` defines request/response schemas and permission constants
+- Services: `server/services/user-management/` contains business logic (list, get, create, update, deactivate)
+- Client hooks: `client/src/features/user-management/hooks/use-users-api.ts` provides TanStack Query hooks
+- Admin page: `client/src/pages/admin/user-management.tsx` protected by AuthGuard requiring admin or manager role
+- API response format: `/api/users` returns `{ users: [...], total: number }` for pagination support
 
 ### API Structure
 

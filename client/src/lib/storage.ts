@@ -84,7 +84,11 @@ class StorageEngine {
 
   // Generic Get All
   async getAll<K extends keyof NexusDB>(collection: K): Promise<NexusDB[K]> {
-    return await this.fetchAPI(`/api/${collection}`);
+    const response = await this.fetchAPI(`/api/${collection}`);
+    if (collection === 'users' && response && 'users' in response) {
+      return response.users;
+    }
+    return response;
   }
 
   // Generic Get By ID

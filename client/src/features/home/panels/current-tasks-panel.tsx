@@ -75,7 +75,7 @@ export function CurrentTasksPanel() {
     },
   });
 
-  const { data: users = [] } = useQuery({
+  const { data: usersData } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
       const response = await fetch("/api/users");
@@ -83,6 +83,7 @@ export function CurrentTasksPanel() {
       return response.json();
     },
   });
+  const users = usersData?.users || [];
 
   const { data: projects = [] } = useQuery({
     queryKey: ["/api/projects"],

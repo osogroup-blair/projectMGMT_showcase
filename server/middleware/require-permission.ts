@@ -1,30 +1,24 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, RequestHandler } from "express";
 import { RolePermissions, SystemRole, UserPermission } from "@shared/contracts/user-management";
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    systemRole?: string;
-    permissions?: string[];
-  };
-}
-
-export function requireAuth() {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export function requireAuth(): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
-      return res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
     next();
   };
 }
 
-export function requirePermission(permission: UserPermission) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export function requirePermission(permission: UserPermission): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
-      return res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
 
-    const user = req.user;
+    const user = req.user as any;
     const userRole = (user.systemRole || "member") as SystemRole;
     const rolePermissions = RolePermissions[userRole] || [];
     const userPermissions = user.permissions || [];
@@ -34,42 +28,49 @@ export function requirePermission(permission: UserPermission) {
       userPermissions.includes(permission);
 
     if (!hasPermission) {
-      return res.status(403).json({ error: "Insufficient permissions" });
+      res.status(403).json({ error: "Insufficient permissions" });
+      return;
     }
 
     next();
   };
 }
 
-export function requireRole(...roles: SystemRole[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export function requireRole(...roles: SystemRole[]): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
-      return res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
 
-    const userRole = (req.user.systemRole || "member") as SystemRole;
+    const user = req.user as any;
+    const userRole = (user.systemRole || "member") as SystemRole;
 
     if (!roles.includes(userRole)) {
-      return res.status(403).json({ error: "Insufficient role permissions" });
+      res.status(403).json({ error: "Insufficient role permissions" });
+      return;
     }
 
     next();
   };
 }
 
-export function requireSelfOrRole(userIdParam: string, ...roles: SystemRole[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export function requireSelfOrRole(userIdParam: string, ...roles: SystemRole[]): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
-      return res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
 
+    const user = req.user as any;
     const targetUserId = req.params[userIdParam];
-    const isSelf = req.user.id === targetUserId;
-    const userRole = (req.user.systemRole || "member") as SystemRole;
+    const isSelf = user.id === targetUserId;
+    const userRole = (user.systemRole || "member") as SystemRole;
     const hasRole = roles.includes(userRole);
 
     if (!isSelf && !hasRole) {
-      return res.status(403).json({ error: "You can only modify your own profile or need admin privileges" });
+      res.status(403).json({ error: "You can only modify your own profile or need admin privileges" });
+      return;
     }
 
     next();
