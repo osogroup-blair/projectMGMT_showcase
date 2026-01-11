@@ -30,6 +30,7 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CurrentProjectsPanel } from "./current-projects-panel";
 import { CurrentTasksPanel } from "./current-tasks-panel";
+import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
 
 interface UserHomePageProps {
   homeState: UserHomeState;
@@ -43,6 +44,9 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
   // DnD State
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<HomeTask | null>(null);
+  
+  // Task creation dialog state
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -160,7 +164,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
               Here's what's on your plate today
             </p>
           </div>
-          <Button data-testid="button-add-task" className="gap-2">
+          <Button data-testid="button-add-task" className="gap-2" onClick={() => setIsCreateTaskOpen(true)}>
             <Plus className="w-4 h-4" />
             Add Task
           </Button>
@@ -289,6 +293,11 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <TaskQuickCreateDialog 
+        open={isCreateTaskOpen} 
+        onOpenChange={setIsCreateTaskOpen} 
+      />
     </Shell>
   );
 }

@@ -400,6 +400,89 @@ export async function registerRoutes(
     }
   });
 
+  // Quick-create task endpoint for home page (simplified, auto-assigns defaults)
+  app.post("/api/tasks/quick-create", async (req, res) => {
+    try {
+      const { title, projectId, project, deadline, priority, assigneeId } = req.body;
+      
+      if (!title || !title.trim()) {
+        return res.status(400).json({ error: "Task title is required" });
+      }
+      if (!projectId) {
+        return res.status(400).json({ error: "Project is required" });
+      }
+      if (!deadline) {
+        return res.status(400).json({ error: "Deadline is required" });
+      }
+
+      // Get or create defaults for the project
+      const projectData = await storage.getProjectById(projectId);
+      if (!projectData) {
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      // Find first available epic for this project (via deliverables)
+      const deliverables = await storage.getDeliverablesByProjectId(projectId);
+      let epicId: string | null = null;
+      
+      for (const deliverable of deliverables) {
+        const epics = await storage.getEpicsByDeliverableId(deliverable.id);
+        if (epics.length > 0) {
+          epicId = epics[0].id;
+          break;
+        }
+      }
+
+      // Find first available stage for this project
+      const stages = await storage.getProjectStagesByProjectId(projectId);
+      const stageId = stages.length > 0 ? stages[0].id : null;
+
+      // Find first available task type for this project
+      const taskTypes = await storage.getProjectTaskTypesByProjectId(projectId);
+      const taskTypeId = taskTypes.length > 0 ? taskTypes[0].id : null;
+
+      // Validate that required defaults exist
+      if (!epicId) {
+        return res.status(400).json({ 
+          error: "This project has no epics configured. Please set up at least one deliverable with an epic first." 
+        });
+      }
+      if (!stageId) {
+        return res.status(400).json({ 
+          error: "This project has no stages configured. Please set up project stages first." 
+        });
+      }
+      if (!taskTypeId) {
+        return res.status(400).json({ 
+          error: "This project has no task types configured. Please set up task types first." 
+        });
+      }
+
+      // Generate unique ID
+      const taskId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const taskData = {
+        id: taskId,
+        title: title.trim(),
+        project: project || projectData.name,
+        projectId,
+        deadline,
+        priority: priority || "Medium",
+        assigneeId: assigneeId || null,
+        status: "BACKLOGGED",
+        epicId,
+        stageId,
+        taskTypeId,
+      };
+
+      const task = await storage.createTask(taskData);
+      res.status(201).json(task);
+    } catch (error: any) {
+      console.error("Quick create task error:", error);
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/tasks/:id", async (req, res) => {
     try {
       const updates = { ...req.body };

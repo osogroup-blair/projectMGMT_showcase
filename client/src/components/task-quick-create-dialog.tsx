@@ -1,0 +1,198 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useCurrentUser } from "@/context/current-user-context";
+import { format, addDays } from "date-fns";
+
+interface TaskQuickCreateDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDialogProps) {
+  const queryClient = useQueryClient();
+  const { currentUserId } = useCurrentUser();
+  
+  const [title, setTitle] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [deadline, setDeadline] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
+  const [priority, setPriority] = useState("Medium");
+  const [error, setError] = useState("");
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/projects"],
+    queryFn: async () => {
+      const response = await fetch("/api/projects");
+      if (!response.ok) throw new Error("Failed to fetch projects");
+      return response.json();
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (taskData: any) => {
+      const response = await fetch("/api/tasks/quick-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create task");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/home/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      resetForm();
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      setError(error.message);
+    },
+  });
+
+  const resetForm = () => {
+    setTitle("");
+    setProjectId("");
+    setDeadline(format(addDays(new Date(), 7), "yyyy-MM-dd"));
+    setPriority("Medium");
+    setError("");
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetForm();
+    }
+    onOpenChange(open);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!title.trim()) {
+      setError("Task title is required");
+      return;
+    }
+    if (!projectId) {
+      setError("Please select a project");
+      return;
+    }
+
+    const selectedProject = projects.find((p: any) => p.id === projectId);
+    
+    createTaskMutation.mutate({
+      title: title.trim(),
+      projectId,
+      project: selectedProject?.name || "Unknown Project",
+      deadline,
+      priority,
+      assigneeId: currentUserId,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[425px]" data-testid="task-quick-create-dialog">
+        <DialogHeader>
+          <DialogTitle>Add Task</DialogTitle>
+          <DialogDescription>
+            Quickly add a new task to your project.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Task Title</Label>
+              <Input
+                id="title"
+                data-testid="input-task-title"
+                placeholder="Enter task title..."
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project">Project</Label>
+              <Select value={projectId} onValueChange={setProjectId}>
+                <SelectTrigger data-testid="select-project">
+                  <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project: any) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="deadline">Due Date</Label>
+              <Input
+                id="deadline"
+                type="date"
+                data-testid="input-deadline"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={priority} onValueChange={setPriority}>
+                <SelectTrigger data-testid="select-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {error && (
+              <p className="text-sm text-destructive" data-testid="error-message">{error}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              data-testid="button-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={createTaskMutation.isPending}
+              data-testid="button-create-task"
+            >
+              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
