@@ -1,47 +1,39 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   ArrowLeft, 
   Plus, 
-  MoreHorizontal, 
   Check,
   Package,
   Layers,
   Calendar as CalendarIcon,
   ChevronRight,
-  CheckCircle2,
-  List,
-  LayoutGrid,
   ChevronDown,
+  ChevronUp,
   Pencil,
   X,
   Trash2,
   Search,
   ChevronsUpDown,
-  ListTodo
+  ListTodo,
+  User,
+  ExternalLink,
+  ArrowUpDown,
+  LayoutGrid,
+  List,
+  Clock,
+  CheckCircle2,
+  Circle,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Card, 
-  CardContent, 
-} from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -49,16 +41,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRoute, Link } from "wouter";
 import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useDeliverables, useEpics, useUsers, useTasks } from "@/hooks/use-nexus-data";
-import { Loader2, User, ExternalLink } from "lucide-react";
+import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions } from "@/hooks/use-nexus-data";
+import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -70,41 +62,79 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { TabToolbar } from "@/components/ui/tab-toolbar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-// Export content component separately for reuse
+const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
+  "Not Started": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Not Started" },
+  "In Progress": { icon: Clock, color: "text-blue-500", bgColor: "bg-blue-100", label: "In Progress" },
+  "Completed": { icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-100", label: "Completed" },
+  "Blocked": { icon: AlertCircle, color: "text-red-500", bgColor: "bg-red-100", label: "Blocked" },
+  "Todo": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Todo" },
+  "Done": { icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-100", label: "Done" },
+  "Review": { icon: Clock, color: "text-amber-500", bgColor: "bg-amber-100", label: "Review" },
+};
+
+const PRIORITY_CONFIG: Record<string, string> = {
+  "Low": "bg-slate-50 text-slate-700 border-slate-200",
+  "Medium": "bg-blue-50 text-blue-700 border-blue-200",
+  "High": "bg-orange-50 text-orange-700 border-orange-200",
+  "Critical": "bg-red-50 text-red-700 border-red-200",
+};
+
+const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21];
+
 export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const { data: project } = useProject(projectId);
   const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable } = useDeliverables();
   const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
-  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, update: updateTask, createAsync: createTaskAsync } = useTasks();
+  const { data: statusOptions = [] } = useStatusOptions();
 
-  // Inline editing state
-  const [editingDeliverableId, setEditingDeliverableId] = useState<string | null>(null);
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Delete confirmation state
+  const [editingDeliverableId, setEditingDeliverableId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskField, setEditingTaskField] = useState<string | null>(null);
+  const [editTaskValue, setEditTaskValue] = useState<string>("");
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deliverableToDelete, setDeliverableToDelete] = useState<{ id: string; title: string } | null>(null);
 
-  // Expand/Collapse all state
-  const [expandedDeliverables, setExpandedDeliverables] = useState<string[]>([]);
+  const [expandedDeliverables, setExpandedDeliverables] = useState<Set<string>>(new Set());
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
 
-  const deliverables = allDeliverables.filter((d: any) => d.projectId === projectId);
+  const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
+  const [selectedDeliverableId, setSelectedDeliverableId] = useState<string>("");
+  const [newEpicData, setNewEpicData] = useState({
+    title: "",
+    description: "",
+    stageIds: [] as string[]
+  });
+
+  type SortField = "title" | "status" | "dueDate" | "owner" | "epics" | "progress";
+  type SortDirection = "asc" | "desc";
+  const [sortField, setSortField] = useState<SortField>("title");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [creatingTaskForEpic, setCreatingTaskForEpic] = useState<string | null>(null);
+
+  const deliverables = useMemo(() => 
+    (allDeliverables || []).filter((d: any) => d.projectId === projectId),
+    [allDeliverables, projectId]
+  );
   
-  // Filter deliverables by search query
   const filteredDeliverables = useMemo(() => {
     if (!searchQuery.trim()) return deliverables;
     const query = searchQuery.toLowerCase();
@@ -113,17 +143,59 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
       d.description?.toLowerCase().includes(query)
     );
   }, [deliverables, searchQuery]);
-  
-  const getEpicsForDeliverable = (deliverableId: string) => allEpics.filter((e: any) => e.deliverableId === deliverableId);
-  const getOwner = (ownerId: string) => users.find((t: any) => t.id === ownerId);
 
-  // Get tasks for a specific epic
+  const sortedDeliverables = useMemo(() => {
+    const sorted = [...filteredDeliverables];
+    sorted.sort((a: any, b: any) => {
+      let aVal: any, bVal: any;
+      switch (sortField) {
+        case "title":
+          aVal = a.title?.toLowerCase() || "";
+          bVal = b.title?.toLowerCase() || "";
+          break;
+        case "status":
+          aVal = a.status || "";
+          bVal = b.status || "";
+          break;
+        case "dueDate":
+          aVal = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+          bVal = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+          break;
+        case "owner":
+          const ownerA = users?.find((u: any) => u.id === a.ownerId);
+          const ownerB = users?.find((u: any) => u.id === b.ownerId);
+          aVal = ownerA?.name?.toLowerCase() || "";
+          bVal = ownerB?.name?.toLowerCase() || "";
+          break;
+        case "epics":
+          aVal = getEpicsForDeliverable(a.id).length;
+          bVal = getEpicsForDeliverable(b.id).length;
+          break;
+        case "progress":
+          aVal = getDeliverableProgress(a.id);
+          bVal = getDeliverableProgress(b.id);
+          break;
+        default:
+          aVal = "";
+          bVal = "";
+      }
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredDeliverables, sortField, sortDirection, users]);
+
+  const getEpicsForDeliverable = (deliverableId: string) => 
+    (allEpics || []).filter((e: any) => e.deliverableId === deliverableId);
+  
+  const getOwner = (ownerId: string) => users?.find((t: any) => t.id === ownerId);
+
   const getTasksForEpic = (epicId: string) => {
     if (!allTasks) return [];
     return allTasks.filter((t: any) => t.epicId === epicId);
   };
 
-  // Calculate epic progress from task completion
   const getEpicProgress = (epicId: string) => {
     const epicTasks = getTasksForEpic(epicId);
     if (epicTasks.length === 0) return 0;
@@ -131,21 +203,18 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     return Math.round((doneTasks / epicTasks.length) * 100);
   };
 
-  // Get task counts for an epic
   const getEpicTaskCounts = (epicId: string) => {
     const epicTasks = getTasksForEpic(epicId);
     const doneTasks = epicTasks.filter((t: any) => t.status === "Done").length;
     return { done: doneTasks, total: epicTasks.length };
   };
 
-  // Calculate deliverable progress from aggregate task counts (not averaging epic percentages)
   const getDeliverableProgress = (deliverableId: string) => {
     const taskCounts = getDeliverableTaskCounts(deliverableId);
     if (taskCounts.total === 0) return 0;
     return Math.round((taskCounts.done / taskCounts.total) * 100);
   };
 
-  // Get total task counts for a deliverable
   const getDeliverableTaskCounts = (deliverableId: string) => {
     const epics = getEpicsForDeliverable(deliverableId);
     let done = 0;
@@ -158,9 +227,39 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     return { done, total };
   };
 
-  // Expand/Collapse All handlers
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const SortableHeader = ({ field, children, width }: { field: SortField; children: React.ReactNode; width: string }) => (
+    <TableHead 
+      style={{ width }} 
+      className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
+      onClick={() => handleSort(field)}
+      data-testid={`sort-header-${field}`}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {sortField === field ? (
+          sortDirection === "asc" ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-40" />
+        )}
+      </div>
+    </TableHead>
+  );
+
   const handleExpandAll = () => {
-    setExpandedDeliverables(filteredDeliverables.map((d: any) => d.id));
+    setExpandedDeliverables(new Set(filteredDeliverables.map((d: any) => d.id)));
     const allEpicIds = new Set<string>();
     filteredDeliverables.forEach((d: any) => {
       getEpicsForDeliverable(d.id).forEach((e: any) => allEpicIds.add(e.id));
@@ -169,8 +268,20 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   };
 
   const handleCollapseAll = () => {
-    setExpandedDeliverables([]);
+    setExpandedDeliverables(new Set());
     setExpandedEpics(new Set());
+  };
+
+  const toggleDeliverableExpanded = (deliverableId: string) => {
+    setExpandedDeliverables(prev => {
+      const next = new Set(prev);
+      if (next.has(deliverableId)) {
+        next.delete(deliverableId);
+      } else {
+        next.add(deliverableId);
+      }
+      return next;
+    });
   };
 
   const toggleEpicExpanded = (epicId: string) => {
@@ -185,22 +296,9 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     });
   };
 
-  // Epic Creation State
-  const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
-  const [selectedDeliverableId, setSelectedDeliverableId] = useState<string>("");
-  const [newEpicData, setNewEpicData] = useState({
-    title: "",
-    description: "",
-    stageIds: [] as string[]
-  });
-
   const handleOpenCreateEpic = (deliverableId: string) => {
     setSelectedDeliverableId(deliverableId);
-    setNewEpicData({
-      title: "",
-      description: "",
-      stageIds: []
-    });
+    setNewEpicData({ title: "", description: "", stageIds: [] });
     setIsCreateEpicOpen(true);
   };
 
@@ -215,11 +313,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
   const handleCreateEpic = () => {
     if (!newEpicData.title || !selectedDeliverableId) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide an epic title.",
-        variant: "destructive"
-      });
+      toast({ title: "Validation Error", description: "Please provide an epic title.", variant: "destructive" });
       return;
     }
     
@@ -234,14 +328,10 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     });
     
-    toast({
-      title: "Epic Created",
-      description: `${newEpicData.title} has been created with ${newEpicData.stageIds.length} assigned stages.`,
-    });
+    toast({ title: "Epic Created", description: `${newEpicData.title} has been created.` });
     setIsCreateEpicOpen(false);
   };
 
-  // Create Deliverable handler
   const handleCreateDeliverable = async () => {
     try {
       const newDeliverable = await createDeliverableAsync({
@@ -256,7 +346,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
       if (newDeliverable?.id) {
         toast({ title: "Deliverable Created", description: "New deliverable has been added." });
-        // Start editing the title immediately
         setEditingDeliverableId(newDeliverable.id);
         setEditingField("title");
         setEditValue("New Deliverable");
@@ -266,7 +355,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     }
   };
 
-  // Delete Deliverable handlers
   const openDeleteDialog = (id: string, title: string) => {
     setDeliverableToDelete({ id, title });
     setDeleteDialogOpen(true);
@@ -281,7 +369,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     setDeliverableToDelete(null);
   };
 
-  // Inline editing handlers
   const startEditing = (deliverableId: string, field: string, currentValue: string) => {
     setEditingDeliverableId(deliverableId);
     setEditingField(field);
@@ -303,10 +390,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
       updates.title = editValue.trim();
     } else if (field === "description") {
       updates.description = editValue;
-    } else if (field === "startDate") {
-      updates.startDate = editValue;
-    } else if (field === "dueDate") {
-      updates.dueDate = editValue;
     }
 
     if (Object.keys(updates).length > 0) {
@@ -338,6 +421,91 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     cancelEditing();
   };
 
+  const handleStatusChange = async (deliverableId: string, newStatus: string) => {
+    try {
+      await updateDeliverableAsync({ id: deliverableId, updates: { status: newStatus } });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+    }
+  };
+
+  const startEditingTask = (taskId: string, field: string, currentValue: string) => {
+    setEditingTaskId(taskId);
+    setEditingTaskField(field);
+    setEditTaskValue(currentValue || "");
+  };
+
+  const cancelEditingTask = () => {
+    setEditingTaskId(null);
+    setEditingTaskField(null);
+    setEditTaskValue("");
+  };
+
+  const saveTaskEdit = (taskId: string, field: string) => {
+    const updates: Record<string, any> = {};
+    if (field === "title" && editTaskValue.trim()) {
+      updates.title = editTaskValue.trim();
+    } else if (field === "description") {
+      updates.description = editTaskValue;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updateTask({ id: taskId, updates });
+    }
+    cancelEditingTask();
+  };
+
+  const handleTaskStatusChange = (taskId: string, newStatus: string) => {
+    updateTask({ id: taskId, updates: { status: newStatus } });
+  };
+
+  const handleTaskPriorityChange = (taskId: string, newPriority: string) => {
+    updateTask({ id: taskId, updates: { priority: newPriority } });
+  };
+
+  const handleTaskEffortChange = (taskId: string, newEffort: number) => {
+    updateTask({ id: taskId, updates: { effort: newEffort } });
+  };
+
+  const handleTaskAssigneeChange = (taskId: string, newAssigneeId: string) => {
+    updateTask({ id: taskId, updates: { assigneeId: newAssigneeId } });
+  };
+
+  const handleTaskDeadlineChange = (taskId: string, date: Date | undefined) => {
+    if (!date) return;
+    const dateStr = format(date, "yyyy-MM-dd");
+    updateTask({ id: taskId, updates: { deadline: dateStr } });
+  };
+
+  const handleCreateTask = async (epicId: string) => {
+    if (!newTaskTitle.trim()) return;
+    
+    const epic = allEpics?.find((e: any) => e.id === epicId);
+    const deliverable = allDeliverables?.find((d: any) => d.id === epic?.deliverableId);
+    
+    try {
+      await createTaskAsync({
+        title: newTaskTitle.trim(),
+        description: "",
+        project: project?.name || "",
+        projectId: projectId,
+        epicId: epicId,
+        deliverableId: epic?.deliverableId,
+        status: "Todo",
+        priority: "Medium",
+        effort: 3,
+        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        tags: []
+      });
+      
+      setNewTaskTitle("");
+      setCreatingTaskForEpic(null);
+      toast({ title: "Task Created", description: "New task has been added to the epic." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
+    }
+  };
+
   useEffect(() => {
     if (editingField === "title") {
       inputRef.current?.focus();
@@ -366,7 +534,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      {/* Hidden trigger for tab-level Add button */}
       <button 
         data-testid="button-create-deliverables" 
         onClick={handleCreateDeliverable} 
@@ -387,7 +554,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
             />
           </div>
           
-          {/* Expand/Collapse All controls */}
           <div className="flex items-center gap-1 border rounded-md">
             <Button 
               variant="ghost" 
@@ -420,6 +586,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
             <Plus className="h-4 w-4" />
             Add Deliverable
           </Button>
+          
           <div className="flex items-center rounded-md bg-muted p-0.5 ml-auto">
             <button
               onClick={() => setViewMode("list")}
@@ -451,8 +618,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      {/* Deliverables Content */}
-      <div className="space-y-6 pt-4">
+      <div className="space-y-4 pt-4">
         {filteredDeliverables.length === 0 && deliverables.length > 0 ? (
           <Card className="bg-muted/10 border-dashed">
             <CardContent className="flex flex-col items-center justify-center p-12 text-center">
@@ -469,15 +635,14 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               <Package className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
               <h3 className="text-lg font-medium">No deliverables defined</h3>
               <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">
-                Start by defining the major outcomes for this project to organize your epics and tasks.
+                Start by defining the major outcomes for this project.
               </p>
               <Button onClick={handleCreateDeliverable} data-testid="button-create-first-deliverable">Create First Deliverable</Button>
             </CardContent>
           </Card>
         ) : viewMode === "card" ? (
-          /* Card View */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredDeliverables.map((deliverable: any) => {
+            {sortedDeliverables.map((deliverable: any) => {
               const epics = getEpicsForDeliverable(deliverable.id);
               const owner = getOwner(deliverable.ownerId);
               const progress = getDeliverableProgress(deliverable.id);
@@ -558,7 +723,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                           <CalendarIcon className="h-3 w-3" />
                           {deliverable.dueDate 
                             ? new Date(deliverable.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) 
-                            : '—'}
+                            : '-'}
                         </div>
                       </div>
                     </div>
@@ -568,374 +733,526 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
             })}
           </div>
         ) : (
-          /* List View - Nested hierarchy like Milestones */
-          <Accordion 
-            type="multiple" 
-            value={expandedDeliverables}
-            onValueChange={setExpandedDeliverables}
-            className="space-y-4"
-          >
-            {filteredDeliverables.map(deliverable => {
-              const epics = getEpicsForDeliverable(deliverable.id);
-              const owner = getOwner(deliverable.ownerId);
-              const progress = getDeliverableProgress(deliverable.id);
-              const taskCounts = getDeliverableTaskCounts(deliverable.id);
-              const isEditingThis = editingDeliverableId === deliverable.id;
+          <div className="border rounded-lg bg-card overflow-x-auto">
+            <Table style={{ minWidth: "900px" }}>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead style={{ width: "3%" }}></TableHead>
+                  <SortableHeader field="title" width="25%">Deliverable</SortableHeader>
+                  <SortableHeader field="status" width="12%">Status</SortableHeader>
+                  <SortableHeader field="dueDate" width="12%">Due Date</SortableHeader>
+                  <SortableHeader field="owner" width="12%">Owner</SortableHeader>
+                  <SortableHeader field="epics" width="10%">Epics</SortableHeader>
+                  <SortableHeader field="progress" width="16%">Progress</SortableHeader>
+                  <TableHead style={{ width: "10%" }} className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedDeliverables.map((deliverable: any) => {
+                  const status = STATUS_CONFIG[deliverable.status] || STATUS_CONFIG["Not Started"];
+                  const StatusIcon = status.icon;
+                  const owner = getOwner(deliverable.ownerId);
+                  const progress = getDeliverableProgress(deliverable.id);
+                  const taskCounts = getDeliverableTaskCounts(deliverable.id);
+                  const isExpanded = expandedDeliverables.has(deliverable.id);
+                  const epics = getEpicsForDeliverable(deliverable.id);
 
-              return (
-                <AccordionItem key={deliverable.id} value={deliverable.id} className="border rounded-lg bg-card px-4" data-testid={`accordion-deliverable-${deliverable.id}`}>
-                  <AccordionTrigger className="hover:no-underline py-4">
-                    <div className="flex items-start gap-4 text-left w-full justify-between">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className={cn(
-                          "p-2 rounded-lg mt-1",
-                          deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
-                          deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                          "bg-slate-100 text-slate-700"
-                        )}>
-                          <Package className="h-5 w-5" />
-                        </div>
-                        <div className="space-y-1 flex-1">
-                          <div className="flex items-center gap-3">
-                            {/* Title - inline editable */}
-                            {isEditingThis && editingField === "title" ? (
-                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                <Input
-                                  ref={inputRef}
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") saveEdit(deliverable.id, "title");
-                                    if (e.key === "Escape") cancelEditing();
-                                  }}
-                                  className="h-8 w-64 text-lg font-semibold"
-                                  data-testid={`input-deliverable-title-${deliverable.id}`}
-                                />
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveEdit(deliverable.id, "title")}>
-                                  <Check className="h-4 w-4 text-green-600" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={cancelEditing}>
-                                  <X className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                              </div>
+                  return (
+                    <React.Fragment key={deliverable.id}>
+                      <TableRow 
+                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30")} 
+                        data-testid={`row-deliverable-${deliverable.id}`}
+                      >
+                        <TableCell className="p-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => toggleDeliverableExpanded(deliverable.id)}
+                            data-testid={`expand-deliverable-${deliverable.id}`}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
                             ) : (
-                              <div className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
-                                <h3 className="text-lg font-semibold">{deliverable.title}</h3>
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost" 
-                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => startEditing(deliverable.id, "title", deliverable.title)}
-                                  data-testid={`button-edit-title-${deliverable.id}`}
-                                >
-                                  <Pencil className="h-3 w-3 text-muted-foreground" />
-                                </Button>
-                              </div>
+                              <ChevronRight className="h-4 w-4" />
                             )}
-                            <Badge variant="outline" className={cn(
-                              "font-normal",
-                              deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
-                              deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                              "bg-slate-50 text-slate-700 border-slate-200"
-                            )}>
-                              {deliverable.status}
-                            </Badge>
-                          </div>
-                          
-                          {/* Description - inline editable */}
-                          {isEditingThis && editingField === "description" ? (
-                            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                              <Textarea
-                                ref={textareaRef}
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          {editingDeliverableId === deliverable.id && editingField === "title" ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                ref={inputRef}
                                 value={editValue}
                                 onChange={(e) => setEditValue(e.target.value)}
                                 onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEdit(deliverable.id, "title");
                                   if (e.key === "Escape") cancelEditing();
                                 }}
-                                placeholder="Add a description..."
-                                className="min-h-[60px] text-sm"
-                                data-testid={`input-deliverable-description-${deliverable.id}`}
+                                className="h-7 text-sm"
+                                data-testid={`input-deliverable-title-${deliverable.id}`}
                               />
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={() => saveEdit(deliverable.id, "description")}>Save</Button>
-                                <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
-                              </div>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => saveEdit(deliverable.id, "title")}>
+                                <Check className="h-3 w-3 text-green-600" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={cancelEditing}>
+                                <X className="h-3 w-3 text-muted-foreground" />
+                              </Button>
                             </div>
                           ) : (
-                            <div 
-                              className="flex items-center gap-2 group cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startEditing(deliverable.id, "description", deliverable.description || "");
-                              }}
-                            >
-                              <p className={cn(
-                                "text-sm",
-                                deliverable.description ? "text-muted-foreground" : "text-muted-foreground/50 italic"
+                            <div className="flex items-center gap-2">
+                              <div className={cn(
+                                "p-1.5 rounded shrink-0",
+                                deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                                deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                                "bg-slate-100 text-slate-700"
                               )}>
-                                {deliverable.description || "Click to add description..."}
-                              </p>
-                              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 text-muted-foreground transition-opacity" />
+                                <Package className="h-3.5 w-3.5" />
+                              </div>
+                              <div 
+                                className="flex items-center gap-1 cursor-pointer hover:text-primary group"
+                                onClick={() => startEditing(deliverable.id, "title", deliverable.title)}
+                                data-testid={`editable-title-${deliverable.id}`}
+                              >
+                                <span className="font-medium text-sm">{deliverable.title}</span>
+                                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Select 
+                            value={deliverable.status} 
+                            onValueChange={(v) => handleStatusChange(deliverable.id, v)}
+                          >
+                            <SelectTrigger className="h-7 text-xs border-none shadow-none px-2 w-auto">
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-[10px] cursor-pointer",
+                                  deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
+                                  deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                  "bg-slate-50 text-slate-700 border-slate-200"
+                                )}
+                              >
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {status.label}
+                              </Badge>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Not Started">Not Started</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                              <SelectItem value="Blocked">Blocked</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <div 
+                                className="flex items-center gap-1.5 cursor-pointer hover:text-primary group"
+                                data-testid={`editable-date-${deliverable.id}`}
+                              >
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                                {deliverable.dueDate ? (
+                                  new Date(deliverable.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                                ) : (
+                                  <span className="italic">Not set</span>
+                                )}
+                                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={deliverable.dueDate ? new Date(deliverable.dueDate) : undefined}
+                                onSelect={(date) => handleDateChange(deliverable.id, "dueDate", date)}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </TableCell>
+                        <TableCell>
+                          <SearchableSelect
+                            value={deliverable.ownerId || ""}
+                            onValueChange={(v) => handleOwnerChange(deliverable.id, v)}
+                            className="h-7 text-xs w-[120px]"
+                            placeholder="Assign..."
+                            options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
+                            data-testid={`select-owner-${deliverable.id}`}
+                          />
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {epics.length} <span className="text-muted-foreground">epic{epics.length !== 1 ? 's' : ''}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={progress} className="h-2 flex-1" />
+                            <span className="text-xs text-muted-foreground w-16">{taskCounts.done}/{taskCounts.total}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-7"
+                              onClick={() => handleOpenCreateEpic(deliverable.id)}
+                              data-testid={`add-epic-${deliverable.id}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                            <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`}>
+                              <Button variant="ghost" size="sm" className="h-7">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => openDeleteDialog(deliverable.id, deliverable.title)}
+                              data-testid={`delete-deliverable-${deliverable.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
 
-                          <div className="flex items-center gap-6 pt-2 text-xs text-muted-foreground">
-                            {/* Owner - inline editable */}
-                            {isEditingThis && editingField === "owner" ? (
-                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                <User className="h-3.5 w-3.5" />
-                                <SearchableSelect 
-                                  value={deliverable.ownerId || ""} 
-                                  onValueChange={(value) => handleOwnerChange(deliverable.id, value)}
-                                  placeholder="Select owner"
-                                  triggerClassName="h-6 text-xs w-32"
-                                  data-testid={`select-owner-${deliverable.id}`}
-                                  options={(users || []).map((u: any) => ({ value: u.id, label: u.name }))}
-                                />
-                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEditing}>
-                                  <X className="h-3 w-3" />
+                      {isExpanded && (
+                        <TableRow className="bg-muted/10 hover:bg-muted/10">
+                          <TableCell colSpan={8} className="p-0">
+                            <div className="p-4 border-t">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                  Epics ({epics.length})
+                                </span>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleOpenCreateEpic(deliverable.id)}
+                                >
+                                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                                  Add Epic
                                 </Button>
                               </div>
-                            ) : (
-                              <div 
-                                className="flex items-center gap-2 cursor-pointer group"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEditing(deliverable.id, "owner", deliverable.ownerId || "");
-                                }}
-                              >
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-[9px]">{owner?.name?.charAt(0) || "?"}</AvatarFallback>
-                                </Avatar>
-                                <span>Owner: {owner?.name || "Unassigned"}</span>
-                                <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50 transition-opacity" />
-                              </div>
-                            )}
 
-                            {/* Start Date - with date picker */}
-                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                              <span>Start:</span>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-5 px-1 text-xs font-normal hover:bg-muted">
-                                    {formatDate(deliverable.startDate)}
-                                    <Pencil className="h-2.5 w-2.5 ml-1 opacity-50" />
+                              {epics.length === 0 ? (
+                                <div className="text-center py-6 text-muted-foreground border rounded-md bg-muted/20">
+                                  <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                  <p className="text-sm">No epics in this deliverable</p>
+                                  <Button 
+                                    variant="default" 
+                                    size="sm" 
+                                    className="mt-3"
+                                    onClick={() => handleOpenCreateEpic(deliverable.id)}
+                                  >
+                                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                                    Create First Epic
                                   </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={deliverable.startDate ? parseISO(deliverable.startDate) : undefined}
-                                    onSelect={(date) => handleDateChange(deliverable.id, "startDate", date)}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-
-                            {/* Due Date - with date picker */}
-                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <CalendarIcon className="h-3.5 w-3.5" />
-                              <span>Due:</span>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-5 px-1 text-xs font-normal hover:bg-muted">
-                                    {formatDate(deliverable.dueDate)}
-                                    <Pencil className="h-2.5 w-2.5 ml-1 opacity-50" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={deliverable.dueDate ? parseISO(deliverable.dueDate) : undefined}
-                                    onSelect={(date) => handleDateChange(deliverable.id, "dueDate", date)}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-
-                            <div className="flex items-center gap-1.5">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>{taskCounts.done}/{taskCounts.total} Tasks</span>
-                            </div>
-                            <div className="flex items-center gap-2 min-w-[100px]">
-                              <Progress value={progress} className="h-1.5 w-16" />
-                              <span>{progress}%</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      {/* Delete button only */}
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Button 
-                          size="icon" 
-                          variant="ghost"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => openDeleteDialog(deliverable.id, deliverable.title)}
-                          data-testid={`button-delete-deliverable-${deliverable.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-
-                  <AccordionContent className="pt-0 pb-4 pl-[3.25rem]">
-                    <div className="space-y-3 mt-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          Epics ({epics.length})
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="gap-1.5"
-                            onClick={() => handleOpenCreateEpic(deliverable.id)}
-                            data-testid={`button-add-epic-${deliverable.id}`}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Add Epic
-                          </Button>
-                        </div>
-                      </div>
-                      {epics.length > 0 ? (
-                        <div className="space-y-2">
-                          {epics.map(epic => {
-                            const epicProgress = getEpicProgress(epic.id);
-                            const epicTaskCounts = getEpicTaskCounts(epic.id);
-                            const epicTasks = getTasksForEpic(epic.id);
-                            const isEpicExpanded = expandedEpics.has(epic.id);
-
-                            return (
-                              <Collapsible 
-                                key={epic.id} 
-                                open={isEpicExpanded}
-                                onOpenChange={() => toggleEpicExpanded(epic.id)}
-                              >
-                                <div className="border rounded-md bg-background">
-                                  <CollapsibleTrigger asChild>
-                                    <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors">
-                                      <div className="flex items-center gap-3">
-                                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                                          {isEpicExpanded ? (
-                                            <ChevronDown className="h-4 w-4" />
-                                          ) : (
-                                            <ChevronRight className="h-4 w-4" />
-                                          )}
-                                        </Button>
-                                        <div className="p-1.5 bg-primary/10 text-primary rounded">
-                                          <Layers className="h-4 w-4" />
-                                        </div>
-                                        <div>
-                                          <Link href={`/projects/${projectId}/epics/${epic.id}`} onClick={(e) => e.stopPropagation()}>
-                                            <h4 className="font-medium hover:text-primary transition-colors">{epic.title}</h4>
-                                          </Link>
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{formatDate(epic.startDate)} - {formatDate(epic.endDate)}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-6">
-                                        <Badge variant="secondary" className="font-normal text-xs">
-                                          {epic.status}
-                                        </Badge>
-                                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                          <ListTodo className="h-3 w-3" />
-                                          <span>{epicTaskCounts.done}/{epicTaskCounts.total}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 w-24">
-                                          <Progress value={epicProgress} className="h-1.5" />
-                                          <span className="text-xs text-muted-foreground w-8 text-right">{epicProgress}%</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </CollapsibleTrigger>
-                                  
-                                  <CollapsibleContent>
-                                    <div className="border-t px-3 py-2 bg-muted/20">
-                                      {epicTasks.length > 0 ? (
-                                        <div className="space-y-1">
-                                          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider py-1">
-                                            Tasks ({epicTasks.length})
-                                          </div>
-                                          {epicTasks.map((task: any) => {
-                                            const assignee = users.find((u: any) => u.id === task.assigneeId);
-                                            return (
-                                              <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
-                                                <div className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer">
-                                                  <div className="flex items-center gap-2">
-                                                    <div className={cn(
-                                                      "w-2 h-2 rounded-full",
-                                                      task.status === "Done" ? "bg-green-500" :
-                                                      task.status === "In Progress" ? "bg-blue-500" :
-                                                      task.status === "Review" ? "bg-amber-500" :
-                                                      "bg-slate-400"
-                                                    )} />
-                                                    <span className="text-sm">{task.title}</span>
-                                                  </div>
-                                                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                    <Badge variant="outline" className="text-[10px]">{task.status}</Badge>
-                                                    {assignee && (
-                                                      <div className="flex items-center gap-1">
-                                                        <Avatar className="h-4 w-4">
-                                                          <AvatarFallback className="text-[8px]">
-                                                            {assignee.name?.charAt(0)}
-                                                          </AvatarFallback>
-                                                        </Avatar>
-                                                      </div>
-                                                    )}
-                                                    {task.deadline && (
-                                                      <span>{formatDate(task.deadline)}</span>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </Link>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : (
-                                        <div className="text-center py-4 text-sm text-muted-foreground">
-                                          No tasks in this epic yet.
-                                        </div>
-                                      )}
-                                    </div>
-                                  </CollapsibleContent>
                                 </div>
-                              </Collapsible>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="p-6 border border-dashed rounded-md text-center bg-muted/20">
-                          <Layers className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-                          <p className="text-sm text-muted-foreground mb-3">
-                            No epics created for this deliverable yet.
-                          </p>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="gap-1.5"
-                            onClick={() => handleOpenCreateEpic(deliverable.id)}
-                            data-testid={`button-add-first-epic-${deliverable.id}`}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Create First Epic
-                          </Button>
-                        </div>
+                              ) : (
+                                <div className="border rounded-md divide-y">
+                                  {epics.map((epic: any) => {
+                                    const epicProgress = getEpicProgress(epic.id);
+                                    const epicTaskCounts = getEpicTaskCounts(epic.id);
+                                    const epicTasks = getTasksForEpic(epic.id);
+                                    const isEpicExpanded = expandedEpics.has(epic.id);
+                                    const epicStatus = STATUS_CONFIG[epic.status] || STATUS_CONFIG["Not Started"];
+                                    const EpicStatusIcon = epicStatus.icon;
+
+                                    return (
+                                      <div key={epic.id}>
+                                        <div 
+                                          className={cn(
+                                            "flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 transition-colors",
+                                            isEpicExpanded && "bg-muted/20"
+                                          )}
+                                          onClick={() => toggleEpicExpanded(epic.id)}
+                                          data-testid={`row-epic-${epic.id}`}
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 p-0">
+                                              {isEpicExpanded ? (
+                                                <ChevronDown className="h-4 w-4" />
+                                              ) : (
+                                                <ChevronRight className="h-4 w-4" />
+                                              )}
+                                            </Button>
+                                            <div className="p-1.5 bg-primary/10 text-primary rounded">
+                                              <Layers className="h-4 w-4" />
+                                            </div>
+                                            <div>
+                                              <Link 
+                                                href={`/projects/${projectId}/epics/${epic.id}`} 
+                                                onClick={(e) => e.stopPropagation()}
+                                              >
+                                                <h4 className="font-medium text-sm hover:text-primary transition-colors">{epic.title}</h4>
+                                              </Link>
+                                              {epic.description && (
+                                                <p className="text-xs text-muted-foreground line-clamp-1">{epic.description}</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-4">
+                                            <Badge 
+                                              variant="outline" 
+                                              className={cn(
+                                                "text-[10px]",
+                                                epic.status === "Completed" || epic.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
+                                                epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                                "bg-slate-50 text-slate-700 border-slate-200"
+                                              )}
+                                            >
+                                              <EpicStatusIcon className="h-2.5 w-2.5 mr-1" />
+                                              {epic.status}
+                                            </Badge>
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                              <ListTodo className="h-3 w-3" />
+                                              <span>{epicTaskCounts.done}/{epicTaskCounts.total}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 w-24">
+                                              <Progress value={epicProgress} className="h-1.5" />
+                                              <span className="text-xs text-muted-foreground w-8 text-right">{epicProgress}%</span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {isEpicExpanded && (
+                                          <div className="border-t bg-muted/10 p-3 pl-12">
+                                            <div className="flex items-center justify-between mb-2">
+                                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                                Tasks ({epicTasks.length})
+                                              </span>
+                                              <Button 
+                                                variant="outline" 
+                                                size="sm"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setCreatingTaskForEpic(epic.id);
+                                                }}
+                                              >
+                                                <Plus className="h-3 w-3 mr-1" />
+                                                Add Task
+                                              </Button>
+                                            </div>
+
+                                            {creatingTaskForEpic === epic.id && (
+                                              <div className="flex items-center gap-2 mb-2 p-2 bg-background rounded border">
+                                                <Input
+                                                  placeholder="New task title..."
+                                                  value={newTaskTitle}
+                                                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                                                  onKeyDown={(e) => {
+                                                    if (e.key === "Enter") handleCreateTask(epic.id);
+                                                    if (e.key === "Escape") {
+                                                      setCreatingTaskForEpic(null);
+                                                      setNewTaskTitle("");
+                                                    }
+                                                  }}
+                                                  className="h-8 flex-1"
+                                                  autoFocus
+                                                  data-testid={`input-new-task-${epic.id}`}
+                                                />
+                                                <Button 
+                                                  size="sm" 
+                                                  onClick={() => handleCreateTask(epic.id)}
+                                                  data-testid={`button-save-task-${epic.id}`}
+                                                >
+                                                  <Check className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button 
+                                                  size="sm" 
+                                                  variant="ghost"
+                                                  onClick={() => {
+                                                    setCreatingTaskForEpic(null);
+                                                    setNewTaskTitle("");
+                                                  }}
+                                                >
+                                                  <X className="h-3.5 w-3.5" />
+                                                </Button>
+                                              </div>
+                                            )}
+
+                                            {epicTasks.length === 0 && creatingTaskForEpic !== epic.id ? (
+                                              <div className="text-center py-4 text-sm text-muted-foreground border rounded bg-background">
+                                                No tasks in this epic yet.
+                                              </div>
+                                            ) : (
+                                              <div className="border rounded divide-y bg-background">
+                                                {epicTasks.map((task: any) => {
+                                                  const assignee = users?.find((u: any) => u.id === task.assigneeId);
+                                                  const taskStatus = STATUS_CONFIG[task.status] || STATUS_CONFIG["Todo"];
+                                                  const isEditingThisTask = editingTaskId === task.id;
+
+                                                  return (
+                                                    <div 
+                                                      key={task.id} 
+                                                      className="p-2 hover:bg-muted/30 transition-colors"
+                                                      data-testid={`row-task-${task.id}`}
+                                                    >
+                                                      <div className="flex items-center gap-3">
+                                                        <div className={cn(
+                                                          "w-2 h-2 rounded-full shrink-0",
+                                                          task.status === "Done" ? "bg-green-500" :
+                                                          task.status === "In Progress" ? "bg-blue-500" :
+                                                          task.status === "Review" ? "bg-amber-500" :
+                                                          "bg-slate-400"
+                                                        )} />
+
+                                                        <div className="flex-1 min-w-0">
+                                                          {isEditingThisTask && editingTaskField === "title" ? (
+                                                            <div className="flex items-center gap-1">
+                                                              <Input
+                                                                value={editTaskValue}
+                                                                onChange={(e) => setEditTaskValue(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                  if (e.key === "Enter") saveTaskEdit(task.id, "title");
+                                                                  if (e.key === "Escape") cancelEditingTask();
+                                                                }}
+                                                                className="h-6 text-sm"
+                                                                autoFocus
+                                                                data-testid={`input-task-title-${task.id}`}
+                                                              />
+                                                              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => saveTaskEdit(task.id, "title")}>
+                                                                <Check className="h-3 w-3 text-green-600" />
+                                                              </Button>
+                                                              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEditingTask}>
+                                                                <X className="h-3 w-3" />
+                                                              </Button>
+                                                            </div>
+                                                          ) : (
+                                                            <div 
+                                                              className="flex items-center gap-1 cursor-pointer group"
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                startEditingTask(task.id, "title", task.title);
+                                                              }}
+                                                            >
+                                                              <span className="text-sm font-medium truncate">{task.title}</span>
+                                                              <Pencil className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                            </div>
+                                                          )}
+                                                        </div>
+
+                                                        <Select 
+                                                          value={task.status} 
+                                                          onValueChange={(v) => handleTaskStatusChange(task.id, v)}
+                                                        >
+                                                          <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto">
+                                                            <Badge 
+                                                              variant="outline" 
+                                                              className={cn(
+                                                                "text-[10px] px-1.5 py-0",
+                                                                task.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
+                                                                task.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                                                task.status === "Review" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                                                "bg-slate-50 text-slate-700 border-slate-200"
+                                                              )}
+                                                            >
+                                                              {task.status}
+                                                            </Badge>
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            <SelectItem value="Todo">Todo</SelectItem>
+                                                            <SelectItem value="In Progress">In Progress</SelectItem>
+                                                            <SelectItem value="Review">Review</SelectItem>
+                                                            <SelectItem value="Done">Done</SelectItem>
+                                                          </SelectContent>
+                                                        </Select>
+
+                                                        <Select 
+                                                          value={task.priority} 
+                                                          onValueChange={(v) => handleTaskPriorityChange(task.id, v)}
+                                                        >
+                                                          <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto">
+                                                            <Badge 
+                                                              variant="outline" 
+                                                              className={cn("text-[10px] px-1.5 py-0", PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG["Medium"])}
+                                                            >
+                                                              {task.priority}
+                                                            </Badge>
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            <SelectItem value="Low">Low</SelectItem>
+                                                            <SelectItem value="Medium">Medium</SelectItem>
+                                                            <SelectItem value="High">High</SelectItem>
+                                                            <SelectItem value="Critical">Critical</SelectItem>
+                                                          </SelectContent>
+                                                        </Select>
+
+                                                        <Select 
+                                                          value={String(task.effort || 3)} 
+                                                          onValueChange={(v) => handleTaskEffortChange(task.id, parseInt(v))}
+                                                        >
+                                                          <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-12">
+                                                            <span className="text-xs">{task.effort || 3}pt</span>
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            {EFFORT_VALUES.map((v) => (
+                                                              <SelectItem key={v} value={String(v)}>{v} pts</SelectItem>
+                                                            ))}
+                                                          </SelectContent>
+                                                        </Select>
+
+                                                        <Popover>
+                                                          <PopoverTrigger asChild>
+                                                            <Button variant="ghost" size="sm" className="h-6 px-1 text-xs">
+                                                              <CalendarIcon className="h-3 w-3 mr-1" />
+                                                              {task.deadline ? format(new Date(task.deadline), "MMM d") : "-"}
+                                                            </Button>
+                                                          </PopoverTrigger>
+                                                          <PopoverContent className="w-auto p-0" align="end">
+                                                            <Calendar
+                                                              mode="single"
+                                                              selected={task.deadline ? new Date(task.deadline) : undefined}
+                                                              onSelect={(date) => handleTaskDeadlineChange(task.id, date)}
+                                                              initialFocus
+                                                            />
+                                                          </PopoverContent>
+                                                        </Popover>
+
+                                                        <SearchableSelect
+                                                          value={task.assigneeId || ""}
+                                                          onValueChange={(v) => handleTaskAssigneeChange(task.id, v)}
+                                                          className="h-6 text-xs w-[100px]"
+                                                          placeholder="Assign"
+                                                          options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
+                                                        />
+
+                                                        <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                                                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                                            <ExternalLink className="h-3 w-3" />
+                                                          </Button>
+                                                        </Link>
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
+                    </React.Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
 
-      {/* Create Epic Dialog */}
       <Dialog open={isCreateEpicOpen} onOpenChange={setIsCreateEpicOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -967,7 +1284,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
             <div className="space-y-3 pt-2">
               <Label>Assign Stages</Label>
               <div className="text-xs text-muted-foreground mb-2">
-                  Select the workflow stages that apply to this epic. This determines the task workflow.
+                  Select the workflow stages that apply to this epic.
               </div>
               <ScrollArea className="h-[200px] border rounded-md p-2">
                   <div className="space-y-2">
@@ -1009,7 +1326,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1042,7 +1358,6 @@ export default function DeliverablesList() {
   return (
     <Shell>
       <div className="space-y-8">
-        {/* Header */}
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Link href={`/projects/${projectId}`} className="hover:text-primary transition-colors flex items-center gap-1">
