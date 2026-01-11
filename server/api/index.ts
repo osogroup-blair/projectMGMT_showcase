@@ -1458,6 +1458,31 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Status Usage Counts - get how many entities use a given status label
+  app.get("/api/statusOptions/usage/:statusLabel", async (req, res) => {
+    try {
+      const statusLabel = decodeURIComponent(req.params.statusLabel);
+      const usage = await storage.getStatusUsageCounts(statusLabel);
+      res.json(usage);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulk Status Remap - update all entities from oldStatus to newStatus
+  app.post("/api/statusOptions/remap", async (req, res) => {
+    try {
+      const { oldStatus, newStatus, entityTypes } = req.body;
+      if (!oldStatus || !newStatus) {
+        return res.status(400).json({ error: "oldStatus and newStatus are required" });
+      }
+      const result = await storage.remapStatus(oldStatus, newStatus, entityTypes);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Role Types
   app.get("/api/roleTypes", async (req, res) => {
     const roleTypes = await storage.getRoleTypes();

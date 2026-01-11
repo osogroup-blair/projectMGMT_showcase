@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
-import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Plus, Pencil, Trash2, GripVertical, AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
 import { useStatusOptions } from "@/hooks/use-nexus-data";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
   closestCenter,
@@ -37,18 +38,55 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { StatusOption } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
+interface StatusUsageCounts {
+  projects: number;
+  deliverables: number;
+  epics: number;
+  tasks: number;
+  sprints: number;
+  milestones: number;
+  projectStages: number;
+  workBlocks: number;
+  total: number;
+}
+
+async function fetchStatusUsage(statusLabel: string): Promise<StatusUsageCounts> {
+  const res = await fetch(`/api/statusOptions/usage/${encodeURIComponent(statusLabel)}`);
+  if (!res.ok) throw new Error("Failed to fetch usage");
+  return res.json();
+}
+
+async function remapStatus(oldStatus: string, newStatus: string, entityTypes?: string[]): Promise<StatusUsageCounts> {
+  const res = await fetch("/api/statusOptions/remap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ oldStatus, newStatus, entityTypes }),
+  });
+  if (!res.ok) throw new Error("Failed to remap status");
+  return res.json();
+}
+
 interface SortableStatusRowProps {
   status: StatusOption;
   type: "project" | "task";
+  usageCount: number;
+  isLoadingUsage: boolean;
   onEdit: (type: "project" | "task", item: StatusOption) => void;
-  onDelete: (type: "project" | "task", id: string) => void;
+  onDelete: (type: "project" | "task", item: StatusOption) => void;
 }
 
-function SortableStatusRow({ status, type, onEdit, onDelete }: SortableStatusRowProps) {
+function SortableStatusRow({ status, type, usageCount, isLoadingUsage, onEdit, onDelete }: SortableStatusRowProps) {
   const {
     attributes,
     listeners,
@@ -83,12 +121,21 @@ function SortableStatusRow({ status, type, onEdit, onDelete }: SortableStatusRow
         <Badge variant="outline" className={cn("font-normal border-0", status.color)}>
           {status.label}
         </Badge>
+        {isLoadingUsage ? (
+          <span className="text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin inline" />
+          </span>
+        ) : usageCount > 0 ? (
+          <Badge variant="secondary" className="text-xs font-normal" data-testid={`usage-count-${status.id}`}>
+            {usageCount} {usageCount === 1 ? "item" : "items"}
+          </Badge>
+        ) : null}
       </div>
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={() => onEdit(type, status)} data-testid={`button-edit-${type}-status-${status.id}`}>
           <Pencil className="h-4 w-4 text-muted-foreground" />
         </Button>
-        <Button variant="ghost" size="icon" className="text-red-600" onClick={() => onDelete(type, status.id)} data-testid={`button-delete-${type}-status-${status.id}`}>
+        <Button variant="ghost" size="icon" className="text-red-600" onClick={() => onDelete(type, status)} data-testid={`button-delete-${type}-status-${status.id}`}>
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
@@ -124,8 +171,148 @@ const ColorPicker = ({ value, onChange }: { value: string, onChange: (val: strin
   );
 };
 
+interface StatusMapperDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  statusToRemap: StatusOption | null;
+  availableStatuses: StatusOption[];
+  mode: "edit" | "delete";
+  newLabel?: string;
+  onConfirm: (targetStatusLabel: string) => Promise<void>;
+  usageCounts: StatusUsageCounts | null;
+  isRemapping: boolean;
+}
+
+function StatusMapperDialog({ 
+  open, 
+  onOpenChange, 
+  statusToRemap, 
+  availableStatuses, 
+  mode,
+  newLabel,
+  onConfirm,
+  usageCounts,
+  isRemapping
+}: StatusMapperDialogProps) {
+  const [targetStatus, setTargetStatus] = useState<string>("");
+
+  useEffect(() => {
+    if (open) {
+      setTargetStatus("");
+    }
+  }, [open]);
+
+  const handleConfirm = async () => {
+    if (mode === "edit" && newLabel) {
+      await onConfirm(newLabel);
+    } else if (targetStatus) {
+      await onConfirm(targetStatus);
+    }
+  };
+
+  if (!statusToRemap || !usageCounts) return null;
+
+  const entityBreakdown = [
+    { label: "Tasks", count: usageCounts.tasks },
+    { label: "Projects", count: usageCounts.projects },
+    { label: "Deliverables", count: usageCounts.deliverables },
+    { label: "Epics", count: usageCounts.epics },
+    { label: "Sprints", count: usageCounts.sprints },
+    { label: "Milestones", count: usageCounts.milestones },
+    { label: "Stages", count: usageCounts.projectStages },
+    { label: "Work Blocks", count: usageCounts.workBlocks },
+  ].filter(e => e.count > 0);
+
+  const isEditMode = mode === "edit" && newLabel;
+  const canConfirm = isEditMode ? !!newLabel : !!targetStatus;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            {mode === "delete" ? "Cannot Delete Status" : "Update Existing Items?"}
+          </DialogTitle>
+          <DialogDescription>
+            {mode === "delete" 
+              ? `"${statusToRemap.label}" is currently used by ${usageCounts.total} items. You must reassign them before deleting.`
+              : `"${statusToRemap.label}" is used by ${usageCounts.total} items. Would you like to update them to "${newLabel}"?`
+            }
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="py-4 space-y-4">
+          <div className="text-sm space-y-1">
+            <p className="font-medium text-muted-foreground">Usage breakdown:</p>
+            <div className="flex flex-wrap gap-2">
+              {entityBreakdown.map(e => (
+                <Badge key={e.label} variant="outline" className="font-normal">
+                  {e.count} {e.label}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <Badge variant="outline" className={cn("font-normal border-0", statusToRemap.color)}>
+              {statusToRemap.label}
+            </Badge>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            {isEditMode ? (
+              <Badge variant="outline" className={cn("font-normal border-0", statusToRemap.color)}>
+                {newLabel}
+              </Badge>
+            ) : (
+              <Select value={targetStatus} onValueChange={setTargetStatus}>
+                <SelectTrigger className="w-[180px]" data-testid="select-remap-target">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableStatuses
+                    .filter(s => s.id !== statusToRemap.id)
+                    .map(s => (
+                      <SelectItem key={s.id} value={s.label} data-testid={`remap-option-${s.id}`}>
+                        <span className="flex items-center gap-2">
+                          <span className={cn("w-2 h-2 rounded-full", s.color?.split(" ")[0])} />
+                          {s.label}
+                        </span>
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isRemapping} data-testid="button-cancel-remap">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirm} 
+            disabled={!canConfirm || isRemapping}
+            data-testid="button-confirm-remap"
+          >
+            {isRemapping ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {mode === "edit" ? "Updating..." : "Remapping..."}
+              </>
+            ) : (
+              mode === "delete" ? "Remap & Delete" : "Update All Items"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function StatusOptionsTab() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: allStatusOptions = [], createAsync: createStatusOption, updateAsync: updateStatusOption, removeAsync: deleteStatusOption, isLoading } = useStatusOptions();
   
   const projectStatuses = useMemo(() => 
@@ -139,11 +326,37 @@ export function StatusOptionsTab() {
   
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [currentType, setCurrentType] = useState<"project" | "task">("project");
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<StatusOption | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<any>({
     label: "",
     color: "bg-slate-100 text-slate-700",
+  });
+
+  const [mapperOpen, setMapperOpen] = useState(false);
+  const [mapperMode, setMapperMode] = useState<"edit" | "delete">("delete");
+  const [statusToRemap, setStatusToRemap] = useState<StatusOption | null>(null);
+  const [pendingNewLabel, setPendingNewLabel] = useState<string>("");
+  const [isRemapping, setIsRemapping] = useState(false);
+
+  const { data: usageCountsMap = {} } = useQuery({
+    queryKey: ["statusUsageCounts", allStatusOptions.map(s => s.label).join(",")],
+    queryFn: async () => {
+      const counts: Record<string, StatusUsageCounts> = {};
+      const uniqueLabels = Array.from(new Set(allStatusOptions.map(s => s.label)));
+      await Promise.all(
+        uniqueLabels.map(async (label) => {
+          try {
+            counts[label] = await fetchStatusUsage(label);
+          } catch {
+            counts[label] = { projects: 0, deliverables: 0, epics: 0, tasks: 0, sprints: 0, milestones: 0, projectStages: 0, workBlocks: 0, total: 0 };
+          }
+        })
+      );
+      return counts;
+    },
+    enabled: allStatusOptions.length > 0,
+    staleTime: 30000,
   });
 
   const sensors = useSensors(
@@ -188,7 +401,7 @@ export function StatusOptionsTab() {
     }
   };
 
-  const handleOpenEdit = (type: "project" | "task", item?: any) => {
+  const handleOpenEdit = (type: "project" | "task", item?: StatusOption) => {
     setCurrentType(type);
     setEditingItem(item || null);
     if (item) {
@@ -203,10 +416,34 @@ export function StatusOptionsTab() {
   };
 
   const handleSave = async () => {
+    if (!formData.label?.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a status label.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (editingItem && editingItem.label !== formData.label) {
+      const usage = usageCountsMap[editingItem.label];
+      if (usage && usage.total > 0) {
+        setPendingNewLabel(formData.label);
+        setStatusToRemap(editingItem);
+        setMapperMode("edit");
+        setMapperOpen(true);
+        return;
+      }
+    }
+
+    await performSave();
+  };
+
+  const performSave = async (newLabel?: string) => {
     setIsSaving(true);
     try {
       const statusData = {
-        label: formData.label,
+        label: newLabel || formData.label,
         color: formData.color,
         type: currentType,
         order: currentType === "project" ? projectStatuses.length : taskStatuses.length,
@@ -218,9 +455,10 @@ export function StatusOptionsTab() {
         await createStatusOption(statusData);
       }
       setIsEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["statusUsageCounts"] });
       toast({
         title: "Settings Saved",
-        description: `${formData.label} has been successfully saved.`,
+        description: `${statusData.label} has been successfully saved.`,
       });
     } catch (error) {
       toast({
@@ -233,9 +471,19 @@ export function StatusOptionsTab() {
     }
   };
 
-  const handleDelete = async (type: "project" | "task", id: string) => {
+  const handleDelete = async (type: "project" | "task", status: StatusOption) => {
+    const usage = usageCountsMap[status.label];
+    if (usage && usage.total > 0) {
+      setCurrentType(type);
+      setStatusToRemap(status);
+      setMapperMode("delete");
+      setMapperOpen(true);
+      return;
+    }
+
     try {
-      await deleteStatusOption(id);
+      await deleteStatusOption(status.id);
+      queryClient.invalidateQueries({ queryKey: ["statusUsageCounts"] });
       toast({
         title: "Item Deleted",
         description: "Status option has been removed.",
@@ -249,6 +497,48 @@ export function StatusOptionsTab() {
       });
     }
   };
+
+  const handleRemapConfirm = async (targetStatusLabel: string) => {
+    if (!statusToRemap) return;
+
+    setIsRemapping(true);
+    try {
+      if (mapperMode === "delete") {
+        const result = await remapStatus(statusToRemap.label, targetStatusLabel);
+        await deleteStatusOption(statusToRemap.id);
+        toast({
+          title: "Status Remapped & Deleted",
+          description: `Moved ${result.total} items to "${targetStatusLabel}" and deleted "${statusToRemap.label}".`,
+        });
+      } else {
+        const result = await remapStatus(statusToRemap.label, targetStatusLabel);
+        await performSave(targetStatusLabel);
+        toast({
+          title: "Status Updated",
+          description: `Updated ${result.total} items from "${statusToRemap.label}" to "${targetStatusLabel}".`,
+        });
+      }
+      
+      setMapperOpen(false);
+      setIsEditOpen(false);
+      setStatusToRemap(null);
+      setPendingNewLabel("");
+      queryClient.invalidateQueries({ queryKey: ["statusUsageCounts"] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remap status values. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRemapping(false);
+    }
+  };
+
+  const availableStatusesForMapper = useMemo(() => {
+    if (!statusToRemap) return [];
+    return statusToRemap.type === "project" ? projectStatuses : taskStatuses;
+  }, [statusToRemap, projectStatuses, taskStatuses]);
 
   return (
     <>
@@ -282,6 +572,8 @@ export function StatusOptionsTab() {
                         key={status.id}
                         status={status}
                         type="project"
+                        usageCount={usageCountsMap[status.label]?.total || 0}
+                        isLoadingUsage={!usageCountsMap[status.label]}
                         onEdit={handleOpenEdit}
                         onDelete={handleDelete}
                       />
@@ -322,6 +614,8 @@ export function StatusOptionsTab() {
                         key={status.id}
                         status={status}
                         type="task"
+                        usageCount={usageCountsMap[status.label]?.total || 0}
+                        isLoadingUsage={!usageCountsMap[status.label]}
                         onEdit={handleOpenEdit}
                         onDelete={handleDelete}
                       />
@@ -377,6 +671,18 @@ export function StatusOptionsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StatusMapperDialog
+        open={mapperOpen}
+        onOpenChange={setMapperOpen}
+        statusToRemap={statusToRemap}
+        availableStatuses={availableStatusesForMapper}
+        mode={mapperMode}
+        newLabel={pendingNewLabel}
+        onConfirm={handleRemapConfirm}
+        usageCounts={statusToRemap ? usageCountsMap[statusToRemap.label] : null}
+        isRemapping={isRemapping}
+      />
     </>
   );
 }

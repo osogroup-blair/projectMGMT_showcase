@@ -241,6 +241,30 @@ export interface IStorage {
   createStatusOption(option: InsertStatusOption): Promise<StatusOption>;
   updateStatusOption(id: string, option: Partial<StatusOption>): Promise<StatusOption>;
   deleteStatusOption(id: string): Promise<void>;
+  
+  // Status Usage and Remapping
+  getStatusUsageCounts(statusLabel: string): Promise<{
+    projects: number;
+    deliverables: number;
+    epics: number;
+    tasks: number;
+    sprints: number;
+    milestones: number;
+    projectStages: number;
+    workBlocks: number;
+    total: number;
+  }>;
+  remapStatus(oldStatus: string, newStatus: string, entityTypes?: string[]): Promise<{
+    projects: number;
+    deliverables: number;
+    epics: number;
+    tasks: number;
+    sprints: number;
+    milestones: number;
+    projectStages: number;
+    workBlocks: number;
+    total: number;
+  }>;
 
   // Role Types
   getRoleTypes(): Promise<RoleType[]>;
@@ -1043,6 +1067,110 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteStatusOption(id: string): Promise<void> {
     await db.delete(schema.statusOptions).where(eq(schema.statusOptions.id, id));
+  }
+
+  // Status Usage and Remapping
+  async getStatusUsageCounts(statusLabel: string): Promise<{
+    projects: number;
+    deliverables: number;
+    epics: number;
+    tasks: number;
+    sprints: number;
+    milestones: number;
+    projectStages: number;
+    workBlocks: number;
+    total: number;
+  }> {
+    const [projectsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.projects).where(eq(schema.projects.status, statusLabel));
+    const [deliverablesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.deliverables).where(eq(schema.deliverables.status, statusLabel));
+    const [epicsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.epics).where(eq(schema.epics.status, statusLabel));
+    const [tasksResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.tasks).where(eq(schema.tasks.status, statusLabel));
+    const [sprintsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.sprints).where(eq(schema.sprints.status, statusLabel));
+    const [milestonesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.milestones).where(eq(schema.milestones.status, statusLabel));
+    const [projectStagesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.projectStages).where(eq(schema.projectStages.status, statusLabel));
+    const [workBlocksResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.workBlocks).where(eq(schema.workBlocks.status, statusLabel));
+    
+    const projects = projectsResult?.count || 0;
+    const deliverables = deliverablesResult?.count || 0;
+    const epics = epicsResult?.count || 0;
+    const tasks = tasksResult?.count || 0;
+    const sprints = sprintsResult?.count || 0;
+    const milestones = milestonesResult?.count || 0;
+    const projectStages = projectStagesResult?.count || 0;
+    const workBlocks = workBlocksResult?.count || 0;
+    
+    return {
+      projects,
+      deliverables,
+      epics,
+      tasks,
+      sprints,
+      milestones,
+      projectStages,
+      workBlocks,
+      total: projects + deliverables + epics + tasks + sprints + milestones + projectStages + workBlocks
+    };
+  }
+  
+  async remapStatus(oldStatus: string, newStatus: string, entityTypes?: string[]): Promise<{
+    projects: number;
+    deliverables: number;
+    epics: number;
+    tasks: number;
+    sprints: number;
+    milestones: number;
+    projectStages: number;
+    workBlocks: number;
+    total: number;
+  }> {
+    const shouldUpdate = (type: string) => !entityTypes || entityTypes.length === 0 || entityTypes.includes(type);
+    
+    let projects = 0, deliverables = 0, epics = 0, tasks = 0, sprints = 0, milestones = 0, projectStages = 0, workBlocks = 0;
+    
+    if (shouldUpdate('projects')) {
+      const result = await db.update(schema.projects).set({ status: newStatus }).where(eq(schema.projects.status, oldStatus));
+      projects = result.rowCount || 0;
+    }
+    if (shouldUpdate('deliverables')) {
+      const result = await db.update(schema.deliverables).set({ status: newStatus }).where(eq(schema.deliverables.status, oldStatus));
+      deliverables = result.rowCount || 0;
+    }
+    if (shouldUpdate('epics')) {
+      const result = await db.update(schema.epics).set({ status: newStatus }).where(eq(schema.epics.status, oldStatus));
+      epics = result.rowCount || 0;
+    }
+    if (shouldUpdate('tasks')) {
+      const result = await db.update(schema.tasks).set({ status: newStatus }).where(eq(schema.tasks.status, oldStatus));
+      tasks = result.rowCount || 0;
+    }
+    if (shouldUpdate('sprints')) {
+      const result = await db.update(schema.sprints).set({ status: newStatus }).where(eq(schema.sprints.status, oldStatus));
+      sprints = result.rowCount || 0;
+    }
+    if (shouldUpdate('milestones')) {
+      const result = await db.update(schema.milestones).set({ status: newStatus }).where(eq(schema.milestones.status, oldStatus));
+      milestones = result.rowCount || 0;
+    }
+    if (shouldUpdate('projectStages')) {
+      const result = await db.update(schema.projectStages).set({ status: newStatus }).where(eq(schema.projectStages.status, oldStatus));
+      projectStages = result.rowCount || 0;
+    }
+    if (shouldUpdate('workBlocks')) {
+      const result = await db.update(schema.workBlocks).set({ status: newStatus }).where(eq(schema.workBlocks.status, oldStatus));
+      workBlocks = result.rowCount || 0;
+    }
+    
+    return {
+      projects,
+      deliverables,
+      epics,
+      tasks,
+      sprints,
+      milestones,
+      projectStages,
+      workBlocks,
+      total: projects + deliverables + epics + tasks + sprints + milestones + projectStages + workBlocks
+    };
   }
 
   // Role Types
