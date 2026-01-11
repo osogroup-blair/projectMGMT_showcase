@@ -22,7 +22,7 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useDeliverables, useEpics, useUsers, useTasks, useProjectStages, useDeliverableTypes } from "@/hooks/use-nexus-data";
+import { useDeliverables, useEpics, useUsers, useTasks, useProjectStages, useDeliverableTypes, useEpicTypes, useProject } from "@/hooks/use-nexus-data";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +50,8 @@ export default function DeliverableDetail() {
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: projectStages } = useProjectStages();
   const { data: deliverableTypes = [] } = useDeliverableTypes();
+  const { data: epicTypes = [] } = useEpicTypes();
+  const { data: project } = useProject(projectId);
   const { toast } = useToast();
 
   // Edit dates state
@@ -66,10 +68,13 @@ export default function DeliverableDetail() {
     description: "",
     status: "Not Started",
     ownerId: "",
+    typeId: "",
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     stageIds: [] as string[],
   });
+
+  const getEpicType = (typeId?: string | null) => epicTypes.find((t: any) => t.id === typeId);
 
   const handleCreateEpic = () => {
     if (!newEpicData.title) {
@@ -89,6 +94,7 @@ export default function DeliverableDetail() {
       description: newEpicData.description || "",
       status: newEpicData.status,
       ownerId: newEpicData.ownerId || "1",
+      typeId: newEpicData.typeId || null,
       startDate: newEpicData.startDate,
       endDate: newEpicData.endDate,
       progress: 0,
@@ -105,6 +111,7 @@ export default function DeliverableDetail() {
       description: "",
       status: "Not Started",
       ownerId: "",
+      typeId: "",
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       stageIds: [],
@@ -494,19 +501,43 @@ export default function DeliverableDetail() {
                 const epicProgress = getEpicProgress(epic.id);
                 const epicTaskCounts = getEpicTaskCounts(epic.id);
                 const epicOwner = getEpicOwner(epic.ownerId);
+                const epicType = getEpicType(epic.typeId);
 
                 return (
                   <Link key={epic.id} href={`/projects/${projectId}/epics/${epic.id}`}>
                     <Card className="hover:border-primary/50 hover:shadow-md transition-all cursor-pointer" data-testid={`card-epic-${epic.id}`}>
                       <CardContent className="p-4">
+                        {/* Hierarchy Context */}
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+                          <span>{deliverable?.title}</span>
+                          <ChevronRight className="h-3 w-3" />
+                          <span className="text-foreground font-medium">Epic</span>
+                          <ChevronRight className="h-3 w-3" />
+                          <span>{epicTaskCounts.total} Tasks</span>
+                        </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                            <div 
+                              className="p-2 rounded-lg"
+                              style={{ 
+                                backgroundColor: epicType?.color ? `${epicType.color}20` : 'hsl(var(--primary)/0.1)',
+                                color: epicType?.color || 'hsl(var(--primary))'
+                              }}
+                            >
                               <Layers className="h-5 w-5" />
                             </div>
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="font-semibold">{epic.title}</h3>
+                                {epicType && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-xs"
+                                    style={{ borderColor: epicType.color, color: epicType.color }}
+                                  >
+                                    {epicType.name}
+                                  </Badge>
+                                )}
                                 <Badge variant="secondary" className="text-xs">
                                   {epic.status}
                                 </Badge>
@@ -607,6 +638,16 @@ export default function DeliverableDetail() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
+                <Label htmlFor="epic-type">Epic Type</Label>
+                <SearchableSelect
+                  value={newEpicData.typeId}
+                  onValueChange={(value) => setNewEpicData(prev => ({ ...prev, typeId: value }))}
+                  placeholder="Select type"
+                  data-testid="select-epic-type"
+                  options={epicTypes?.map((type: any) => ({ value: type.id, label: type.name })) || []}
+                />
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="epic-owner">Owner</Label>
                 <SearchableSelect
                   value={newEpicData.ownerId}
@@ -616,6 +657,8 @@ export default function DeliverableDetail() {
                   options={users?.map((user: any) => ({ value: user.id, label: user.name })) || []}
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="epic-status">Status</Label>
                 <SearchableSelect
@@ -630,6 +673,7 @@ export default function DeliverableDetail() {
                   ]}
                 />
               </div>
+              <div />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
