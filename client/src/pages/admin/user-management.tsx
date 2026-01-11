@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "@/components/layout/shell";
 import { 
@@ -130,20 +130,66 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-function SearchInput({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+const SearchInput = React.memo(function SearchInput({ 
+  onSearch,
+  externalValue = ""
+}: { 
+  onSearch: (val: string) => void;
+  externalValue?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [localValue, setLocalValue] = useState(externalValue);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  useEffect(() => {
+    if (externalValue === "" && localValue !== "") {
+      setLocalValue("");
+    }
+  }, [externalValue]);
+  
+  const debouncedSearch = useCallback((value: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      onSearch(value);
+    }, 300);
+  }, [onSearch]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setLocalValue(newValue);
+    debouncedSearch(newValue);
+  };
+
+  const handleClear = () => {
+    setLocalValue("");
+    onSearch("");
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="relative flex-1 min-w-[200px] max-w-sm">
       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
       <Input
+        ref={inputRef}
         placeholder="Search by name or email..."
         className="pl-9 h-9"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={localValue}
+        onChange={handleChange}
         data-testid="input-search-users"
       />
-      {value && (
+      {localValue && (
         <button 
-          onClick={() => onChange("")}
+          onClick={handleClear}
           className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
         >
           <X className="h-4 w-4" />
@@ -151,14 +197,13 @@ function SearchInput({ value, onChange }: { value: string, onChange: (val: strin
       )}
     </div>
   );
-}
+});
 
 function UserManagementContent({ embedded = false }: UserManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [searchInput, setSearchInput] = useState("");
-  const debouncedSearch = useDebounce(searchInput, 300);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -197,7 +242,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
 
   const queryOptions: UseUsersOptions = {
-    search: debouncedSearch || undefined,
+    search: searchQuery || undefined,
     role: roleFilter || undefined,
     status: statusFilter || undefined,
     hasEmail: hasEmailFilter as "yes" | "no" | undefined || undefined,
@@ -227,11 +272,11 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
+  }, [searchQuery, roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, debouncedSearch, roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
+  }, [page, searchQuery, roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
 
   const handleSort = useCallback((column: SortColumn) => {
     if (sortBy === column) {
@@ -499,7 +544,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   };
 
   const clearFilters = () => {
-    setSearchInput("");
+    setSearchQuery("");
     setRoleFilter("");
     setStatusFilter("");
     setHasEmailFilter("");
@@ -508,7 +553,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     setPage(1);
   };
 
-  const hasActiveFilters = searchInput || roleFilter || statusFilter || hasEmailFilter || hasTasksFilter || emailDomainFilter;
+  const hasActiveFilters = searchQuery || roleFilter || statusFilter || hasEmailFilter || hasTasksFilter || emailDomainFilter;
   
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -589,8 +634,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
           <div className="p-3 border-b space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <SearchInput 
-                value={searchInput}
-                onChange={setSearchInput}
+                onSearch={setSearchQuery}
+                externalValue={searchQuery}
               />
               
               <Select value={roleFilter || "all"} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
