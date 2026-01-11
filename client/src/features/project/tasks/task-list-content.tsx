@@ -34,7 +34,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useStatusOptions } from "@/hooks/use-nexus-data";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { format as formatDate } from "date-fns";
 import { Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TaskFilterModal, TaskFilters, emptyFilters, getActiveFilterCount } from "./task-filter-modal";
@@ -77,6 +80,44 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allSprints } = useSprints();
+  const { data: statusOptions = [] } = useStatusOptions();
+
+  const addCommentMutation = useMutation({
+    mutationFn: async ({ taskId, comment, authorId }: { taskId: string; comment: string; authorId: string }) => {
+      const response = await apiRequest("POST", `/api/comments`, {
+        taskId,
+        content: comment,
+        authorId,
+      });
+      return response.json();
+    },
+  });
+
+  const formattedStatusOptions = useMemo(() => 
+    (statusOptions || [])
+      .filter((s: any) => s.type === "task")
+      .map((s: any) => ({ id: s.id, label: s.label, color: s.color })),
+    [statusOptions]
+  );
+
+  const handleHoverStatusChange = (taskId: string, newStatus: string) => {
+    updateTask({ id: taskId, updates: { status: newStatus } });
+  };
+
+  const handleHoverBlockedToggle = (taskId: string, blocked: boolean) => {
+    updateTask({ id: taskId, updates: { blocked } });
+  };
+
+  const handleHoverDueDateChange = (taskId: string, date: Date | null) => {
+    const deadline = date ? formatDate(date, "yyyy-MM-dd") : undefined;
+    updateTask({ id: taskId, updates: { deadline } });
+  };
+
+  const handleHoverAddComment = (taskId: string, comment: string) => {
+    if (currentUser?.id) {
+      addCommentMutation.mutate({ taskId, comment, authorId: currentUser.id });
+    }
+  };
 
   const projectSprints = useMemo(() => {
     if (!allSprints || !project) return [];
@@ -1008,6 +1049,14 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             projectId={projectId}
             boardId={`project-tasks-${projectId}`}
             showFilters={false}
+            hoverCard={{
+              enabled: true,
+              statusOptions: formattedStatusOptions,
+              onStatusChange: handleHoverStatusChange,
+              onBlockedToggle: handleHoverBlockedToggle,
+              onDueDateChange: handleHoverDueDateChange,
+              onAddComment: handleHoverAddComment,
+            }}
             onTaskMove={(taskId, newStatus) => {
               updateTask({ id: taskId, updates: { status: newStatus } });
             }}

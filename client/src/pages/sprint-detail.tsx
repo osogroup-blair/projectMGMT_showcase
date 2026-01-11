@@ -51,7 +51,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useRoute, useSearch, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables, useSprintScopeTargets, useSuggestedTasks, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables, useSprintScopeTargets, useSuggestedTasks, useProjectStages, useResolvedTaskTypes, useStatusOptions } from "@/hooks/use-nexus-data";
+import { apiRequest } from "@/lib/queryClient";
+import { format as formatDate } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
@@ -122,6 +124,44 @@ export default function SprintDetail() {
   const scopeTargets = useSprintScopeTargets(sprintId);
   const { data: suggestedTasks = [], isLoading: loadingSuggested } = useSuggestedTasks(sprintId);
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
+  const { data: statusOptions = [] } = useStatusOptions();
+
+  const addCommentMutation = useMutation({
+    mutationFn: async ({ taskId, comment, authorId }: { taskId: string; comment: string; authorId: string }) => {
+      const response = await apiRequest("POST", `/api/comments`, {
+        taskId,
+        content: comment,
+        authorId,
+      });
+      return response.json();
+    },
+  });
+
+  const formattedStatusOptions = useMemo(() => 
+    (statusOptions || [])
+      .filter((s: any) => s.type === "task")
+      .map((s: any) => ({ id: s.id, label: s.label, color: s.color })),
+    [statusOptions]
+  );
+
+  const handleStatusChange = (taskId: string, newStatus: string) => {
+    updateTask({ id: taskId, updates: { status: newStatus } });
+  };
+
+  const handleBlockedToggle = (taskId: string, blocked: boolean) => {
+    updateTask({ id: taskId, updates: { blocked } });
+  };
+
+  const handleDueDateChange = (taskId: string, date: Date | null) => {
+    const deadline = date ? formatDate(date, "yyyy-MM-dd") : undefined;
+    updateTask({ id: taskId, updates: { deadline } });
+  };
+
+  const handleAddComment = (taskId: string, comment: string) => {
+    if (currentUser?.id) {
+      addCommentMutation.mutate({ taskId, comment, authorId: currentUser.id });
+    }
+  };
 
   const sprint = useMemo(() => 
     (allSprints || []).find((s: any) => s.id === sprintId),
@@ -2493,6 +2533,14 @@ export default function SprintDetail() {
                       boardId={`sprint-${sprintId}`}
                       isReadOnly={isReadOnly}
                       signalFilter={signalFilter}
+                      hoverCard={{
+                        enabled: true,
+                        statusOptions: formattedStatusOptions,
+                        onStatusChange: handleStatusChange,
+                        onBlockedToggle: handleBlockedToggle,
+                        onDueDateChange: handleDueDateChange,
+                        onAddComment: handleAddComment,
+                      }}
                       onTaskMove={handleTaskMove}
                       onBlockerRequested={handleBlockerRequested}
                     />

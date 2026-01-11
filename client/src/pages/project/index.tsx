@@ -46,7 +46,10 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
-import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes, useStatusOptions } from "@/hooks/use-nexus-data";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useCurrentUser } from "@/context/current-user-context";
 import { EFFORT_VALUES } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -126,6 +129,45 @@ export default function ProjectOverview() {
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { toast } = useToast();
+  const { data: statusOptions = [] } = useStatusOptions();
+  const { currentUser } = useCurrentUser();
+
+  const addCommentMutation = useMutation({
+    mutationFn: async ({ taskId, comment, authorId }: { taskId: string; comment: string; authorId: string }) => {
+      const response = await apiRequest("POST", `/api/comments`, {
+        taskId,
+        content: comment,
+        authorId,
+      });
+      return response.json();
+    },
+  });
+
+  const formattedStatusOptions = useMemo(() => 
+    (statusOptions || [])
+      .filter((s: any) => s.type === "task")
+      .map((s: any) => ({ id: s.id, label: s.label, color: s.color })),
+    [statusOptions]
+  );
+
+  const handleHoverStatusChange = (taskId: string, newStatus: string) => {
+    updateTask({ id: taskId, updates: { status: newStatus } });
+  };
+
+  const handleHoverBlockedToggle = (taskId: string, blocked: boolean) => {
+    updateTask({ id: taskId, updates: { blocked } });
+  };
+
+  const handleHoverDueDateChange = (taskId: string, date: Date | null) => {
+    const deadline = date ? format(date, "yyyy-MM-dd") : undefined;
+    updateTask({ id: taskId, updates: { deadline } });
+  };
+
+  const handleHoverAddComment = (taskId: string, comment: string) => {
+    if (currentUser?.id) {
+      addCommentMutation.mutate({ taskId, comment, authorId: currentUser.id });
+    }
+  };
 
   // Inline editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -1097,6 +1139,14 @@ export default function ProjectOverview() {
                             timeframe={selectedSprint?.startDate && selectedSprint?.endDate 
                               ? `${format(parseISO(selectedSprint.startDate), "MMM d")} - ${format(parseISO(selectedSprint.endDate), "MMM d, yyyy")}`
                               : undefined}
+                            hoverCard={{
+                              enabled: true,
+                              statusOptions: formattedStatusOptions,
+                              onStatusChange: handleHoverStatusChange,
+                              onBlockedToggle: handleHoverBlockedToggle,
+                              onDueDateChange: handleHoverDueDateChange,
+                              onAddComment: handleHoverAddComment,
+                            }}
                             onTaskMove={handleTaskMove}
                             onBlockerRequested={handleBlockerRequested}
                           />
