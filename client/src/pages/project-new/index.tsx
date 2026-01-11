@@ -1159,7 +1159,7 @@ export default function ProjectWizard() {
         </AlertDialog>
 
         <Card className="flex flex-col">
-            <CardHeader className="bg-muted/50 border-b py-4">
+            <CardHeader className="sticky top-[88px] z-30 bg-muted/50 border-b py-4">
               <div className="flex items-center justify-between gap-4">
                 <Button 
                     variant="outline" 
