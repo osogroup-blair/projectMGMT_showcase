@@ -38,11 +38,21 @@ export function TaskCard({ task, compact = false }: TaskCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <span className="font-medium text-foreground">{task.projectName}</span>
+              <Link 
+                href={task.links?.projectUrl || `/projects/${task.projectId}`} 
+                className="font-medium text-foreground hover:underline hover:text-primary transition-colors"
+              >
+                {task.projectName}
+              </Link>
               {task.epicName && (
                 <>
                   <span>•</span>
-                  <span>{task.epicName}</span>
+                  <Link 
+                    href={task.links?.epicUrl || "#"} 
+                    className="hover:underline hover:text-primary transition-colors"
+                  >
+                    {task.epicName}
+                  </Link>
                 </>
               )}
             </div>

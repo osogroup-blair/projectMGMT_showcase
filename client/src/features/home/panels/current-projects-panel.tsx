@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List, Layers, Workflow, Flag, Loader2 } from "lucide-react";
+import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List, Layers, Workflow, Flag, Loader2, ExternalLink } from "lucide-react";
+import { Link } from "wouter";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
@@ -58,10 +59,11 @@ export function CurrentProjectsPanel() {
   const mapToHomeTask = useMemo(() => (task: any): HomeTask => {
     const project = projects.find((p: any) => p.name === task.project || p.id === task.projectId);
     const epic = epics.find((e: any) => e.id === task.epicId);
+    const projectId = project?.id || task.projectId || "unknown";
     
     return {
       id: task.id,
-      projectId: project?.id || "unknown",
+      projectId: projectId,
       projectName: task.project || project?.name || "Unknown Project",
       epicId: epic?.id,
       epicName: epic?.title,
@@ -74,6 +76,11 @@ export function CurrentProjectsPanel() {
       isOverdue: task.status === "Overdue",
       durationBucket: (task.estimateHours || 1) < 2 ? "quick_win" : (task.estimateHours || 1) < 4 ? "medium" : "deep_work",
       stageId: task.stageId,
+      links: {
+        taskUrl: `/projects/${projectId}/tasks/${task.id}`,
+        projectUrl: `/projects/${projectId}`,
+        epicUrl: epic?.id ? `/projects/${projectId}/epics/${epic.id}` : undefined,
+      },
     };
   }, [projects, epics]);
 
@@ -266,7 +273,9 @@ export function CurrentProjectsPanel() {
                         </div>
                         <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
                            <div className="md:col-span-2">
-                              <h3 className="font-semibold text-base truncate">{project.name}</h3>
+                              <Link href={`/projects/${project.id}`} className="font-semibold text-base truncate hover:underline hover:text-primary transition-colors">
+                                {project.name}
+                              </Link>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                 <Badge variant="outline" className={cn(
                                   "font-normal",
@@ -335,16 +344,28 @@ export function CurrentProjectsPanel() {
                          </TabsContent>
 
                          <TabsContent value="epic" className="mt-0 space-y-8">
-                            {Object.entries(tasksByEpic).map(([epicName, epicTasks]) => (
-                               <div key={epicName} className="space-y-3">
-                                  <h4 className="text-sm font-semibold flex items-center gap-2">
-                                     <Flag className="w-4 h-4 text-purple-500" />
-                                     {epicName}
-                                     <span className="text-muted-foreground font-normal ml-1">({epicTasks.length})</span>
-                                  </h4>
-                                  {renderTaskGrid(epicTasks)}
-                               </div>
-                            ))}
+                            {Object.entries(tasksByEpic).map(([epicName, epicTasks]) => {
+                               const epicId = epicTasks[0]?.epicId;
+                               return (
+                                 <div key={epicName} className="space-y-3">
+                                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                                       <Flag className="w-4 h-4 text-purple-500" />
+                                       {epicId ? (
+                                         <Link 
+                                           href={`/projects/${project.id}/epics/${epicId}`}
+                                           className="hover:underline hover:text-primary transition-colors"
+                                         >
+                                           {epicName}
+                                         </Link>
+                                       ) : (
+                                         epicName
+                                       )}
+                                       <span className="text-muted-foreground font-normal ml-1">({epicTasks.length})</span>
+                                    </h4>
+                                    {renderTaskGrid(epicTasks)}
+                                 </div>
+                               );
+                            })}
                          </TabsContent>
 
                          <TabsContent value="stage" className="mt-0 space-y-8">
@@ -392,12 +413,18 @@ export function CurrentProjectsPanel() {
                            </Button>
                          </DropdownMenuTrigger>
                          <DropdownMenuContent align="end">
-                           <DropdownMenuItem>View Project</DropdownMenuItem>
-                           <DropdownMenuItem>Project Settings</DropdownMenuItem>
+                           <DropdownMenuItem asChild>
+                             <Link href={`/projects/${project.id}`}>View Project</Link>
+                           </DropdownMenuItem>
+                           <DropdownMenuItem asChild>
+                             <Link href={`/projects/${project.id}/settings`}>Project Settings</Link>
+                           </DropdownMenuItem>
                          </DropdownMenuContent>
                        </DropdownMenu>
                     </div>
-                    <CardTitle className="text-lg leading-tight">{project.name}</CardTitle>
+                    <Link href={`/projects/${project.id}`}>
+                     <CardTitle className="text-lg leading-tight hover:underline hover:text-primary transition-colors">{project.name}</CardTitle>
+                   </Link>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge variant="secondary" className="font-normal text-xs">
                         {project.status}
@@ -420,18 +447,25 @@ export function CurrentProjectsPanel() {
                       <p className="text-xs font-medium text-muted-foreground mb-3">{projectTasks.length} Active Tasks</p>
                       <div className="space-y-2">
                         {projectTasks.slice(0, 2).map(task => (
-                          <div key={task.id} className="flex items-center gap-2 text-sm">
+                          <Link 
+                            key={task.id} 
+                            href={task.links?.taskUrl || `/projects/${project.id}/tasks/${task.id}`}
+                            className="flex items-center gap-2 text-sm hover:text-primary transition-colors"
+                          >
                              <div className={cn(
                                "w-2 h-2 rounded-full",
                                task.status === "complete" ? "bg-green-500" : "bg-blue-500"
                              )} />
-                             <span className="truncate">{task.title}</span>
-                          </div>
+                             <span className="truncate hover:underline">{task.title}</span>
+                          </Link>
                         ))}
                         {projectTasks.length > 2 && (
-                          <div className="text-xs text-muted-foreground pl-4">
+                          <Link 
+                            href={`/projects/${project.id}/tasks`}
+                            className="text-xs text-muted-foreground pl-4 hover:text-primary hover:underline transition-colors"
+                          >
                             + {projectTasks.length - 2} more
-                          </div>
+                          </Link>
                         )}
                       </div>
                     </div>
