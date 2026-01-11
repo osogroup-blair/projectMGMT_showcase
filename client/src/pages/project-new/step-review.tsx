@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Briefcase, 
   Package, 
@@ -51,7 +50,7 @@ export function StepReview({
         </div>
       )}
 
-      <ScrollArea className="h-[480px] pr-4">
+      <div className="pr-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader className="pb-2">
@@ -263,7 +262,7 @@ export function StepReview({
             </CardContent>
           </Card>
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="bg-muted/30 p-4 rounded-lg border">
         <h4 className="font-medium text-sm mb-2">What happens next?</h4>

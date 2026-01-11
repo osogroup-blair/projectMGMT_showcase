@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -340,7 +339,7 @@ export function StepWorkBreakdown({
         </div>
       </div>
 
-      <ScrollArea className="h-[550px] pr-4">
+      <div className="pr-4">
         {deliverables.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-lg text-muted-foreground">
             <Package className="h-8 w-8 mb-2 opacity-50" />
@@ -646,7 +645,7 @@ export function StepWorkBreakdown({
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }

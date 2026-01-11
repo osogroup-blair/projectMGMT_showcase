@@ -365,7 +365,7 @@ export function StepStageConfig({
             </Button>
           </div>
           
-          <ScrollArea className="h-[400px] pr-4">
+          <div className="pr-4">
             {stages.length === 0 ? (
               <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
                 <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -619,7 +619,7 @@ export function StepStageConfig({
                 ))}
               </Accordion>
             )}
-          </ScrollArea>
+          </div>
         </TabsContent>
 
         <TabsContent value="milestones" className="mt-0">
@@ -629,7 +629,7 @@ export function StepStageConfig({
             </Button>
           </div>
           
-          <ScrollArea className="h-[400px] pr-4">
+          <div className="pr-4">
             {milestones.length === 0 ? (
               <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
                 <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -851,7 +851,7 @@ export function StepStageConfig({
                 )})}
               </Accordion>
             )}
-          </ScrollArea>
+          </div>
         </TabsContent>
       </Tabs>
 
