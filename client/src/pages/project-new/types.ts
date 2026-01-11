@@ -30,6 +30,7 @@ export interface WizardEpicTask {
   assigneeId?: string;
   deadline?: string;
   externalId?: string;
+  taskTypeId?: string;
 }
 
 export interface WizardEpic {
@@ -63,6 +64,8 @@ export interface WizardTaskDraft {
   startDate?: string;
   deadline?: string;
   datesInheritedFromStage?: boolean;
+  taskTypeId?: string;
+  assigneeId?: string;
 }
 
 export interface WizardStage {

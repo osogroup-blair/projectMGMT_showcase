@@ -48,6 +48,7 @@ export function StepStageConfig({
   frameworkTemplates,
   stageTemplates,
   taskTemplates,
+  taskTypes = [],
   users,
 }: StepProps) {
   const [activeTab, setActiveTab] = useState<'stages' | 'milestones'>('stages');
@@ -535,7 +536,7 @@ export function StepStageConfig({
                                           className="h-8"
                                           placeholder="Task title..."
                                         />
-                                        <div className="grid grid-cols-3 gap-2">
+                                        <div className={`grid gap-2 ${taskTypes.length > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
                                           <SearchableSelect
                                             value={task.scope}
                                             onValueChange={(v) => updateTask(stageIndex, taskIndex, { scope: v as 'once' | 'per_epic' })}
@@ -548,6 +549,18 @@ export function StepStageConfig({
                                             options={priorityOptions}
                                             triggerClassName="h-8"
                                           />
+                                          {taskTypes.length > 0 && (
+                                            <SearchableSelect
+                                              value={task.taskTypeId || ""}
+                                              onValueChange={(v) => updateTask(stageIndex, taskIndex, { taskTypeId: v || undefined })}
+                                              placeholder="Type"
+                                              options={taskTypes.map((type: any) => ({
+                                                value: type.id,
+                                                label: type.label || type.name
+                                              }))}
+                                              triggerClassName="h-8"
+                                            />
+                                          )}
                                           <Input
                                             type="number"
                                             value={task.estimateHours}

@@ -39,6 +39,7 @@ export function StepWorkBreakdown({
   onFileUpload,
   deliverableTypes = [],
   epicTypes = [],
+  taskTypes = [],
 }: StepProps) {
   const epicInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const { toast } = useToast();
@@ -588,6 +589,29 @@ export function StepWorkBreakdown({
                                             <SelectItem value="urgent">Urgent</SelectItem>
                                           </SelectContent>
                                         </Select>
+                                        {taskTypes.length > 0 && (
+                                          <Select
+                                            value={task.taskTypeId || ""}
+                                            onValueChange={(value) => {
+                                              const newD = [...deliverables];
+                                              if (newD[dIndex].epics[eIndex].tasks) {
+                                                newD[dIndex].epics[eIndex].tasks![tIndex].taskTypeId = value || undefined;
+                                              }
+                                              setDeliverables(newD);
+                                            }}
+                                          >
+                                            <SelectTrigger className="h-7 w-28 text-xs">
+                                              <SelectValue placeholder="Type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {taskTypes.map((type: any) => (
+                                                <SelectItem key={type.id} value={type.id}>
+                                                  {type.label || type.name}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        )}
                                         <Input
                                           type="number"
                                           value={task.estimateHours || ""}
