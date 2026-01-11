@@ -1080,21 +1080,16 @@ export default function ProjectOverview() {
                         <div className="space-y-6">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <Select 
-                                value={selectedSprintId || ""} 
+                              <SearchableSelect
+                                value={selectedSprintId || ""}
                                 onValueChange={(val) => setSelectedSprintId(val)}
-                              >
-                                <SelectTrigger className="w-auto min-w-[180px] h-9 text-lg font-semibold border-none shadow-none hover:bg-muted/50 focus:ring-0">
-                                  <SelectValue placeholder="Select sprint..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {projectSprints.map((sprint: any) => (
-                                    <SelectItem key={sprint.id} value={sprint.id}>
-                                      {sprint.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                                placeholder="Select sprint..."
+                                options={projectSprints.map((sprint: any) => ({
+                                  value: sprint.id,
+                                  label: sprint.name,
+                                }))}
+                                className="w-auto min-w-[180px] text-lg font-semibold"
+                              />
                               {selectedSprint && (
                                 <>
                                   <Badge variant={selectedSprint.status === "active" ? "default" : "secondary"} className="capitalize">
