@@ -24,19 +24,27 @@ import { format, addDays } from "date-fns";
 interface TaskQuickCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultProjectId?: string;
+  defaultProjectName?: string;
 }
 
-export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDialogProps) {
+export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, defaultProjectName }: TaskQuickCreateDialogProps) {
   const queryClient = useQueryClient();
   const { currentUserId } = useCurrentUser();
   
   const [title, setTitle] = useState("");
-  const [projectId, setProjectId] = useState("");
+  const [projectId, setProjectId] = useState(defaultProjectId || "");
   const [epicId, setEpicId] = useState("");
   const [stageId, setStageId] = useState("");
   const [deadline, setDeadline] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
   const [priority, setPriority] = useState("Medium");
   const [error, setError] = useState("");
+  
+  useEffect(() => {
+    if (defaultProjectId) {
+      setProjectId(defaultProjectId);
+    }
+  }, [defaultProjectId]);
 
   const { data: projects = [] } = useQuery({
     queryKey: ["/api/projects"],
@@ -98,7 +106,7 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
 
   const resetForm = () => {
     setTitle("");
-    setProjectId("");
+    setProjectId(defaultProjectId || "");
     setEpicId("");
     setStageId("");
     setDeadline(format(addDays(new Date(), 7), "yyyy-MM-dd"));
@@ -135,11 +143,12 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
     }
 
     const selectedProject = projects.find((p: any) => p.id === projectId);
+    const projectName = defaultProjectName || selectedProject?.name || "Unknown Project";
     
     createTaskMutation.mutate({
       title: title.trim(),
       projectId,
-      project: selectedProject?.name || "Unknown Project",
+      project: projectName,
       epicId,
       stageId,
       deadline,
@@ -172,18 +181,24 @@ export function TaskQuickCreateDialog({ open, onOpenChange }: TaskQuickCreateDia
             </div>
             <div className="grid gap-2">
               <Label htmlFor="project">Project</Label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger data-testid="select-project">
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project: any) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {defaultProjectId ? (
+                <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                  {defaultProjectName || projects.find((p: any) => p.id === defaultProjectId)?.name || "Selected Project"}
+                </div>
+              ) : (
+                <Select value={projectId} onValueChange={setProjectId}>
+                  <SelectTrigger data-testid="select-project">
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             
             {projectId && (

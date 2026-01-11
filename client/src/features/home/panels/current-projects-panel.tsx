@@ -11,6 +11,7 @@ import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
 import { PortableKanban } from "@/components/kanban/portable-kanban";
+import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,6 +56,13 @@ export function CurrentProjectsPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllTasks, setShowAllTasks] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [selectedProjectForTask, setSelectedProjectForTask] = useState<{ id: string; name: string } | null>(null);
+  
+  const handleAddTaskForProject = (projectId: string, projectName: string) => {
+    setSelectedProjectForTask({ id: projectId, name: projectName });
+    setIsCreateTaskOpen(true);
+  };
   
   // Use active tasks or all user tasks based on toggle
   const tasks = showAllTasks ? userTasks : activeTasks;
@@ -407,6 +415,8 @@ export function CurrentProjectsPanel() {
                               boardId={`home-project-${project.id}`}
                               showFilters={true}
                               showAssigneeFilter={true}
+                              showAddTask={true}
+                              onAddTask={() => handleAddTaskForProject(project.id, project.name)}
                               isReadOnly={false}
                               className="min-h-[400px]"
                             />
@@ -544,6 +554,16 @@ export function CurrentProjectsPanel() {
            })}
         </div>
       )}
+      
+      <TaskQuickCreateDialog
+        open={isCreateTaskOpen}
+        onOpenChange={(open) => {
+          setIsCreateTaskOpen(open);
+          if (!open) setSelectedProjectForTask(null);
+        }}
+        defaultProjectId={selectedProjectForTask?.id}
+        defaultProjectName={selectedProjectForTask?.name}
+      />
     </div>
   );
 }
