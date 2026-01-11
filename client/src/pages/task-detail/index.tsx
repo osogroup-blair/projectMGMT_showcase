@@ -62,7 +62,6 @@ import {
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { EFFORT_VALUES } from "@shared/schema";
 import { TaskOverviewTab } from "./task-overview-tab";
-import { TaskSubtasksTab } from "./task-subtasks-tab";
 import { TaskAttachmentsTab } from "./task-attachments-tab";
 import { TaskHistoryTab } from "./task-history-tab";
 import { TaskPropertiesTab } from "./task-properties-tab";
@@ -74,7 +73,7 @@ const PRIORITY_CONFIG = {
   "Low": { color: "text-slate-600 bg-slate-100", label: "Low" }
 };
 
-const VALID_TABS = ["overview", "subtasks", "attachments", "properties", "history"] as const;
+const VALID_TABS = ["overview", "attachments", "properties", "history"] as const;
 type TabValue = typeof VALID_TABS[number];
 
 export default function TaskDetail() {
@@ -361,13 +360,6 @@ export default function TaskDetail() {
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="subtasks" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
-                  data-testid="tab-subtasks"
-                >
-                  Subtasks
-                </TabsTrigger>
-                <TabsTrigger 
                   value="attachments" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
                   data-testid="tab-attachments"
@@ -395,16 +387,6 @@ export default function TaskDetail() {
                   task={task} 
                   projectId={projectId}
                   updateTask={handleUpdateTask}
-                />
-              </TabsContent>
-
-              <TabsContent value="subtasks" className="pt-6">
-                <TaskSubtasksTab 
-                  task={task}
-                  projectId={projectId}
-                  subtasks={subtasks}
-                  createSubtask={createSubtask}
-                  updateTask={updateTask}
                 />
               </TabsContent>
 
@@ -482,6 +464,8 @@ export default function TaskDetail() {
                 milestones={milestones}
                 addDependency={addDependency}
                 removeDependency={removeDependency}
+                createSubtask={createSubtask}
+                updateTask={updateTask}
               />
 
               <Card className="bg-muted/10 border-dashed">
