@@ -1,6 +1,7 @@
 import { db } from "../../db";
 import { users } from "@shared/models/auth";
-import { eq, ilike, or, sql, desc, asc, and } from "drizzle-orm";
+import { tasks } from "@shared/schema";
+import { eq, ilike, or, sql, desc, asc, and, isNull, isNotNull, lt, gt, exists, notExists } from "drizzle-orm";
 import type { 
   ListUsersRequest, 
   ListUsersResponse, 
@@ -33,6 +34,11 @@ export async function listUsers(params: ListUsersRequest): Promise<ListUsersResp
     pageSize = 50, 
     sortBy = "createdAt", 
     sortOrder = "desc",
+    hasEmail,
+    hasTasks,
+    emailDomain,
+    createdBefore,
+    createdAfter,
     limit,
     offset 
   } = params;
@@ -59,6 +65,38 @@ export async function listUsers(params: ListUsersRequest): Promise<ListUsersResp
 
   if (status) {
     conditions.push(eq(users.status, status));
+  }
+
+  if (hasEmail === "yes") {
+    conditions.push(isNotNull(users.email));
+  } else if (hasEmail === "no") {
+    conditions.push(isNull(users.email));
+  }
+
+  if (emailDomain) {
+    conditions.push(ilike(users.email, `%@${emailDomain}`));
+  }
+
+  if (createdBefore) {
+    conditions.push(lt(users.createdAt, new Date(createdBefore)));
+  }
+
+  if (createdAfter) {
+    conditions.push(gt(users.createdAt, new Date(createdAfter)));
+  }
+
+  if (hasTasks === "yes") {
+    conditions.push(
+      exists(
+        db.select({ one: sql`1` }).from(tasks).where(eq(tasks.ownerId, users.id))
+      )
+    );
+  } else if (hasTasks === "no") {
+    conditions.push(
+      notExists(
+        db.select({ one: sql`1` }).from(tasks).where(eq(tasks.ownerId, users.id))
+      )
+    );
   }
 
   const sortColumn = {

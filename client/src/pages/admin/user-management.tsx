@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "@/components/layout/shell";
 import { 
@@ -25,7 +25,12 @@ import {
   Unlink,
   Clock,
   RefreshCw,
-  GitMerge
+  GitMerge,
+  Filter,
+  ListTodo,
+  Calendar,
+  AtSign,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -157,6 +162,11 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [hasEmailFilter, setHasEmailFilter] = useState<string>("");
+  const [hasTasksFilter, setHasTasksFilter] = useState<string>("");
+  const [emailDomainFilter, setEmailDomainFilter] = useState<string>("");
+  const debouncedEmailDomain = useDebounce(emailDomainFilter, 300);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [sortBy, setSortBy] = useState<SortColumn>("createdAt");
@@ -190,6 +200,9 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     search: debouncedSearch || undefined,
     role: roleFilter || undefined,
     status: statusFilter || undefined,
+    hasEmail: hasEmailFilter as "yes" | "no" | undefined || undefined,
+    hasTasks: hasTasksFilter as "yes" | "no" | undefined || undefined,
+    emailDomain: debouncedEmailDomain || undefined,
     page,
     pageSize,
     sortBy,
@@ -214,11 +227,11 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, roleFilter, statusFilter]);
+  }, [debouncedSearch, roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, debouncedSearch, roleFilter, statusFilter]);
+  }, [page, debouncedSearch, roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
 
   const handleSort = useCallback((column: SortColumn) => {
     if (sortBy === column) {
@@ -489,10 +502,43 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     setSearchInput("");
     setRoleFilter("");
     setStatusFilter("");
+    setHasEmailFilter("");
+    setHasTasksFilter("");
+    setEmailDomainFilter("");
     setPage(1);
   };
 
-  const hasActiveFilters = searchInput || roleFilter || statusFilter;
+  const hasActiveFilters = searchInput || roleFilter || statusFilter || hasEmailFilter || hasTasksFilter || emailDomainFilter;
+  
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (roleFilter) count++;
+    if (statusFilter) count++;
+    if (hasEmailFilter) count++;
+    if (hasTasksFilter) count++;
+    if (emailDomainFilter) count++;
+    return count;
+  }, [roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, emailDomainFilter]);
+
+  const applyQuickFilter = (preset: string) => {
+    clearFilters();
+    switch (preset) {
+      case "deactivation-candidates":
+        setStatusFilter("Active");
+        setHasTasksFilter("no");
+        break;
+      case "active-contributors":
+        setStatusFilter("Active");
+        setHasTasksFilter("yes");
+        break;
+      case "deactivated":
+        setStatusFilter("Deactivated");
+        break;
+      case "no-email":
+        setHasEmailFilter("no");
+        break;
+    }
+  };
   const allSelected = users.length > 0 && users.every(u => selectedIds.has(u.id));
   const someSelected = users.some(u => selectedIds.has(u.id)) && !allSelected;
 
@@ -540,7 +586,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
         )}
 
         <div className="bg-card border rounded-lg">
-          <div className="p-3 border-b">
+          <div className="p-3 border-b space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <SearchInput 
                 value={searchInput}
@@ -566,17 +612,33 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All status</SelectItem>
-                  <SelectItem value="Online">Online</SelectItem>
-                  <SelectItem value="Offline">Offline</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Deactivated">Deactivated</SelectItem>
+                  <SelectItem value="Online">Online</SelectItem>
+                  <SelectItem value="Offline">Offline</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Button 
+                variant={showAdvancedFilters ? "secondary" : "outline"} 
+                size="sm" 
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="h-9 gap-1.5"
+              >
+                <Filter className="h-3.5 w-3.5" />
+                More Filters
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-primary text-primary-foreground">
+                    {activeFilterCount}
+                  </Badge>
+                )}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              </Button>
 
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 px-2">
                   <X className="h-4 w-4 mr-1" />
-                  Clear
+                  Clear All
                 </Button>
               )}
 
@@ -587,6 +649,140 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 <span className="font-medium text-foreground">{total.toLocaleString()}</span> users
               </div>
             </div>
+
+            {showAdvancedFilters && (
+              <div className="pt-3 border-t space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-sm font-medium text-muted-foreground mr-2">Quick Filters:</div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-xs gap-1"
+                    onClick={() => applyQuickFilter("deactivation-candidates")}
+                  >
+                    <UserX className="h-3 w-3" />
+                    Deactivation Candidates
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-xs gap-1"
+                    onClick={() => applyQuickFilter("active-contributors")}
+                  >
+                    <ListTodo className="h-3 w-3" />
+                    Active Contributors
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-xs gap-1"
+                    onClick={() => applyQuickFilter("deactivated")}
+                  >
+                    <UserX className="h-3 w-3 text-red-500" />
+                    Already Deactivated
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-xs gap-1"
+                    onClick={() => applyQuickFilter("no-email")}
+                  >
+                    <Mail className="h-3 w-3" />
+                    Missing Email
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={hasTasksFilter || "all"} onValueChange={(v) => setHasTasksFilter(v === "all" ? "" : v)}>
+                    <SelectTrigger className="w-[140px] h-9">
+                      <ListTodo className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                      <SelectValue placeholder="Task Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any tasks</SelectItem>
+                      <SelectItem value="yes">Has tasks</SelectItem>
+                      <SelectItem value="no">No tasks</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={hasEmailFilter || "all"} onValueChange={(v) => setHasEmailFilter(v === "all" ? "" : v)}>
+                    <SelectTrigger className="w-[140px] h-9">
+                      <Mail className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                      <SelectValue placeholder="Email Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any email</SelectItem>
+                      <SelectItem value="yes">Has email</SelectItem>
+                      <SelectItem value="no">No email</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <div className="relative">
+                    <AtSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Filter by email domain..."
+                      className="pl-9 h-9 w-[200px]"
+                      value={emailDomainFilter}
+                      onChange={(e) => setEmailDomainFilter(e.target.value)}
+                    />
+                    {emailDomainFilter && (
+                      <button 
+                        onClick={() => setEmailDomainFilter("")}
+                        className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {hasActiveFilters && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-2">
+                <span className="text-xs text-muted-foreground">Active filters:</span>
+                {roleFilter && (
+                  <Badge variant="secondary" className="gap-1 text-xs h-6">
+                    Role: {roleFilter}
+                    <button onClick={() => setRoleFilter("")} className="ml-0.5 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {statusFilter && (
+                  <Badge variant="secondary" className="gap-1 text-xs h-6">
+                    Status: {statusFilter}
+                    <button onClick={() => setStatusFilter("")} className="ml-0.5 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {hasTasksFilter && (
+                  <Badge variant="secondary" className="gap-1 text-xs h-6">
+                    Tasks: {hasTasksFilter === "yes" ? "Has tasks" : "No tasks"}
+                    <button onClick={() => setHasTasksFilter("")} className="ml-0.5 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {hasEmailFilter && (
+                  <Badge variant="secondary" className="gap-1 text-xs h-6">
+                    Email: {hasEmailFilter === "yes" ? "Has email" : "No email"}
+                    <button onClick={() => setHasEmailFilter("")} className="ml-0.5 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {emailDomainFilter && (
+                  <Badge variant="secondary" className="gap-1 text-xs h-6">
+                    Domain: @{emailDomainFilter}
+                    <button onClick={() => setEmailDomainFilter("")} className="ml-0.5 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+              </div>
+            )}
 
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-2 mt-3 pt-3 border-t">

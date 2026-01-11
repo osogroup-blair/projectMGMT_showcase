@@ -16,6 +16,11 @@ export interface UseUsersOptions {
   pageSize?: number;
   sortBy?: "name" | "email" | "systemRole" | "status" | "createdAt";
   sortOrder?: "asc" | "desc";
+  hasEmail?: "yes" | "no";
+  hasTasks?: "yes" | "no";
+  emailDomain?: string;
+  createdBefore?: string;
+  createdAfter?: string;
 }
 
 export function useAllUsersForAssignment() {
@@ -40,10 +45,14 @@ export function useAllUsersForAssignment() {
 }
 
 export function useUsers(options: UseUsersOptions = {}) {
-  const { search, role, status, page = 1, pageSize = 50, sortBy = "createdAt", sortOrder = "desc" } = options;
+  const { 
+    search, role, status, page = 1, pageSize = 50, 
+    sortBy = "createdAt", sortOrder = "desc",
+    hasEmail, hasTasks, emailDomain, createdBefore, createdAfter
+  } = options;
   
   return useQuery<ListUsersResponse>({
-    queryKey: [USERS_QUERY_KEY, { search, role, status, page, pageSize, sortBy, sortOrder }],
+    queryKey: [USERS_QUERY_KEY, { search, role, status, page, pageSize, sortBy, sortOrder, hasEmail, hasTasks, emailDomain, createdBefore, createdAfter }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
@@ -53,6 +62,11 @@ export function useUsers(options: UseUsersOptions = {}) {
       params.set("pageSize", String(pageSize));
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
+      if (hasEmail) params.set("hasEmail", hasEmail);
+      if (hasTasks) params.set("hasTasks", hasTasks);
+      if (emailDomain) params.set("emailDomain", emailDomain);
+      if (createdBefore) params.set("createdBefore", createdBefore);
+      if (createdAfter) params.set("createdAfter", createdAfter);
       
       const url = `${USERS_QUERY_KEY}?${params.toString()}`;
         

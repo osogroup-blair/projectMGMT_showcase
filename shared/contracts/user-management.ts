@@ -45,6 +45,11 @@ export const listUsersRequestSchema = z.object({
   pageSize: z.number().optional().default(50),
   sortBy: z.enum(["name", "email", "systemRole", "status", "createdAt"]).optional().default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+  hasEmail: z.enum(["yes", "no"]).optional(),
+  hasTasks: z.enum(["yes", "no"]).optional(),
+  emailDomain: z.string().optional(),
+  createdBefore: z.string().optional(),
+  createdAfter: z.string().optional(),
   // Legacy support
   limit: z.number().optional(),
   offset: z.number().optional(),
