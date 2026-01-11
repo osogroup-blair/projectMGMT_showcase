@@ -240,7 +240,7 @@ export function CurrentProjectsPanel() {
              
              return (
                <Card key={project.id} className="overflow-hidden">
-                 <Accordion type="single" collapsible defaultValue="item-1">
+                 <Accordion type="single" collapsible>
                    <AccordionItem value="item-1" className="border-b-0">
                      <div className="flex items-center p-4 gap-4">
                         <div className="flex-none">
