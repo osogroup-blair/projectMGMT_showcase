@@ -10,8 +10,7 @@ import {
   Layers,
   Target,
   Tag,
-  ChevronDown,
-  Settings2
+  GripVertical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useRoute, Link, useLocation, useSearch } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -49,6 +44,7 @@ import { TaskSubtasksTab } from "./task-subtasks-tab";
 import { TaskAttachmentsTab } from "./task-attachments-tab";
 import { TaskDependenciesTab } from "./task-dependencies-tab";
 import { TaskHistoryTab } from "./task-history-tab";
+import { TaskPropertiesTab } from "./task-properties-tab";
 import { TaskSidebarTabs } from "./task-sidebar-tabs";
 
 const PRIORITY_CONFIG = {
@@ -57,7 +53,7 @@ const PRIORITY_CONFIG = {
   "Low": { color: "text-slate-600 bg-slate-100", label: "Low" }
 };
 
-const VALID_TABS = ["overview", "subtasks", "attachments", "dependents", "history"] as const;
+const VALID_TABS = ["overview", "subtasks", "attachments", "dependents", "properties", "history"] as const;
 type TabValue = typeof VALID_TABS[number];
 
 export default function TaskDetail() {
@@ -160,13 +156,49 @@ export default function TaskDetail() {
 
   return (
     <Shell>
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
+      <div className="h-[calc(100vh-120px)]">
+        <PanelGroup direction="horizontal" autoSaveId="task-detail-layout">
+          <Panel defaultSize={70} minSize={50}>
+            <div className="pr-4 space-y-6 h-full overflow-y-auto">
             <div className="space-y-4">
+              {/* Project Breadcrumb */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Link 
+                  href={`/projects/${projectId}`}
+                  className="hover:text-foreground hover:underline transition-colors font-medium"
+                  data-testid="link-project-breadcrumb"
+                >
+                  {project?.name || "Project"}
+                </Link>
+                {deliverable && (
+                  <>
+                    <span>/</span>
+                    <Link 
+                      href={`/projects/${projectId}/deliverables/${deliverable.id}`}
+                      className="hover:text-foreground hover:underline transition-colors"
+                      data-testid="link-deliverable"
+                    >
+                      {deliverable.title}
+                    </Link>
+                  </>
+                )}
+                {epic && (
+                  <>
+                    <span>/</span>
+                    <Link 
+                      href={`/projects/${projectId}/epics/${epic.id}`}
+                      className="hover:text-foreground hover:underline transition-colors"
+                      data-testid="link-epic"
+                    >
+                      {epic.title}
+                    </Link>
+                  </>
+                )}
+              </div>
+
               <div className="flex justify-between items-start gap-4">
                 <Input 
-                  className="text-3xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
+                  className="text-4xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
                   value={task.title}
                   onChange={(e) => handleUpdateTask("title", e.target.value)}
                   data-testid="input-task-title"
@@ -175,32 +207,6 @@ export default function TaskDetail() {
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </div>
-              
-              {(deliverable || epic) && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {deliverable && (
-                    <>
-                      <Link 
-                        href={`/projects/${projectId}/deliverables/${deliverable.id}`}
-                        className="hover:text-foreground hover:underline transition-colors"
-                        data-testid="link-deliverable"
-                      >
-                        {deliverable.title}
-                      </Link>
-                      <span>/</span>
-                    </>
-                  )}
-                  {epic && (
-                    <Link 
-                      href={`/projects/${projectId}/epics/${epic.id}`}
-                      className="hover:text-foreground hover:underline transition-colors"
-                      data-testid="link-epic"
-                    >
-                      {epic.title}
-                    </Link>
-                  )}
-                </div>
-              )}
 
               <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center gap-2">
@@ -271,100 +277,6 @@ export default function TaskDetail() {
               </div>
             </div>
 
-            <Collapsible defaultOpen={false}>
-              <CollapsibleTrigger asChild>
-                <Button variant="outline" className="w-full justify-between" data-testid="accordion-metadata-trigger">
-                  <span className="flex items-center gap-2">
-                    <Settings2 className="h-4 w-4" />
-                    Properties & Relationships
-                  </span>
-                  <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-4">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Status</Label>
-                        <SearchableSelect
-                          value={task.status}
-                          onValueChange={(v) => handleUpdateTask("status", v)}
-                          placeholder="Select status"
-                          options={statusLabels.map(status => ({ value: status, label: status }))}
-                          data-testid="select-status"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Priority</Label>
-                        <SearchableSelect
-                          value={task.priority}
-                          onValueChange={(v) => handleUpdateTask("priority", v)}
-                          placeholder="Select priority"
-                          options={[
-                            { value: "High", label: "High" },
-                            { value: "Medium", label: "Medium" },
-                            { value: "Low", label: "Low" }
-                          ]}
-                          data-testid="select-priority"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Stage</Label>
-                        <SearchableSelect
-                          value={task.stageId || ""}
-                          onValueChange={(v) => handleUpdateTask("stageId", v)}
-                          placeholder="Select stage"
-                          options={stages.map((s: any) => ({ value: s.id, label: s.name }))}
-                          data-testid="select-stage"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Effort (Fibonacci)</Label>
-                        <SearchableSelect
-                          value={String(task.effort || "")}
-                          onValueChange={(v) => handleUpdateTask("effort", parseInt(v))}
-                          placeholder="Select effort"
-                          options={EFFORT_VALUES.map(val => ({ value: String(val), label: String(val) }))}
-                          data-testid="select-effort"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Epic</Label>
-                        <SearchableSelect
-                          value={task.epicId || ""}
-                          onValueChange={(v) => handleUpdateTask("epicId", v)}
-                          placeholder="Select epic"
-                          options={(allEpics || []).map((e: any) => ({ value: e.id, label: e.title }))}
-                          data-testid="select-epic"
-                        />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                        <Label className="text-xs text-muted-foreground">Tags</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {task.tags?.length > 0 ? (
-                            task.tags.map((tag: string) => (
-                              <Badge key={tag} variant="secondary" className="font-normal">
-                                <Tag className="h-3 w-3 mr-1" />
-                                {tag}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-sm text-muted-foreground">No tags</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </CollapsibleContent>
-            </Collapsible>
-
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
                 <TabsTrigger 
@@ -393,7 +305,14 @@ export default function TaskDetail() {
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
                   data-testid="tab-dependents"
                 >
-                  Dependents
+                  Dependencies
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="properties" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2"
+                  data-testid="tab-properties"
+                >
+                  Properties
                 </TabsTrigger>
                 <TabsTrigger 
                   value="history" 
@@ -444,6 +363,16 @@ export default function TaskDetail() {
                 />
               </TabsContent>
 
+              <TabsContent value="properties" className="pt-6">
+                <TaskPropertiesTab 
+                  task={task}
+                  projectId={projectId}
+                  updateTask={handleUpdateTask}
+                  stages={stages}
+                  allEpics={allEpics || []}
+                />
+              </TabsContent>
+
               <TabsContent value="history" className="pt-6">
                 <TaskHistoryTab 
                   task={task}
@@ -451,26 +380,35 @@ export default function TaskDetail() {
                 />
               </TabsContent>
             </Tabs>
-          </div>
+            </div>
+          </Panel>
 
-          <div className="space-y-6">
-            <TaskSidebarTabs 
-              task={task} 
-              projectId={projectId} 
-              subtasks={subtasks || []}
-              isLoadingSubtasks={isSubtasksLoading}
-            />
+          <PanelResizeHandle className="w-2 flex items-center justify-center hover:bg-muted/50 transition-colors">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </PanelResizeHandle>
 
-            <Card className="bg-muted/10 border-dashed">
-              <CardContent className="p-4">
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p>Project: <span className="font-medium text-foreground">{project?.name || task.project}</span></p>
-                  <p>Task ID: <span className="font-mono text-foreground">{task.id}</span></p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+          <Panel defaultSize={30} minSize={20} maxSize={45}>
+            <div className="pl-4 space-y-6 h-full overflow-y-auto">
+              <TaskSidebarTabs 
+                task={task} 
+                projectId={projectId} 
+                subtasks={subtasks || []}
+                isLoadingSubtasks={isSubtasksLoading}
+                dependsOn={dependsOn}
+                dependents={dependents}
+                isLoadingDeps={isDepsLoading}
+              />
+
+              <Card className="bg-muted/10 border-dashed">
+                <CardContent className="p-4">
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <p>Task ID: <span className="font-mono text-foreground">{task.id}</span></p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </Panel>
+        </PanelGroup>
       </div>
     </Shell>
   );
