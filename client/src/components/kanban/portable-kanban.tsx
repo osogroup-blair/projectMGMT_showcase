@@ -79,6 +79,11 @@ interface Milestone {
   title: string;
 }
 
+interface Sprint {
+  id: string;
+  name: string;
+}
+
 interface Project {
   id: string;
   name: string;
@@ -97,6 +102,7 @@ interface PortableKanbanProps {
   users?: User[];
   epics?: Epic[];
   milestones?: Milestone[];
+  sprints?: Sprint[]; // For sprint filtering
   projects?: Project[]; // For cross-project views with project filter
   projectId: string;
   boardId?: string; // Used for persisting column collapse state
@@ -479,6 +485,7 @@ export function PortableKanban({
   users = [],
   epics = [],
   milestones = [],
+  sprints = [],
   projects = [],
   projectId,
   boardId,
@@ -504,6 +511,7 @@ export function PortableKanban({
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [epicFilter, setEpicFilter] = useState<string>("all");
   const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
+  const [sprintFilter, setSprintFilter] = useState<string>("all");
   const [projectFilter, setProjectFilter] = useState<string>("all");
 
   const sensors = useSensors(
@@ -528,13 +536,14 @@ export function PortableKanban({
     return updated < threeDaysAgo && isInProgressStatus(task.status);
   };
 
-  const hasActiveFilters = searchQuery || assigneeFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all" || projectFilter !== "all";
+  const hasActiveFilters = searchQuery || assigneeFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all" || sprintFilter !== "all" || projectFilter !== "all";
 
   const clearFilters = () => {
     setSearchQuery("");
     setAssigneeFilter("all");
     setEpicFilter("all");
     setMilestoneFilter("all");
+    setSprintFilter("all");
     setProjectFilter("all");
   };
 
@@ -567,12 +576,16 @@ export function PortableKanban({
       result = result.filter((t) => t.milestoneId === milestoneFilter);
     }
 
+    if (sprintFilter !== "all") {
+      result = result.filter((t) => t.sprintId === sprintFilter);
+    }
+
     if (projectFilter !== "all") {
       result = result.filter((t) => t.projectId === projectFilter);
     }
 
     return result;
-  }, [tasks, signalFilter, searchQuery, assigneeFilter, epicFilter, milestoneFilter, projectFilter]);
+  }, [tasks, signalFilter, searchQuery, assigneeFilter, epicFilter, milestoneFilter, sprintFilter, projectFilter]);
 
   const columnTasks = useMemo(() => {
     return columns.reduce((acc, col) => {
@@ -767,6 +780,19 @@ export function PortableKanban({
               placeholder="Milestone"
               triggerClassName="w-[160px] h-9"
               data-testid="select-milestone-filter"
+            />
+          )}
+          {sprints.length > 0 && (
+            <SearchableSelect
+              value={sprintFilter}
+              onValueChange={setSprintFilter}
+              options={[
+                { value: "all", label: "All Sprints" },
+                ...sprints.map((s) => ({ value: s.id, label: s.name }))
+              ]}
+              placeholder="Sprint"
+              triggerClassName="w-[160px] h-9"
+              data-testid="select-sprint-filter"
             />
           )}
           {hasActiveFilters && (
