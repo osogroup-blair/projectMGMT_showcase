@@ -320,7 +320,7 @@ export default function EpicDetail() {
   return (
     <Shell>
       <div className="h-[calc(100vh-8rem)] flex flex-col">
-        {/* Hierarchy Context Breadcrumb */}
+        {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm mb-4 shrink-0">
           <Link href={`/projects/${projectId}`} className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
             <ArrowLeft className="h-4 w-4" />
@@ -344,29 +344,6 @@ export default function EpicDetail() {
             <Layers className="h-3.5 w-3.5" />
             {epic.title}
           </span>
-        </div>
-
-        {/* Hierarchy Visual Indicator */}
-        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border mb-4 shrink-0">
-          <div className="flex items-center gap-1.5 text-xs font-medium">
-            <Link href={deliverable ? `/projects/${projectId}/deliverables/${deliverable.id}` : '#'} className="flex items-center gap-1 px-2 py-1 bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary rounded transition-colors">
-              <Package className="h-3.5 w-3.5" />
-              <span>{deliverable?.title || "Deliverable"}</span>
-            </Link>
-            <span className="text-muted-foreground">→</span>
-            <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded">
-              <Layers className="h-3.5 w-3.5" />
-              <span>Epic</span>
-            </div>
-            <span className="text-muted-foreground">→</span>
-            <div className="flex items-center gap-1 px-2 py-1 bg-muted text-muted-foreground rounded">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Tasks ({taskCounts.total})</span>
-            </div>
-          </div>
-          <div className="ml-auto text-xs text-muted-foreground">
-            Hierarchy: Deliverable → Epic → Task
-          </div>
         </div>
 
         {/* Header */}
@@ -393,22 +370,32 @@ export default function EpicDetail() {
                     )}>
                       {epic.status}
                     </Badge>
-                    {epicTypes.length > 0 && (
-                      <>
-                        <span>•</span>
+                    <span>•</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">Type:</span>
+                      {epicTypes.length > 0 ? (
                         <SearchableSelect
                           value={epic.typeId || ""}
                           onValueChange={(v) => handleUpdateEpicType(v || null)}
-                          placeholder="Set type..."
+                          placeholder="Select type..."
                           options={[
                             { value: "", label: "None" },
                             ...epicTypes.map((t: any) => ({ value: t.id, label: t.name }))
                           ]}
-                          className="h-6 text-xs w-[120px]"
+                          className="h-6 text-xs w-[130px]"
                           data-testid="select-epic-type-header"
                         />
-                      </>
-                    )}
+                      ) : (
+                        <Link href="/admin/appdefaults" className="text-xs text-muted-foreground hover:text-primary underline">
+                          Configure in App Defaults
+                        </Link>
+                      )}
+                      {epicType && (
+                        <Badge variant="outline" className={cn("text-[10px] border-0", epicType.color)}>
+                          {epicType.name}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
