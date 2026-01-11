@@ -245,6 +245,8 @@ export interface IStorage {
   getStatusOptions(): Promise<StatusOption[]>;
   getStatusOptionById(id: string): Promise<StatusOption | undefined>;
   getStatusOptionsByType(type: string): Promise<StatusOption[]>;
+  getDefaultStatusByType(type: string): Promise<string>;
+  validateAndResolveStatus(status: string | null | undefined, type: string): Promise<string>;
   createStatusOption(option: InsertStatusOption): Promise<StatusOption>;
   updateStatusOption(id: string, option: Partial<StatusOption>): Promise<StatusOption>;
   deleteStatusOption(id: string): Promise<void>;
@@ -1080,6 +1082,22 @@ export class DatabaseStorage implements IStorage {
   }
   async getStatusOptionsByType(type: string): Promise<StatusOption[]> {
     return await db.select().from(schema.statusOptions).where(eq(schema.statusOptions.type, type));
+  }
+  async getDefaultStatusByType(type: string): Promise<string> {
+    const options = await this.getStatusOptionsByType(type);
+    const defaultOption = options.find(o => o.isDefault);
+    if (defaultOption) return defaultOption.label;
+    if (options.length > 0) return options[0].label;
+    return type === "task" ? "Todo" : "Active";
+  }
+  async validateAndResolveStatus(status: string | null | undefined, type: string): Promise<string> {
+    const options = await this.getStatusOptionsByType(type);
+    const validLabels = options.map(o => o.label.toLowerCase());
+    if (status && validLabels.includes(status.toLowerCase())) {
+      const matched = options.find(o => o.label.toLowerCase() === status.toLowerCase());
+      return matched?.label || status;
+    }
+    return this.getDefaultStatusByType(type);
   }
   async createStatusOption(option: InsertStatusOption): Promise<StatusOption> {
     const id = (arguments[0] as any).id || crypto.randomUUID();

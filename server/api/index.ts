@@ -451,8 +451,12 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Task type is required for task creation" });
       }
       
+      // Validate status against App Defaults - use default if invalid or missing
+      const resolvedStatus = await storage.validateAndResolveStatus(validated.status, "task");
+      
       const task = await storage.createTask({
         ...validated,
+        status: resolvedStatus,
         assigneeId: validated.assigneeId || userId || null,
         createdBy: userId,
         updatedBy: userId,
@@ -498,6 +502,10 @@ export async function registerRoutes(
       const taskId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
       const userId = getAuthUserId(req);
+      
+      // Get validated status from App Defaults
+      const resolvedStatus = await storage.validateAndResolveStatus(null, "task");
+      
       const taskData = {
         id: taskId,
         title: title.trim(),
@@ -506,7 +514,7 @@ export async function registerRoutes(
         deadline,
         priority: priority || "Medium",
         assigneeId: assigneeId || userId || null,
-        status: "BACKLOGGED",
+        status: resolvedStatus,
         epicId,
         stageId,
         taskTypeId,
