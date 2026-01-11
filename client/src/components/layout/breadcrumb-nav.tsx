@@ -118,7 +118,7 @@ export function BreadcrumbNav() {
   const handleGoBack = () => window.history.back();
   
   const filteredUsers = useMemo(() => {
-    const users = usersData?.users || [];
+    const users = usersData || [];
     if (!userSearch.trim()) return users;
     const search = userSearch.toLowerCase();
     return users.filter((u: any) => 
@@ -127,7 +127,7 @@ export function BreadcrumbNav() {
       u.firstName?.toLowerCase().includes(search) ||
       u.lastName?.toLowerCase().includes(search)
     );
-  }, [usersData?.users, userSearch]);
+  }, [usersData, userSearch]);
 
   const getInitials = (name?: string | null, email?: string | null) => {
     if (name) {
