@@ -43,6 +43,12 @@ The platform uses Replit Auth with OpenID Connect for authentication, supporting
 - `permissions` array: Granular permission strings
 - `AuthGuard` component accepts `requiredRoles` and `requiredPermissions` props
 - Permission middleware in `server/middleware/require-permission.ts` enforces route-level access control
+- Admin pages (`/admin/*`) protected with AuthGuard requiring admin or manager roles
+
+**Audit Logging:**
+- Core entities (projects, deliverables, epics, tasks, milestones, sprints) track `createdBy`, `updatedBy`, `createdAt`, and `updatedAt` fields
+- API routes automatically populate `createdBy` and `updatedBy` from the authenticated session user
+- Helper function `getAuthUserId(req)` extracts user ID from `req.user.claims.sub`
 
 **User Management Architecture:**
 - Contracts: `shared/contracts/user-management.ts` defines request/response schemas and permission constants
