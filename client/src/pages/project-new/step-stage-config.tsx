@@ -77,8 +77,8 @@ export function StepStageConfig({
       type: 'standard',
       tasks: []
     };
-    setStages([...stages, newStage]);
-    setExpandedStages([...expandedStages, newStage.id]);
+    setStages([newStage, ...stages]);
+    setExpandedStages([newStage.id, ...expandedStages]);
   };
 
   const removeStage = (index: number) => {
@@ -103,7 +103,7 @@ export function StepStageConfig({
       deadline: stage.endDate || "",
       datesInheritedFromStage: !!(stage.startDate || stage.endDate)
     };
-    stage.tasks.push(newTask);
+    stage.tasks.unshift(newTask);
     setStages(newStages);
   };
 
@@ -143,7 +143,7 @@ export function StepStageConfig({
       deadline: stage.endDate || "",
       datesInheritedFromStage: !!(stage.startDate || stage.endDate)
     };
-    stage.tasks.push(newTask);
+    stage.tasks.unshift(newTask);
     setStages(newStages);
   };
 
@@ -163,8 +163,8 @@ export function StepStageConfig({
         completionTargetPercent: 100
       }
     };
-    setMilestones([...milestones, newMilestone]);
-    setExpandedMilestones([...expandedMilestones, newMilestone.id]);
+    setMilestones([newMilestone, ...milestones]);
+    setExpandedMilestones([newMilestone.id, ...expandedMilestones]);
   };
 
   const removeMilestone = (index: number) => {

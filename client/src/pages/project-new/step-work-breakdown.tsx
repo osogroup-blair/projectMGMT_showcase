@@ -68,7 +68,7 @@ export function StepWorkBreakdown({
       endDate: deliverable.endDate,
       tasks: []
     };
-    newD[deliverableIndex].epics.push(newEpic);
+    newD[deliverableIndex].epics.unshift(newEpic);
     setDeliverables(newD);
     
     if (focusNew) {
@@ -104,7 +104,7 @@ export function StepWorkBreakdown({
       priority: "medium",
       estimateHours: 0
     };
-    epic.tasks.push(newTask);
+    epic.tasks.unshift(newTask);
     setDeliverables(newD);
     
     setExpandedEpics(prev => new Set(prev).add(epic.id));
@@ -332,7 +332,7 @@ export function StepWorkBreakdown({
           <Button 
             size="sm" 
             data-testid="button-add-deliverable" 
-            onClick={() => setDeliverables([...deliverables, createNewDeliverable()])}
+            onClick={() => setDeliverables([createNewDeliverable(), ...deliverables])}
           >
             <Plus className="h-4 w-4 mr-2" /> Add Deliverable
           </Button>
@@ -412,30 +412,29 @@ export function StepWorkBreakdown({
                           data-testid={`input-deliverable-end-${dIndex}`}
                         />
                       </div>
-                      {deliverableTemplates.length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs text-muted-foreground whitespace-nowrap">Type:</Label>
-                          <Select
-                            value={deliverable.deliverableTypeId || ""}
-                            onValueChange={(value) => {
-                              const newD = [...deliverables];
-                              newD[dIndex].deliverableTypeId = value;
-                              setDeliverables(newD);
-                            }}
-                          >
-                            <SelectTrigger className="h-7 w-40 text-xs">
-                              <SelectValue placeholder="Select type..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {deliverableTemplates.map((template: any) => (
-                                <SelectItem key={template.id} value={template.id}>
-                                  {template.title || template.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground whitespace-nowrap">Type:</Label>
+                        <Select
+                          value={deliverable.deliverableTypeId || ""}
+                          onValueChange={(value) => {
+                            const newD = [...deliverables];
+                            newD[dIndex].deliverableTypeId = value === "none" ? undefined : value;
+                            setDeliverables(newD);
+                          }}
+                        >
+                          <SelectTrigger className="h-7 w-40 text-xs">
+                            <SelectValue placeholder="Select type..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            {deliverableTemplates.map((template: any) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.title || template.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
@@ -481,27 +480,26 @@ export function StepWorkBreakdown({
                                 data-testid={`input-epic-title-${dIndex}-${eIndex}`}
                               />
                               
-                              {epicTemplates.length > 0 && (
-                                <Select
-                                  value={epic.epicTypeId || ""}
-                                  onValueChange={(value) => {
-                                    const newD = [...deliverables];
-                                    newD[dIndex].epics[eIndex].epicTypeId = value;
-                                    setDeliverables(newD);
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8 w-32 text-xs">
-                                    <SelectValue placeholder="Type..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {epicTemplates.map((template: any) => (
-                                      <SelectItem key={template.id} value={template.id}>
-                                        {template.title || template.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
+                              <Select
+                                value={epic.epicTypeId || ""}
+                                onValueChange={(value) => {
+                                  const newD = [...deliverables];
+                                  newD[dIndex].epics[eIndex].epicTypeId = value === "none" ? undefined : value;
+                                  setDeliverables(newD);
+                                }}
+                              >
+                                <SelectTrigger className="h-8 w-32 text-xs">
+                                  <SelectValue placeholder="Type..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">None</SelectItem>
+                                  {epicTemplates.map((template: any) => (
+                                    <SelectItem key={template.id} value={template.id}>
+                                      {template.title || template.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                               
                               <div className="flex items-center gap-1">
                                 <Input
