@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useCurrentUser } from "@/context/current-user-context";
 
 interface TaskSidebarTabsProps {
   task: any;
@@ -154,6 +155,7 @@ function SubtasksSection({
   getStatusDotColor: (status: string) => string;
   isCompletedStatus: (status: string) => boolean;
 }) {
+  const { currentUserId } = useCurrentUser();
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
@@ -165,7 +167,7 @@ function SubtasksSection({
       stageId: task.stageId,
       taskTypeId: task.taskTypeId,
       status: "BACKLOGGED",
-      assigneeId: task.assigneeId,
+      assigneeId: currentUserId || task.assigneeId,
       projectId: projectId,
     });
     setNewSubtaskTitle("");
