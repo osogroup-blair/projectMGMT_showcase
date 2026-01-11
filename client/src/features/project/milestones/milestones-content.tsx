@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
 import { MilestoneScopeInline } from "./milestone-scope-inline";
@@ -82,7 +83,7 @@ interface MilestoneTaskLink {
 export function MilestonesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const { data: allMilestones, isLoading: isMilestonesLoading, createAsync: createMilestoneAsync, update: updateMilestone } = useMilestones();
+  const { data: allMilestones, isLoading: isMilestonesLoading, createAsync: createMilestoneAsync, update: updateMilestone, remove: removeMilestone } = useMilestones();
   const { data: allTaskLinks, isLoading: isLinksLoading, create: createLink } = useMilestoneTaskLinks();
   const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
@@ -125,6 +126,10 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   // Expanded rows state for internal tabs
   const [expandedMilestoneId, setExpandedMilestoneId] = useState<string | null>(null);
   const [activeInternalTab, setActiveInternalTab] = useState<"tasks" | "scope">("tasks");
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [milestoneToDelete, setMilestoneToDelete] = useState<any>(null);
 
   // Scope rules for expanded milestone
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
@@ -366,6 +371,23 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
     updateMilestone({ id: milestoneId, updates: { targetDate: newDate } });
     toast({ title: "Target date updated" });
     cancelEditing();
+  };
+
+  const openDeleteDialog = (milestone: any) => {
+    setMilestoneToDelete(milestone);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteMilestone = () => {
+    if (milestoneToDelete) {
+      removeMilestone(milestoneToDelete.id);
+      toast({ title: "Milestone deleted", description: `"${milestoneToDelete.name}" has been removed.` });
+      setDeleteDialogOpen(false);
+      setMilestoneToDelete(null);
+      if (expandedMilestoneId === milestoneToDelete.id) {
+        setExpandedMilestoneId(null);
+      }
+    }
   };
 
   useEffect(() => {
@@ -752,6 +774,15 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </Button>
                             </Link>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => openDeleteDialog(milestone)}
+                              data-testid={`delete-milestone-${milestone.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1152,6 +1183,28 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
           </Tabs>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Milestone</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{milestoneToDelete?.name}"? This action cannot be undone.
+              Any linked tasks will be unlinked but not deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMilestoneToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteMilestone}
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="confirm-delete-milestone"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
