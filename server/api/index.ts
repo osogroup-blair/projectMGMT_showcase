@@ -3567,6 +3567,9 @@ export async function registerRoutes(
                     taskTags = row.tags.split(',').map((s: string) => s.trim()).filter(Boolean);
                   }
                 }
+                // Validate status against App Defaults
+                const validatedStatus = await storage.validateAndResolveStatus(row.status, "task");
+                
                 const taskData = {
                   id: newId,
                   title: row.title || 'Imported Task',
@@ -3575,7 +3578,7 @@ export async function registerRoutes(
                   projectId: validProjectId || null,
                   epicId: validEpicId || null,
                   stageId: validStageId || null,
-                  status: row.status || 'To Do',
+                  status: validatedStatus,
                   assigneeId: validAssigneeId || null,
                   deadline: row.deadline || defaults?.deadline || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                   priority: row.priority || 'Medium',
@@ -3739,6 +3742,9 @@ export async function registerRoutes(
         // Project creation is critical - can't continue without it
         throw new Error(`Failed to create project: ${e.message}`);
       }
+      
+      // Get validated default task status from App Defaults
+      const defaultTaskStatus = await storage.getDefaultStatusByType("task");
       
       // 2. Create stages
       const stages = payload.stages || [];
@@ -3981,7 +3987,7 @@ export async function registerRoutes(
                   projectId: projectId!,
                   title: taskDraft.title,
                   description: taskDraft.description || "",
-                  status: "Todo",
+                  status: await storage.validateAndResolveStatus(taskDraft.status, "task"),
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
                   epicId: resolvedEpicId,
@@ -4024,7 +4030,7 @@ export async function registerRoutes(
                   projectId: projectId!,
                   title: taskDraft.title,
                   description: taskDraft.description || "",
-                  status: "Todo",
+                  status: await storage.validateAndResolveStatus(taskDraft.status, "task"),
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
@@ -4067,7 +4073,7 @@ export async function registerRoutes(
                     projectId: projectId!,
                     title: taskDraft.title,
                     description: taskDraft.description || "",
-                    status: "Todo",
+                    status: await storage.validateAndResolveStatus(taskDraft.status, "task"),
                     priority: taskDraft.priority || "Medium",
                     stageId: createdStage.createdStageId,
                     epicId: businessEpic.id,
@@ -4107,7 +4113,7 @@ export async function registerRoutes(
                   projectId: projectId!,
                   title: taskDraft.title,
                   description: taskDraft.description || "",
-                  status: "Todo",
+                  status: await storage.validateAndResolveStatus(taskDraft.status, "task"),
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
@@ -4151,7 +4157,7 @@ export async function registerRoutes(
                   projectId: projectId!,
                   title: taskDraft.title,
                   description: taskDraft.description || "",
-                  status: "Todo",
+                  status: await storage.validateAndResolveStatus(taskDraft.status, "task"),
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
