@@ -1321,7 +1321,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                               <Target className="h-3 w-3 text-muted-foreground shrink-0" />
                                                               <span className="truncate text-xs">
                                                                 {task.milestoneId 
-                                                                  ? projectMilestones.find((m: any) => m.id === task.milestoneId)?.title || "Milestone"
+                                                                  ? allMilestones.find((m: any) => m.id === task.milestoneId)?.title || "Milestone"
                                                                   : "-"
                                                                 }
                                                               </span>
@@ -1329,11 +1329,13 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                           </SelectTrigger>
                                                           <SelectContent>
                                                             <SelectItem value="none">No Milestone</SelectItem>
-                                                            {projectMilestones.map((milestone: any) => (
-                                                              <SelectItem key={milestone.id} value={milestone.id}>
-                                                                {milestone.title}
-                                                              </SelectItem>
-                                                            ))}
+                                                            {allMilestones
+                                                              .filter((m: any) => m.projectId === projectId)
+                                                              .map((milestone: any) => (
+                                                                <SelectItem key={milestone.id} value={milestone.id}>
+                                                                  {milestone.title}
+                                                                </SelectItem>
+                                                              ))}
                                                           </SelectContent>
                                                         </Select>
 
