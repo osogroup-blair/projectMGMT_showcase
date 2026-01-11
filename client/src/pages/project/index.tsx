@@ -922,6 +922,19 @@ export default function ProjectOverview() {
                         Current Sprint
                       </button>
                       <button
+                        onClick={() => setDashboardSection("team-pulse")}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          dashboardSection === "team-pulse" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid="nav-team-pulse"
+                      >
+                        <Send className="h-4 w-4" />
+                        Team Pulse
+                      </button>
+                      <button
                         onClick={() => setDashboardSection("upcoming-work")}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
@@ -960,20 +973,6 @@ export default function ProjectOverview() {
                         <Activity className="h-4 w-4" />
                         Activity
                       </button>
-                      <div className="my-3 border-t" />
-                      <button
-                        onClick={() => setDashboardSection("team-pulse")}
-                        className={cn(
-                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          dashboardSection === "team-pulse" 
-                            ? "bg-primary text-primary-foreground" 
-                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                        )}
-                        data-testid="nav-team-pulse"
-                      >
-                        <Send className="h-4 w-4" />
-                        Team Pulse
-                      </button>
                     </nav>
                   </div>
                 ) : (
@@ -995,6 +994,14 @@ export default function ProjectOverview() {
                         onClick={() => setDashboardSection("current-sprint")}
                       >
                         <Zap className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
+                        variant={dashboardSection === "team-pulse" ? "default" : "ghost"} 
+                        size="icon" 
+                        className="h-7 w-7"
+                        onClick={() => setDashboardSection("team-pulse")}
+                      >
+                        <Send className="h-3.5 w-3.5" />
                       </Button>
                       <Button 
                         variant={dashboardSection === "upcoming-work" ? "default" : "ghost"} 
@@ -1019,15 +1026,6 @@ export default function ProjectOverview() {
                         onClick={() => setDashboardSection("activity")}
                       >
                         <Activity className="h-3.5 w-3.5" />
-                      </Button>
-                      <div className="my-1 w-5 border-t" />
-                      <Button 
-                        variant={dashboardSection === "team-pulse" ? "default" : "ghost"} 
-                        size="icon" 
-                        className="h-7 w-7"
-                        onClick={() => setDashboardSection("team-pulse")}
-                      >
-                        <Send className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
