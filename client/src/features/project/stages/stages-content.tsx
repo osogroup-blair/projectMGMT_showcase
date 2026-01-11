@@ -6,12 +6,20 @@ import {
   AlertCircle, 
   Circle,
   ChevronRight,
+  ChevronDown,
   ListTodo,
   ArrowRight,
   ExternalLink,
   Plus,
   Loader2,
-  Search
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Calendar as CalendarIcon,
+  Pencil,
+  Check,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,9 +36,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
+import { format, parseISO } from "date-fns";
 
 const PRIORITY_CONFIG: Record<string, string> = {
   "Low": "bg-slate-50 text-slate-700 border-slate-200",
@@ -41,13 +50,16 @@ const PRIORITY_CONFIG: Record<string, string> = {
 
 const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21];
 
+type SortField = "order" | "name" | "status" | "tasks" | "progress" | "startDate" | "endDate";
+type SortDirection = "asc" | "desc";
+
 export function StagesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
-  const { data: allProjectStages, isLoading: isStagesLoading } = useProjectStages();
+  const { data: allProjectStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
 
   // Get stages for this project, sorted by order
   const stages = useMemo(() => {
@@ -64,9 +76,20 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const [selectedEpicId, setSelectedEpicId] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
 
-  // Toolbar state
+  // Toolbar state - default to list view
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>("order");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  // Expanded rows state
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  // Inline date editing state
+  const [editingCell, setEditingCell] = useState<{ id: string; field: "startDate" | "endDate" } | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -109,6 +132,60 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const getAssignee = (assigneeId?: string) => {
     if (!assigneeId) return null;
     return (users || []).find((u: any) => u.id === assigneeId);
+  };
+
+  const toggleExpanded = (stageId: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(stageId)) {
+        next.delete(stageId);
+      } else {
+        next.add(stageId);
+      }
+      return next;
+    });
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const handleStartEdit = (stageId: string, field: "startDate" | "endDate", currentValue: string | null) => {
+    setEditingCell({ id: stageId, field });
+    setEditValue(currentValue || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCell) return;
+    
+    try {
+      await updateStage({ 
+        id: editingCell.id, 
+        updates: { [editingCell.field]: editValue || null } 
+      });
+      toast({ title: "Date updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCell(null);
+    setEditValue("");
   };
 
   const openAddTaskDialog = (stageId: string) => {
@@ -166,15 +243,74 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading;
 
-  // Filter stages by search query
-  const filteredStages = useMemo(() => {
-    if (!searchQuery.trim()) return stages;
-    const query = searchQuery.toLowerCase();
-    return stages.filter((stage: any) => 
-      stage.name?.toLowerCase().includes(query) ||
-      stage.description?.toLowerCase().includes(query)
-    );
-  }, [stages, searchQuery]);
+  // Filter and sort stages
+  const filteredAndSortedStages = useMemo(() => {
+    let result = stages;
+    
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter((stage: any) => 
+        stage.name?.toLowerCase().includes(query) ||
+        stage.description?.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort
+    result = [...result].sort((a: any, b: any) => {
+      let aVal: any, bVal: any;
+      
+      switch (sortField) {
+        case "order":
+          aVal = a.order || 0;
+          bVal = b.order || 0;
+          break;
+        case "name":
+          aVal = a.name?.toLowerCase() || "";
+          bVal = b.name?.toLowerCase() || "";
+          break;
+        case "status":
+          aVal = a.status?.toLowerCase() || "";
+          bVal = b.status?.toLowerCase() || "";
+          break;
+        case "tasks":
+          aVal = getStageProgress(a.id).total;
+          bVal = getStageProgress(b.id).total;
+          break;
+        case "progress":
+          aVal = getStageProgress(a.id).percent;
+          bVal = getStageProgress(b.id).percent;
+          break;
+        case "startDate":
+          aVal = a.startDate ? new Date(a.startDate).getTime() : 0;
+          bVal = b.startDate ? new Date(b.startDate).getTime() : 0;
+          break;
+        case "endDate":
+          aVal = a.endDate ? new Date(a.endDate).getTime() : 0;
+          bVal = b.endDate ? new Date(b.endDate).getTime() : 0;
+          break;
+        default:
+          aVal = a.order || 0;
+          bVal = b.order || 0;
+      }
+
+      if (typeof aVal === "string") {
+        return sortDirection === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+    });
+
+    return result;
+  }, [stages, searchQuery, sortField, sortDirection]);
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    try {
+      return format(parseISO(dateStr), "MMM d, yyyy");
+    } catch {
+      return dateStr;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -208,7 +344,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
       />
 
       <div className="space-y-4 pt-4">
-        {filteredStages.length === 0 && stages.length > 0 ? (
+        {filteredAndSortedStages.length === 0 && stages.length > 0 ? (
           <Card className="bg-muted/10 border-dashed">
             <CardContent className="flex flex-col items-center justify-center p-12 text-center">
               <Layers className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
@@ -230,75 +366,297 @@ export function StagesContent({ projectId }: { projectId: string }) {
           </Card>
         ) : viewMode === "list" ? (
           <div className="border rounded-lg bg-card overflow-x-auto">
-            <Table style={{ minWidth: "700px" }}>
+            <Table style={{ minWidth: "900px" }}>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead style={{ width: "8%" }}>Order</TableHead>
-                  <TableHead style={{ width: "25%" }}>Stage</TableHead>
-                  <TableHead style={{ width: "15%" }}>Status</TableHead>
-                  <TableHead style={{ width: "12%" }}>Tasks</TableHead>
-                  <TableHead style={{ width: "25%" }}>Progress</TableHead>
-                  <TableHead style={{ width: "15%" }} className="text-right">Actions</TableHead>
+                  <TableHead style={{ width: "3%" }}></TableHead>
+                  <TableHead style={{ width: "6%" }}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-1 -ml-1 font-medium"
+                      onClick={() => handleSort("order")}
+                    >
+                      Order
+                      {getSortIcon("order")}
+                    </Button>
+                  </TableHead>
+                  <TableHead style={{ width: "18%" }}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-1 -ml-1 font-medium"
+                      onClick={() => handleSort("name")}
+                    >
+                      Stage
+                      {getSortIcon("name")}
+                    </Button>
+                  </TableHead>
+                  <TableHead style={{ width: "10%" }}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-1 -ml-1 font-medium"
+                      onClick={() => handleSort("status")}
+                    >
+                      Status
+                      {getSortIcon("status")}
+                    </Button>
+                  </TableHead>
+                  <TableHead style={{ width: "12%" }}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-1 -ml-1 font-medium"
+                      onClick={() => handleSort("startDate")}
+                    >
+                      Start Date
+                      {getSortIcon("startDate")}
+                    </Button>
+                  </TableHead>
+                  <TableHead style={{ width: "12%" }}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-1 -ml-1 font-medium"
+                      onClick={() => handleSort("endDate")}
+                    >
+                      End Date
+                      {getSortIcon("endDate")}
+                    </Button>
+                  </TableHead>
+                  <TableHead style={{ width: "8%" }}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-1 -ml-1 font-medium"
+                      onClick={() => handleSort("tasks")}
+                    >
+                      Tasks
+                      {getSortIcon("tasks")}
+                    </Button>
+                  </TableHead>
+                  <TableHead style={{ width: "18%" }}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-1 -ml-1 font-medium"
+                      onClick={() => handleSort("progress")}
+                    >
+                      Progress
+                      {getSortIcon("progress")}
+                    </Button>
+                  </TableHead>
+                  <TableHead style={{ width: "10%" }} className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStages.map((stage: any) => {
+                {filteredAndSortedStages.map((stage: any) => {
                   const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
                   const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
                   const progress = getStageProgress(stage.id);
+                  const isExpanded = expandedRows.has(stage.id);
+                  const stageTasks = getTasksForStage(stage.id);
 
                   return (
-                    <TableRow key={stage.id} className="hover:bg-muted/50" data-testid={`row-stage-${stage.id}`}>
-                      <TableCell>
-                        <div className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold",
-                          statusColorClass
-                        )}>
-                          {stage.order}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          <Link href={`/projects/${projectId}/stages/${stage.id}`}>
-                            <span className="font-medium hover:text-primary cursor-pointer">{stage.name}</span>
-                          </Link>
-                          {stage.description && (
-                            <p className="text-xs text-muted-foreground truncate max-w-[180px]">{stage.description}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn("font-normal text-xs", statusColorClass)}>
-                          {stage.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {progress.total} <span className="text-muted-foreground">({progress.done} done)</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={progress.percent} className="h-2 flex-1" />
-                          <span className="text-xs text-muted-foreground w-8">{progress.percent}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Link href={`/projects/${projectId}/stages/${stage.id}`}>
-                            <Button variant="ghost" size="sm" className="h-7">
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
-                          </Link>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-7"
-                            onClick={() => openAddTaskDialog(stage.id)}
+                    <>
+                      <TableRow 
+                        key={stage.id} 
+                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30")} 
+                        data-testid={`row-stage-${stage.id}`}
+                      >
+                        <TableCell className="py-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => toggleExpanded(stage.id)}
+                            data-testid={`button-expand-stage-${stage.id}`}
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
                           </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell>
+                          <div className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold",
+                            statusColorClass
+                          )}>
+                            {stage.order}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            <Link href={`/projects/${projectId}/stages/${stage.id}`}>
+                              <span className="font-medium hover:text-primary cursor-pointer">{stage.name}</span>
+                            </Link>
+                            {stage.description && (
+                              <p className="text-xs text-muted-foreground truncate max-w-[180px]">{stage.description}</p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn("font-normal text-xs", statusColorClass)}>
+                            {stage.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {editingCell?.id === stage.id && editingCell?.field === "startDate" ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="date"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                className="h-7 w-[120px] text-xs"
+                                autoFocus
+                              />
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleSaveEdit}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCancelEdit}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div 
+                              className="flex items-center gap-1 group cursor-pointer text-sm"
+                              onClick={() => handleStartEdit(stage.id, "startDate", stage.startDate)}
+                            >
+                              <span>{formatDate(stage.startDate)}</span>
+                              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingCell?.id === stage.id && editingCell?.field === "endDate" ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="date"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                className="h-7 w-[120px] text-xs"
+                                autoFocus
+                              />
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleSaveEdit}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCancelEdit}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div 
+                              className="flex items-center gap-1 group cursor-pointer text-sm"
+                              onClick={() => handleStartEdit(stage.id, "endDate", stage.endDate)}
+                            >
+                              <span>{formatDate(stage.endDate)}</span>
+                              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {progress.total} <span className="text-muted-foreground">({progress.done} done)</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={progress.percent} className="h-2 flex-1" />
+                            <span className="text-xs text-muted-foreground w-8">{progress.percent}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Link href={`/projects/${projectId}/stages/${stage.id}`}>
+                              <Button variant="ghost" size="sm" className="h-7">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-7"
+                              onClick={() => openAddTaskDialog(stage.id)}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && stageTasks.length > 0 && (
+                        <TableRow className="bg-muted/10 hover:bg-muted/10">
+                          <TableCell colSpan={9} className="p-0">
+                            <div className="pl-12 pr-4 py-2">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableHead className="h-8 text-xs">Task</TableHead>
+                                    <TableHead className="h-8 text-xs">Status</TableHead>
+                                    <TableHead className="h-8 text-xs">Epic</TableHead>
+                                    <TableHead className="h-8 text-xs">Assignee</TableHead>
+                                    <TableHead className="h-8 text-xs">Due Date</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {stageTasks.map((task: any) => {
+                                    const epic = getEpic(task.epicId);
+                                    const assignee = getAssignee(task.assigneeId);
+                                    return (
+                                      <TableRow key={task.id} className="hover:bg-muted/30">
+                                        <TableCell className="py-1.5">
+                                          <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                                            <span className="text-sm hover:text-primary cursor-pointer">{task.title}</span>
+                                          </Link>
+                                        </TableCell>
+                                        <TableCell className="py-1.5">
+                                          <Badge variant="outline" className="text-[10px]">{task.status}</Badge>
+                                        </TableCell>
+                                        <TableCell className="py-1.5 text-xs text-muted-foreground">
+                                          {epic?.title || "—"}
+                                        </TableCell>
+                                        <TableCell className="py-1.5">
+                                          {assignee ? (
+                                            <div className="flex items-center gap-1">
+                                              <Avatar className="h-5 w-5">
+                                                <AvatarFallback className="text-[10px]">
+                                                  {assignee.name?.charAt(0) || "?"}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                              <span className="text-xs">{assignee.name}</span>
+                                            </div>
+                                          ) : (
+                                            <span className="text-xs text-muted-foreground">—</span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell className="py-1.5 text-xs">
+                                          {task.deadline ? formatDate(task.deadline) : "—"}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {isExpanded && stageTasks.length === 0 && (
+                        <TableRow className="bg-muted/10 hover:bg-muted/10">
+                          <TableCell colSpan={9} className="py-4 text-center text-sm text-muted-foreground">
+                            No tasks in this stage.
+                            <Button 
+                              variant="link" 
+                              size="sm" 
+                              className="ml-1 h-auto p-0"
+                              onClick={() => openAddTaskDialog(stage.id)}
+                            >
+                              Add one
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
                   );
                 })}
               </TableBody>
@@ -306,7 +664,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredStages.map((stage: any) => {
+            {filteredAndSortedStages.map((stage: any) => {
               const statusConfig = STAGE_STATUS_OPTIONS.find(s => s.label === stage.status);
               const statusColorClass = statusConfig?.color || "bg-muted/50 text-muted-foreground border-muted";
               const progress = getStageProgress(stage.id);
