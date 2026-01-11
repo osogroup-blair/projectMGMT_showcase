@@ -23,7 +23,9 @@ import {
   ArrowUp,
   ArrowDown,
   Columns3,
-  UserCircle
+  UserCircle,
+  MoreHorizontal,
+  Trash2
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -44,6 +46,22 @@ import { useToast } from "@/hooks/use-toast";
 import { TaskFilterModal, TaskFilters, emptyFilters, getActiveFilterCount } from "./task-filter-modal";
 import { PortableKanban } from "@/components/kanban";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -74,7 +92,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const { currentUserId, currentUser } = useCurrentUser();
   
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
-  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask, remove: deleteTask } = useTasks();
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
@@ -145,6 +163,12 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   // Bulk selection state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  // Delete confirmation state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Inline editing state
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
@@ -474,6 +498,54 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     }
   };
 
+  // Delete handlers
+  const handleDeleteClick = (task: { id: string; title: string }) => {
+    setTaskToDelete(task);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete) return;
+    setIsDeleting(true);
+    try {
+      deleteTask(taskToDelete.id);
+      toast({ 
+        title: "Task deleted", 
+        description: `"${taskToDelete.title}" has been deleted.` 
+      });
+      setDeleteConfirmOpen(false);
+      setTaskToDelete(null);
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to delete task.", variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteClick = () => {
+    setBulkDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const deleteCount = selectedTaskIds.size;
+      for (const id of Array.from(selectedTaskIds)) {
+        deleteTask(id);
+      }
+      toast({ 
+        title: "Tasks deleted", 
+        description: `${deleteCount} task(s) have been deleted.` 
+      });
+      setSelectedTaskIds(new Set());
+      setBulkDeleteConfirmOpen(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to delete tasks.", variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const openCreateDialog = () => {
     setNewTaskTitle("");
     setNewTaskDescription("");
@@ -739,6 +811,17 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 triggerClassName="h-8 w-[140px] text-xs"
                 data-testid="bulk-sprint-select"
               />
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={handleBulkDeleteClick}
+                disabled={isBulkUpdating || isDeleting}
+                className="h-8 text-xs"
+                data-testid="bulk-delete-button"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Delete
+              </Button>
             </div>
             <div className="ml-auto">
               <Button 
@@ -1028,18 +1111,36 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                       />
                     </TableCell>
 
-                    {/* Link to Task Detail */}
+                    {/* Row Actions */}
                     <TableCell className="px-2">
-                      <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-7 w-7 p-0"
-                          data-testid={`link-task-${task.id}`}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Button>
-                      </Link>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 w-7 p-0"
+                            data-testid={`actions-task-${task.id}`}
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/projects/${projectId}/tasks/${task.id}`} className="flex items-center gap-2 cursor-pointer">
+                              <ExternalLink className="h-4 w-4" />
+                              View Task
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteClick({ id: task.id, title: task.title })}
+                            className="text-destructive focus:text-destructive cursor-pointer"
+                            data-testid={`delete-task-${task.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Task
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 );
@@ -1319,6 +1420,66 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{taskToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="confirm-delete-task"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedTaskIds.size} Task{selectedTaskIds.size > 1 ? 's' : ''}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedTaskIds.size} selected task{selectedTaskIds.size > 1 ? 's' : ''}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmBulkDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="confirm-bulk-delete"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                `Delete ${selectedTaskIds.size} Task${selectedTaskIds.size > 1 ? 's' : ''}`
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
