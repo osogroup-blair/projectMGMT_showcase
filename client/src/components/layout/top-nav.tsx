@@ -1,6 +1,7 @@
 import { Search, LogOut, User, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,7 @@ import { useCurrentUser } from "@/context/current-user-context";
 
 export function TopNav() {
   const { currentUser } = useCurrentUser();
+  const [, setLocation] = useLocation();
   
   const displayName = currentUser?.name || 
     `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 
@@ -81,11 +83,11 @@ export function TopNav() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem data-testid="menu-item-profile">
+              <DropdownMenuItem onClick={() => setLocation("/profile")} data-testid="menu-item-profile">
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem data-testid="menu-item-settings">
+              <DropdownMenuItem onClick={() => setLocation("/admin/settings")} data-testid="menu-item-settings">
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
