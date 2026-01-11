@@ -34,9 +34,10 @@ export function CurrentProjectsPanel() {
   const INACTIVE_STATUSES = ["done", "deferred", "archived", "complete", "completed"];
   
   // Filter tasks to only show those assigned to the current user
+  // Use string comparison to handle potential type mismatches
   const userTasks = useMemo(() => {
-    if (!allTasks) return [];
-    return allTasks.filter((task: any) => task.assigneeId === currentUserId);
+    if (!allTasks || !currentUserId) return [];
+    return allTasks.filter((task: any) => String(task.assigneeId) === String(currentUserId));
   }, [allTasks, currentUserId]);
   
   // Active tasks = user's tasks that are NOT Done/Deferred/Archived
