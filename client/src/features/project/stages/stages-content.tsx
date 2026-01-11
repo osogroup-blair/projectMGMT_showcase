@@ -36,9 +36,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { format, parseISO } from "date-fns";
 
 const PRIORITY_CONFIG: Record<string, string> = {
@@ -55,11 +59,12 @@ type SortDirection = "asc" | "desc";
 
 export function StagesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
-  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allProjectStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
+  const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
 
   // Get stages for this project, sorted by order
   const stages = useMemo(() => {
@@ -90,6 +95,11 @@ export function StagesContent({ projectId }: { projectId: string }) {
   // Inline date editing state
   const [editingCell, setEditingCell] = useState<{ id: string; field: "startDate" | "endDate" } | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  // Task inline editing state
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [editingTaskField, setEditingTaskField] = useState<"title" | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState("");
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -186,6 +196,63 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const handleCancelEdit = () => {
     setEditingCell(null);
     setEditValue("");
+  };
+
+  // Task inline editing handlers
+  const handleTaskTitleEdit = (taskId: string, currentTitle: string) => {
+    setEditingTask(taskId);
+    setEditingTaskField("title");
+    setEditingTaskTitle(currentTitle);
+  };
+
+  const handleTaskTitleSave = async (taskId: string) => {
+    if (!editingTaskTitle.trim()) {
+      toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
+      return;
+    }
+    try {
+      await updateTask({ id: taskId, updates: { title: editingTaskTitle.trim() } });
+      toast({ title: "Task updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+    setEditingTask(null);
+    setEditingTaskField(null);
+    setEditingTaskTitle("");
+  };
+
+  const handleTaskTitleCancel = () => {
+    setEditingTask(null);
+    setEditingTaskField(null);
+    setEditingTaskTitle("");
+  };
+
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      await updateTask({ id: taskId, updates: { status: newStatus } });
+      toast({ title: "Status updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskAssigneeChange = async (taskId: string, assigneeId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { assigneeId: assigneeId || null } });
+      toast({ title: "Assignee updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskDeadlineChange = async (taskId: string, date: Date | undefined) => {
+    try {
+      const deadline = date ? format(date, "yyyy-MM-dd") : null;
+      await updateTask({ id: taskId, updates: { deadline } });
+      toast({ title: "Due date updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
   };
 
   const openAddTaskDialog = (stageId: string) => {
@@ -329,21 +396,23 @@ export function StagesContent({ projectId }: { projectId: string }) {
         aria-hidden="true"
       />
 
-      <TabToolbar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        searchPlaceholder="Search stages..."
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        showFilter={false}
-        addButtonLabel="Add Stage"
-        onAddClick={() => {
-          const btn = document.querySelector('[data-testid="button-create-stages"]') as HTMLButtonElement;
-          if (btn) btn.click();
-        }}
-      />
+      <div className="sticky top-0 z-10 bg-background pb-2">
+        <TabToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search stages..."
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          showFilter={false}
+          addButtonLabel="Add Stage"
+          onAddClick={() => {
+            const btn = document.querySelector('[data-testid="button-create-stages"]') as HTMLButtonElement;
+            if (btn) btn.click();
+          }}
+        />
+      </div>
 
-      <div className="space-y-4 pt-4">
+      <div className="space-y-4 pt-2">
         {filteredAndSortedStages.length === 0 && stages.length > 0 ? (
           <Card className="bg-muted/10 border-dashed">
             <CardContent className="flex flex-col items-center justify-center p-12 text-center">
@@ -591,46 +660,126 @@ export function StagesContent({ projectId }: { projectId: string }) {
                               <Table>
                                 <TableHeader>
                                   <TableRow className="hover:bg-transparent">
-                                    <TableHead className="h-8 text-xs">Task</TableHead>
-                                    <TableHead className="h-8 text-xs">Status</TableHead>
-                                    <TableHead className="h-8 text-xs">Epic</TableHead>
-                                    <TableHead className="h-8 text-xs">Assignee</TableHead>
-                                    <TableHead className="h-8 text-xs">Due Date</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "30%" }}>Task</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "15%" }}>Status</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "15%" }}>Epic</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "18%" }}>Assignee</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "14%" }}>Due Date</TableHead>
+                                    <TableHead className="h-8 text-xs text-right" style={{ width: "8%" }}>Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {stageTasks.map((task: any) => {
                                     const epic = getEpic(task.epicId);
                                     const assignee = getAssignee(task.assigneeId);
+                                    const isEditingThisTask = editingTask === task.id;
                                     return (
-                                      <TableRow key={task.id} className="hover:bg-muted/30">
+                                      <TableRow key={task.id} className="hover:bg-muted/30" data-testid={`row-task-${task.id}`}>
                                         <TableCell className="py-1.5">
-                                          <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                                            <span className="text-sm hover:text-primary cursor-pointer">{task.title}</span>
-                                          </Link>
+                                          {isEditingThisTask && editingTaskField === "title" ? (
+                                            <div className="flex items-center gap-1">
+                                              <Input
+                                                value={editingTaskTitle}
+                                                onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                                className="h-6 text-xs"
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                  if (e.key === "Enter") handleTaskTitleSave(task.id);
+                                                  if (e.key === "Escape") handleTaskTitleCancel();
+                                                }}
+                                              />
+                                              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => handleTaskTitleSave(task.id)}>
+                                                <Check className="h-3 w-3" />
+                                              </Button>
+                                              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleTaskTitleCancel}>
+                                                <X className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          ) : (
+                                            <div 
+                                              className="flex items-center gap-1 group cursor-pointer"
+                                              onClick={() => handleTaskTitleEdit(task.id, task.title)}
+                                            >
+                                              <div 
+                                                className="w-2 h-2 rounded-full shrink-0"
+                                                style={{ backgroundColor: getStatusAccentColor(task.status) }}
+                                              />
+                                              <span className="text-sm hover:text-primary">{task.title}</span>
+                                              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 ml-1" />
+                                            </div>
+                                          )}
                                         </TableCell>
                                         <TableCell className="py-1.5">
-                                          <Badge variant="outline" className="text-[10px]">{task.status}</Badge>
+                                          <Select 
+                                            value={task.status} 
+                                            onValueChange={(v) => handleTaskStatusChange(task.id, v)}
+                                          >
+                                            <SelectTrigger className={cn("h-6 text-[10px] border px-2 w-auto rounded-full", getStatusBgColor(task.status), getStatusTextColor(task.status))}>
+                                              <SelectValue placeholder="Status" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {statusLabels.map((status) => (
+                                                <SelectItem key={status} value={status}>
+                                                  <span className={cn("px-2 py-0.5 rounded-full text-[10px]", getStatusBgColor(status), getStatusTextColor(status))}>
+                                                    {status}
+                                                  </span>
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
                                         </TableCell>
                                         <TableCell className="py-1.5 text-xs text-muted-foreground">
                                           {epic?.title || "—"}
                                         </TableCell>
                                         <TableCell className="py-1.5">
-                                          {assignee ? (
-                                            <div className="flex items-center gap-1">
-                                              <Avatar className="h-5 w-5">
-                                                <AvatarFallback className="text-[10px]">
-                                                  {assignee.name?.charAt(0) || "?"}
-                                                </AvatarFallback>
-                                              </Avatar>
-                                              <span className="text-xs">{assignee.name}</span>
-                                            </div>
-                                          ) : (
-                                            <span className="text-xs text-muted-foreground">—</span>
-                                          )}
+                                          <SearchableSelect
+                                            value={task.assigneeId || ""}
+                                            onValueChange={(v) => handleTaskAssigneeChange(task.id, v || null)}
+                                            className="h-6 text-xs w-[120px]"
+                                            placeholder="Assign"
+                                            options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
+                                          />
                                         </TableCell>
-                                        <TableCell className="py-1.5 text-xs">
-                                          {task.deadline ? formatDate(task.deadline) : "—"}
+                                        <TableCell className="py-1.5">
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                className="h-6 px-2 text-xs justify-start font-normal"
+                                              >
+                                                <CalendarIcon className="h-3 w-3 mr-1 text-muted-foreground" />
+                                                {task.deadline ? format(parseISO(task.deadline), "MMM d") : "Set date"}
+                                              </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                              <div className="p-2">
+                                                <Calendar
+                                                  mode="single"
+                                                  selected={task.deadline ? parseISO(task.deadline) : undefined}
+                                                  onSelect={(date) => handleTaskDeadlineChange(task.id, date)}
+                                                  initialFocus
+                                                />
+                                                {task.deadline && (
+                                                  <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="w-full mt-2 text-xs text-muted-foreground"
+                                                    onClick={() => handleTaskDeadlineChange(task.id, undefined)}
+                                                  >
+                                                    <X className="h-3 w-3 mr-1" /> Clear date
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </PopoverContent>
+                                          </Popover>
+                                        </TableCell>
+                                        <TableCell className="py-1.5 text-right">
+                                          <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                              <ExternalLink className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </Link>
                                         </TableCell>
                                       </TableRow>
                                     );
