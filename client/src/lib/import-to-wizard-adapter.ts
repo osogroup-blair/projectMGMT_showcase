@@ -938,7 +938,8 @@ export function toWizardDeliverables(imported: ImportedDeliverable[]): WizardDel
 
 export function toWizardStages(
   imported: ImportedStage[],
-  userMappings: UserMappingEntry[] = []
+  userMappings: UserMappingEntry[] = [],
+  defaultUnassignedTo?: string | null
 ): WizardStage[] {
   const userMappingLookup = new Map<string, string>();
   userMappings.forEach(m => {
@@ -956,9 +957,15 @@ export function toWizardStages(
     defaultRoles: s.defaultRoles || [],
     tasks: (s.tasks || []).map(t => {
       const importedTask = t as ImportedTask;
-      const mappedAssigneeId = importedTask.sourceAssigneeId 
-        ? userMappingLookup.get(importedTask.sourceAssigneeId)
-        : undefined;
+      let assigneeId: string | undefined = undefined;
+      
+      if (importedTask.sourceAssigneeId) {
+        assigneeId = userMappingLookup.get(importedTask.sourceAssigneeId);
+      }
+      
+      if (!assigneeId && defaultUnassignedTo) {
+        assigneeId = defaultUnassignedTo;
+      }
       
       return {
         id: t.id,
@@ -974,7 +981,7 @@ export function toWizardStages(
         assignedEpicId: importedTask.assignedEpicId,
         assignedEpicTitle: importedTask.assignedEpicTitle,
         mappingStatus: importedTask.mappingStatus,
-        assigneeId: mappedAssigneeId
+        assigneeId
       };
     }),
     type: s.type || 'standard',

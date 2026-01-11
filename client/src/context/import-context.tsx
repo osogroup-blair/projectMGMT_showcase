@@ -25,6 +25,7 @@ export interface ImportState {
   acceptedFields: Set<string>;
   modifiedFields: Set<string>;
   warnings: string[];
+  defaultUnassignedTo: { userId: string; userName: string } | null;
 }
 
 interface ImportContextType {
@@ -32,6 +33,7 @@ interface ImportContextType {
   initializeFromFile: (parseResult: ParseResult, options?: ImportAdapterOptions) => void;
   updateUserMapping: (sourceId: string, mappedToId: string | null, mappedToName: string | undefined, action: UserMappingEntry['action']) => void;
   updateStatusMapping: (sourceStatus: string, mappedStatus: string, mappedStatusId?: string) => void;
+  setDefaultUnassignedTo: (userId: string | null, userName?: string) => void;
   acceptField: (fieldPath: string) => void;
   modifyField: (fieldPath: string) => void;
   clearField: (fieldPath: string) => void;
@@ -52,7 +54,8 @@ const defaultState: ImportState = {
   statusMappings: [],
   acceptedFields: new Set(),
   modifiedFields: new Set(),
-  warnings: []
+  warnings: [],
+  defaultUnassignedTo: null
 };
 
 const ImportContext = createContext<ImportContextType | undefined>(undefined);
@@ -73,7 +76,8 @@ export function ImportProvider({ children }: { children: ReactNode }) {
       statusMappings: adapterResult.statusMappings,
       acceptedFields: new Set(),
       modifiedFields: new Set(),
-      warnings: adapterResult.warnings
+      warnings: adapterResult.warnings,
+      defaultUnassignedTo: null
     });
   }, []);
 
@@ -107,6 +111,13 @@ export function ImportProvider({ children }: { children: ReactNode }) {
           ? { ...m, mappedStatus, mappedStatusId, confidence: 'high' as const }
           : m
       )
+    }));
+  }, []);
+
+  const setDefaultUnassignedTo = useCallback((userId: string | null, userName?: string) => {
+    setState(prev => ({
+      ...prev,
+      defaultUnassignedTo: userId ? { userId, userName: userName || userId } : null
     }));
   }, []);
 
@@ -177,6 +188,7 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     initializeFromFile,
     updateUserMapping,
     updateStatusMapping,
+    setDefaultUnassignedTo,
     acceptField,
     modifyField,
     clearField,

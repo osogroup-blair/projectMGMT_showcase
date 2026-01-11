@@ -41,6 +41,7 @@ import { useImport } from '@/context/import-context';
 import { useStatusOptions } from '@/hooks/use-nexus-data';
 import { useAllUsersForAssignment } from '@/features/user-management';
 import type { ConfidenceLevel, UserMappingEntry, StatusMappingEntry } from '@/lib/import-to-wizard-adapter';
+import { UserPlus } from 'lucide-react';
 
 function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
   const config = {
@@ -61,13 +62,14 @@ function ConfidenceIcon({ confidence }: { confidence: ConfidenceLevel }) {
 
 export default function ImportSummary() {
   const [, setLocation] = useLocation();
-  const { state, updateUserMapping, updateStatusMapping } = useImport();
+  const { state, updateUserMapping, updateStatusMapping, setDefaultUnassignedTo } = useImport();
   const { data: allUsers } = useAllUsersForAssignment();
   const { data: statusOptionsData } = useStatusOptions();
   
   const [userMappingOpen, setUserMappingOpen] = useState(true);
   const [statusMappingOpen, setStatusMappingOpen] = useState(true);
   const [taskPreviewOpen, setTaskPreviewOpen] = useState(false);
+  const [unassignedOpen, setUnassignedOpen] = useState(true);
 
   const systemUsers = allUsers || [];
   const taskStatuses = (statusOptionsData || []).filter((s: any) => s.type === 'task');
@@ -144,6 +146,69 @@ export default function ImportSummary() {
       label: status.label
     }));
   }, [taskStatuses]);
+
+  const unassignedTaskCount = useMemo(() => {
+    const entry = tasksByAssignee.find(t => t.id === 'unassigned');
+    return entry?.count || 0;
+  }, [tasksByAssignee]);
+
+  const defaultAssigneeOptions: SearchableSelectOption[] = useMemo(() => {
+    const options: SearchableSelectOption[] = [
+      { value: 'none', label: 'Leave unassigned' }
+    ];
+    
+    const addedIds = new Set<string>();
+    
+    const mappedUsers = userMappings.filter(m => m.mappedToId && m.action === 'map');
+    mappedUsers.forEach(m => {
+      if (m.mappedToId && !addedIds.has(m.mappedToId)) {
+        addedIds.add(m.mappedToId);
+        options.push({
+          value: m.mappedToId,
+          label: `${m.mappedToName || m.mappedToId} (from import)`
+        });
+      }
+    });
+    
+    const pmUsers = systemUsers.filter((u: any) => 
+      u.jobTitle?.toLowerCase().includes('project manager') ||
+      u.jobTitle?.toLowerCase().includes('pm') ||
+      u.systemRole === 'manager'
+    );
+    pmUsers.forEach((user: any) => {
+      if (!addedIds.has(user.id)) {
+        addedIds.add(user.id);
+        options.push({
+          value: user.id,
+          label: `${user.name || user.email} (Project Manager)`
+        });
+      }
+    });
+    
+    const teamMembers = systemUsers.filter((u: any) => 
+      u.systemRole === 'member' && !addedIds.has(u.id)
+    );
+    teamMembers.slice(0, 10).forEach((user: any) => {
+      if (!addedIds.has(user.id)) {
+        addedIds.add(user.id);
+        options.push({
+          value: user.id,
+          label: `${user.name || user.email} (Team Member)`
+        });
+      }
+    });
+    
+    return options;
+  }, [userMappings, systemUsers]);
+
+  const handleDefaultAssigneeChange = (userId: string) => {
+    if (userId === 'none') {
+      setDefaultUnassignedTo(null);
+    } else {
+      const user = systemUsers.find((u: any) => u.id === userId);
+      setDefaultUnassignedTo(userId, user?.name || undefined);
+    }
+  };
 
   if (!state.isImportMode || !state.adapterResult) {
     return (
@@ -395,6 +460,62 @@ export default function ImportSummary() {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+
+          {unassignedTaskCount > 0 && (
+            <Collapsible open={unassignedOpen} onOpenChange={setUnassignedOpen}>
+              <Card className="border-blue-200 bg-blue-50/30">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <UserPlus className="h-5 w-5 text-blue-600" />
+                        <CardTitle className="text-lg">Unassigned Tasks</CardTitle>
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                          {unassignedTaskCount} tasks
+                        </Badge>
+                      </div>
+                      {unassignedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
+                    <CardDescription>
+                      Some tasks don't have an assignee. Choose a default person to assign them to.
+                    </CardDescription>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    <div className="flex items-center gap-4 p-4 bg-white rounded-lg border">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium mb-1">Assign all unassigned tasks to:</p>
+                        <p className="text-xs text-muted-foreground">
+                          This will set a default assignee for {unassignedTaskCount} task{unassignedTaskCount !== 1 ? 's' : ''} that came in without an owner.
+                        </p>
+                      </div>
+                      <SearchableSelect
+                        value={state.defaultUnassignedTo?.userId || 'none'}
+                        onValueChange={handleDefaultAssigneeChange}
+                        options={defaultAssigneeOptions}
+                        placeholder="Select default assignee..."
+                        searchPlaceholder="Search users..."
+                        emptyMessage="No users found."
+                        className="w-[280px]"
+                        data-testid="default-assignee-select"
+                      />
+                    </div>
+                    {state.defaultUnassignedTo && (
+                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="text-sm font-medium">
+                            {unassignedTaskCount} task{unassignedTaskCount !== 1 ? 's' : ''} will be assigned to {state.defaultUnassignedTo.userName}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
 
           <Collapsible open={taskPreviewOpen} onOpenChange={setTaskPreviewOpen}>
             <Card>
