@@ -141,28 +141,6 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
   return (
     <Shell>
       <div className="space-y-8 pb-8">
-        {/* Top Bar / Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-6 rounded-xl border shadow-sm">
-           <div>
-             <h1 className="text-2xl font-bold tracking-tight text-primary">Good morning, {currentUser.name.split(' ')[0]}</h1>
-             <p className="text-muted-foreground">Here's what's on your plate for today, {new Date(homeState.today).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}.</p>
-           </div>
-           
-           <div className="flex items-center gap-3 w-full md:w-auto">
-             <div className="relative w-full md:w-64">
-               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-               <Input placeholder="Search tasks, projects..." className="pl-9 bg-background/50" />
-             </div>
-             <Button size="icon" variant="outline" className="shrink-0">
-               <Bell className="h-4 w-4" />
-             </Button>
-             <Button className="shrink-0 gap-2">
-               <Plus className="h-4 w-4" />
-               <span className="hidden sm:inline">New Task</span>
-             </Button>
-           </div>
-        </div>
-
         <Tabs defaultValue="tasks" className="space-y-6">
           <TabsList className="bg-transparent p-0 border-b w-full justify-start rounded-none h-auto gap-6">
             <TabsTrigger 
