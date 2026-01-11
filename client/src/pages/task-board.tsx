@@ -64,6 +64,7 @@ import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpi
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
 import { EFFORT_VALUES } from "@shared/schema";
+import { PortableKanban } from "@/components/kanban";
 
 // Stage color mapping based on stage type/order
 const STAGE_COLORS: Record<string, string> = {
@@ -468,6 +469,32 @@ export default function TaskBoard() {
           <div className="flex-1 min-w-0">
         {/* Board View */}
         {viewType === "board" ? (
+          groupBy === "status" ? (
+            <div className="h-[calc(100vh-280px)] min-h-[400px]">
+              <PortableKanban
+                tasks={filteredTasks}
+                users={users || []}
+                epics={projectEpics}
+                milestones={milestones || []}
+                projectId={projectId}
+                boardId={`taskboard-${projectId}`}
+                showFilters={false}
+                showAddTask={true}
+                onAddTask={() => handleOpenCreate()}
+                hoverCard={{
+                  enabled: true,
+                  users: users || [],
+                  onAssigneeChange: (taskId, assigneeId) => {
+                    updateTask({ id: taskId, updates: { assigneeId } });
+                  },
+                }}
+                onTaskMove={(taskId, newStatus) => {
+                  updateTask({ id: taskId, updates: { status: newStatus } });
+                  toast({ title: "Task Updated", description: `Task moved to ${newStatus}` });
+                }}
+              />
+            </div>
+          ) : (
           <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
             <div className="flex gap-6 h-full min-w-max">
               {stages.map(stage => {
@@ -565,6 +592,7 @@ export default function TaskBoard() {
               })}
             </div>
           </div>
+          )
         ) : (
           <div className="flex-1 bg-card rounded-lg border shadow-sm flex flex-col">
             <div className="overflow-x-auto overflow-y-hidden">
