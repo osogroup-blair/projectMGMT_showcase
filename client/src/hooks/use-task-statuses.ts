@@ -27,7 +27,8 @@ const NOT_STARTED_PATTERNS = ["todo", "to do", "pending", "backlog", "not starte
 const IN_PROGRESS_PATTERNS = ["in progress", "working", "active", "doing", "review", "testing"];
 const COMPLETED_PATTERNS = ["done", "completed", "complete", "finished", "closed", "resolved"];
 
-function matchesPattern(status: string, patterns: string[]): boolean {
+function matchesPattern(status: string | null | undefined, patterns: string[]): boolean {
+  if (!status) return false;
   const normalized = status.toLowerCase().trim();
   return patterns.some(p => normalized === p || normalized.includes(p));
 }
