@@ -18,6 +18,27 @@ export interface UseUsersOptions {
   sortOrder?: "asc" | "desc";
 }
 
+export function useAllUsersForAssignment() {
+  return useQuery<UserPublic[]>({
+    queryKey: [USERS_QUERY_KEY, "all-for-assignment"],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set("pageSize", "1000");
+      params.set("sortBy", "name");
+      params.set("sortOrder", "asc");
+      
+      const response = await fetch(`${USERS_QUERY_KEY}?${params.toString()}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fetch users");
+      }
+      const data = await response.json() as ListUsersResponse;
+      return data.users;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useUsers(options: UseUsersOptions = {}) {
   const { search, role, status, page = 1, pageSize = 50, sortBy = "createdAt", sortOrder = "desc" } = options;
   

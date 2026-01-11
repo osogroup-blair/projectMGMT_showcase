@@ -1,6 +1,7 @@
 export { 
   useUsers, 
   useUser, 
+  useAllUsersForAssignment,
   useCreateUser, 
   useUpdateUser, 
   useDeactivateUser,

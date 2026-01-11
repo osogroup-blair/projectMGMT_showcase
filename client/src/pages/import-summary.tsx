@@ -38,7 +38,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useImport } from '@/context/import-context';
-import { useUsers, useStatusOptions } from '@/hooks/use-nexus-data';
+import { useStatusOptions } from '@/hooks/use-nexus-data';
+import { useAllUsersForAssignment } from '@/features/user-management';
 import type { ConfidenceLevel, UserMappingEntry, StatusMappingEntry } from '@/lib/import-to-wizard-adapter';
 
 function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
@@ -61,14 +62,14 @@ function ConfidenceIcon({ confidence }: { confidence: ConfidenceLevel }) {
 export default function ImportSummary() {
   const [, setLocation] = useLocation();
   const { state, updateUserMapping, updateStatusMapping } = useImport();
-  const { data: usersData } = useUsers();
+  const { data: allUsers } = useAllUsersForAssignment();
   const { data: statusOptionsData } = useStatusOptions();
   
   const [userMappingOpen, setUserMappingOpen] = useState(true);
   const [statusMappingOpen, setStatusMappingOpen] = useState(true);
   const [taskPreviewOpen, setTaskPreviewOpen] = useState(false);
 
-  const systemUsers = usersData || [];
+  const systemUsers = allUsers || [];
   const taskStatuses = (statusOptionsData || []).filter((s: any) => s.type === 'task');
 
   const stats = state.adapterResult?.stats;
@@ -165,7 +166,7 @@ export default function ImportSummary() {
       updateUserMapping(sourceId, null, undefined, 'unassigned');
     } else {
       const user = systemUsers.find((u: any) => u.id === newMappedToId);
-      updateUserMapping(sourceId, newMappedToId, user?.name, 'map');
+      updateUserMapping(sourceId, newMappedToId, user?.name || undefined, 'map');
     }
   };
 
