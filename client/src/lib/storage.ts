@@ -84,7 +84,11 @@ class StorageEngine {
 
   // Generic Get All
   async getAll<K extends keyof NexusDB>(collection: K): Promise<NexusDB[K]> {
-    const response = await this.fetchAPI(`/api/${collection}`);
+    // For users, use a larger pageSize to ensure all users are returned
+    const url = collection === 'users' 
+      ? `/api/${collection}?pageSize=1000` 
+      : `/api/${collection}`;
+    const response = await this.fetchAPI(url);
     if (collection === 'users' && response && 'users' in response) {
       return response.users;
     }
