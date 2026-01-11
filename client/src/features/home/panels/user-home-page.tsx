@@ -231,6 +231,10 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
           <TabsContent value="tasks" className="mt-0" data-testid="tab-content-current-tasks">
             <CurrentTasksPanel />
           </TabsContent>
+
+          <TabsContent value="projects" className="mt-0" data-testid="tab-content-current-projects">
+            <CurrentProjectsPanel />
+          </TabsContent>
         </Tabs>
       </div>
 
