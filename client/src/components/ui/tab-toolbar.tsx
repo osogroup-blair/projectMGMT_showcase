@@ -19,6 +19,7 @@ interface TabToolbarProps {
   addButtonLabel?: string;
   onAddClick?: () => void;
   className?: string;
+  sticky?: boolean;
 }
 
 export function TabToolbar({
@@ -34,10 +35,12 @@ export function TabToolbar({
   addButtonLabel,
   onAddClick,
   className,
+  sticky = true,
 }: TabToolbarProps) {
   return (
     <div className={cn(
-      "sticky top-40 z-20 bg-background py-3 -mx-6 px-6 border-b",
+      "bg-background py-3 -mx-6 px-6 border-b",
+      sticky && "sticky top-40 z-20",
       className
     )}>
       <div className="flex items-center gap-3">

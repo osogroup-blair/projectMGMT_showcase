@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { 
   Zap, 
   Plus, 
@@ -11,7 +11,12 @@ import {
   MoreVertical,
   Trash2,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  ChevronUp,
+  ChevronDown,
+  Check,
+  X,
+  Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +26,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useSprints, useTasks } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
 
@@ -36,10 +43,13 @@ const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColo
   "closed": { icon: CheckCircle2, color: "text-green-500", bgColor: "bg-green-100", label: "Closed" },
 };
 
+type SortField = "name" | "status" | "startDate" | "tasks" | "progress";
+type SortDirection = "asc" | "desc";
+
 export function SprintsContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const { data: allSprints, isLoading: isSprintsLoading, create: createSprint, update: updateSprint, remove: removeSprint } = useSprints();
-  const { data: allTasks } = useTasks();
+  const { data: allTasks, update: updateTask } = useTasks();
 
   const sprints = useMemo(() => 
     (allSprints || []).filter((s: any) => s.projectId === projectId),
@@ -60,6 +70,41 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("card");
 
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  // Selection state for bulk actions
+  const [selectedSprintIds, setSelectedSprintIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
+  // Inline editing state
+  const [editingCell, setEditingCell] = useState<{ sprintId: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when editing name
+  useEffect(() => {
+    if (editingCell?.field === "name" && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingCell]);
+
+  // Get tasks for a specific sprint
+  const getSprintTasks = (sprintId: string) => {
+    return (allTasks || []).filter((t: any) => t.sprintId === sprintId);
+  };
+
+  const getSprintStats = (sprintId: string) => {
+    const tasks = getSprintTasks(sprintId);
+    const total = tasks.length;
+    const done = tasks.filter((t: any) => t.status === "Done" || t.status === "Completed").length;
+    const inProgress = tasks.filter((t: any) => t.status === "In Progress").length;
+    const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { total, done, inProgress, percent };
+  };
+
   // Filter sprints by search query
   const filteredSprints = useMemo(() => {
     if (!searchQuery.trim()) return sprints;
@@ -69,6 +114,166 @@ export function SprintsContent({ projectId }: { projectId: string }) {
       sprint.goal?.toLowerCase().includes(query)
     );
   }, [sprints, searchQuery]);
+
+  // Sort sprints
+  const sortedSprints = useMemo(() => {
+    const sorted = [...filteredSprints];
+    sorted.sort((a: any, b: any) => {
+      let aVal: any, bVal: any;
+      
+      switch (sortField) {
+        case "name":
+          aVal = a.name?.toLowerCase() || "";
+          bVal = b.name?.toLowerCase() || "";
+          break;
+        case "status":
+          const statusOrder = { active: 0, planned: 1, closed: 2 };
+          aVal = statusOrder[a.status as keyof typeof statusOrder] ?? 999;
+          bVal = statusOrder[b.status as keyof typeof statusOrder] ?? 999;
+          break;
+        case "startDate":
+          aVal = a.startDate || "";
+          bVal = b.startDate || "";
+          break;
+        case "tasks":
+          aVal = getSprintStats(a.id).total;
+          bVal = getSprintStats(b.id).total;
+          break;
+        case "progress":
+          aVal = getSprintStats(a.id).percent;
+          bVal = getSprintStats(b.id).percent;
+          break;
+        default:
+          aVal = "";
+          bVal = "";
+      }
+
+      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredSprints, sortField, sortDirection]);
+
+  // Handle column header click for sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Render sort indicator
+  const renderSortIndicator = (field: SortField) => {
+    if (sortField !== field) return null;
+    return sortDirection === "asc" 
+      ? <ChevronUp className="h-3 w-3 ml-1 inline" />
+      : <ChevronDown className="h-3 w-3 ml-1 inline" />;
+  };
+
+  // Selection handlers
+  const toggleSelectSprint = (sprintId: string) => {
+    const newSet = new Set(selectedSprintIds);
+    if (newSet.has(sprintId)) {
+      newSet.delete(sprintId);
+    } else {
+      newSet.add(sprintId);
+    }
+    setSelectedSprintIds(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedSprintIds.size === sortedSprints.length) {
+      setSelectedSprintIds(new Set());
+    } else {
+      setSelectedSprintIds(new Set(sortedSprints.map((s: any) => s.id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedSprintIds(new Set());
+  };
+
+  // Inline editing handlers
+  const startEditingName = (sprintId: string, currentValue: string) => {
+    setEditingCell({ sprintId, field: "name" });
+    setEditValue(currentValue);
+  };
+
+  const cancelEditing = () => {
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const saveEditingName = async () => {
+    if (!editingCell) return;
+    const trimmedValue = editValue.trim();
+    if (!trimmedValue) {
+      toast({ title: "Sprint name cannot be empty", variant: "destructive" });
+      return;
+    }
+    
+    updateSprint({ id: editingCell.sprintId, updates: { name: trimmedValue } });
+    cancelEditing();
+  };
+
+  const handleInlineStatusChange = async (sprintId: string, newStatus: string) => {
+    // Don't allow changing to active if another sprint is already active
+    if (newStatus === "active") {
+      const hasActive = sprints.some((s: any) => s.status === "active" && s.id !== sprintId);
+      if (hasActive) {
+        toast({ title: "Another sprint is already active", description: "Close the active sprint first.", variant: "destructive" });
+        return;
+      }
+      try {
+        const response = await fetch(`/api/sprints/${sprintId}/start`, { method: "POST" });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error);
+        }
+        updateSprint({ id: sprintId, updates: { status: "active" } });
+        toast({ title: "Sprint started" });
+      } catch (error: any) {
+        toast({ title: "Failed to start sprint", description: error.message, variant: "destructive" });
+      }
+    } else if (newStatus === "closed") {
+      try {
+        const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error);
+        }
+        updateSprint({ id: sprintId, updates: { status: "closed" } });
+        toast({ title: "Sprint closed" });
+      } catch (error: any) {
+        toast({ title: "Failed to close sprint", description: error.message, variant: "destructive" });
+      }
+    } else {
+      updateSprint({ id: sprintId, updates: { status: newStatus } });
+    }
+  };
+
+  // Bulk action handlers
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedSprintIds);
+    for (const id of ids) {
+      removeSprint(id);
+    }
+    setSelectedSprintIds(new Set());
+    setShowBulkDeleteDialog(false);
+    toast({ title: `${ids.length} sprint(s) deleted` });
+  };
+
+  const handleBulkStatusChange = async (newStatus: string) => {
+    const ids = Array.from(selectedSprintIds);
+    for (const id of ids) {
+      await handleInlineStatusChange(id, newStatus);
+    }
+    setSelectedSprintIds(new Set());
+    toast({ title: `${ids.length} sprint(s) updated` });
+  };
 
   const handleCreateSprint = async () => {
     if (!newSprint.name.trim()) {
@@ -94,50 +299,16 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   };
 
   const handleStartSprint = async (sprintId: string) => {
-    const hasActive = sprints.some((s: any) => s.status === "active");
-    if (hasActive) {
-      toast({ title: "Another sprint is already active", description: "Close the active sprint first.", variant: "destructive" });
-      return;
-    }
-    try {
-      const response = await fetch(`/api/sprints/${sprintId}/start`, { method: "POST" });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error);
-      }
-      updateSprint({ id: sprintId, updates: { status: "active" } });
-      toast({ title: "Sprint started" });
-    } catch (error: any) {
-      toast({ title: "Failed to start sprint", description: error.message, variant: "destructive" });
-    }
+    await handleInlineStatusChange(sprintId, "active");
   };
 
   const handleCloseSprint = async (sprintId: string) => {
-    try {
-      const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error);
-      }
-      updateSprint({ id: sprintId, updates: { status: "closed" } });
-      toast({ title: "Sprint closed" });
-    } catch (error: any) {
-      toast({ title: "Failed to close sprint", description: error.message, variant: "destructive" });
-    }
+    await handleInlineStatusChange(sprintId, "closed");
   };
 
   const handleDeleteSprint = (sprintId: string) => {
     removeSprint(sprintId);
     setShowDeleteDialog(null);
-  };
-
-  const getSprintStats = (sprintId: string) => {
-    const tasks = (allTasks || []).filter((t: any) => t.sprintId === sprintId);
-    const total = tasks.length;
-    const done = tasks.filter((t: any) => t.status === "Done" || t.status === "Completed").length;
-    const inProgress = tasks.filter((t: any) => t.status === "In Progress").length;
-    const percent = total > 0 ? Math.round((done / total) * 100) : 0;
-    return { total, done, inProgress, percent };
   };
 
   if (isSprintsLoading) {
@@ -167,10 +338,50 @@ export function SprintsContent({ projectId }: { projectId: string }) {
         showFilter={false}
         addButtonLabel="Add Sprint"
         onAddClick={() => setShowCreateDialog(true)}
+        sticky={false}
       />
 
+      {/* Bulk Actions Bar */}
+      {selectedSprintIds.size > 0 && (
+        <div className="flex items-center gap-3 py-3 px-4 bg-muted/50 rounded-lg mt-4 border">
+          <span className="text-sm font-medium">
+            {selectedSprintIds.size} selected
+          </span>
+          <Button variant="ghost" size="sm" onClick={clearSelection}>
+            Clear
+          </Button>
+          <div className="flex-1" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Set Status
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => handleBulkStatusChange("planned")}>
+                <Circle className="h-4 w-4 mr-2 text-slate-500" />
+                Planned
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBulkStatusChange("closed")}>
+                <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
+                Closed
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={() => setShowBulkDeleteDialog(true)}
+            data-testid="button-bulk-delete"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
+      )}
+
       <div className="space-y-4 pt-4">
-        {filteredSprints.length === 0 && sprints.length > 0 ? (
+        {sortedSprints.length === 0 && sprints.length > 0 ? (
           <Card className="bg-muted/10 border-dashed">
             <CardContent className="flex flex-col items-center justify-center p-12 text-center">
               <Zap className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
@@ -199,37 +410,154 @@ export function SprintsContent({ projectId }: { projectId: string }) {
             <Table style={{ minWidth: "800px" }}>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead style={{ width: "25%" }}>Sprint</TableHead>
-                  <TableHead style={{ width: "12%" }}>Status</TableHead>
-                  <TableHead style={{ width: "20%" }}>Dates</TableHead>
-                  <TableHead style={{ width: "10%" }}>Tasks</TableHead>
-                  <TableHead style={{ width: "18%" }}>Progress</TableHead>
+                  <TableHead style={{ width: "40px" }}>
+                    <Checkbox
+                      checked={selectedSprintIds.size === sortedSprints.length && sortedSprints.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                      data-testid="checkbox-select-all"
+                    />
+                  </TableHead>
+                  <TableHead 
+                    style={{ width: "25%" }} 
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("name")}
+                    data-testid="header-sprint-name"
+                  >
+                    Sprint{renderSortIndicator("name")}
+                  </TableHead>
+                  <TableHead 
+                    style={{ width: "12%" }}
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("status")}
+                    data-testid="header-status"
+                  >
+                    Status{renderSortIndicator("status")}
+                  </TableHead>
+                  <TableHead 
+                    style={{ width: "20%" }}
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("startDate")}
+                    data-testid="header-dates"
+                  >
+                    Dates{renderSortIndicator("startDate")}
+                  </TableHead>
+                  <TableHead 
+                    style={{ width: "10%" }}
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("tasks")}
+                    data-testid="header-tasks"
+                  >
+                    Tasks{renderSortIndicator("tasks")}
+                  </TableHead>
+                  <TableHead 
+                    style={{ width: "18%" }}
+                    className="cursor-pointer hover:bg-muted/50 select-none"
+                    onClick={() => handleSort("progress")}
+                    data-testid="header-progress"
+                  >
+                    Progress{renderSortIndicator("progress")}
+                  </TableHead>
                   <TableHead style={{ width: "15%" }} className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSprints.map((sprint: any) => {
+                {sortedSprints.map((sprint: any) => {
                   const stats = getSprintStats(sprint.id);
                   const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
                   const StatusIcon = statusConfig.icon;
+                  const isSelected = selectedSprintIds.has(sprint.id);
+                  const isEditingName = editingCell?.sprintId === sprint.id && editingCell?.field === "name";
 
                   return (
-                    <TableRow key={sprint.id} className="hover:bg-muted/50" data-testid={`row-sprint-${sprint.id}`}>
-                      <TableCell>
+                    <TableRow 
+                      key={sprint.id} 
+                      className={cn("hover:bg-muted/50", isSelected && "bg-muted/30")} 
+                      data-testid={`row-sprint-${sprint.id}`}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectSprint(sprint.id)}
+                          data-testid={`checkbox-sprint-${sprint.id}`}
+                        />
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="space-y-0.5">
-                          <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
-                            <span className="font-medium hover:text-primary cursor-pointer">{sprint.name}</span>
-                          </Link>
+                          {isEditingName ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                ref={nameInputRef}
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditingName();
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                className="h-7 text-sm"
+                                data-testid={`input-edit-name-${sprint.id}`}
+                              />
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveEditingName}>
+                                <Check className="h-3.5 w-3.5 text-green-600" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEditing}>
+                                <X className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 group">
+                              <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
+                                <span className="font-medium hover:text-primary cursor-pointer">{sprint.name}</span>
+                              </Link>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                                onClick={() => startEditingName(sprint.id, sprint.name)}
+                                data-testid={`button-edit-name-${sprint.id}`}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                           {sprint.goal && (
                             <p className="text-xs text-muted-foreground truncate max-w-[200px]">{sprint.goal}</p>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0 text-xs")}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig.label}
-                        </Badge>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Select
+                          value={sprint.status}
+                          onValueChange={(value) => handleInlineStatusChange(sprint.id, value)}
+                        >
+                          <SelectTrigger className="h-7 w-[110px] border-0 bg-transparent focus:ring-0" data-testid={`select-status-${sprint.id}`}>
+                            <SelectValue>
+                              <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0 text-xs")}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {statusConfig.label}
+                              </Badge>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="planned">
+                              <div className="flex items-center">
+                                <Circle className="h-3 w-3 mr-2 text-slate-500" />
+                                Planned
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="active">
+                              <div className="flex items-center">
+                                <Play className="h-3 w-3 mr-2 text-blue-500" />
+                                Active
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="closed">
+                              <div className="flex items-center">
+                                <CheckCircle2 className="h-3 w-3 mr-2 text-green-500" />
+                                Closed
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {sprint.startDate ? (
@@ -292,38 +620,107 @@ export function SprintsContent({ projectId }: { projectId: string }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredSprints.map((sprint: any) => {
+            {sortedSprints.map((sprint: any) => {
               const stats = getSprintStats(sprint.id);
               const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
               const StatusIcon = statusConfig.icon;
+              const isSelected = selectedSprintIds.has(sprint.id);
+              const isEditingName = editingCell?.sprintId === sprint.id && editingCell?.field === "name";
 
               return (
-                <Card key={sprint.id} className="hover:shadow-md transition-shadow" data-testid={`card-sprint-${sprint.id}`}>
+                <Card 
+                  key={sprint.id} 
+                  className={cn("hover:shadow-md transition-shadow", isSelected && "ring-2 ring-primary")} 
+                  data-testid={`card-sprint-${sprint.id}`}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectSprint(sprint.id)}
+                          className="mt-1"
+                          data-testid={`checkbox-card-sprint-${sprint.id}`}
+                        />
                         <div className={cn("p-2 rounded-md", statusConfig.bgColor)}>
                           <Zap className={cn("h-5 w-5", statusConfig.color)} />
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
-                            <CardTitle className="text-lg hover:text-primary cursor-pointer" data-testid={`link-sprint-${sprint.id}`}>
-                              {sprint.name}
-                            </CardTitle>
-                          </Link>
-                          <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
-                            <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-sprint-${sprint.id}`}>
-                              <ExternalLink className="h-3 w-3" />
-                              Overview
-                            </Button>
-                          </Link>
+                        <div className="flex-1">
+                          {isEditingName ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                ref={nameInputRef}
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditingName();
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                                className="h-7 text-sm"
+                                data-testid={`input-card-edit-name-${sprint.id}`}
+                              />
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveEditingName}>
+                                <Check className="h-3.5 w-3.5 text-green-600" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEditing}>
+                                <X className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="flex items-center gap-2 group cursor-pointer"
+                                onClick={() => startEditingName(sprint.id, sprint.name)}
+                              >
+                                <CardTitle className="text-lg hover:text-primary" data-testid={`link-sprint-${sprint.id}`}>
+                                  {sprint.name}
+                                </CardTitle>
+                                <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                              </div>
+                              <Link href={`/projects/${projectId}/sprints/${sprint.id}`}>
+                                <Button variant="outline" size="sm" className="gap-1.5 h-7" data-testid={`open-sprint-${sprint.id}`}>
+                                  <ExternalLink className="h-3 w-3" />
+                                  Overview
+                                </Button>
+                              </Link>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0")}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig.label}
-                        </Badge>
+                        <Select
+                          value={sprint.status}
+                          onValueChange={(value) => handleInlineStatusChange(sprint.id, value)}
+                        >
+                          <SelectTrigger className="h-7 w-[110px] border-0 bg-transparent focus:ring-0" data-testid={`select-card-status-${sprint.id}`}>
+                            <SelectValue>
+                              <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0")}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {statusConfig.label}
+                              </Badge>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="planned">
+                              <div className="flex items-center">
+                                <Circle className="h-3 w-3 mr-2 text-slate-500" />
+                                Planned
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="active">
+                              <div className="flex items-center">
+                                <Play className="h-3 w-3 mr-2 text-blue-500" />
+                                Active
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="closed">
+                              <div className="flex items-center">
+                                <CheckCircle2 className="h-3 w-3 mr-2 text-green-500" />
+                                Closed
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" data-testid={`button-sprint-menu-${sprint.id}`}>
@@ -351,8 +748,8 @@ export function SprintsContent({ projectId }: { projectId: string }) {
                         </DropdownMenu>
                       </div>
                     </div>
-                    {sprint.goal && (
-                      <CardDescription className="mt-1">{sprint.goal}</CardDescription>
+                    {sprint.goal && !isEditingName && (
+                      <CardDescription className="mt-1 ml-14">{sprint.goal}</CardDescription>
                     )}
                   </CardHeader>
                   <CardContent>
@@ -471,6 +868,23 @@ export function SprintsContent({ projectId }: { projectId: string }) {
             <AlertDialogCancel data-testid="button-cancel-delete-sprint">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => showDeleteDialog && handleDeleteSprint(showDeleteDialog)} className="bg-red-600" data-testid="button-confirm-delete-sprint">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedSprintIds.size} Sprint(s)</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the selected sprints? Tasks assigned to these sprints will be unassigned.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-bulk-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600" data-testid="button-confirm-bulk-delete">
+              Delete All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
