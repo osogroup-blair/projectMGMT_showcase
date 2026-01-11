@@ -811,6 +811,16 @@ export async function registerRoutes(
     }
   });
 
+  // Get all user identities (for import matching)
+  app.get("/api/identities/all", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
+    try {
+      const identities = await identityService.getAllUserIdentities();
+      res.json(identities);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get user identities
   app.get("/api/users/:userId/identities", requireAuth(), requireSelfOrRole("userId", "admin", "manager"), async (req, res) => {
     try {

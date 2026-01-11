@@ -91,6 +91,11 @@ export async function getUserIdentities(userId: string): Promise<IdentityPublic[
   return identities.map(toIdentityPublic);
 }
 
+export async function getAllUserIdentities(): Promise<IdentityPublic[]> {
+  const identities = await db.select().from(userIdentities);
+  return identities.map(toIdentityPublic);
+}
+
 export async function getIdentityById(identityId: string): Promise<IdentityPublic | null> {
   const [identity] = await db
     .select()

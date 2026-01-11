@@ -53,6 +53,17 @@ export function useUserIdentities(userId: string | undefined) {
   });
 }
 
+export function useAllUserIdentities() {
+  return useQuery<IdentityPublic[]>({
+    queryKey: ["all-user-identities"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/identities/all`);
+      if (!res.ok) throw new Error("Failed to fetch all identities");
+      return res.json();
+    },
+  });
+}
+
 export function useLinkIdentity() {
   const queryClient = useQueryClient();
   return useMutation<IdentityPublic, Error, { userId: string; data: LinkIdentityRequest }>({

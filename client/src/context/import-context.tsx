@@ -9,7 +9,8 @@ import type {
   ImportedRole,
   UserMappingEntry,
   StatusMappingEntry,
-  ConfidenceLevel
+  ConfidenceLevel,
+  ImportAdapterOptions,
 } from '@/lib/import-to-wizard-adapter';
 import { convertImportToWizardData } from '@/lib/import-to-wizard-adapter';
 
@@ -28,9 +29,9 @@ export interface ImportState {
 
 interface ImportContextType {
   state: ImportState;
-  initializeFromFile: (parseResult: ParseResult) => void;
-  updateUserMapping: (sourceId: string, mappedToId: string | null, action: UserMappingEntry['action']) => void;
-  updateStatusMapping: (sourceStatus: string, mappedStatus: string) => void;
+  initializeFromFile: (parseResult: ParseResult, options?: ImportAdapterOptions) => void;
+  updateUserMapping: (sourceId: string, mappedToId: string | null, mappedToName: string | undefined, action: UserMappingEntry['action']) => void;
+  updateStatusMapping: (sourceStatus: string, mappedStatus: string, mappedStatusId?: string) => void;
   acceptField: (fieldPath: string) => void;
   modifyField: (fieldPath: string) => void;
   clearField: (fieldPath: string) => void;
@@ -59,8 +60,8 @@ const ImportContext = createContext<ImportContextType | undefined>(undefined);
 export function ImportProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ImportState>(defaultState);
 
-  const initializeFromFile = useCallback((parseResult: ParseResult) => {
-    const adapterResult = convertImportToWizardData(parseResult);
+  const initializeFromFile = useCallback((parseResult: ParseResult, options?: ImportAdapterOptions) => {
+    const adapterResult = convertImportToWizardData(parseResult, options);
     
     setState({
       isImportMode: true,
@@ -79,24 +80,25 @@ export function ImportProvider({ children }: { children: ReactNode }) {
   const updateUserMapping = useCallback((
     sourceId: string,
     mappedToId: string | null,
+    mappedToName: string | undefined,
     action: UserMappingEntry['action']
   ) => {
     setState(prev => ({
       ...prev,
       userMappings: prev.userMappings.map(m =>
         m.sourceId === sourceId
-          ? { ...m, mappedToId: mappedToId || undefined, action }
+          ? { ...m, mappedToId: mappedToId || undefined, mappedToName, action }
           : m
       )
     }));
   }, []);
 
-  const updateStatusMapping = useCallback((sourceStatus: string, mappedStatus: string) => {
+  const updateStatusMapping = useCallback((sourceStatus: string, mappedStatus: string, mappedStatusId?: string) => {
     setState(prev => ({
       ...prev,
       statusMappings: prev.statusMappings.map(m =>
         m.sourceStatus === sourceStatus
-          ? { ...m, mappedStatus }
+          ? { ...m, mappedStatus, mappedStatusId }
           : m
       )
     }));

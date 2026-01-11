@@ -13,6 +13,7 @@ export {
   useUserProfile,
   useUpdateProfile,
   useUserIdentities,
+  useAllUserIdentities,
   useLinkIdentity,
   useUnlinkIdentity,
   useUpdateIdentity,
