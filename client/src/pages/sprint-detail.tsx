@@ -161,7 +161,7 @@ export default function SprintDetail() {
   const [selectedSuggested, setSelectedSuggested] = useState<string[]>([]);
   const [showScopeModeChangeDialog, setShowScopeModeChangeDialog] = useState(false);
   const [pendingScopeMode, setPendingScopeMode] = useState<"epic" | "milestone" | "stage" | null>(null);
-  const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope" | "details">("tasks");
+  const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope" | "details">("scope");
   const [scopeDefSubTab, setScopeDefSubTab] = useState<"manual" | "matrix" | "rules">("manual");
   const [manualScopeSearch, setManualScopeSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
@@ -414,8 +414,12 @@ export default function SprintDetail() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ taskIds: selectedTasks })
       });
+      const updates: any = { sprintId };
+      if (sprint?.endDate) {
+        updates.dueDate = sprint.endDate;
+      }
       selectedTasks.forEach(taskId => {
-        updateTask({ id: taskId, updates: { sprintId } });
+        updateTask({ id: taskId, updates });
       });
       setSelectedTasks([]);
       setShowAddTasksDialog(false);
@@ -1231,13 +1235,13 @@ export default function SprintDetail() {
             {/* Sub-navigation tabs matching Milestone pattern */}
             <Tabs value={planSubTab} onValueChange={(v) => setPlanSubTab(v as "tasks" | "scope" | "details")} className="w-full">
               <TabsList className="grid w-full grid-cols-3 max-w-lg mb-6">
-                <TabsTrigger value="tasks" className="gap-2" data-testid="subtab-tasks">
-                  <ListTodo className="h-4 w-4" />
-                  Tasks
-                </TabsTrigger>
                 <TabsTrigger value="scope" className="gap-2" data-testid="subtab-scope">
                   <SlidersHorizontal className="h-4 w-4" />
                   Scope Definition
+                </TabsTrigger>
+                <TabsTrigger value="tasks" className="gap-2" data-testid="subtab-tasks">
+                  <ListTodo className="h-4 w-4" />
+                  Tasks
                 </TabsTrigger>
                 <TabsTrigger value="details" className="gap-2" data-testid="subtab-details">
                   <FileText className="h-4 w-4" />
