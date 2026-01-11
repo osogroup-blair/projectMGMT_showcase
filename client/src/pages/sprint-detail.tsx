@@ -163,7 +163,7 @@ export default function SprintDetail() {
   const [showScopeModeChangeDialog, setShowScopeModeChangeDialog] = useState(false);
   const [pendingScopeMode, setPendingScopeMode] = useState<"epic" | "milestone" | "stage" | null>(null);
   const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope" | "details">("scope");
-  const [scopeDefSubTab, setScopeDefSubTab] = useState<"manual" | "matrix" | "rules">("manual");
+  const [scopeDefSubTab, setScopeDefSubTab] = useState<"manual" | "matrix" | "rules">("rules");
   const [manualScopeSearch, setManualScopeSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [epicFilter, setEpicFilter] = useState<string>("all");
@@ -1597,22 +1597,6 @@ export default function SprintDetail() {
                     <Tabs value={scopeDefSubTab} onValueChange={(v) => setScopeDefSubTab(v as any)} className="w-full">
                       <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
                         <TabsTrigger 
-                          value="manual"
-                          className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
-                          data-testid="subtab-manual"
-                        >
-                          <ListTodo className="w-4 h-4 mr-2" />
-                          Manual Adjustments
-                        </TabsTrigger>
-                        <TabsTrigger 
-                          value="matrix"
-                          className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
-                          data-testid="subtab-matrix"
-                        >
-                          <Layers className="w-4 h-4 mr-2" />
-                          Coverage Matrix
-                        </TabsTrigger>
-                        <TabsTrigger 
                           value="rules" 
                           className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
                           data-testid="subtab-rules"
@@ -1624,6 +1608,22 @@ export default function SprintDetail() {
                               {pendingRuleTasks.length} pending
                             </Badge>
                           )}
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="matrix"
+                          className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+                          data-testid="subtab-matrix"
+                        >
+                          <Layers className="w-4 h-4 mr-2" />
+                          Coverage Matrix
+                        </TabsTrigger>
+                        <TabsTrigger 
+                          value="manual"
+                          className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
+                          data-testid="subtab-manual"
+                        >
+                          <ListTodo className="w-4 h-4 mr-2" />
+                          Manual Adjustments
                         </TabsTrigger>
                       </TabsList>
 
