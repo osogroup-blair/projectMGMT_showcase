@@ -1004,7 +1004,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             tasks={filteredTasks}
             users={users || []}
             epics={projectEpics || []}
-            milestones={projectMilestones || []}
+            milestones={(milestones || []).filter((m: any) => m.projectId === project?.id)}
             projectId={projectId}
             showFilters={false}
             onTaskMove={(taskId, newStatus) => {
