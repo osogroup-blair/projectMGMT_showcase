@@ -135,7 +135,7 @@ export default function ImportUpload() {
       setProgress(100);
       
       setTimeout(() => {
-        setLocation('/projects/new');
+        setLocation('/projects/import/summary');
       }, 200);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse file');

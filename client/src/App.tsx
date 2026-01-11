@@ -43,6 +43,7 @@ import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import ProjectTools from "@/pages/project-tools";
 import ImportWizard from "@/pages/import-wizard";
 import ImportUpload from "@/pages/import-upload";
+import ImportSummary from "@/pages/import-summary";
 import ProfilePage from "@/pages/profile";
 
 function ProtectedRoutes() {
@@ -53,6 +54,7 @@ function ProtectedRoutes() {
       <Route path="/projects/new" component={ProjectWizard} />
       <Route path="/projects/new/summary" component={ProjectCreationSummary} />
       <Route path="/projects/import" component={ImportUpload} />
+      <Route path="/projects/import/summary" component={ImportSummary} />
       <Route path="/projects/import/legacy" component={ImportWizard} />
       <Route path="/projects/import/:sessionId/mapping" component={ProjectImportMapping} />
       <Route path="/projects/import/:sessionId/preview" component={ProjectImportPreview} />

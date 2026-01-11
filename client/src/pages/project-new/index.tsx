@@ -233,7 +233,7 @@ export default function ProjectWizard() {
         setDeliverables(importedDeliverables);
       }
       
-      const importedStages = toWizardStages(adapter.stages);
+      const importedStages = toWizardStages(adapter.stages, importContext.state.userMappings);
       if (importedStages.length > 0) {
         setStagesRaw(importedStages);
       }

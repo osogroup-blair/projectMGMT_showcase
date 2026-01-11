@@ -87,7 +87,13 @@ export function ImportProvider({ children }: { children: ReactNode }) {
       ...prev,
       userMappings: prev.userMappings.map(m =>
         m.sourceId === sourceId
-          ? { ...m, mappedToId: mappedToId || undefined, mappedToName, action }
+          ? { 
+              ...m, 
+              mappedToId: mappedToId || undefined, 
+              mappedToName, 
+              action,
+              confidence: mappedToId ? 'high' : 'low'
+            }
           : m
       )
     }));
@@ -98,7 +104,7 @@ export function ImportProvider({ children }: { children: ReactNode }) {
       ...prev,
       statusMappings: prev.statusMappings.map(m =>
         m.sourceStatus === sourceStatus
-          ? { ...m, mappedStatus, mappedStatusId }
+          ? { ...m, mappedStatus, mappedStatusId, confidence: 'high' as const }
           : m
       )
     }));

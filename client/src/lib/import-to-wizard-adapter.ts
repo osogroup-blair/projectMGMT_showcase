@@ -936,7 +936,17 @@ export function toWizardDeliverables(imported: ImportedDeliverable[]): WizardDel
   }));
 }
 
-export function toWizardStages(imported: ImportedStage[]): WizardStage[] {
+export function toWizardStages(
+  imported: ImportedStage[],
+  userMappings: UserMappingEntry[] = []
+): WizardStage[] {
+  const userMappingLookup = new Map<string, string>();
+  userMappings.forEach(m => {
+    if (m.mappedToId && m.action === 'map') {
+      userMappingLookup.set(m.sourceId, m.mappedToId);
+    }
+  });
+  
   return imported.map(s => ({
     id: s.id,
     name: s.name,
@@ -944,21 +954,29 @@ export function toWizardStages(imported: ImportedStage[]): WizardStage[] {
     taskCreationMode: s.taskCreationMode || 'per_epic',
     defaultTasks: s.defaultTasks || [],
     defaultRoles: s.defaultRoles || [],
-    tasks: (s.tasks || []).map(t => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      priority: t.priority,
-      estimateHours: t.estimateHours,
-      scope: t.scope,
-      stageId: t.stageId,
-      order: t.order,
-      sourceEpicId: (t as ImportedTask).sourceEpicId,
-      sourceEpicTitle: (t as ImportedTask).sourceEpicTitle,
-      assignedEpicId: (t as ImportedTask).assignedEpicId,
-      assignedEpicTitle: (t as ImportedTask).assignedEpicTitle,
-      mappingStatus: (t as ImportedTask).mappingStatus
-    })),
+    tasks: (s.tasks || []).map(t => {
+      const importedTask = t as ImportedTask;
+      const mappedAssigneeId = importedTask.sourceAssigneeId 
+        ? userMappingLookup.get(importedTask.sourceAssigneeId)
+        : undefined;
+      
+      return {
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        priority: t.priority,
+        estimateHours: t.estimateHours,
+        scope: t.scope,
+        stageId: t.stageId,
+        order: t.order,
+        sourceEpicId: importedTask.sourceEpicId,
+        sourceEpicTitle: importedTask.sourceEpicTitle,
+        assignedEpicId: importedTask.assignedEpicId,
+        assignedEpicTitle: importedTask.assignedEpicTitle,
+        mappingStatus: importedTask.mappingStatus,
+        assigneeId: mappedAssigneeId
+      };
+    }),
     type: s.type || 'standard',
     startDate: s.startDate,
     endDate: s.endDate
