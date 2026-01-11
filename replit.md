@@ -110,6 +110,27 @@ Key import features:
 - Task-Epic alignment via `import-to-wizard-adapter.ts` with fuzzy matching
 - ID relationship preservation during flattening (epicId, deliverableId, projectId)
 
+### Homepage Current Projects Kanban
+
+The Homepage (`/`) Current Projects tab displays an interactive Kanban board for each project where the current user has active tasks:
+- **Kanban View**: Tasks displayed in draggable columns by status (Todo, In Progress, Done, etc.)
+- **Filter Support**: Filter tasks by Assignee, Epic, Milestone, and Sprint
+- **PortableKanban Component**: Reusable Kanban component (`client/src/components/kanban/portable-kanban.tsx`) with built-in filtering
+- **Data Hooks**: Uses `useSprints`, `useMilestones`, `useUsers` from `client/src/hooks/use-nexus-data.ts`
+
+### Identity Linking System
+
+The platform supports linking multiple external accounts to a single Nexus user profile:
+- **User Identities Table**: `user_identities` stores external account connections with sync metadata
+- **Supported Systems**: ClickUp, Jira, Asana, Monday, Trello, Google, Microsoft, Slack, GitHub, GitLab
+- **Profile Page**: Users can manage their linked identities at `/profile`
+- **Admin Management**: Admins can manage any user's identities via User Management (`/admin/users`)
+- **User Merge**: Allows merging duplicate user accounts, transferring all identities to target user
+- **Key Files**:
+  - Contracts: `shared/contracts/user-identity.ts`
+  - Service: `server/services/user-management/identity-service.ts`
+  - Client hooks: `client/src/features/user-management/hooks/use-identity-api.ts`
+
 ### File Structure
 
 The codebase is structured feature-first. The `client/src/` directory contains global UI components (`components/`), React contexts (`context/`), feature-specific components and logic (`features/`), custom hooks (`hooks/`), utilities (`lib/`), and page-level components (`pages/`). The `server/` directory organizes Express application setup, API routes, database connection, and data access layers. Shared types are defined in `shared/schema.ts`.
