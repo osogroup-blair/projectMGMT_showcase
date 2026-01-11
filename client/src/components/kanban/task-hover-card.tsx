@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Calendar } from "@/components/ui/calendar";
 import {
   ExternalLink,
   Calendar as CalendarIcon,
@@ -69,6 +70,7 @@ interface TaskHoverCardProps {
   users?: UserOption[];
   onAssigneeChange?: (taskId: string, assigneeId: string | null) => void;
   onAddComment?: (taskId: string, comment: string) => void;
+  onDueDateChange?: (taskId: string, date: Date | null) => void;
   disabled?: boolean;
 }
 
@@ -78,11 +80,13 @@ export function TaskHoverCard({
   users = [],
   onAssigneeChange,
   onAddComment,
+  onDueDateChange,
   disabled = false,
 }: TaskHoverCardProps) {
   const [commentText, setCommentText] = useState("");
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [showAssignPopover, setShowAssignPopover] = useState(false);
+  const [showDatePopover, setShowDatePopover] = useState(false);
 
   const dueDate = task.deadline ? parseISO(task.deadline) : null;
   const daysUntilDue = dueDate ? differenceInDays(dueDate, new Date()) : null;
@@ -277,7 +281,7 @@ export function TaskHoverCard({
             </>
           )}
 
-          {!disabled && (onAssigneeChange || onAddComment) && (
+          {!disabled && (onAssigneeChange || onAddComment || onDueDateChange) && (
             <>
               <Separator />
               <div className="space-y-2">
@@ -332,6 +336,49 @@ export function TaskHoverCard({
                             ))}
                           </div>
                         </ScrollArea>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+
+                  {onDueDateChange && (
+                    <Popover open={showDatePopover} onOpenChange={setShowDatePopover}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          data-testid={`hover-due-date-${task.id}`}
+                        >
+                          <CalendarIcon className="h-3 w-3" />
+                          Due Date
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dueDate || undefined}
+                          onSelect={(date) => {
+                            onDueDateChange(task.id, date || null);
+                            setShowDatePopover(false);
+                          }}
+                          initialFocus
+                        />
+                        {dueDate && (
+                          <div className="border-t p-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full h-7 text-xs text-muted-foreground"
+                              onClick={() => {
+                                onDueDateChange(task.id, null);
+                                setShowDatePopover(false);
+                              }}
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Clear due date
+                            </Button>
+                          </div>
+                        )}
                       </PopoverContent>
                     </Popover>
                   )}

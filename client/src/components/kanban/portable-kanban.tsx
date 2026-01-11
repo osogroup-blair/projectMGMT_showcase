@@ -24,12 +24,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "wouter";
-import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight, Plus } from "lucide-react";
+import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight, Plus, ChevronsLeftRight, ChevronsRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKanbanColumns, type KanbanColumn, getTargetStatusForColumn } from "@/hooks/use-kanban-columns";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
@@ -84,6 +84,7 @@ interface HoverCardConfig {
   users?: User[];
   onAssigneeChange?: (taskId: string, assigneeId: string | null) => void;
   onAddComment?: (taskId: string, comment: string) => void;
+  onDueDateChange?: (taskId: string, date: Date | null) => void;
 }
 
 interface PortableKanbanProps {
@@ -140,9 +141,17 @@ function useCollapsedColumns(boardId: string) {
     });
   }, []);
 
+  const collapseAll = useCallback((columnIds: string[]) => {
+    setCollapsedColumnIds(new Set(columnIds));
+  }, []);
+
+  const expandAll = useCallback(() => {
+    setCollapsedColumnIds(new Set());
+  }, []);
+
   const isCollapsed = useCallback((columnId: string) => collapsedColumnIds.has(columnId), [collapsedColumnIds]);
 
-  return { collapsedColumnIds, toggleColumn, isCollapsed };
+  return { collapsedColumnIds, toggleColumn, collapseAll, expandAll, isCollapsed };
 }
 
 function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
@@ -155,7 +164,7 @@ function DroppableColumn({ id, children }: { id: string; children: React.ReactNo
     <div
       ref={setNodeRef}
       className={cn(
-        "space-y-2 min-h-[150px] p-1 rounded transition-colors",
+        "space-y-2 min-h-[300px] p-1 rounded transition-colors",
         isOver && "bg-primary/10 ring-2 ring-primary/30"
       )}
       data-column={id}
@@ -391,6 +400,7 @@ function SortableTaskCard({
           users={hoverCard.users}
           onAssigneeChange={hoverCard.onAssigneeChange}
           onAddComment={hoverCard.onAddComment}
+          onDueDateChange={hoverCard.onDueDateChange}
           disabled={isReadOnly}
         >
           {cardContent}
@@ -476,7 +486,7 @@ export function PortableKanban({
   className,
 }: PortableKanbanProps) {
   const { columns, isLoading: columnsLoading } = useKanbanColumns();
-  const { toggleColumn, isCollapsed } = useCollapsedColumns(boardId || projectId);
+  const { toggleColumn, collapseAll, expandAll, isCollapsed, collapsedColumnIds } = useCollapsedColumns(boardId || projectId);
   const { isCompletedStatus, isInProgressStatus } = useTaskStatuses();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -689,49 +699,43 @@ export function PortableKanban({
             />
           </div>
           {users.length > 0 && (
-            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-              <SelectTrigger className="w-[140px] h-9" data-testid="select-assignee-filter">
-                <SelectValue placeholder="Assignee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Assignees</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={assigneeFilter}
+              onValueChange={setAssigneeFilter}
+              options={[
+                { value: "all", label: "All Assignees" },
+                ...users.map((u) => ({ value: u.id, label: u.name }))
+              ]}
+              placeholder="Assignee"
+              triggerClassName="w-[160px] h-9"
+              data-testid="select-assignee-filter"
+            />
           )}
           {epics.length > 0 && (
-            <Select value={epicFilter} onValueChange={setEpicFilter}>
-              <SelectTrigger className="w-[140px] h-9" data-testid="select-epic-filter">
-                <SelectValue placeholder="Epic" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Epics</SelectItem>
-                {epics.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={epicFilter}
+              onValueChange={setEpicFilter}
+              options={[
+                { value: "all", label: "All Epics" },
+                ...epics.map((e) => ({ value: e.id, label: e.title }))
+              ]}
+              placeholder="Epic"
+              triggerClassName="w-[160px] h-9"
+              data-testid="select-epic-filter"
+            />
           )}
           {milestones.length > 0 && (
-            <Select value={milestoneFilter} onValueChange={setMilestoneFilter}>
-              <SelectTrigger className="w-[140px] h-9" data-testid="select-milestone-filter">
-                <SelectValue placeholder="Milestone" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Milestones</SelectItem>
-                {milestones.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={milestoneFilter}
+              onValueChange={setMilestoneFilter}
+              options={[
+                { value: "all", label: "All Milestones" },
+                ...milestones.map((m) => ({ value: m.id, label: m.title }))
+              ]}
+              placeholder="Milestone"
+              triggerClassName="w-[160px] h-9"
+              data-testid="select-milestone-filter"
+            />
           )}
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1" data-testid="button-clear-filters">
@@ -739,6 +743,46 @@ export function PortableKanban({
               Clear
             </Button>
           )}
+          <div className="ml-auto flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-2"
+                    onClick={expandAll}
+                    disabled={collapsedColumnIds.size === 0}
+                    data-testid="button-expand-all-columns"
+                  >
+                    <ChevronsLeftRight className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Expand all columns</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-2"
+                    onClick={() => collapseAll(columns.map(c => c.id))}
+                    disabled={collapsedColumnIds.size === columns.length}
+                    data-testid="button-collapse-all-columns"
+                  >
+                    <ChevronsRightLeft className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Collapse all columns</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       )}
 
@@ -845,6 +889,17 @@ export function PortableKanban({
                               hoverCard={hoverCard}
                             />
                           ))}
+                          {showAddTask && onAddTask && !isReadOnly && (
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start text-muted-foreground text-xs py-2 h-auto hover:bg-muted/50 border border-dashed border-border mt-2"
+                              onClick={onAddTask}
+                              data-testid={`button-add-task-column-${col.id}`}
+                            >
+                              <Plus className="h-3 w-3 mr-1.5" />
+                              Add Task
+                            </Button>
+                          )}
                         </DroppableColumn>
                       </SortableContext>
                     </ScrollArea>
