@@ -238,6 +238,7 @@ export const tasks = pgTable("tasks", {
   overrideReason: text("override_reason"),
   overrideAt: timestamp("override_at"),
   overrideBy: varchar("override_by").references(() => users.id),
+  inheritedFromStage: boolean("inherited_from_stage").default(false),
 });
 
 // Milestone Scope Rules (stored as JSONB for flexibility)

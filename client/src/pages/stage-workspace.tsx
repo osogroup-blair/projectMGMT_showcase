@@ -112,10 +112,12 @@ export default function StageWorkspace() {
   const { currentUser } = useCurrentUser();
   const { statusLabels, getStatusBgColor, defaultStatus } = useTaskStatuses();
 
-  // Memoized filtered data - stages are shared across all projects (no projectId filter)
+  // Memoized filtered data - stages filtered by current project
   const projectStages = useMemo(() => 
-    (allStages || []).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)),
-    [allStages]
+    (allStages || [])
+      .filter((s: any) => s.projectId === projectId)
+      .sort((a: any, b: any) => (a.order || 0) - (b.order || 0)),
+    [allStages, projectId]
   );
 
   const stage = useMemo(() => 
@@ -123,14 +125,20 @@ export default function StageWorkspace() {
     [projectStages, stageId]
   );
 
+  // Find prev/next stages within the project only
+  const stageIndex = useMemo(() => 
+    projectStages.findIndex((s: any) => s.id === stageId),
+    [projectStages, stageId]
+  );
+
   const nextStage = useMemo(() => 
-    stage ? projectStages.find((s: any) => s.order === (stage.order || 0) + 1) : null,
-    [projectStages, stage]
+    stageIndex >= 0 && stageIndex < projectStages.length - 1 ? projectStages[stageIndex + 1] : null,
+    [projectStages, stageIndex]
   );
 
   const prevStage = useMemo(() => 
-    stage ? projectStages.find((s: any) => s.order === (stage.order || 0) - 1) : null,
-    [projectStages, stage]
+    stageIndex > 0 ? projectStages[stageIndex - 1] : null,
+    [projectStages, stageIndex]
   );
 
   // Filter Data
@@ -139,7 +147,7 @@ export default function StageWorkspace() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [taskViewMode, setTaskViewMode] = useState<"list" | "kanban">("kanban");
   const [currentViewId, setCurrentViewId] = useState<string>("default");
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("tasks");
 
   const tasks = useMemo(() => {
     return (allTasks || []).filter((t: any) => {
@@ -383,6 +391,9 @@ export default function StageWorkspace() {
     if (!stage) return;
     
     setIsSavingDates(true);
+    let tasksUpdated = 0;
+    let tasksFailed = 0;
+    
     try {
       // Update stage dates
       await updateStage({ 
@@ -393,29 +404,41 @@ export default function StageWorkspace() {
         } 
       });
       
-      // Cascade to tasks if enabled
-      if (cascadeToTasks && tasks.length > 0 && editStartDate && editEndDate) {
-        const stageStart = new Date(editStartDate);
-        const stageEnd = new Date(editEndDate);
-        const stageDuration = stageEnd.getTime() - stageStart.getTime();
+      // Cascade to tasks if enabled and end date is set
+      if (cascadeToTasks && tasks.length > 0 && editEndDate) {
+        // Update all tasks in this stage using the updateTask hook
+        const updatePromises = tasks.map(async (task: any) => {
+          try {
+            await updateTask({ 
+              id: task.id, 
+              updates: { 
+                deadline: editEndDate,
+                inheritedFromStage: true
+              } 
+            });
+            return { success: true };
+          } catch (error) {
+            console.error(`Failed to update task ${task.id}:`, error);
+            return { success: false };
+          }
+        });
         
-        // Update all tasks in this stage to fit within stage dates
-        for (const task of tasks) {
-          // Set task deadline to stage end date by default
-          await fetch(`/api/tasks/${task.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-              deadline: editEndDate,
-              inheritedFromStage: true
-            })
+        const results = await Promise.all(updatePromises);
+        tasksUpdated = results.filter(r => r.success).length;
+        tasksFailed = results.filter(r => !r.success).length;
+        
+        if (tasksFailed > 0) {
+          toast({ 
+            title: "Partially Updated", 
+            description: `Stage dates updated. ${tasksUpdated} task(s) updated, ${tasksFailed} failed.`,
+            variant: "destructive"
+          });
+        } else {
+          toast({ 
+            title: "Dates Updated", 
+            description: `Stage dates updated and ${tasksUpdated} task deadline(s) inherited.` 
           });
         }
-        
-        toast({ 
-          title: "Dates Updated", 
-          description: `Stage dates updated and ${tasks.length} task(s) adjusted.` 
-        });
       } else {
         toast({ title: "Updated", description: "Stage dates have been updated." });
       }
@@ -504,70 +527,100 @@ export default function StageWorkspace() {
                   </div>
                 )}
 
-                {isEditingStatus ? (
-                  <div className="flex items-center gap-1">
-                    {STATUS_OPTIONS.map(opt => (
-                      <Button
-                        key={opt.value}
-                        variant="outline"
-                        size="sm"
-                        className={cn("text-xs", editStatus === opt.value && opt.color)}
-                        onClick={() => handleSaveStatus(opt.value as "pending" | "active" | "completed")}
-                        data-testid={`button-status-${opt.value}`}
-                      >
-                        {opt.label}
+                {/* Status and Dates together */}
+                <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/30 rounded-lg border">
+                  {isEditingStatus ? (
+                    <div className="flex items-center gap-1">
+                      {STATUS_OPTIONS.map(opt => (
+                        <Button
+                          key={opt.value}
+                          variant="outline"
+                          size="sm"
+                          className={cn("text-xs h-7", editStatus === opt.value && opt.color)}
+                          onClick={() => handleSaveStatus(opt.value as "pending" | "active" | "completed")}
+                          data-testid={`button-status-${opt.value}`}
+                        >
+                          {opt.label}
+                        </Button>
+                      ))}
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setIsEditingStatus(false)}>
+                        <X className="h-3 w-3 text-red-600" />
                       </Button>
-                    ))}
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setIsEditingStatus(false)}>
-                      <X className="h-3 w-3 text-red-600" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 group">
-                    <Badge 
-                      variant="outline" 
-                      className={cn(
-                        "font-normal text-sm cursor-pointer",
-                        editStatus === 'active' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                        editStatus === 'completed' ? "bg-green-50 text-green-700 border-green-200" :
-                        "text-muted-foreground"
-                      )}
-                      onClick={() => setIsEditingStatus(true)}
-                      data-testid="badge-stage-status"
-                    >
-                      {editStatus}
-                    </Badge>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 group">
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "font-normal text-xs cursor-pointer",
+                          editStatus === 'active' ? "bg-blue-50 text-blue-700 border-blue-200" :
+                          editStatus === 'completed' ? "bg-green-50 text-green-700 border-green-200" :
+                          "text-muted-foreground"
+                        )}
+                        onClick={() => setIsEditingStatus(true)}
+                        data-testid="badge-stage-status"
+                      >
+                        {editStatus}
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  <div className="w-px h-5 bg-border" />
+                  
+                  {/* Inline Date Display */}
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    {editStartDate || editEndDate ? (
+                      <span className="text-xs">
+                        {editStartDate ? format(parseISO(editStartDate), "MMM d") : "Start"} 
+                        <span className="text-muted-foreground mx-1">→</span> 
+                        {editEndDate ? format(parseISO(editEndDate), "MMM d") : "End"}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No dates</span>
+                    )}
                     <Button 
-                      size="icon" 
+                      size="sm" 
                       variant="ghost" 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6" 
-                      onClick={() => setIsEditingStatus(true)}
-                      data-testid="button-edit-stage-status"
+                      className="h-6 px-1.5 text-xs" 
+                      onClick={() => setIsEditingDates(true)}
+                      data-testid="button-edit-stage-dates-inline"
                     >
-                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                      <Pencil className="h-3 w-3" />
                     </Button>
                   </div>
-                )}
-                
-                <div className="flex items-center border rounded-md bg-background shadow-xs ml-4">
-                {prevStage && (
-                  <Link href={`/projects/${projectId}/stages/${prevStage.id}`}>
-                    <Button variant="ghost" size="sm" className="h-8 px-2 rounded-r-none border-r">
-                      <ArrowLeft className="h-4 w-4 mr-1" /> Prev
-                    </Button>
-                  </Link>
-                )}
-                <span className="px-3 text-xs font-medium text-muted-foreground">
-                  Stage {stage.order || 1} of {projectStages.length}
-                </span>
-                {nextStage && (
-                  <Link href={`/projects/${projectId}/stages/${nextStage.id}`}>
-                    <Button variant="ghost" size="sm" className="h-8 px-2 rounded-l-none border-l">
-                      Next <ArrowLeft className="h-4 w-4 ml-1 rotate-180" />
-                    </Button>
-                  </Link>
-                )}
+                </div>
               </div>
+              
+              {/* Stage Navigation - Redesigned */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center bg-muted/50 rounded-lg p-1">
+                  <Link href={`/projects/${projectId}/stages/${prevStage?.id || stageId}`}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0"
+                      disabled={!prevStage}
+                      data-testid="button-prev-stage"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <span className="px-2 text-xs font-medium text-muted-foreground min-w-[80px] text-center">
+                    {stageIndex + 1} / {projectStages.length}
+                  </span>
+                  <Link href={`/projects/${projectId}/stages/${nextStage?.id || stageId}`}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 w-7 p-0"
+                      disabled={!nextStage}
+                      data-testid="button-next-stage"
+                    >
+                      <ArrowLeft className="h-4 w-4 rotate-180" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
 
@@ -609,128 +662,15 @@ export default function StageWorkspace() {
               </div>
             )}
 
-            {/* Stage Dates - Inline editing */}
-            <div className="flex items-center gap-4 mt-3 pt-3 border-t">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">Dates:</span>
-              </div>
-              
-              {isEditingDates ? (
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground">Start</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 w-[130px] justify-start text-left font-normal" data-testid="button-start-date-picker">
-                          <Calendar className="mr-2 h-3 w-3" />
-                          {editStartDate ? format(parseISO(editStartDate), "MMM d, yyyy") : <span className="text-muted-foreground">Pick date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={editStartDate ? parseISO(editStartDate) : undefined}
-                          onSelect={(date) => date && setEditStartDate(format(date, "yyyy-MM-dd"))}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  
-                  <span className="text-muted-foreground">→</span>
-                  
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground">End</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 w-[130px] justify-start text-left font-normal" data-testid="button-end-date-picker">
-                          <Calendar className="mr-2 h-3 w-3" />
-                          {editEndDate ? format(parseISO(editEndDate), "MMM d, yyyy") : <span className="text-muted-foreground">Pick date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent
-                          mode="single"
-                          selected={editEndDate ? parseISO(editEndDate) : undefined}
-                          onSelect={(date) => date && setEditEndDate(format(date, "yyyy-MM-dd"))}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 ml-4 px-3 py-1.5 bg-blue-50 rounded-md border border-blue-200">
-                    <Switch 
-                      id="cascade-dates" 
-                      checked={cascadeToTasks} 
-                      onCheckedChange={setCascadeToTasks}
-                      data-testid="switch-cascade-dates"
-                    />
-                    <Label htmlFor="cascade-dates" className="text-xs text-blue-700 cursor-pointer">
-                      Update {tasks.length} task deadline{tasks.length !== 1 ? 's' : ''}
-                    </Label>
-                  </div>
-                  
-                  <div className="flex items-center gap-1">
-                    <Button 
-                      size="sm" 
-                      onClick={handleSaveDates} 
-                      disabled={isSavingDates}
-                      data-testid="button-save-dates"
-                    >
-                      {isSavingDates ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
-                      Save
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      onClick={() => {
-                        setIsEditingDates(false);
-                        setEditStartDate(stage.startDate || "");
-                        setEditEndDate(stage.endDate || "");
-                      }}
-                      disabled={isSavingDates}
-                      data-testid="button-cancel-dates"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 group">
-                  {editStartDate || editEndDate ? (
-                    <span className="text-sm">
-                      {editStartDate ? format(parseISO(editStartDate), "MMM d, yyyy") : "Not set"} 
-                      <span className="text-muted-foreground mx-2">→</span> 
-                      {editEndDate ? format(parseISO(editEndDate), "MMM d, yyyy") : "Not set"}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground italic">No dates set</span>
-                  )}
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="opacity-0 group-hover:opacity-100 transition-opacity h-7 px-2" 
-                    onClick={() => setIsEditingDates(true)}
-                    data-testid="button-edit-stage-dates"
-                  >
-                    <Pencil className="h-3 w-3 mr-1" />
-                    Edit Dates
-                  </Button>
-                </div>
-              )}
-            </div>
-
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
           <TabsList className="w-fit shrink-0">
-            <TabsTrigger value="dashboard" data-testid="tab-dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="milestones" data-testid="tab-milestones">Milestones</TabsTrigger>
             <TabsTrigger value="tasks" data-testid="tab-tasks">Tasks</TabsTrigger>
+            <TabsTrigger value="milestones" data-testid="tab-milestones">Milestones</TabsTrigger>
+            <TabsTrigger value="dashboard" data-testid="tab-dashboard">Dashboard</TabsTrigger>
           </TabsList>
 
           {/* Dashboard Tab */}
@@ -836,105 +776,17 @@ export default function StageWorkspace() {
           {/* Tasks Tab */}
           <TabsContent value="tasks" className="flex-1 mt-4 flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 flex flex-col min-w-0 bg-background border rounded-lg shadow-xs overflow-hidden">
-              {/* Toolbar */}
-              <div className="p-3 border-b flex items-center justify-between gap-4 bg-muted/20">
-                <div className="flex items-center gap-2 flex-1">
-                  <div className="relative w-64">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Filter tasks..."
-                      className="pl-9 h-9 bg-background"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-9 border-dashed">
-                        <Filter className="mr-2 h-4 w-4" />
-                        Status
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuCheckboxItem checked={statusFilter === "all"} onCheckedChange={() => setStatusFilter("all")}>
-                        All Statuses
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuSeparator />
-                      {statusLabels.map(status => (
-                        <DropdownMenuCheckboxItem 
-                          key={status} 
-                          checked={statusFilter === status}
-                          onCheckedChange={() => setStatusFilter(status)}
-                        >
-                          {status}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-9 border-dashed">
-                        <Filter className="mr-2 h-4 w-4" />
-                        Assignee
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuCheckboxItem checked={assigneeFilter === "all"} onCheckedChange={() => setAssigneeFilter("all")}>
-                        All Assignees
-                      </DropdownMenuCheckboxItem>
-                      <DropdownMenuSeparator />
-                      {team.map((member: any) => (
-                        <DropdownMenuCheckboxItem 
-                          key={member.id} 
-                          checked={assigneeFilter === member.id}
-                          onCheckedChange={() => setAssigneeFilter(member.id)}
-                        >
-                          {member.name}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  
-                  <Button className="h-9 gap-2 ml-auto" onClick={handleOpenCreateTask} data-testid="button-new-task">
-                    <Plus className="h-4 w-4" />
-                    New Task
-                  </Button>
-                </div>
-                <div className="flex items-center border rounded-md overflow-hidden bg-background">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn("h-8 w-8 rounded-none", taskViewMode === "list" && "bg-muted")}
-                    onClick={() => setTaskViewMode("list")}
-                    data-testid="button-view-list"
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                  <div className="w-px h-4 bg-border" />
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={cn("h-8 w-8 rounded-none", taskViewMode === "kanban" && "bg-muted")}
-                    onClick={() => setTaskViewMode("kanban")}
-                    data-testid="button-view-kanban"
-                  >
-                    <Kanban className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Task List/Board */}
+              {/* Kanban with full filter capabilities */}
               {taskViewMode === "kanban" ? (
-                <div className="flex-1 p-4 bg-muted/10 h-[calc(100vh-400px)] min-h-[400px]">
+                <div className="flex-1 bg-muted/10 h-[calc(100vh-350px)] min-h-[400px]">
                   <PortableKanban
-                    tasks={tasks}
+                    tasks={(allTasks || []).filter((t: any) => t.stageId === stageId && (t.projectId === projectId || t.project === projectId))}
                     users={team}
                     epics={projectEpics}
                     milestones={milestones || []}
                     projectId={projectId}
                     boardId={`stage-${stageId}`}
-                    showFilters={false}
+                    showFilters={true}
                     showAddTask={true}
                     onAddTask={handleOpenCreateTask}
                     hoverCard={{
@@ -979,9 +831,23 @@ export default function StageWorkspace() {
                               </Avatar>
                             )}
                             {task.deadline && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(parseISO(task.deadline), "MMM d")}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">
+                                  {format(parseISO(task.deadline), "MMM d")}
+                                </span>
+                                {task.inheritedFromStage && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Badge variant="outline" className="text-[9px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                                        Stage
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">Date inherited from stage</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
                             )}
                           </CardContent>
                         </Card>
@@ -1219,6 +1085,122 @@ export default function StageWorkspace() {
                 </>
               ) : (
                 "Create Task"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stage Date Editing Dialog */}
+      <Dialog open={isEditingDates} onOpenChange={(open) => {
+        if (!open) {
+          setIsEditingDates(false);
+          setEditStartDate(stage?.startDate || "");
+          setEditEndDate(stage?.endDate || "");
+        }
+      }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Edit Stage Dates</DialogTitle>
+            <DialogDescription>
+              Set the start and end dates for this stage. Task deadlines can be automatically updated to match.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal" data-testid="button-start-date-picker">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {editStartDate ? format(parseISO(editStartDate), "MMM d, yyyy") : <span className="text-muted-foreground">Pick date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={editStartDate ? parseISO(editStartDate) : undefined}
+                      onSelect={(date) => date && setEditStartDate(format(date, "yyyy-MM-dd"))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal" data-testid="button-end-date-picker">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {editEndDate ? format(parseISO(editEndDate), "MMM d, yyyy") : <span className="text-muted-foreground">Pick date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={editEndDate ? parseISO(editEndDate) : undefined}
+                      onSelect={(date) => date && setEditEndDate(format(date, "yyyy-MM-dd"))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            
+            {tasks.length > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <Switch 
+                  id="cascade-dates" 
+                  checked={cascadeToTasks} 
+                  onCheckedChange={setCascadeToTasks}
+                  data-testid="switch-cascade-dates"
+                />
+                <div className="flex-1">
+                  <Label htmlFor="cascade-dates" className="text-sm font-medium text-blue-800 cursor-pointer">
+                    Update task deadlines
+                  </Label>
+                  <p className="text-xs text-blue-600 mt-0.5">
+                    {tasks.length} task{tasks.length !== 1 ? 's' : ''} will have deadlines set to the stage end date
+                  </p>
+                </div>
+                {cascadeToTasks && (
+                  <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-xs">
+                    Inherited
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsEditingDates(false);
+                setEditStartDate(stage?.startDate || "");
+                setEditEndDate(stage?.endDate || "");
+              }} 
+              disabled={isSavingDates}
+              data-testid="button-cancel-dates"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveDates} 
+              disabled={isSavingDates}
+              data-testid="button-save-dates"
+            >
+              {isSavingDates ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Save Dates
+                </>
               )}
             </Button>
           </DialogFooter>
