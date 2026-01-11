@@ -318,6 +318,55 @@ export default function EpicDetail() {
   return (
     <Shell>
       <div className="h-[calc(100vh-8rem)] flex flex-col">
+        {/* Hierarchy Context Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm mb-4 shrink-0">
+          <Link href={`/projects/${projectId}`} className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Project
+          </Link>
+          <span className="text-border">|</span>
+          <Link href={`/projects/${projectId}?tab=deliverables`} className="text-muted-foreground hover:text-primary transition-colors">
+            Deliverables
+          </Link>
+          <span className="text-muted-foreground">→</span>
+          {deliverable ? (
+            <Link href={`/projects/${projectId}/deliverables/${deliverable.id}`} className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+              <Package className="h-3.5 w-3.5" />
+              {deliverable.title}
+            </Link>
+          ) : (
+            <span className="text-muted-foreground">Unknown Deliverable</span>
+          )}
+          <span className="text-muted-foreground">→</span>
+          <span className="font-medium text-foreground flex items-center gap-1">
+            <Layers className="h-3.5 w-3.5" />
+            {epic.title}
+          </span>
+        </div>
+
+        {/* Hierarchy Visual Indicator */}
+        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border mb-4 shrink-0">
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <Link href={deliverable ? `/projects/${projectId}/deliverables/${deliverable.id}` : '#'} className="flex items-center gap-1 px-2 py-1 bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary rounded transition-colors">
+              <Package className="h-3.5 w-3.5" />
+              <span>{deliverable?.title || "Deliverable"}</span>
+            </Link>
+            <span className="text-muted-foreground">→</span>
+            <div className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded">
+              <Layers className="h-3.5 w-3.5" />
+              <span>Epic</span>
+            </div>
+            <span className="text-muted-foreground">→</span>
+            <div className="flex items-center gap-1 px-2 py-1 bg-muted text-muted-foreground rounded">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Tasks ({taskCounts.total})</span>
+            </div>
+          </div>
+          <div className="ml-auto text-xs text-muted-foreground">
+            Hierarchy: Deliverable → Epic → Task
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
           <div className="flex justify-between items-start gap-4">
