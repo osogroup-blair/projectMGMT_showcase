@@ -69,6 +69,8 @@ interface PortableKanbanProps {
   milestones?: Milestone[];
   projectId: string;
   boardId?: string; // Used for persisting column collapse state
+  title?: string; // Board title (e.g., sprint name)
+  timeframe?: string; // Date range (e.g., "Jan 6 - Jan 20, 2026")
   isReadOnly?: boolean;
   signalFilter?: "blocked" | "overdue" | "stale" | null;
   showFilters?: boolean;
@@ -384,6 +386,8 @@ export function PortableKanban({
   milestones = [],
   projectId,
   boardId,
+  title,
+  timeframe,
   isReadOnly,
   signalFilter,
   showFilters = true,
@@ -573,6 +577,16 @@ export function PortableKanban({
 
   return (
     <div className={cn("flex flex-col h-full gap-3", className)}>
+      {(title || timeframe) && (
+        <div className="flex items-center gap-3 pb-1">
+          {title && (
+            <h3 className="text-lg font-semibold" data-testid="kanban-title">{title}</h3>
+          )}
+          {timeframe && (
+            <span className="text-sm text-muted-foreground" data-testid="kanban-timeframe">{timeframe}</span>
+          )}
+        </div>
+      )}
       {showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
