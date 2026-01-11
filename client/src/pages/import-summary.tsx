@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { 
   ArrowRight, 
@@ -17,7 +17,8 @@ import {
   ChevronDown,
   ChevronUp,
   UserCheck,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Wand2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,6 +91,64 @@ export default function ImportSummary() {
       isReady: !hasIssues || (unmappedUsers.length === 0)
     };
   }, [userMappings, statusMappings]);
+
+  const handleAutoMapUsers = useCallback(() => {
+    const normalizeString = (str: string): string => {
+      return str.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+    };
+
+    const fuzzyMatch = (a: string, b: string): number => {
+      const normA = normalizeString(a);
+      const normB = normalizeString(b);
+      
+      if (normA === normB) return 1;
+      if (normA.includes(normB) || normB.includes(normA)) return 0.8;
+      
+      const words1 = a.toLowerCase().split(/[\s_\-@.]+/).filter(Boolean);
+      const words2 = b.toLowerCase().split(/[\s_\-@.]+/).filter(Boolean);
+      const matchingWords = words1.filter(w => words2.some(w2 => w2.includes(w) || w.includes(w2)));
+      if (matchingWords.length > 0) {
+        return 0.5 + (matchingWords.length / Math.max(words1.length, words2.length)) * 0.4;
+      }
+      
+      return 0;
+    };
+
+    for (const mapping of userMappings) {
+      if (mapping.mappedToId && mapping.action === 'map') continue;
+      
+      let bestMatch: { userId: string; userName: string; score: number } | null = null;
+      
+      const sourceStrings = [
+        mapping.sourceName,
+        mapping.sourceEmail,
+        mapping.sourceId
+      ].filter(Boolean) as string[];
+      
+      for (const user of systemUsers) {
+        const userStrings = [
+          user.name,
+          user.email,
+          user.firstName,
+          user.lastName,
+          `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        ].filter(Boolean) as string[];
+        
+        for (const sourceStr of sourceStrings) {
+          for (const userStr of userStrings) {
+            const score = fuzzyMatch(sourceStr, userStr);
+            if (score > 0.5 && (!bestMatch || score > bestMatch.score)) {
+              bestMatch = { userId: user.id, userName: user.name || user.email || user.id, score };
+            }
+          }
+        }
+      }
+      
+      if (bestMatch) {
+        updateUserMapping(mapping.sourceId, bestMatch.userId, bestMatch.userName, 'map');
+      }
+    }
+  }, [userMappings, systemUsers, updateUserMapping]);
 
   const tasksByAssignee = useMemo(() => {
     if (!state.adapterResult) return [];
@@ -351,6 +410,24 @@ export default function ImportSummary() {
                   {userMappings.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No users found in import file</p>
                   ) : (
+                    <>
+                      {validationSummary.unmappedUsers > 0 && (
+                        <div className="mb-4 flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                          <div className="text-sm">
+                            <span className="font-medium">{validationSummary.unmappedUsers} user(s)</span>
+                            <span className="text-muted-foreground"> need to be mapped to system users</span>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={(e) => { e.stopPropagation(); handleAutoMapUsers(); }}
+                            data-testid="auto-map-users-btn"
+                          >
+                            <Wand2 className="h-4 w-4 mr-2" />
+                            Auto-Map Users
+                          </Button>
+                        </div>
+                      )}
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -389,6 +466,7 @@ export default function ImportSummary() {
                         ))}
                       </TableBody>
                     </Table>
+                    </>
                   )}
                 </CardContent>
               </CollapsibleContent>

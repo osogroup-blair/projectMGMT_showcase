@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from "react";
 import { ParseResult, extractUniqueUserIds } from "@/lib/import-parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -5,7 +6,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { User, UserPlus, UserX, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { User, UserPlus, UserX, Users, Wand2 } from "lucide-react";
 
 interface UserMappingStepProps {
   parseResult: ParseResult | null;
@@ -16,6 +18,27 @@ interface UserMappingStepProps {
   existingUsers: any[];
 }
 
+function normalizeString(str: string): string {
+  return str.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+}
+
+function fuzzyMatch(a: string, b: string): number {
+  const normA = normalizeString(a);
+  const normB = normalizeString(b);
+  
+  if (normA === normB) return 1;
+  if (normA.includes(normB) || normB.includes(normA)) return 0.8;
+  
+  const words1 = a.toLowerCase().split(/[\s_\-@.]+/).filter(Boolean);
+  const words2 = b.toLowerCase().split(/[\s_\-@.]+/).filter(Boolean);
+  const matchingWords = words1.filter(w => words2.some(w2 => w2.includes(w) || w.includes(w2)));
+  if (matchingWords.length > 0) {
+    return 0.5 + (matchingWords.length / Math.max(words1.length, words2.length)) * 0.4;
+  }
+  
+  return 0;
+}
+
 export function UserMappingStep({
   parseResult,
   userMappings,
@@ -24,18 +47,59 @@ export function UserMappingStep({
   onUserHandlingChange,
   existingUsers
 }: UserMappingStepProps) {
-  if (!parseResult) {
-    return <div className="text-center text-muted-foreground">No file parsed yet</div>;
-  }
+  const externalUserIds = useMemo(() => {
+    if (!parseResult) return [];
+    return extractUniqueUserIds(parseResult.entities);
+  }, [parseResult]);
 
-  const externalUserIds = extractUniqueUserIds(parseResult.entities);
-
-  const handleUserMappingChange = (externalId: string, systemId: string) => {
+  const handleUserMappingChange = useCallback((externalId: string, systemId: string) => {
     onUserMappingsChange({
       ...userMappings,
       [externalId]: systemId
     });
-  };
+  }, [userMappings, onUserMappingsChange]);
+
+  const handleAutoMap = useCallback(() => {
+    const newMappings: Record<string, string> = { ...userMappings };
+    
+    for (const externalId of externalUserIds) {
+      if (newMappings[externalId]) continue;
+      
+      let bestMatch: { userId: string; score: number } | null = null;
+      
+      for (const user of existingUsers) {
+        const fieldsToMatch = [
+          user.name,
+          user.email,
+          user.firstName,
+          user.lastName,
+          user.username,
+          `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        ].filter(Boolean);
+        
+        for (const field of fieldsToMatch) {
+          const score = fuzzyMatch(externalId, field);
+          if (score > 0.5 && (!bestMatch || score > bestMatch.score)) {
+            bestMatch = { userId: user.id, score };
+          }
+        }
+      }
+      
+      if (bestMatch) {
+        newMappings[externalId] = bestMatch.userId;
+      }
+    }
+    
+    onUserMappingsChange(newMappings);
+  }, [externalUserIds, existingUsers, userMappings, onUserMappingsChange]);
+
+  const unmappedCount = useMemo(() => {
+    return externalUserIds.filter(id => !userMappings[id]).length;
+  }, [externalUserIds, userMappings]);
+
+  if (!parseResult) {
+    return <div className="text-center text-muted-foreground">No file parsed yet</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -47,6 +111,18 @@ export function UserMappingStep({
             : 'No user references found in the imported data.'
           }
         </p>
+        {externalUserIds.length > 0 && unmappedCount > 0 && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleAutoMap}
+            className="mt-3"
+            data-testid="auto-map-users-btn"
+          >
+            <Wand2 className="h-4 w-4 mr-2" />
+            Auto-Map Unmapped Users ({unmappedCount})
+          </Button>
+        )}
       </div>
 
       {externalUserIds.length === 0 ? (
