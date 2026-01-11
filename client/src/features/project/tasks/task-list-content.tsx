@@ -119,6 +119,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     }
   };
 
+  const handleHoverAssigneeChange = (taskId: string, assigneeId: string | null) => {
+    updateTask({ id: taskId, updates: { assigneeId } });
+  };
+
   const projectSprints = useMemo(() => {
     if (!allSprints || !project) return [];
     return allSprints.filter((s: any) => s.projectId === project.id);
@@ -1050,10 +1054,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             showFilters={false}
             hoverCard={{
               enabled: true,
-              statusOptions: formattedStatusOptions,
-              onStatusChange: handleHoverStatusChange,
-              onBlockedToggle: handleHoverBlockedToggle,
-              onDueDateChange: handleHoverDueDateChange,
+              users: users || [],
+              onAssigneeChange: handleHoverAssigneeChange,
               onAddComment: handleHoverAddComment,
             }}
             onTaskMove={(taskId, newStatus) => {

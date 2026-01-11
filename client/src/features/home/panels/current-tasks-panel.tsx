@@ -131,6 +131,10 @@ export function CurrentTasksPanel() {
     addCommentMutation.mutate({ taskId, comment });
   };
 
+  const handleAssigneeChange = (taskId: string, assigneeId: string | null) => {
+    updateTaskMutation.mutate({ taskId, updates: { assigneeId: assigneeId ?? undefined } });
+  };
+
   const handleTaskMove = (taskId: string, newStatus: string) => {
     updateTaskMutation.mutate({ taskId, updates: { status: newStatus } });
   };
@@ -197,10 +201,8 @@ export function CurrentTasksPanel() {
         showFilters={true}
         hoverCard={{
           enabled: true,
-          statusOptions: formattedStatusOptions,
-          onStatusChange: handleStatusChange,
-          onBlockedToggle: handleBlockedToggle,
-          onDueDateChange: handleDueDateChange,
+          users: users,
+          onAssigneeChange: handleAssigneeChange,
           onAddComment: handleAddComment,
         }}
         onTaskMove={handleTaskMove}

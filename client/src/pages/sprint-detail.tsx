@@ -166,6 +166,10 @@ export default function SprintDetail() {
     }
   };
 
+  const handleAssigneeChange = (taskId: string, assigneeId: string | null) => {
+    updateTask({ id: taskId, updates: { assigneeId } });
+  };
+
   const sprint = useMemo(() => 
     (allSprints || []).find((s: any) => s.id === sprintId),
     [allSprints, sprintId]
@@ -2586,10 +2590,8 @@ export default function SprintDetail() {
                       signalFilter={signalFilter}
                       hoverCard={{
                         enabled: true,
-                        statusOptions: formattedStatusOptions,
-                        onStatusChange: handleStatusChange,
-                        onBlockedToggle: handleBlockedToggle,
-                        onDueDateChange: handleDueDateChange,
+                        users: users || [],
+                        onAssigneeChange: handleAssigneeChange,
                         onAddComment: handleAddComment,
                       }}
                       onTaskMove={handleTaskMove}

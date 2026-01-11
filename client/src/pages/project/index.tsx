@@ -170,6 +170,10 @@ export default function ProjectOverview() {
     }
   };
 
+  const handleHoverAssigneeChange = (taskId: string, assigneeId: string | null) => {
+    updateTask({ id: taskId, updates: { assigneeId } });
+  };
+
   // Inline editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -1137,10 +1141,8 @@ export default function ProjectOverview() {
                               : undefined}
                             hoverCard={{
                               enabled: true,
-                              statusOptions: formattedStatusOptions,
-                              onStatusChange: handleHoverStatusChange,
-                              onBlockedToggle: handleHoverBlockedToggle,
-                              onDueDateChange: handleHoverDueDateChange,
+                              users: users || [],
+                              onAssigneeChange: handleHoverAssigneeChange,
                               onAddComment: handleHoverAddComment,
                             }}
                             onTaskMove={handleTaskMove}
