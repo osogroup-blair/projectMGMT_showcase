@@ -9,9 +9,14 @@ import {
   Target, 
   Users,
   AlertTriangle,
-  Check
+  Check,
+  Upload,
+  UserCheck,
+  UserX,
+  ArrowRightLeft
 } from "lucide-react";
 import { StepProps } from "./types";
+import { useImportOptional } from "@/context/import-context";
 
 export function StepReview({
   projectData,
@@ -21,6 +26,11 @@ export function StepReview({
   roles,
   users,
 }: StepProps) {
+  const importContext = useImportOptional();
+  const isImportMode = importContext?.state.isImportMode || false;
+  const userMappings = importContext?.state.userMappings || [];
+  const statusMappings = importContext?.state.statusMappings || [];
+  
   const totalEpics = deliverables.reduce((acc, d) => acc + d.epics.length, 0);
   
   const onceTasks = stages.flatMap(stage => 
@@ -64,8 +74,45 @@ export function StepReview({
       .sort((a, b) => b.total - a.total);
   })();
 
+  const userMappingSummary = (() => {
+    if (!isImportMode || userMappings.length === 0) return null;
+    const matched = userMappings.filter(m => m.mappedToId && m.action === 'map');
+    const highConfidence = userMappings.filter(m => m.confidence === 'high' && m.mappedToId);
+    const mediumConfidence = userMappings.filter(m => m.confidence === 'medium' && m.mappedToId);
+    const unmatched = userMappings.filter(m => !m.mappedToId || m.action === 'unassigned');
+    return {
+      total: userMappings.length,
+      matched: matched.length,
+      highConfidence: highConfidence.length,
+      mediumConfidence: mediumConfidence.length,
+      unmatched: unmatched.length
+    };
+  })();
+
+  const statusMappingSummary = (() => {
+    if (!isImportMode || statusMappings.length === 0) return null;
+    const highConfidence = statusMappings.filter(m => m.confidence === 'high');
+    const mediumConfidence = statusMappings.filter(m => m.confidence === 'medium');
+    const lowConfidence = statusMappings.filter(m => m.confidence === 'low');
+    return {
+      total: statusMappings.length,
+      highConfidence: highConfidence.length,
+      mediumConfidence: mediumConfidence.length,
+      lowConfidence: lowConfidence.length
+    };
+  })();
+
   return (
     <div className="space-y-6">
+      {isImportMode && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800">
+          <Upload className="h-4 w-4" />
+          <span className="text-sm font-medium">
+            Creating project from imported file: {importContext?.state.sourceFileName}
+          </span>
+        </div>
+      )}
+      
       {isLargeProject && (
         <div className="flex justify-end">
           <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
@@ -177,6 +224,98 @@ export function StepReview({
               )}
             </CardContent>
           </Card>
+
+          {isImportMode && userMappingSummary && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <ArrowRightLeft className="h-4 w-4" /> User Mapping Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Imported Users</span>
+                    <span className="font-medium">{userMappingSummary.total}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="flex items-center gap-1">
+                      <UserCheck className="h-3.5 w-3.5 text-green-600" />
+                      <span className="text-muted-foreground">Matched</span>
+                    </div>
+                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-xs">
+                      {userMappingSummary.matched}
+                    </Badge>
+                  </div>
+                  {userMappingSummary.highConfidence > 0 && (
+                    <div className="flex justify-between pl-5">
+                      <span className="text-muted-foreground text-xs">High confidence</span>
+                      <span className="text-xs text-green-600">{userMappingSummary.highConfidence}</span>
+                    </div>
+                  )}
+                  {userMappingSummary.mediumConfidence > 0 && (
+                    <div className="flex justify-between pl-5">
+                      <span className="text-muted-foreground text-xs">Medium confidence</span>
+                      <span className="text-xs text-amber-600">{userMappingSummary.mediumConfidence}</span>
+                    </div>
+                  )}
+                  {userMappingSummary.unmatched > 0 && (
+                    <div className="flex justify-between">
+                      <div className="flex items-center gap-1">
+                        <UserX className="h-3.5 w-3.5 text-red-500" />
+                        <span className="text-muted-foreground">Unmatched</span>
+                      </div>
+                      <Badge variant="outline" className="text-xs text-red-600 border-red-200">
+                        {userMappingSummary.unmatched}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {isImportMode && statusMappingSummary && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <ArrowRightLeft className="h-4 w-4" /> Status Mapping Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Imported Statuses</span>
+                    <span className="font-medium">{statusMappingSummary.total}</span>
+                  </div>
+                  {statusMappingSummary.highConfidence > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Exact match</span>
+                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-xs">
+                        {statusMappingSummary.highConfidence}
+                      </Badge>
+                    </div>
+                  )}
+                  {statusMappingSummary.mediumConfidence > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Similar match</span>
+                      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-xs">
+                        {statusMappingSummary.mediumConfidence}
+                      </Badge>
+                    </div>
+                  )}
+                  {statusMappingSummary.lowConfidence > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Default fallback</span>
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        {statusMappingSummary.lowConfidence}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-2">

@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { useImport } from '@/context/import-context';
 import { parseFile, detectFileFormat, type FileFormat } from '@/lib/import-parser';
+import { useUsers, useStatusOptions } from '@/hooks/use-nexus-data';
+import { useAllUserIdentities } from '@/features/user-management';
+import type { ImportAdapterOptions, SystemUser, SystemUserIdentity, SystemStatus } from '@/lib/import-to-wizard-adapter';
 
 const formatIcons: Record<FileFormat, typeof FileJson> = {
   json: FileJson,
@@ -26,6 +29,10 @@ const formatLabels: Record<FileFormat, string> = {
 export default function ImportUpload() {
   const [, setLocation] = useLocation();
   const { initializeFromFile } = useImport();
+  
+  const { data: usersData } = useUsers();
+  const { data: allIdentities } = useAllUserIdentities();
+  const { data: statusOptionsData } = useStatusOptions();
   
   const [file, setFile] = useState<File | null>(null);
   const [format, setFormat] = useState<FileFormat | null>(null);
@@ -92,8 +99,39 @@ export default function ImportUpload() {
         return;
       }
       
+      setProgress(85);
+      
+      const systemUsers: SystemUser[] = (usersData || []).map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        username: u.username
+      }));
+      
+      const userIdentities: SystemUserIdentity[] = (allIdentities || []).map((i: any) => ({
+        userId: i.userId,
+        externalSystem: i.systemId || i.systemType,
+        externalUserId: i.externalUserId,
+        externalDisplayName: i.externalUsername || i.profile?.displayName,
+        externalEmail: i.externalEmail
+      }));
+      
+      const taskStatuses = (statusOptionsData || []).filter((s: any) => s.type === 'task');
+      const systemStatuses: SystemStatus[] = taskStatuses.map((s: any) => ({
+        id: s.id,
+        label: s.label,
+        order: s.order,
+        isDefault: s.isDefault
+      }));
+      
+      const adapterOptions: ImportAdapterOptions = {
+        systemUsers,
+        userIdentities,
+        systemStatuses
+      };
+      
       setProgress(90);
-      initializeFromFile(parseResult);
+      initializeFromFile(parseResult, adapterOptions);
       setProgress(100);
       
       setTimeout(() => {
