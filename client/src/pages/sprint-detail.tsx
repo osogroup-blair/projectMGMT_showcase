@@ -36,7 +36,8 @@ import {
   FileText,
   PanelRightClose,
   PanelRightOpen,
-  MessageSquare
+  MessageSquare,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
@@ -110,7 +112,7 @@ export default function SprintDetail() {
 
   const { data: project } = useProject(projectId);
   const { data: allSprints, update: updateSprint, remove: deleteSprint } = useSprints();
-  const { data: allTasks, update: updateTask } = useTasks();
+  const { data: allTasks, update: updateTask, create: createTask } = useTasks();
   const { data: users } = useUsers();
   const { data: allEpics } = useEpics();
   const { data: allMilestones } = useMilestones();
@@ -179,6 +181,12 @@ export default function SprintDetail() {
   const [signalFilter, setSignalFilter] = useState<"blocked" | "overdue" | "stale" | null>(null);
   const [pulseCollapsed, setPulseCollapsed] = useState(false);
   const [goalMetricsOpen, setGoalMetricsOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<"title" | "effort" | null>(null);
+  const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskEpicId, setNewTaskEpicId] = useState("");
+  const [newTaskStageId, setNewTaskStageId] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
@@ -429,6 +437,32 @@ export default function SprintDetail() {
       toast({ title: `${selectedTasks.length} task(s) added to sprint` });
     } catch (error: any) {
       toast({ title: "Failed to add tasks", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCreateNewTask = async () => {
+    if (!newTaskTitle.trim() || !newTaskEpicId || !newTaskStageId) {
+      toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    try {
+      const newTask = {
+        title: newTaskTitle,
+        epicId: newTaskEpicId,
+        stageId: newTaskStageId,
+        projectId,
+        sprintId,
+        status: "Todo",
+        deadline: sprint?.endDate || null,
+      };
+      await createTask(newTask);
+      setShowCreateTaskDialog(false);
+      setNewTaskTitle("");
+      setNewTaskEpicId("");
+      setNewTaskStageId("");
+      toast({ title: "Task created and added to sprint" });
+    } catch (error: any) {
+      toast({ title: "Failed to create task", description: error.message, variant: "destructive" });
     }
   };
 
@@ -1323,12 +1357,13 @@ export default function SprintDetail() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[40%]">Task</TableHead>
+                            <TableHead className="w-[30%]">Task</TableHead>
                             <TableHead>Epic</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Effort</TableHead>
+                            <TableHead>Due Date</TableHead>
                             <TableHead>Assignee</TableHead>
-                            {!isReadOnly && <TableHead className="w-[50px]"></TableHead>}
+                            {!isReadOnly && <TableHead className="w-[80px]"></TableHead>}
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1337,13 +1372,41 @@ export default function SprintDetail() {
                             const TaskStatusIcon = taskStatus.icon;
                             const assignee = getUser(task.assigneeId || task.assignee);
                             const epic = getEpic(task.epicId);
+                            const isOutsideSprint = isDeadlineOutsideSprint(task.deadline);
 
                             return (
-                              <TableRow key={task.id} data-testid={`row-task-${task.id}`}>
+                              <TableRow key={task.id} data-testid={`row-task-${task.id}`} className={cn(isOutsideSprint && "bg-amber-50")}>
                                 <TableCell>
-                                  <Link href={`/projects/${projectId}/tasks/${task.id}`} className="font-medium hover:text-primary">
-                                    {task.title || task.name}
-                                  </Link>
+                                  {!isReadOnly && editingTaskId === task.id && editingField === "title" ? (
+                                    <Input
+                                      autoFocus
+                                      defaultValue={task.title || task.name}
+                                      className="h-8"
+                                      onBlur={(e) => {
+                                        if (e.target.value !== (task.title || task.name)) {
+                                          updateTask({ id: task.id, updates: { title: e.target.value } });
+                                        }
+                                        setEditingTaskId(null);
+                                        setEditingField(null);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.currentTarget.blur();
+                                        } else if (e.key === "Escape") {
+                                          setEditingTaskId(null);
+                                          setEditingField(null);
+                                        }
+                                      }}
+                                      data-testid={`input-task-title-${task.id}`}
+                                    />
+                                  ) : (
+                                    <div 
+                                      className={cn("font-medium", !isReadOnly && "cursor-pointer hover:text-primary")}
+                                      onClick={() => !isReadOnly && (setEditingTaskId(task.id), setEditingField("title"))}
+                                    >
+                                      {task.title || task.name}
+                                    </div>
+                                  )}
                                 </TableCell>
                                 <TableCell>
                                   {epic ? (
@@ -1357,16 +1420,119 @@ export default function SprintDetail() {
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>
-                                    <TaskStatusIcon className="h-3 w-3 mr-1" />
-                                    {task.status}
-                                  </Badge>
+                                  {!isReadOnly ? (
+                                    <Select
+                                      value={task.status}
+                                      onValueChange={(value) => updateTask({ id: task.id, updates: { status: value } })}
+                                    >
+                                      <SelectTrigger className="h-7 w-[120px] border-0 bg-transparent p-0">
+                                        <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0 cursor-pointer")}>
+                                          <TaskStatusIcon className="h-3 w-3 mr-1" />
+                                          {task.status}
+                                        </Badge>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Todo">Todo</SelectItem>
+                                        <SelectItem value="In Progress">In Progress</SelectItem>
+                                        <SelectItem value="Review">Review</SelectItem>
+                                        <SelectItem value="Done">Done</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>
+                                      <TaskStatusIcon className="h-3 w-3 mr-1" />
+                                      {task.status}
+                                    </Badge>
+                                  )}
                                 </TableCell>
                                 <TableCell>
-                                  <span className="text-sm">{task.effort || "-"}</span>
+                                  {!isReadOnly && editingTaskId === task.id && editingField === "effort" ? (
+                                    <Input
+                                      autoFocus
+                                      type="number"
+                                      defaultValue={task.effort || ""}
+                                      className="h-8 w-16"
+                                      onBlur={(e) => {
+                                        const newValue = e.target.value ? parseInt(e.target.value) : null;
+                                        if (newValue !== task.effort) {
+                                          updateTask({ id: task.id, updates: { effort: newValue } });
+                                        }
+                                        setEditingTaskId(null);
+                                        setEditingField(null);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.currentTarget.blur();
+                                        } else if (e.key === "Escape") {
+                                          setEditingTaskId(null);
+                                          setEditingField(null);
+                                        }
+                                      }}
+                                      data-testid={`input-task-effort-${task.id}`}
+                                    />
+                                  ) : (
+                                    <span 
+                                      className={cn("text-sm", !isReadOnly && "cursor-pointer hover:text-primary")}
+                                      onClick={() => !isReadOnly && (setEditingTaskId(task.id), setEditingField("effort"))}
+                                    >
+                                      {task.effort || "-"}
+                                    </span>
+                                  )}
                                 </TableCell>
                                 <TableCell>
-                                  {assignee ? (
+                                  <div className={cn(
+                                    "flex items-center gap-1 text-sm",
+                                    isOutsideSprint && "text-amber-700 font-medium"
+                                  )}>
+                                    {task.deadline ? (
+                                      <>
+                                        {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        {isOutsideSprint && (
+                                          <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="text-muted-foreground">-</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {!isReadOnly ? (
+                                    <Select
+                                      value={task.assigneeId || task.assignee || "unassigned"}
+                                      onValueChange={(value) => updateTask({ id: task.id, updates: { assigneeId: value === "unassigned" ? null : value } })}
+                                    >
+                                      <SelectTrigger className="h-7 w-[140px] border-0 bg-transparent p-0">
+                                        {assignee ? (
+                                          <div className="flex items-center gap-2">
+                                            <Avatar className="h-5 w-5">
+                                              <AvatarFallback className="text-xs">
+                                                {assignee.name?.charAt(0) || assignee.username?.charAt(0) || "?"}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-sm truncate">{assignee.name || assignee.username}</span>
+                                          </div>
+                                        ) : (
+                                          <span className="text-muted-foreground text-sm">Unassigned</span>
+                                        )}
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                                        {(users || []).map((user: any) => (
+                                          <SelectItem key={user.id} value={user.id}>
+                                            <div className="flex items-center gap-2">
+                                              <Avatar className="h-5 w-5">
+                                                <AvatarFallback className="text-xs">
+                                                  {user.name?.charAt(0) || user.username?.charAt(0) || "?"}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                              {user.name || user.username}
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : assignee ? (
                                     <div className="flex items-center gap-2">
                                       <Avatar className="h-6 w-6">
                                         <AvatarFallback className="text-xs">
@@ -1381,14 +1547,27 @@ export default function SprintDetail() {
                                 </TableCell>
                                 {!isReadOnly && (
                                   <TableCell>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      onClick={() => handleRemoveTask(task.id)}
-                                      data-testid={`button-remove-task-${task.id}`}
-                                    >
-                                      <X className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                      <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon"
+                                          className="h-7 w-7"
+                                          data-testid={`button-view-task-${task.id}`}
+                                        >
+                                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                                        </Button>
+                                      </Link>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon"
+                                        className="h-7 w-7"
+                                        onClick={() => handleRemoveTask(task.id)}
+                                        data-testid={`button-remove-task-${task.id}`}
+                                      >
+                                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 )}
                               </TableRow>
@@ -2515,12 +2694,87 @@ export default function SprintDetail() {
               )}
             </div>
           </div>
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setShowAddTasksDialog(false);
+                setShowCreateTaskDialog(true);
+              }} 
+              data-testid="button-create-new-task"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Create New Task
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowAddTasksDialog(false)} data-testid="button-cancel-add-tasks">
+                Cancel
+              </Button>
+              <Button onClick={handleAddTasks} disabled={selectedTasks.length === 0} data-testid="button-confirm-add-tasks">
+                Add {selectedTasks.length} Task{selectedTasks.length !== 1 ? "s" : ""}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create New Task Dialog */}
+      <Dialog open={showCreateTaskDialog} onOpenChange={setShowCreateTaskDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>
+              Create a new task and add it directly to this sprint.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-task-title">Task Name *</Label>
+              <Input
+                id="new-task-title"
+                placeholder="Enter task name..."
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                data-testid="input-new-task-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Epic *</Label>
+              <SearchableSelect
+                value={newTaskEpicId}
+                onValueChange={setNewTaskEpicId}
+                placeholder="Select an epic..."
+                options={projectEpics.map((epic: any) => ({
+                  value: epic.id,
+                  label: epic.title || epic.name
+                }))}
+                data-testid="select-new-task-epic"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Stage *</Label>
+              <SearchableSelect
+                value={newTaskStageId}
+                onValueChange={setNewTaskStageId}
+                placeholder="Select a stage..."
+                options={projectStages.map((stage: any) => ({
+                  value: stage.id,
+                  label: stage.label || stage.name
+                }))}
+                data-testid="select-new-task-stage"
+              />
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddTasksDialog(false)} data-testid="button-cancel-add-tasks">
+            <Button variant="outline" onClick={() => setShowCreateTaskDialog(false)} data-testid="button-cancel-create-task">
               Cancel
             </Button>
-            <Button onClick={handleAddTasks} disabled={selectedTasks.length === 0} data-testid="button-confirm-add-tasks">
-              Add {selectedTasks.length} Task{selectedTasks.length !== 1 ? "s" : ""}
+            <Button 
+              onClick={handleCreateNewTask} 
+              disabled={!newTaskTitle.trim() || !newTaskEpicId || !newTaskStageId}
+              data-testid="button-confirm-create-task"
+            >
+              Create Task
             </Button>
           </DialogFooter>
         </DialogContent>
