@@ -70,7 +70,10 @@ import {
   useDeliverableTemplates,
   useEpicTemplates,
   useTaskTemplates,
-  useRoleTemplates
+  useRoleTemplates,
+  useDeliverableTypes,
+  useEpicTypes,
+  useTaskTypes
 } from "@/hooks/use-nexus-data";
 
 import { 
@@ -120,6 +123,11 @@ export default function ProjectWizard() {
   const { data: roleTemplates = [], isLoading: loadingRoles } = useRoleTemplates();
   const { data: users = [], isLoading: loadingUsers } = useUsers();
   
+  // Types from admin defaults (for type selectors in wizard)
+  const { data: deliverableTypes = [], isLoading: loadingDeliverableTypes } = useDeliverableTypes();
+  const { data: epicTypes = [], isLoading: loadingEpicTypes } = useEpicTypes();
+  const { data: taskTypes = [], isLoading: loadingTaskTypes } = useTaskTypes();
+  
   const { createAsync: createProject } = useProjects();
   const { createAsync: createDeliverable } = useDeliverables();
   const { createAsync: createEpic } = useEpics();
@@ -129,7 +137,8 @@ export default function ProjectWizard() {
   
   const isLoading = loadingFrameworks || loadingStages || loadingProjects || 
                     loadingDeliverables || loadingEpics || loadingTasks || 
-                    loadingRoles || loadingUsers;
+                    loadingRoles || loadingUsers || loadingDeliverableTypes || 
+                    loadingEpicTypes || loadingTaskTypes;
   
   const [projectData, setProjectData] = useState<ProjectData>({
     name: "",
@@ -1024,6 +1033,9 @@ export default function ProjectWizard() {
     epicTemplates,
     taskTemplates,
     roleTemplates,
+    deliverableTypes,
+    epicTypes,
+    taskTypes,
     milestoneTemplates,
     templateSnippets,
     roleTypes,

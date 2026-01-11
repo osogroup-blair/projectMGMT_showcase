@@ -37,8 +37,8 @@ export function StepWorkBreakdown({
   setDeliverables,
   projectData,
   onFileUpload,
-  deliverableTemplates = [],
-  epicTemplates = [],
+  deliverableTypes = [],
+  epicTypes = [],
 }: StepProps) {
   const epicInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const { toast } = useToast();
@@ -427,9 +427,9 @@ export function StepWorkBreakdown({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">None</SelectItem>
-                            {deliverableTemplates.map((template: any) => (
-                              <SelectItem key={template.id} value={template.id}>
-                                {template.title || template.name}
+                            {deliverableTypes.map((type: any) => (
+                              <SelectItem key={type.id} value={type.id}>
+                                {type.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -493,9 +493,9 @@ export function StepWorkBreakdown({
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">None</SelectItem>
-                                  {epicTemplates.map((template: any) => (
-                                    <SelectItem key={template.id} value={template.id}>
-                                      {template.title || template.name}
+                                  {epicTypes.map((type: any) => (
+                                    <SelectItem key={type.id} value={type.id}>
+                                      {type.name}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>

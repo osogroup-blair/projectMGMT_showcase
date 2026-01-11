@@ -179,6 +179,9 @@ export interface StepProps {
   epicTemplates: any[];
   taskTemplates: any[];
   roleTemplates: any[];
+  deliverableTypes?: any[];
+  epicTypes?: any[];
+  taskTypes?: any[];
   milestoneTemplates: any[];
   templateSnippets: WizardTemplateSnippet[];
   roleTypes: WizardRoleType[];
