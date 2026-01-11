@@ -37,11 +37,8 @@ import {
   FileText,
   PanelRightClose,
   PanelRightOpen,
-  PanelLeftClose,
-  PanelLeftOpen,
   MessageSquare,
-  ExternalLink,
-  Inbox
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -249,8 +246,6 @@ export default function SprintDetail() {
   const [pendingBlockerTaskId, setPendingBlockerTaskId] = useState<string | null>(null);
   const [signalFilter, setSignalFilter] = useState<"blocked" | "overdue" | "stale" | null>(null);
   const [pulseCollapsed, setPulseCollapsed] = useState(false);
-  const [backlogCollapsed, setBacklogCollapsed] = useState(false);
-  const [backlogSearch, setBacklogSearch] = useState("");
   const [goalMetricsOpen, setGoalMetricsOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<"title" | "effort" | null>(null);
@@ -511,24 +506,6 @@ export default function SprintDetail() {
     }
   };
 
-  const handleAddBacklogTask = async (taskId: string) => {
-    try {
-      await fetch(`/api/sprints/${sprintId}/tasks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskIds: [taskId] })
-      });
-      const updates: any = { sprintId };
-      if (sprint?.endDate) {
-        updates.dueDate = sprint.endDate;
-      }
-      updateTask({ id: taskId, updates });
-      toast({ title: "Task added to sprint" });
-    } catch (error: any) {
-      toast({ title: "Failed to add task", description: error.message, variant: "destructive" });
-    }
-  };
-
   const handleCreateNewTask = async () => {
     if (!newTaskTitle.trim() || !newTaskEpicId || !newTaskStageId) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
@@ -641,15 +618,6 @@ export default function SprintDetail() {
       t.name?.toLowerCase().includes(query)
     );
   }, [backlogTasks, searchQuery]);
-
-  const runTabBacklogTasks = useMemo(() => {
-    if (!backlogSearch) return backlogTasks;
-    const query = backlogSearch.toLowerCase();
-    return backlogTasks.filter((t: any) => 
-      t.title?.toLowerCase().includes(query) || 
-      t.name?.toLowerCase().includes(query)
-    );
-  }, [backlogTasks, backlogSearch]);
 
   const stats = useMemo(() => {
     const total = sprintTasks.length;
@@ -2638,118 +2606,13 @@ export default function SprintDetail() {
 
           <TabsContent value="run" className="mt-6">
             <div className="flex gap-4 h-[calc(100vh-280px)]" data-testid="run-tab-container">
-              {!backlogCollapsed && (
-                <div className="w-72 min-w-0 flex-shrink-0">
-                  <Card className="h-full flex flex-col overflow-hidden">
-                    <CardHeader className="py-2 px-4 flex-row items-center justify-between border-b">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Inbox className="h-4 w-4" />
-                        Backlog
-                        <Badge variant="secondary" className="text-xs">
-                          {backlogTasks.length}
-                        </Badge>
-                      </CardTitle>
-                      <Button 
-                        size="sm" 
-                        variant="ghost" 
-                        onClick={() => setBacklogCollapsed(true)}
-                        data-testid="button-collapse-backlog"
-                      >
-                        <PanelLeftClose className="h-4 w-4" />
-                      </Button>
-                    </CardHeader>
-                    <div className="p-2 border-b">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input
-                          placeholder="Search backlog..."
-                          value={backlogSearch}
-                          onChange={(e) => setBacklogSearch(e.target.value)}
-                          className="pl-8 h-8 text-sm"
-                          data-testid="input-backlog-search"
-                        />
-                      </div>
-                    </div>
-                    <ScrollArea className="flex-1">
-                      <div className="p-2 space-y-1">
-                        {runTabBacklogTasks.length === 0 ? (
-                          <div className="p-4 text-center text-muted-foreground text-xs">
-                            {backlogSearch ? "No matching tasks" : "No tasks in backlog"}
-                          </div>
-                        ) : (
-                          runTabBacklogTasks.map((task: any) => {
-                            const taskStatus = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG["Pending"];
-                            const epic = getEpic(task.epicId);
-                            return (
-                              <div 
-                                key={task.id} 
-                                className="p-2 border rounded-md hover:bg-muted/50 transition-colors group"
-                                data-testid={`backlog-task-${task.id}`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium truncate">{task.title}</div>
-                                    {epic && (
-                                      <div className="text-xs text-muted-foreground truncate">{epic.title}</div>
-                                    )}
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <Badge variant="outline" className={cn("text-xs", taskStatus.color)}>
-                                        {task.status}
-                                      </Badge>
-                                      {task.priority && (
-                                        <span className="text-xs text-muted-foreground">{task.priority}</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {!isReadOnly && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                      onClick={() => handleAddBacklogTask(task.id)}
-                                      data-testid={`button-add-backlog-task-${task.id}`}
-                                    >
-                                      <Plus className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </Card>
-                </div>
-              )}
-              <div className={cn(
-                "min-w-0 transition-all flex-1",
-                !backlogCollapsed && !pulseCollapsed && "flex-[50]",
-                !backlogCollapsed && pulseCollapsed && "flex-[80]",
-                backlogCollapsed && !pulseCollapsed && "flex-[65]"
-              )}>
+              <div className={cn("min-w-0 transition-all", pulseCollapsed ? "flex-1" : "flex-[65]")}>
                 <Card className="h-full flex flex-col overflow-hidden">
                   <CardHeader className="py-2 px-4 flex-row items-center justify-between border-b">
-                    <div className="flex items-center gap-2">
-                      {backlogCollapsed && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => setBacklogCollapsed(false)}
-                          data-testid="button-expand-backlog"
-                        >
-                          <PanelLeftOpen className="h-4 w-4 mr-1" />
-                          <Inbox className="h-4 w-4" />
-                          <Badge variant="secondary" className="ml-1 text-xs">
-                            {backlogTasks.length}
-                          </Badge>
-                        </Button>
-                      )}
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Layers className="h-4 w-4" />
-                        Flow Board
-                      </CardTitle>
-                    </div>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Layers className="h-4 w-4" />
+                      Flow Board
+                    </CardTitle>
                     <div className="flex items-center gap-2">
                       {!isReadOnly && (
                         <Button size="sm" variant="outline" onClick={() => setShowAddTasksDialog(true)} data-testid="button-add-tasks-run">
