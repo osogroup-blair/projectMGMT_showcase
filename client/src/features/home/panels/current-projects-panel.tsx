@@ -1,15 +1,16 @@
 import { HomeTask } from "../types";
-import { useProjects, useTasks, useEpics, useProjectStages } from "@/hooks/use-nexus-data";
+import { useProjects, useTasks, useEpics, useProjectStages, useSprints, useMilestones, useUsers } from "@/hooks/use-nexus-data";
 import { useCurrentUser } from "@/context/current-user-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List, Layers, Workflow, Flag, Loader2, ExternalLink } from "lucide-react";
+import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List, Layers, Workflow, Flag, Loader2, ExternalLink, Kanban } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
+import { PortableKanban } from "@/components/kanban/portable-kanban";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +30,9 @@ export function CurrentProjectsPanel() {
   const { data: allTasks, isLoading: tasksLoading } = useTasks();
   const { data: epics, isLoading: epicsLoading } = useEpics();
   const { data: projectStages, isLoading: stagesLoading } = useProjectStages();
+  const { data: sprints = [], isLoading: sprintsLoading } = useSprints();
+  const { data: milestones = [], isLoading: milestonesLoading } = useMilestones();
+  const { data: allUsers = [], isLoading: usersLoading } = useUsers();
   const { currentUserId } = useCurrentUser();
   
   // Inactive task statuses to exclude
@@ -115,6 +119,34 @@ export function CurrentProjectsPanel() {
       .filter((t: any) => t.project === projectName || t.projectId === projectId)
       .map(mapToHomeTask);
   };
+  
+  // Get raw tasks for Kanban (not mapped to HomeTask format)
+  const getRawProjectTasks = (projectId: string, projectName: string) => {
+    return tasks
+      .filter((t: any) => t.project === projectName || t.projectId === projectId)
+      .map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        effort: t.effort,
+        assigneeId: t.assigneeId,
+        epicId: t.epicId,
+        milestoneId: t.milestoneId,
+        sprintId: t.sprintId,
+        deadline: t.deadline,
+        description: t.description,
+        priority: t.priority,
+        estimateHours: t.estimateHours,
+        projectId: t.projectId || projectId,
+        projectName: t.project || projectName,
+        epicName: epics.find((e: any) => e.id === t.epicId)?.title,
+        sprintName: sprints.find((s: any) => s.id === t.sprintId)?.name,
+        milestoneName: milestones.find((m: any) => m.id === t.milestoneId)?.name,
+        assigneeName: allUsers.find((u: any) => u.id === t.assigneeId)?.name,
+        stageId: t.stageId,
+        tags: t.tags,
+      }));
+  };
 
 
   // Helper to render task grid
@@ -135,13 +167,37 @@ export function CurrentProjectsPanel() {
     );
   };
 
-  if (projectsLoading || tasksLoading || epicsLoading || stagesLoading) {
+  if (projectsLoading || tasksLoading || epicsLoading || stagesLoading || sprintsLoading || milestonesLoading || usersLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
+  
+  // Format users for Kanban filter
+  const kanbanUsers = allUsers.map((u: any) => ({
+    id: u.id,
+    name: u.name || u.email || `User ${u.id}`,
+  }));
+  
+  // Format epics for Kanban filter
+  const kanbanEpics = epics.map((e: any) => ({
+    id: e.id,
+    title: e.title || e.name || `Epic ${e.id}`,
+  }));
+  
+  // Format milestones for Kanban filter
+  const kanbanMilestones = milestones.map((m: any) => ({
+    id: m.id,
+    title: m.name || m.title || `Milestone ${m.id}`,
+  }));
+  
+  // Format sprints for Kanban filter
+  const kanbanSprints = sprints.map((s: any) => ({
+    id: s.id,
+    name: s.name || `Sprint ${s.id}`,
+  }));
 
   return (
     <div className="space-y-6">
@@ -312,8 +368,8 @@ export function CurrentProjectsPanel() {
                        <Tabs defaultValue="status" className="w-full">
                          <TabsList className="mb-6 bg-background border">
                            <TabsTrigger value="status" className="gap-2">
-                             <Layers className="w-4 h-4" />
-                             By Status
+                             <Kanban className="w-4 h-4" />
+                             Kanban
                            </TabsTrigger>
                            <TabsTrigger value="epic" className="gap-2">
                              <Flag className="w-4 h-4" />
@@ -325,22 +381,35 @@ export function CurrentProjectsPanel() {
                            </TabsTrigger>
                          </TabsList>
 
-                         <TabsContent value="status" className="mt-0 space-y-8">
-                            {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
-                               <div key={status} className="space-y-3">
-                                  <h4 className="text-sm font-semibold flex items-center gap-2">
-                                     <div className={cn(
-                                       "w-2 h-2 rounded-full",
-                                       status === "Done" ? "bg-green-500" :
-                                       status === "In Progress" ? "bg-blue-500" :
-                                       "bg-slate-300"
-                                     )} />
-                                     {status} 
-                                     <span className="text-muted-foreground font-normal ml-1">({statusTasks.length})</span>
-                                  </h4>
-                                  {renderTaskGrid(statusTasks)}
-                               </div>
-                            ))}
+                         <TabsContent value="status" className="mt-0">
+                            <PortableKanban
+                              tasks={getRawProjectTasks(project.id, project.name)}
+                              users={kanbanUsers}
+                              epics={kanbanEpics.filter((e: any) => {
+                                const projectEpicIds = new Set(
+                                  getRawProjectTasks(project.id, project.name).map((t: any) => t.epicId).filter(Boolean)
+                                );
+                                return projectEpicIds.has(e.id);
+                              })}
+                              milestones={kanbanMilestones.filter((m: any) => {
+                                const projectMilestoneIds = new Set(
+                                  getRawProjectTasks(project.id, project.name).map((t: any) => t.milestoneId).filter(Boolean)
+                                );
+                                return projectMilestoneIds.has(m.id);
+                              })}
+                              sprints={kanbanSprints.filter((s: any) => {
+                                const projectSprintIds = new Set(
+                                  getRawProjectTasks(project.id, project.name).map((t: any) => t.sprintId).filter(Boolean)
+                                );
+                                return projectSprintIds.has(s.id);
+                              })}
+                              projectId={project.id}
+                              boardId={`home-project-${project.id}`}
+                              showFilters={true}
+                              showAssigneeFilter={true}
+                              isReadOnly={false}
+                              className="min-h-[400px]"
+                            />
                          </TabsContent>
 
                          <TabsContent value="epic" className="mt-0 space-y-8">
