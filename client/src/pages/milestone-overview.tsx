@@ -162,6 +162,28 @@ export default function MilestoneOverview() {
     return { done, total: linkedTasks.length, percent: Math.round((done / linkedTasks.length) * 100) };
   }, [linkedTasks]);
 
+  // Date conflict detection - tasks with target date after milestone target date
+  const dateConflicts = useMemo(() => {
+    if (!milestone?.targetDate) return [];
+    const milestoneDate = new Date(milestone.targetDate);
+    return linkedTasks.filter((task: any) => {
+      if (!task.targetDate && !task.dueDate) return false;
+      const taskDate = new Date(task.targetDate || task.dueDate);
+      return taskDate > milestoneDate;
+    });
+  }, [linkedTasks, milestone?.targetDate]);
+
+  const hasDateConflicts = dateConflicts.length > 0;
+
+  // Check if a specific task has a date conflict
+  const hasTaskDateConflict = useCallback((task: any) => {
+    if (!milestone?.targetDate) return false;
+    if (!task.targetDate && !task.dueDate) return false;
+    const milestoneDate = new Date(milestone.targetDate);
+    const taskDate = new Date(task.targetDate || task.dueDate);
+    return taskDate > milestoneDate;
+  }, [milestone?.targetDate]);
+
   const getOwner = (ownerId?: string) => {
     if (!ownerId) return null;
     return (users || []).find((u: any) => u.id === ownerId);
@@ -638,6 +660,39 @@ export default function MilestoneOverview() {
           </div>
         </div>
 
+        {/* Date Conflict Warning Banner */}
+        {hasDateConflicts && (
+          <Card className="border-amber-300 bg-amber-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-medium text-amber-800">Date Conflicts Detected</h3>
+                  <p className="text-sm text-amber-700 mt-1">
+                    {dateConflicts.length} task{dateConflicts.length !== 1 ? 's have' : ' has'} target date{dateConflicts.length !== 1 ? 's' : ''} that fall{dateConflicts.length === 1 ? 's' : ''} after the milestone target date ({milestone.targetDate ? new Date(milestone.targetDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'}).
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {dateConflicts.slice(0, 5).map((task: any) => (
+                      <Badge 
+                        key={task.id} 
+                        variant="outline" 
+                        className="bg-white border-amber-300 text-amber-800 text-xs"
+                      >
+                        {task.title} ({new Date(task.targetDate || task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })})
+                      </Badge>
+                    ))}
+                    {dateConflicts.length > 5 && (
+                      <Badge variant="outline" className="bg-white border-amber-300 text-amber-700 text-xs">
+                        +{dateConflicts.length - 5} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tabs: Tasks & Scope Definition */}
         <Tabs defaultValue="tasks" className="w-full">
           <TabsList className="grid w-full grid-cols-2 max-w-md">
@@ -663,6 +718,7 @@ export default function MilestoneOverview() {
               getEpic={getEpic}
               getAssignee={getAssignee}
               onUpdateLinks={handleUpdateLinks}
+              hasTaskDateConflict={hasTaskDateConflict}
             />
           </TabsContent>
 
@@ -696,7 +752,8 @@ function TasksTab({
   links,
   getEpic, 
   getAssignee,
-  onUpdateLinks
+  onUpdateLinks,
+  hasTaskDateConflict
 }: { 
   linkedTasks: any[], 
   projectId: string,
@@ -707,7 +764,8 @@ function TasksTab({
   links: any[],
   getEpic: (id?: string) => any,
   getAssignee: (id?: string) => any,
-  onUpdateLinks: (links: any[]) => void
+  onUpdateLinks: (links: any[]) => void,
+  hasTaskDateConflict: (task: any) => boolean
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"search" | "create">("search");
@@ -882,11 +940,15 @@ function TasksTab({
               const epic = getEpic(task.epicId);
               const assignee = getAssignee(task.assigneeId);
               const priorityClass = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
+              const hasConflict = hasTaskDateConflict(task);
               
               return (
                 <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
                   <div 
-                    className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer"
+                    className={cn(
+                      "group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer",
+                      hasConflict && "border-amber-300 bg-amber-50/30"
+                    )}
                     data-testid={`milestone-task-${task.id}`}
                   >
                     <div className="flex items-center gap-3">
@@ -898,9 +960,25 @@ function TasksTab({
                         "bg-slate-400"
                       )} />
                       <div>
-                        <h4 className="font-medium group-hover:text-primary transition-colors">{task.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium group-hover:text-primary transition-colors">{task.title}</h4>
+                          {hasConflict && (
+                            <span className="flex items-center gap-1 text-amber-600" title="Task due date is after milestone target date">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           {epic && <span>{epic.title}</span>}
+                          {(task.targetDate || task.dueDate) && (
+                            <span className={cn(
+                              "flex items-center gap-1",
+                              hasConflict && "text-amber-600 font-medium"
+                            )}>
+                              <CalendarIcon className="h-3 w-3" />
+                              {new Date(task.targetDate || task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
                           {task.stageId && (
                             <span className="px-1.5 py-0.5 rounded bg-muted">
                               {task.stageId}
