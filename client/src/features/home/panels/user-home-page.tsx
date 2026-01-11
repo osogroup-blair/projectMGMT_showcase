@@ -138,9 +138,34 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
   const todayPlan = dayPlans.find(p => p.date === homeState.today);
   const todayEvents = todayPlan?.workBlocks || [];
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const firstName = currentUser?.firstName || currentUser?.name?.split(' ')[0] || "there";
+
   return (
     <Shell>
       <div className="space-y-8 pb-8">
+        {/* Welcome Section */}
+        <div className="flex items-center justify-between" data-testid="welcome-section">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight" data-testid="welcome-greeting">
+              {getGreeting()}, {firstName}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Here's what's on your plate today
+            </p>
+          </div>
+          <Button data-testid="button-add-task" className="gap-2">
+            <Plus className="w-4 h-4" />
+            Add Task
+          </Button>
+        </div>
+
         <Tabs defaultValue="tasks" className="space-y-6">
           <TabsList className="bg-transparent p-0 border-b w-full justify-start rounded-none h-auto gap-6">
             <TabsTrigger 
