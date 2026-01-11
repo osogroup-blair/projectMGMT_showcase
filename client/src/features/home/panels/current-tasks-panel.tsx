@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PortableKanban } from "@/components/kanban/portable-kanban";
 import { useCurrentUser } from "@/context/current-user-context";
@@ -108,11 +108,21 @@ export function CurrentTasksPanel() {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, projectId, updates }: { taskId: string; projectId: string; updates: Partial<Task> }) => {
+      console.log("[CurrentTasksPanel] Updating task:", { taskId, projectId, updates });
       const response = await apiRequest("PATCH", `/api/projects/${projectId}/tasks/${taskId}`, updates);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[CurrentTasksPanel] Update failed:", errorText);
+        throw new Error(`Failed to update task: ${errorText}`);
+      }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      console.log("[CurrentTasksPanel] Task updated successfully:", variables);
       queryClient.invalidateQueries({ queryKey: ["/api/home/tasks"] });
+    },
+    onError: (error, variables) => {
+      console.error("[CurrentTasksPanel] Mutation error:", error, variables);
     },
   });
 
@@ -133,40 +143,57 @@ export function CurrentTasksPanel() {
     },
   });
 
-  const handleStatusChange = (taskId: string, newStatus: string) => {
+  const handleStatusChange = useCallback((taskId: string, newStatus: string) => {
     const projectId = taskProjectMap.get(taskId);
-    if (!projectId) return;
+    console.log("[CurrentTasksPanel] handleStatusChange:", { taskId, newStatus, projectId, mapSize: taskProjectMap.size });
+    if (!projectId) {
+      console.warn("[CurrentTasksPanel] No projectId found for task:", taskId);
+      return;
+    }
     updateTaskMutation.mutate({ taskId, projectId, updates: { status: newStatus } });
-  };
+  }, [taskProjectMap, updateTaskMutation]);
 
-  const handleBlockedToggle = (taskId: string, blocked: boolean) => {
+  const handleBlockedToggle = useCallback((taskId: string, blocked: boolean) => {
     const projectId = taskProjectMap.get(taskId);
-    if (!projectId) return;
+    if (!projectId) {
+      console.warn("[CurrentTasksPanel] No projectId found for task:", taskId);
+      return;
+    }
     updateTaskMutation.mutate({ taskId, projectId, updates: { blocked } });
-  };
+  }, [taskProjectMap, updateTaskMutation]);
 
-  const handleDueDateChange = (taskId: string, date: Date | null) => {
+  const handleDueDateChange = useCallback((taskId: string, date: Date | null) => {
     const projectId = taskProjectMap.get(taskId);
-    if (!projectId) return;
+    if (!projectId) {
+      console.warn("[CurrentTasksPanel] No projectId found for task:", taskId);
+      return;
+    }
     const deadline = date ? format(date, "yyyy-MM-dd") : undefined;
     updateTaskMutation.mutate({ taskId, projectId, updates: { deadline } });
-  };
+  }, [taskProjectMap, updateTaskMutation]);
 
-  const handleAddComment = (taskId: string, comment: string) => {
+  const handleAddComment = useCallback((taskId: string, comment: string) => {
     addCommentMutation.mutate({ taskId, comment });
-  };
+  }, [addCommentMutation]);
 
-  const handleAssigneeChange = (taskId: string, assigneeId: string | null) => {
+  const handleAssigneeChange = useCallback((taskId: string, assigneeId: string | null) => {
     const projectId = taskProjectMap.get(taskId);
-    if (!projectId) return;
+    if (!projectId) {
+      console.warn("[CurrentTasksPanel] No projectId found for task:", taskId);
+      return;
+    }
     updateTaskMutation.mutate({ taskId, projectId, updates: { assigneeId: assigneeId ?? undefined } });
-  };
+  }, [taskProjectMap, updateTaskMutation]);
 
-  const handleTaskMove = (taskId: string, newStatus: string) => {
+  const handleTaskMove = useCallback((taskId: string, newStatus: string) => {
     const projectId = taskProjectMap.get(taskId);
-    if (!projectId) return;
+    console.log("[CurrentTasksPanel] handleTaskMove:", { taskId, newStatus, projectId, mapSize: taskProjectMap.size });
+    if (!projectId) {
+      console.warn("[CurrentTasksPanel] No projectId found for task:", taskId);
+      return;
+    }
     updateTaskMutation.mutate({ taskId, projectId, updates: { status: newStatus } });
-  };
+  }, [taskProjectMap, updateTaskMutation]);
 
   const enrichedTasks: Task[] = tasks.map((t: any) => ({
     id: t.id,
