@@ -42,6 +42,7 @@ import {
   useTaskDependencies,
   useSubtasks
 } from "@/hooks/use-nexus-data";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { EFFORT_VALUES } from "@shared/schema";
 import { TaskOverviewTab } from "./task-overview-tab";
 import { TaskSubtasksTab } from "./task-subtasks-tab";
@@ -55,8 +56,6 @@ const PRIORITY_CONFIG = {
   "Medium": { color: "text-amber-600 bg-amber-100", label: "Medium" },
   "Low": { color: "text-slate-600 bg-slate-100", label: "Low" }
 };
-
-const STATUS_OPTIONS = ["Todo", "In Progress", "Review", "Done"];
 
 const VALID_TABS = ["overview", "subtasks", "attachments", "dependents", "history"] as const;
 type TabValue = typeof VALID_TABS[number];
@@ -99,6 +98,7 @@ export default function TaskDetail() {
     isLoading: isSubtasksLoading,
     create: createSubtask
   } = useSubtasks(taskId);
+  const { statusLabels } = useTaskStatuses();
 
   const task = useMemo(() => allTasks?.find((t: any) => t.id === taskId), [allTasks, taskId]);
   const milestones = useMemo(() => 
@@ -291,7 +291,7 @@ export default function TaskDetail() {
                           value={task.status}
                           onValueChange={(v) => handleUpdateTask("status", v)}
                           placeholder="Select status"
-                          options={STATUS_OPTIONS.map(status => ({ value: status, label: status }))}
+                          options={statusLabels.map(status => ({ value: status, label: status }))}
                           data-testid="select-status"
                         />
                       </div>

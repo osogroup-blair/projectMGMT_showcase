@@ -32,6 +32,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints, useEpicTypes } from "@/hooks/use-nexus-data";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import {
   Dialog,
   DialogContent,
@@ -91,6 +92,7 @@ export default function EpicDetail() {
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
   const { data: epicTypes = [], isLoading: isEpicTypesLoading } = useEpicTypes();
+  const { statusLabels, defaultStatus, isCompletedStatus } = useTaskStatuses();
 
   // View mode state (stage or sprint)
   const [viewMode, setViewMode] = useState<"stage" | "sprint">("stage");
@@ -175,15 +177,15 @@ export default function EpicDetail() {
   // Calculate progress from task completion (uses filtered tasks when filters active)
   const progress = useMemo(() => {
     if (filteredTasks.length === 0) return 0;
-    const doneTasks = filteredTasks.filter((t: any) => t.status === "Done").length;
+    const doneTasks = filteredTasks.filter((t: any) => isCompletedStatus(t.status)).length;
     return Math.round((doneTasks / filteredTasks.length) * 100);
-  }, [filteredTasks]);
+  }, [filteredTasks, isCompletedStatus]);
 
   // Task counts (uses filtered tasks for consistency with board view)
   const taskCounts = useMemo(() => {
-    const done = filteredTasks.filter((t: any) => t.status === "Done").length;
+    const done = filteredTasks.filter((t: any) => isCompletedStatus(t.status)).length;
     return { done, total: filteredTasks.length };
-  }, [filteredTasks]);
+  }, [filteredTasks, isCompletedStatus]);
 
   const getAssignee = (id?: string) => users?.find((u: any) => u.id === id);
 
@@ -203,7 +205,7 @@ export default function EpicDetail() {
       title: "",
       description: "",
       stageId: stageId || epicStages[0]?.id || "",
-      status: "Todo",
+      status: defaultStatus as any,
       priority: "Medium",
       assigneeId: users?.[0]?.id || "",
       effort: 3,
@@ -219,7 +221,7 @@ export default function EpicDetail() {
       title: task.title || "",
       description: task.description || "",
       stageId: task.stageId || epicStages[0]?.id || "",
-      status: task.status || "Todo",
+      status: task.status || defaultStatus,
       priority: task.priority || "Medium",
       assigneeId: task.assigneeId || "",
       effort: task.effort || 3,
@@ -439,7 +441,7 @@ export default function EpicDetail() {
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Status</Label>
                       <div className="grid grid-cols-2 gap-2">
-                        {["Todo", "In Progress", "Review", "Done"].map(status => (
+                        {statusLabels.map(status => (
                           <div 
                             key={status} 
                             className={cn(
@@ -899,12 +901,7 @@ export default function EpicDetail() {
                   onValueChange={(value: any) => setFormData({ ...formData, status: value })}
                   data-testid="select-task-status"
                   placeholder="Select status"
-                  options={[
-                    { value: "Todo", label: "Todo" },
-                    { value: "In Progress", label: "In Progress" },
-                    { value: "Review", label: "Review" },
-                    { value: "Done", label: "Done" }
-                  ]}
+                  options={statusLabels.map(s => ({ value: s, label: s }))}
                 />
               </div>
             </div>

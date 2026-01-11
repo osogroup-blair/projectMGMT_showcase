@@ -34,7 +34,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useStatusOptions } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { format as formatDate } from "date-fns";
@@ -80,7 +81,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allSprints } = useSprints();
-  const { data: statusOptions = [] } = useStatusOptions();
+  const { statuses: taskStatuses, statusLabels, getStatusColor, defaultStatus } = useTaskStatuses();
 
   const addCommentMutation = useMutation({
     mutationFn: async ({ taskId, comment, authorId, authorName }: { taskId: string; comment: string; authorId: string; authorName: string }) => {
@@ -95,10 +96,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   });
 
   const formattedStatusOptions = useMemo(() => 
-    (statusOptions || [])
-      .filter((s: any) => s.type === "task")
-      .map((s: any) => ({ id: s.id, label: s.label, color: s.color })),
-    [statusOptions]
+    taskStatuses.map((s) => ({ id: s.id, label: s.label, color: s.color })),
+    [taskStatuses]
   );
 
   const handleHoverStatusChange = (taskId: string, newStatus: string) => {
@@ -379,13 +378,12 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
   // Group tasks by status for Kanban view
   const tasksByStatus = useMemo(() => {
-    const statuses = ["Todo", "In Progress", "Review", "Done"];
     const grouped: Record<string, any[]> = {};
-    statuses.forEach(status => {
+    statusLabels.forEach(status => {
       grouped[status] = filteredTasks.filter((t: any) => t.status === status);
     });
     return grouped;
-  }, [filteredTasks]);
+  }, [filteredTasks, statusLabels]);
 
   const activeFilterCount = getActiveFilterCount(filters);
 
@@ -508,7 +506,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
         projectId: project?.id,
         epicId: newTaskEpicId,
         stageId: newTaskStageId,
-        status: "Todo",
+        status: defaultStatus,
         priority: newTaskPriority,
         effort: newTaskEffort,
         deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -703,7 +701,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 onValueChange={(v) => handleBulkStatus(v)}
                 disabled={isBulkUpdating}
                 placeholder="Set Status"
-                options={["Todo", "In Progress", "Review", "Done"].map(s => ({ value: s, label: s }))}
+                options={statusLabels.map(s => ({ value: s, label: s }))}
                 triggerClassName="h-8 w-[130px] text-xs"
                 data-testid="bulk-status-select"
               />
@@ -958,7 +956,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                         value={task.status}
                         onValueChange={(v) => updateTask({ id: task.id, updates: { status: v } })}
                         placeholder="Status"
-                        options={["Todo", "In Progress", "Review", "Done"].map(s => ({ value: s, label: s }))}
+                        options={statusLabels.map(s => ({ value: s, label: s }))}
                         triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
                         data-testid={`select-status-${task.id}`}
                       />

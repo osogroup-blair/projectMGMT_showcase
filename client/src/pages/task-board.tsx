@@ -61,6 +61,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Task } from "@/lib/mock-data";
 import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints } from "@/hooks/use-nexus-data";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { EFFORT_VALUES } from "@shared/schema";
 
 // Stage color mapping based on stage type/order
@@ -97,6 +98,7 @@ export default function TaskBoard() {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allSprints } = useSprints();
+  const { statusLabels, defaultStatus } = useTaskStatuses();
   
   const projectSprints = useMemo(() => {
     if (!allSprints || !project) return [];
@@ -174,8 +176,7 @@ export default function TaskBoard() {
       }));
     }
     if (groupBy === "status") {
-      const statuses = ["Todo", "In Progress", "Done"];
-      return statuses.map(status => ({
+      return statusLabels.map(status => ({
         id: status,
         name: status,
         count: projectTasks.filter(t => t.status === status).length
@@ -798,13 +799,6 @@ const GROUP_BY_CONFIG: Record<GroupByType, { label: string; icon: any; color: st
   assignee: { label: "By Assignee", icon: User, color: "bg-indigo-500/10 text-indigo-700 border-indigo-200 hover:bg-indigo-500/20" }
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  "Todo": "bg-slate-100 text-slate-700 border-slate-200",
-  "In Progress": "bg-blue-100 text-blue-700 border-blue-200",
-  "Review": "bg-amber-100 text-amber-700 border-amber-200",
-  "Done": "bg-green-100 text-green-700 border-green-200"
-};
-
 // Embeddable Task Board Content (without Shell wrapper)
 export function TaskBoardContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
@@ -817,6 +811,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { statusLabels, getStatusColor, defaultStatus } = useTaskStatuses();
   
   const projectDeliverables = useMemo(() => {
     if (!allDeliverables || !project) return [];
@@ -880,7 +875,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   // All accordion sections computed once
   const accordionSections = useMemo(() => {
     return {
-      status: ["Todo", "In Progress", "Review", "Done"].map(s => ({ id: s, name: s, count: projectTasks.filter(t => t.status === s).length })),
+      status: statusLabels.map(s => ({ id: s, name: s, count: projectTasks.filter(t => t.status === s).length })),
       stage: stages.map((s: any) => ({ id: s.id, name: s.name, count: projectTasks.filter(t => t.stageId === s.id).length })),
       epic: (() => {
         const sections = projectEpics.map((e: any) => ({ id: e.id, name: e.title, count: projectTasks.filter(t => t.epicId === e.id).length }));

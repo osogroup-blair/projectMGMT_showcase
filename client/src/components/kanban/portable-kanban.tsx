@@ -32,6 +32,7 @@ import { Link } from "wouter";
 import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKanbanColumns, type KanbanColumn, getTargetStatusForColumn } from "@/hooks/use-kanban-columns";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { TaskHoverCard, type EnrichedTask } from "./task-hover-card";
 
 interface Task {
@@ -489,6 +490,7 @@ export function PortableKanban({
 }: PortableKanbanProps) {
   const { columns, isLoading: columnsLoading } = useKanbanColumns();
   const { toggleColumn, isCollapsed } = useCollapsedColumns(boardId || projectId);
+  const { isCompletedStatus, isInProgressStatus } = useTaskStatuses();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
@@ -506,7 +508,7 @@ export function PortableKanban({
   const isTaskOverdue = (task: Task) => {
     if (!task.deadline) return false;
     const deadline = new Date(task.deadline);
-    return deadline < new Date() && task.status !== "Done" && task.status !== "Completed";
+    return deadline < new Date() && !isCompletedStatus(task.status);
   };
 
   const isTaskStale = (task: Task) => {
@@ -514,7 +516,7 @@ export function PortableKanban({
     const updated = new Date(task.updatedAt);
     const threeDaysAgo = new Date();
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    return updated < threeDaysAgo && task.status === "In Progress";
+    return updated < threeDaysAgo && isInProgressStatus(task.status);
   };
 
   const hasActiveFilters = searchQuery || assigneeFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all";

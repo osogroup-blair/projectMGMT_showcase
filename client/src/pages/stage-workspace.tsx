@@ -84,6 +84,7 @@ import {
   useEpics,
   useDeliverables
 } from "@/hooks/use-nexus-data";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { EFFORT_VALUES } from "@shared/schema";
 
 export default function StageWorkspace() {
@@ -104,6 +105,7 @@ export default function StageWorkspace() {
   const { data: allGuidance, isLoading: isGuidanceLoading } = useGuidanceItems();
   const { data: allSavedViews, isLoading: isSavedViewsLoading } = useSavedViews();
   const { data: allUsers, isLoading: isUsersLoading } = useUsers();
+  const { statusLabels, getStatusBgColor, defaultStatus } = useTaskStatuses();
 
   // Memoized filtered data - stages are shared across all projects (no projectId filter)
   const projectStages = useMemo(() => 
@@ -846,7 +848,7 @@ export default function StageWorkspace() {
                         All Statuses
                       </DropdownMenuCheckboxItem>
                       <DropdownMenuSeparator />
-                      {["Todo", "In Progress", "Review", "Done"].map(status => (
+                      {statusLabels.map(status => (
                         <DropdownMenuCheckboxItem 
                           key={status} 
                           checked={statusFilter === status}
@@ -905,17 +907,13 @@ export default function StageWorkspace() {
               {/* Task List/Board */}
               <ScrollArea className="flex-1 p-4 bg-muted/10">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 h-full">
-                  {["Todo", "In Progress", "Review", "Done"].map(columnStatus => (
+                  {statusLabels.map(columnStatus => (
                     <div key={columnStatus} className="flex flex-col gap-3 min-w-[280px]">
                       <div className="flex items-center justify-between px-1">
                         <h3 className="font-medium text-sm text-muted-foreground flex items-center gap-2">
-                          <span className={cn(
-                            "w-2 h-2 rounded-full",
-                            columnStatus === "Todo" ? "bg-slate-400" :
-                            columnStatus === "In Progress" ? "bg-blue-500" :
-                            columnStatus === "Review" ? "bg-amber-500" :
-                            "bg-green-500"
-                          )} />
+                          <span 
+                            className={cn("w-2 h-2 rounded-full", getStatusBgColor(columnStatus))}
+                          />
                           {columnStatus}
                         </h3>
                         <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground font-medium">

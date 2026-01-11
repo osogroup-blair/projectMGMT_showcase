@@ -52,7 +52,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useRoute, useSearch, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables, useSprintScopeTargets, useSuggestedTasks, useProjectStages, useResolvedTaskTypes, useStatusOptions } from "@/hooks/use-nexus-data";
+import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables, useSprintScopeTargets, useSuggestedTasks, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { apiRequest } from "@/lib/queryClient";
 import { format as formatDate } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -127,7 +128,7 @@ export default function SprintDetail() {
   const scopeTargets = useSprintScopeTargets(sprintId);
   const { data: suggestedTasks = [], isLoading: loadingSuggested } = useSuggestedTasks(sprintId);
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
-  const { data: statusOptions = [] } = useStatusOptions();
+  const { statuses: taskStatuses, statusLabels, getStatusColor, defaultStatus, isNotStartedStatus, isInProgressStatus, isCompletedStatus } = useTaskStatuses();
 
   const addCommentMutation = useMutation({
     mutationFn: async ({ taskId, comment, authorId, authorName }: { taskId: string; comment: string; authorId: string; authorName: string }) => {
@@ -142,10 +143,8 @@ export default function SprintDetail() {
   });
 
   const formattedStatusOptions = useMemo(() => 
-    (statusOptions || [])
-      .filter((s: any) => s.type === "task")
-      .map((s: any) => ({ id: s.id, label: s.label, color: s.color })),
-    [statusOptions]
+    taskStatuses.map((s) => ({ id: s.id, label: s.label, color: s.color })),
+    [taskStatuses]
   );
 
   const handleStatusChange = (taskId: string, newStatus: string) => {
@@ -170,6 +169,11 @@ export default function SprintDetail() {
   const sprint = useMemo(() => 
     (allSprints || []).find((s: any) => s.id === sprintId),
     [allSprints, sprintId]
+  );
+
+  const projectSprints = useMemo(() => 
+    (allSprints || []).filter((s: any) => s.projectId === projectId),
+    [allSprints, projectId]
   );
 
   const sprintTasks = useMemo(() => 
@@ -491,7 +495,7 @@ export default function SprintDetail() {
         stageId: newTaskStageId,
         projectId,
         sprintId,
-        status: "Todo",
+        status: defaultStatus,
         deadline: sprint?.endDate || null,
       };
       await createTask(newTask);

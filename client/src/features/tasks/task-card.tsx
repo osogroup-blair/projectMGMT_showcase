@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format, isValid, parseISO } from "date-fns";
 import { EFFORT_VALUES } from "@shared/schema";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 
 function safeParseDate(dateStr: string | undefined): Date | null {
   if (!dateStr) return null;
@@ -39,15 +40,6 @@ function formatDate(date: Date | null, formatStr: string): string {
 }
 
 export type LayoutVariant = "one-column" | "two-column" | "three-column";
-
-const STATUS_OPTIONS = ["Todo", "In Progress", "Review", "Done"];
-
-const STATUS_COLORS: Record<string, string> = {
-  "Todo": "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200",
-  "In Progress": "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200",
-  "Review": "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200",
-  "Done": "bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
-};
 
 const PRIORITY_COLORS: Record<string, string> = {
   "High": "text-red-600 bg-red-50",
@@ -102,9 +94,10 @@ export function TaskCard({
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const { statusLabels, getStatusColor, isCompletedStatus } = useTaskStatuses();
   
   const deadlineDate = useMemo(() => safeParseDate(task.deadline), [task.deadline]);
-  const isOverdue = deadlineDate && deadlineDate < new Date() && task.status !== "Done";
+  const isOverdue = deadlineDate && deadlineDate < new Date() && !isCompletedStatus(task.status);
 
   useEffect(() => {
     if (isEditingTitle && titleInputRef.current) {
@@ -158,7 +151,7 @@ export function TaskCard({
     <Card 
       className={cn(
         "group transition-all hover:shadow-md border-l-4",
-        task.status === "Done" ? "border-l-green-500" : "border-l-primary/50",
+        isCompletedStatus(task.status) ? "border-l-green-500" : "border-l-primary/50",
         isWide && "flex flex-row items-stretch"
       )}
       data-testid={`task-card-${task.id}`}
@@ -176,8 +169,8 @@ export function TaskCard({
                 value={task.status}
                 onValueChange={handleStatusChange}
                 placeholder="Select status"
-                options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
-                triggerClassName={cn("h-7 w-[110px] text-xs border-0 font-medium", STATUS_COLORS[task.status])}
+                options={statusLabels.map(s => ({ value: s, label: s }))}
+                triggerClassName={cn("h-7 w-[110px] text-xs border-0 font-medium", getStatusColor(task.status))}
               />
 
               {/* Epic Context */}
@@ -341,8 +334,8 @@ export function TaskCard({
                 value={task.status}
                 onValueChange={handleStatusChange}
                 placeholder="Select status"
-                options={STATUS_OPTIONS.map(s => ({ value: s, label: s }))}
-                triggerClassName={cn("h-6 w-auto min-w-[80px] text-[10px] border-0 font-medium px-1.5", STATUS_COLORS[task.status])}
+                options={statusLabels.map(s => ({ value: s, label: s }))}
+                triggerClassName={cn("h-6 w-auto min-w-[80px] text-[10px] border-0 font-medium px-1.5", getStatusColor(task.status))}
               />
             </div>
 

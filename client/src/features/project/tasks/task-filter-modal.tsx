@@ -14,6 +14,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 
 export interface TaskFilters {
   statuses: string[];
@@ -64,7 +65,6 @@ interface TaskFilterModalProps {
   taskTypes?: TaskType[];
 }
 
-const STATUS_OPTIONS = ["Todo", "In Progress", "Review", "Done"];
 const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
 
 export function TaskFilterModal({
@@ -79,6 +79,7 @@ export function TaskFilterModal({
   taskTypes = [],
 }: TaskFilterModalProps) {
   const [localFilters, setLocalFilters] = useState<TaskFilters>(filters);
+  const { statusLabels } = useTaskStatuses();
 
   useEffect(() => {
     setLocalFilters(filters);
@@ -178,7 +179,7 @@ export function TaskFilterModal({
           <div className="space-y-3">
             <Label className="text-sm font-medium">Status</Label>
             <div className="flex flex-wrap gap-2">
-              {STATUS_OPTIONS.map((status) => (
+              {statusLabels.map((status) => (
                 <Badge
                   key={status}
                   variant={localFilters.statuses.includes(status) ? "default" : "outline"}
