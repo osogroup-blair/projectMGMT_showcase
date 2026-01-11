@@ -114,7 +114,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
   // Milestone search state
   const [milestoneSearchQuery, setMilestoneSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   // Sorting state
   type SortField = "name" | "status" | "targetDate" | "owner" | "tasks" | "progress";
