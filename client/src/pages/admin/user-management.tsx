@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "@/components/layout/shell";
 import { 
   Users, 
@@ -8,7 +9,10 @@ import {
   Mail,
   Filter,
   Download,
-  Loader2
+  Upload,
+  Loader2,
+  AlertCircle,
+  CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,12 +58,25 @@ interface UserManagementProps {
   embedded?: boolean;
 }
 
+interface ImportResults {
+  created: number;
+  updated: number;
+  identitiesCreated: number;
+  errors: { email: string; error: string }[];
+}
+
 function UserManagementContent({ embedded = false }: UserManagementProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserPublic | null>(null);
   const [formData, setFormData] = useState<Partial<CreateUserRequest & UpdateUserRequest>>({});
+  
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResults, setImportResults] = useState<ImportResults | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: usersData, isLoading, error } = useUsers({ search: searchQuery });
   const createUser = useCreateUser();
@@ -134,6 +151,55 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     }
   };
 
+  const handleImportClick = () => {
+    setImportResults(null);
+    setIsImportDialogOpen(true);
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportResults(null);
+
+    try {
+      const text = await file.text();
+      const jsonData = JSON.parse(text);
+
+      const response = await fetch('/api/users/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(jsonData),
+        credentials: 'include',
+      });
+
+      const results = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(results.message || 'Import failed');
+      }
+
+      setImportResults(results);
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toast({ 
+        title: "Import Complete", 
+        description: `Created ${results.created} users, updated ${results.updated} users.` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: "Import Failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const getInitials = (user: UserPublic) => {
     const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || '';
     return name.substring(0, 2).toUpperCase();
@@ -178,6 +244,10 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
             )}
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={handleImportClick} data-testid="button-import-users">
+              <Upload className="h-4 w-4" />
+              Import
+            </Button>
             <Button variant="outline" className="gap-2">
               <Download className="h-4 w-4" />
               Export
@@ -372,6 +442,92 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 {(createUser.isPending || updateUser.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {editingUser ? "Save Changes" : "Create User"}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Import Users</DialogTitle>
+              <DialogDescription>
+                Upload a JSON file to import users from external systems like ClickUp.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json"
+                onChange={handleFileSelect}
+                className="hidden"
+                data-testid="input-import-file"
+              />
+              
+              {!importResults ? (
+                <div className="flex flex-col items-center gap-4 py-8 border-2 border-dashed rounded-lg">
+                  <Upload className="h-12 w-12 text-muted-foreground" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium">Select a JSON file to import</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Supports user exports from ClickUp, Jira, and other systems
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isImporting}
+                    data-testid="button-select-import-file"
+                  >
+                    {isImporting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Importing...
+                      </>
+                    ) : (
+                      <>Choose File</>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-800">Import Complete</p>
+                      <p className="text-sm text-green-700">
+                        Created {importResults.created} users, updated {importResults.updated} users,
+                        {importResults.identitiesCreated} identities created
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {importResults.errors.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-red-600 flex items-center gap-1">
+                        <AlertCircle className="h-4 w-4" />
+                        {importResults.errors.length} Error(s)
+                      </p>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {importResults.errors.map((err, idx) => (
+                          <div key={idx} className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                            <span className="font-medium">{err.email}:</span> {err.error}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+                {importResults ? "Close" : "Cancel"}
+              </Button>
+              {importResults && (
+                <Button onClick={() => { setImportResults(null); }} data-testid="button-import-more">
+                  Import More
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
