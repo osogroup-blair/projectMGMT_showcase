@@ -103,6 +103,8 @@ export default function ProjectWizard() {
   const [importInitialized, setImportInitialized] = useState(false);
   const [pendingStepChange, setPendingStepChange] = useState<number | null>(null);
   const [showBackWarning, setShowBackWarning] = useState(false);
+  const [showUnassignedTasksWarning, setShowUnassignedTasksWarning] = useState(false);
+  const [unassignedTasksStats, setUnassignedTasksStats] = useState({ total: 0, unassigned: 0, fromImport: false });
   
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
@@ -395,11 +397,65 @@ export default function ProjectWizard() {
       syncRolesFromStagesAndTasks();
     }
     
+    if (currentStep === 5) {
+      const stats = calculateTaskAssignmentStats();
+      if (stats.unassigned > 0) {
+        setUnassignedTasksStats(stats);
+        setShowUnassignedTasksWarning(true);
+        return;
+      }
+    }
+    
+    proceedToNextStep();
+  };
+
+  const calculateTaskAssignmentStats = () => {
+    let total = 0;
+    let assigned = 0;
+    let fromImport = false;
+    
+    stages.forEach(stage => {
+      if (stage.tasks) {
+        stage.tasks.forEach(task => {
+          total++;
+          const taskWithAssignee = task as any;
+          if (taskWithAssignee.sourceAssigneeId || taskWithAssignee.assigneeId) {
+            assigned++;
+            if (taskWithAssignee.sourceAssigneeId) {
+              fromImport = true;
+            }
+          }
+        });
+      }
+    });
+    
+    deliverables?.forEach(deliverable => {
+      deliverable.epics?.forEach(epic => {
+        if (epic.tasks) {
+          epic.tasks.forEach(task => {
+            total++;
+            if (task.assigneeId) {
+              assigned++;
+            }
+          });
+        }
+      });
+    });
+    
+    return { total, unassigned: total - assigned, fromImport };
+  };
+
+  const proceedToNextStep = () => {
     if (currentStep < STEPS.length) {
       setCurrentStep(currentStep + 1);
     } else {
       handleCreateProject();
     }
+  };
+
+  const confirmProceedWithUnassignedTasks = () => {
+    setShowUnassignedTasksWarning(false);
+    proceedToNextStep();
   };
 
   const getStepResetWarning = (fromStep: number, toStep: number): string | null => {
@@ -1066,6 +1122,37 @@ export default function ProjectWizard() {
               <AlertDialogCancel onClick={cancelStepChange}>Stay Here</AlertDialogCancel>
               <AlertDialogAction onClick={confirmStepChange} className="bg-amber-600 hover:bg-amber-700">
                 Go Back Anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showUnassignedTasksWarning} onOpenChange={setShowUnassignedTasksWarning}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-amber-500" />
+                Unassigned Tasks
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                <strong>{unassignedTasksStats.unassigned}</strong> of <strong>{unassignedTasksStats.total}</strong> tasks 
+                do not have assignees yet.
+                {unassignedTasksStats.fromImport && (
+                  <span className="block mt-2 text-green-600">
+                    Some tasks from your import already have assignees preserved.
+                  </span>
+                )}
+                <span className="block mt-2">
+                  You can assign people to tasks after the project is created, or go back to assign roles now.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setShowUnassignedTasksWarning(false)}>
+                Go Back to Assign
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={confirmProceedWithUnassignedTasks} className="bg-primary hover:bg-primary/90">
+                Continue Anyway
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

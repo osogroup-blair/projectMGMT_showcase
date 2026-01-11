@@ -4,8 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Plus, Trash2, Users, AlertCircle, Shield, Layers } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Plus, Trash2, Users, AlertCircle, Shield, Layers, CheckCircle2, AlertTriangle } from "lucide-react";
 import { StepProps, WizardRole, CORE_PROJECT_ROLES } from "./types";
+import { useMemo } from "react";
+
+interface TaskAssignmentStats {
+  totalTasks: number;
+  assignedTasks: number;
+  unassignedTasks: number;
+  fromImport: boolean;
+}
 
 export function StepTeamRoles({
   roles,
@@ -14,7 +23,50 @@ export function StepTeamRoles({
   roleTemplates,
   users,
   eligibleUsers,
+  stages,
+  deliverables,
 }: StepProps) {
+  const taskAssignmentStats = useMemo<TaskAssignmentStats>(() => {
+    let totalTasks = 0;
+    let assignedTasks = 0;
+    let hasImportedAssignees = false;
+    
+    stages.forEach(stage => {
+      if (stage.tasks) {
+        stage.tasks.forEach(task => {
+          totalTasks++;
+          const taskWithAssignee = task as any;
+          if (taskWithAssignee.sourceAssigneeId || taskWithAssignee.assigneeId) {
+            assignedTasks++;
+            if (taskWithAssignee.sourceAssigneeId) {
+              hasImportedAssignees = true;
+            }
+          }
+        });
+      }
+    });
+
+    deliverables?.forEach(deliverable => {
+      deliverable.epics?.forEach(epic => {
+        if (epic.tasks) {
+          epic.tasks.forEach(task => {
+            totalTasks++;
+            if (task.assigneeId) {
+              assignedTasks++;
+            }
+          });
+        }
+      });
+    });
+    
+    return {
+      totalTasks,
+      assignedTasks,
+      unassignedTasks: totalTasks - assignedTasks,
+      fromImport: hasImportedAssignees
+    };
+  }, [stages, deliverables]);
+
   const addRole = () => {
     const defaultRoleType = roleTypes[0];
     const newRole: WizardRole = {
@@ -155,6 +207,43 @@ export function StepTeamRoles({
 
   return (
     <div className="space-y-6">
+      {taskAssignmentStats.totalTasks > 0 && (
+        <div className="space-y-3">
+          {taskAssignmentStats.fromImport && taskAssignmentStats.assignedTasks > 0 ? (
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800">Imported Tasks Have Assignees</AlertTitle>
+              <AlertDescription className="text-green-700">
+                <strong>{taskAssignmentStats.assignedTasks}</strong> of <strong>{taskAssignmentStats.totalTasks}</strong> tasks 
+                already have assignees from the import. 
+                {taskAssignmentStats.unassignedTasks > 0 && (
+                  <span className="block mt-1">
+                    <strong>{taskAssignmentStats.unassignedTasks}</strong> task{taskAssignmentStats.unassignedTasks !== 1 ? 's' : ''} still need assignment.
+                  </span>
+                )}
+              </AlertDescription>
+            </Alert>
+          ) : taskAssignmentStats.unassignedTasks > 0 ? (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-amber-800">Unassigned Tasks</AlertTitle>
+              <AlertDescription className="text-amber-700">
+                <strong>{taskAssignmentStats.unassignedTasks}</strong> of <strong>{taskAssignmentStats.totalTasks}</strong> tasks 
+                do not have assignees. You can assign people to roles below, or assign tasks individually after project creation.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800">All Tasks Assigned</AlertTitle>
+              <AlertDescription className="text-green-700">
+                All <strong>{taskAssignmentStats.totalTasks}</strong> tasks have assignees.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-end items-center">
         <div className="flex gap-2">
           {availableTemplates.length > 0 && (
@@ -226,12 +315,16 @@ export function StepTeamRoles({
       )}
 
       <div className="mt-6 p-4 bg-muted/20 rounded-lg">
-        <h4 className="font-medium text-sm mb-2">Role Summary</h4>
+        <h4 className="font-medium text-sm mb-2">Assignment Summary</h4>
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
           <span>{coreRoles.length} core role{coreRoles.length !== 1 ? 's' : ''}</span>
           <span>{stageRoles.length} stage role{stageRoles.length !== 1 ? 's' : ''}</span>
-          <span>{roles.filter(r => r.assigneeId).length} assigned</span>
-          <span>{roles.filter(r => !r.assigneeId).length} unassigned</span>
+          <span>{roles.filter(r => r.assigneeId).length} roles assigned</span>
+          {taskAssignmentStats.totalTasks > 0 && (
+            <>
+              <span className="border-l pl-4">{taskAssignmentStats.assignedTasks}/{taskAssignmentStats.totalTasks} tasks assigned</span>
+            </>
+          )}
         </div>
       </div>
     </div>
