@@ -271,7 +271,7 @@ export default function TaskBoard() {
       projectId: project.id, // New field
       stageId: stageId || (stages[0]?.id || "st_plan"),
       epicId: epicId || (projectEpics[0]?.id || ""),
-      status: "Backlogged",
+      status: "BACKLOGGED",
       assigneeId: currentUser?.id || "",
       deadline: new Date().toISOString().split('T')[0],
       priority: "Medium",
@@ -957,7 +957,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
     setFormData({
       title: "", description: "", project: project.name, projectId: project.id,
       stageId: stageId || (stages[0]?.id || "st_plan"), epicId: epicId || (projectEpics[0]?.id || ""),
-      status: "Backlogged", assigneeId: currentUser?.id || "", deadline: new Date().toISOString().split('T')[0],
+      status: "BACKLOGGED", assigneeId: currentUser?.id || "", deadline: new Date().toISOString().split('T')[0],
       priority: "Medium", estimateHours: 0, effort: 5, tags: [], taskTypeId: defaultTaskType?.id || null
     });
     setIsDialogOpen(true);

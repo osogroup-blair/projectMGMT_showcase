@@ -560,7 +560,7 @@ export default function ProjectOverview() {
           epicId: newTaskEpicId,
           stageId: newTaskStageId,
           sprintId: selectedSprint.id,
-          status: "Backlogged",
+          status: "BACKLOGGED",
           priority: newTaskPriority,
           effort: newTaskEffort,
           deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],

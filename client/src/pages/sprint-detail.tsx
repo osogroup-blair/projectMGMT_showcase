@@ -503,7 +503,7 @@ export default function SprintDetail() {
         stageId: newTaskStageId,
         projectId,
         sprintId,
-        status: "Backlogged",
+        status: "BACKLOGGED",
         deadline: sprint?.endDate || null,
         taskTypeId: defaultTaskType?.id || null,
         assigneeId: currentUser?.id || null,

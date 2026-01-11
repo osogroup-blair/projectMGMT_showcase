@@ -219,7 +219,7 @@ export const tasks = pgTable("tasks", {
   projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
   stageId: varchar("stage_id").references(() => projectStages.id),
   epicId: varchar("epic_id").references(() => epics.id, { onDelete: "cascade" }),
-  status: text("status").notNull().default("Backlogged"),
+  status: text("status").notNull().default("BACKLOGGED"),
   assigneeId: varchar("assignee_id").references(() => users.id),
   deadline: text("deadline").notNull(),
   priority: text("priority").notNull().default("Medium"),

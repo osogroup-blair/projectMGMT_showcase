@@ -13,7 +13,7 @@ interface TaskSubtasksTabProps {
   task: any;
   projectId: string;
   subtasks: any[];
-  createSubtask: (data: { title: string; epicId: string; projectId: string }) => void;
+  createSubtask: (data: { title: string; epicId: string; stageId: string; taskTypeId: string; status: string; assigneeId?: string; projectId: string }) => void;
   updateTask: (data: { id: string; updates: any }) => void;
 }
 
@@ -32,9 +32,14 @@ export function TaskSubtasksTab({
 
   const handleCreateSubtask = () => {
     if (!newSubtaskTitle.trim()) return;
+    // Inherit parent task's epicId, stageId, taskTypeId, and assigneeId for subtasks
     createSubtask({
       title: newSubtaskTitle.trim(),
       epicId: task.epicId,
+      stageId: task.stageId,
+      taskTypeId: task.taskTypeId,
+      status: "BACKLOGGED",
+      assigneeId: task.assigneeId,
       projectId: projectId,
     });
     setNewSubtaskTitle("");
