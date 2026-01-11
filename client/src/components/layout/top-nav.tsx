@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import logo from "@assets/image_1765392085901.png";
 import { useCurrentUser } from "@/context/current-user-context";
 
 export function TopNav() {
@@ -39,8 +38,8 @@ export function TopNav() {
 
   return (
     <div className="h-16 bg-sidebar text-sidebar-foreground border-b border-sidebar-border flex items-center justify-center px-6 gap-4 relative">
-      <div className="absolute left-6 w-32 shrink-0">
-        <img src={logo} alt="Nymbl" className="h-6 w-auto object-contain" />
+      <div className="absolute left-6 shrink-0">
+        <span className="text-lg font-semibold text-sidebar-foreground">Project Management</span>
       </div>
 
       <div className="max-w-md w-full">

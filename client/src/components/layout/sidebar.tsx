@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentUser } from "@/context/current-user-context";
-import logo from "@assets/image_1765392085901.png";
 
 interface FavoriteProject {
   projectId: string;
@@ -108,10 +107,10 @@ export function Sidebar() {
           <div className={cn("mb-4 flex items-center", isCollapsed ? "justify-center" : "px-2 justify-between")}>
             {isCollapsed ? (
               <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
-                <span className="text-primary font-bold text-sm">N</span>
+                <span className="text-primary font-bold text-sm">PM</span>
               </div>
             ) : (
-              <img src={logo} alt="Nymbl" className="h-8 w-auto object-contain" />
+              <span className="text-lg font-semibold text-sidebar-foreground">Project Management</span>
             )}
           </div>
           
