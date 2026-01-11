@@ -211,7 +211,12 @@ export default function SprintDetail() {
   const [selectedSuggested, setSelectedSuggested] = useState<string[]>([]);
   const [showScopeModeChangeDialog, setShowScopeModeChangeDialog] = useState(false);
   const [pendingScopeMode, setPendingScopeMode] = useState<"epic" | "milestone" | "stage" | null>(null);
-  const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope" | "details">("scope");
+  const [planSubTab, setPlanSubTab] = useState<"tasks" | "scope" | "details">("tasks");
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [showBulkEditDialog, setShowBulkEditDialog] = useState(false);
+  const [showBulkRemoveDialog, setShowBulkRemoveDialog] = useState(false);
+  const [bulkEditField, setBulkEditField] = useState<string>("");
+  const [bulkEditValue, setBulkEditValue] = useState<string>("");
   const [scopeDefSubTab, setScopeDefSubTab] = useState<"manual" | "matrix" | "rules">("rules");
   const [manualScopeSearch, setManualScopeSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
@@ -1364,13 +1369,13 @@ export default function SprintDetail() {
             {/* Sub-navigation tabs matching Milestone pattern */}
             <Tabs value={planSubTab} onValueChange={(v) => setPlanSubTab(v as "tasks" | "scope" | "details")} className="w-full">
               <TabsList className="grid w-full grid-cols-3 max-w-lg mb-6">
-                <TabsTrigger value="scope" className="gap-2" data-testid="subtab-scope">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Scope Definition
-                </TabsTrigger>
                 <TabsTrigger value="tasks" className="gap-2" data-testid="subtab-tasks">
                   <ListTodo className="h-4 w-4" />
                   Tasks
+                </TabsTrigger>
+                <TabsTrigger value="scope" className="gap-2" data-testid="subtab-scope">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Scope Definition
                 </TabsTrigger>
                 <TabsTrigger value="details" className="gap-2" data-testid="subtab-details">
                   <FileText className="h-4 w-4" />
