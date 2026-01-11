@@ -1177,14 +1177,18 @@ export default function ProjectWizard() {
         <Card className="flex flex-col">
             <CardHeader className="sticky top-[88px] z-30 bg-muted/50 border-b py-4">
               <div className="flex items-center justify-between gap-4">
-                <Button 
-                    variant="outline" 
-                    onClick={handleBack} 
-                    disabled={currentStep === 1 || isCreating}
-                    data-testid="button-back"
-                >
-                    <ChevronLeft className="h-4 w-4 mr-2" /> Back
-                </Button>
+                {currentStep > 1 ? (
+                  <Button 
+                      variant="outline" 
+                      onClick={handleBack} 
+                      disabled={isCreating}
+                      data-testid="button-back"
+                  >
+                      <ChevronLeft className="h-4 w-4 mr-2" /> Back
+                  </Button>
+                ) : (
+                  <div className="w-[100px]" /> 
+                )}
                 
                 <div className="flex-1 flex justify-center">
                   <Select 
