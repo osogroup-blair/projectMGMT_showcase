@@ -11,6 +11,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { 
   Plus, 
   Trash2, 
@@ -26,7 +27,7 @@ import {
   UserPlus
 } from "lucide-react";
 import { StepProps, WizardRole, WizardStage, WizardTaskDraft, CORE_PROJECT_ROLES } from "./types";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 interface TaskAssignmentStats {
   totalTasks: number;
@@ -46,9 +47,18 @@ export function StepTeamRoles({
   setStages,
   deliverables,
 }: StepProps) {
-  const [taskAssignmentOpen, setTaskAssignmentOpen] = useState(true);
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
   const [bulkAssigneeId, setBulkAssigneeId] = useState<string>("");
+
+  // Auto-expand all stages with unassigned tasks on mount
+  useEffect(() => {
+    const stagesWithUnassigned = stages
+      .filter(stage => (stage.tasks || []).some(task => !task.assigneeId))
+      .map(s => s.id);
+    if (stagesWithUnassigned.length > 0) {
+      setExpandedStages(new Set(stagesWithUnassigned));
+    }
+  }, []);
 
   const taskAssignmentStats = useMemo<TaskAssignmentStats>(() => {
     let totalTasks = 0;
@@ -326,30 +336,49 @@ export function StepTeamRoles({
         </div>
       )}
 
-      {unassignedTasksByStage.length > 0 && (
-        <Collapsible open={taskAssignmentOpen} onOpenChange={setTaskAssignmentOpen}>
-          <Card className="border-blue-200 bg-blue-50/30">
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-blue-50/50 transition-colors py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <ListTodo className="h-5 w-5 text-blue-600" />
-                    <CardTitle className="text-base">Assign Unassigned Tasks</CardTitle>
-                    <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                      {taskAssignmentStats.unassignedTasks} tasks
-                    </Badge>
-                  </div>
-                  {taskAssignmentOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      {taskAssignmentStats.totalTasks > 0 && (
+        <Card className="border-2 border-primary/30 bg-primary/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <ListTodo className="h-5 w-5 text-primary" />
                 </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="pt-0 space-y-4">
-                <div className="flex items-center gap-4 p-3 bg-white rounded-lg border">
+                <div>
+                  <CardTitle className="text-lg">Task Assignments</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Assign team members to tasks before creating the project
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-primary">
+                  {taskAssignmentStats.assignedTasks}/{taskAssignmentStats.totalTasks}
+                </div>
+                <p className="text-xs text-muted-foreground">tasks assigned</p>
+              </div>
+            </div>
+            
+            <div className="mt-4 space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Assignment Progress</span>
+                <span>{Math.round((taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100)}%</span>
+              </div>
+              <Progress 
+                value={(taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100} 
+                className="h-2"
+              />
+            </div>
+          </CardHeader>
+          
+          <CardContent className="space-y-4">
+            {unassignedTasksByStage.length > 0 && (
+              <>
+                <div className="flex items-center gap-4 p-4 bg-background rounded-lg border shadow-sm">
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Bulk assign all unassigned tasks</p>
-                    <p className="text-xs text-muted-foreground">
-                      Quickly assign all {taskAssignmentStats.unassignedTasks} unassigned tasks to one person
+                    <p className="font-medium">Quick Assign All Unassigned Tasks</p>
+                    <p className="text-sm text-muted-foreground">
+                      Assign all {taskAssignmentStats.unassignedTasks} remaining tasks to one person
                     </p>
                   </div>
                   <div className="flex gap-2 items-center">
@@ -362,12 +391,11 @@ export function StepTeamRoles({
                       data-testid="bulk-assign-select"
                     />
                     <Button 
-                      size="sm" 
                       onClick={() => bulkAssignAllUnassigned(bulkAssigneeId)}
                       disabled={!bulkAssigneeId}
                       data-testid="bulk-assign-btn"
                     >
-                      <UserPlus className="h-4 w-4 mr-1" />
+                      <UserPlus className="h-4 w-4 mr-2" />
                       Assign All
                     </Button>
                   </div>
@@ -376,7 +404,7 @@ export function StepTeamRoles({
                 <Separator />
 
                 <div className="space-y-3">
-                  <p className="text-sm font-medium">Or assign tasks individually by stage:</p>
+                  <p className="font-medium">Or assign individually by stage:</p>
                   
                   {unassignedTasksByStage.map(({ stage, tasks }) => (
                     <Collapsible 
@@ -384,13 +412,14 @@ export function StepTeamRoles({
                       open={expandedStages.has(stage.id)}
                       onOpenChange={() => toggleStageExpanded(stage.id)}
                     >
-                      <Card className="bg-white">
+                      <Card className="bg-background shadow-sm">
                         <CollapsibleTrigger asChild>
-                          <CardHeader className="py-3 px-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                          <CardHeader className="py-3 px-4 cursor-pointer hover:bg-muted/50 transition-colors">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm">{stage.name}</span>
-                                <Badge variant="outline" className="text-xs">
+                                <Layers className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{stage.name}</span>
+                                <Badge variant="destructive" className="text-xs">
                                   {tasks.length} unassigned
                                 </Badge>
                               </div>
@@ -408,11 +437,11 @@ export function StepTeamRoles({
                               {tasks.map(task => (
                                 <div 
                                   key={task.id}
-                                  className="flex items-center justify-between p-2 bg-muted/20 rounded-md gap-3"
+                                  className="flex items-center justify-between p-3 bg-muted/30 rounded-lg gap-3 border"
                                   data-testid={`task-row-${task.id}`}
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{task.title}</p>
+                                    <p className="font-medium truncate">{task.title}</p>
                                     {task.assignedEpicTitle && (
                                       <p className="text-xs text-muted-foreground truncate">
                                         Epic: {task.assignedEpicTitle}
@@ -427,7 +456,7 @@ export function StepTeamRoles({
                                       ...taskAssigneeOptions
                                     ]}
                                     placeholder="Assign to..."
-                                    className="w-[180px] shrink-0"
+                                    className="w-[200px] shrink-0"
                                     data-testid={`task-assign-${task.id}`}
                                   />
                                 </div>
@@ -439,10 +468,22 @@ export function StepTeamRoles({
                     </Collapsible>
                   ))}
                 </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+              </>
+            )}
+            
+            {unassignedTasksByStage.length === 0 && (
+              <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-800 dark:text-green-200">All tasks are assigned!</p>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    Every task has a team member assigned. You can proceed to review.
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Separator className="my-2" />
