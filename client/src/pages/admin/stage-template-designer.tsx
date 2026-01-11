@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation, Link } from "wouter";
 import { Shell } from "@/components/layout/shell";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import { 
   ArrowLeft, 
   Save, 
@@ -245,6 +246,7 @@ export default function StageTemplateDesigner() {
   }
 
   return (
+    <AuthGuard requiredRoles={["admin", "manager"]}>
     <Shell>
       <div className="flex flex-col h-[calc(100vh-4rem)] w-full">
         {/* Header */}
@@ -591,5 +593,6 @@ export default function StageTemplateDesigner() {
         </div>
       </div>
     </Shell>
+    </AuthGuard>
   );
 }

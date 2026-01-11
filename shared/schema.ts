@@ -34,6 +34,10 @@ export const projects = pgTable("projects", {
   client: text("client"),
   riskLevel: text("risk_level"),
   externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Project Favorites (user favorites for quick access)
@@ -57,6 +61,10 @@ export const deliverables = pgTable("deliverables", {
   progress: integer("progress").notNull().default(0),
   typeId: varchar("type_id"),
   externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Epics
@@ -77,6 +85,10 @@ export const epics = pgTable("epics", {
   overrideReason: text("override_reason"),
   overrideAt: timestamp("override_at"),
   overrideBy: varchar("override_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Project Stages
@@ -116,6 +128,8 @@ export const milestones = pgTable("milestones", {
   progressPercent: integer("progress_percent"),
   isBillingGate: boolean("is_billing_gate").default(false),
   requiredCompletionRatio: integer("required_completion_ratio"),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 // Sprints (timeboxed work containers)
@@ -134,6 +148,8 @@ export const sprints = pgTable("sprints", {
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 // Sprint Members (capacity tracking)
@@ -226,6 +242,7 @@ export const tasks = pgTable("tasks", {
   tags: text("tags").array().default([]),
   blocked: boolean("blocked").default(false),
   blockerReason: text("blocker_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   taskTypeId: varchar("task_type_id"),
   parentTaskId: varchar("parent_task_id"),
@@ -235,6 +252,8 @@ export const tasks = pgTable("tasks", {
   overrideAt: timestamp("override_at"),
   overrideBy: varchar("override_by").references(() => users.id),
   inheritedFromStage: boolean("inherited_from_stage").default(false),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 // Milestone Scope Rules (stored as JSONB for flexibility)
