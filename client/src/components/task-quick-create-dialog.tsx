@@ -26,9 +26,10 @@ interface TaskQuickCreateDialogProps {
   onOpenChange: (open: boolean) => void;
   defaultProjectId?: string;
   defaultProjectName?: string;
+  onSuccess?: () => void;
 }
 
-export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, defaultProjectName }: TaskQuickCreateDialogProps) {
+export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, defaultProjectName, onSuccess }: TaskQuickCreateDialogProps) {
   const queryClient = useQueryClient();
   const { currentUserId } = useCurrentUser();
   
@@ -98,6 +99,7 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       resetForm();
       onOpenChange(false);
+      onSuccess?.();
     },
     onError: (error: Error) => {
       setError(error.message);

@@ -1,6 +1,7 @@
 import { HomeTask } from "../types";
 import { useProjects, useTasks, useEpics, useProjectStages, useSprints, useMilestones, useUsers } from "@/hooks/use-nexus-data";
 import { useCurrentUser } from "@/context/current-user-context";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function CurrentProjectsPanel() {
+  const queryClient = useQueryClient();
   const { data: projects, isLoading: projectsLoading } = useProjects();
   const { data: allTasks, isLoading: tasksLoading } = useTasks();
   const { data: epics, isLoading: epicsLoading } = useEpics();
@@ -563,6 +565,9 @@ export function CurrentProjectsPanel() {
         }}
         defaultProjectId={selectedProjectForTask?.id}
         defaultProjectName={selectedProjectForTask?.name}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        }}
       />
     </div>
   );
