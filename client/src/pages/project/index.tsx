@@ -1119,9 +1119,14 @@ export default function ProjectOverview() {
                                     <Badge variant={selectedSprint.status === "active" ? "default" : "secondary"} className="capitalize text-xs h-5">
                                       {selectedSprint.status}
                                     </Badge>
+                                    {selectedSprint.startDate && selectedSprint.endDate && (
+                                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                        {format(parseISO(selectedSprint.startDate), "MMM d")} - {format(parseISO(selectedSprint.endDate), "MMM d")}
+                                      </span>
+                                    )}
                                     {selectedSprint.endDate && (
-                                      <span className="text-xs text-muted-foreground">
-                                        {Math.max(0, differenceInDays(parseISO(selectedSprint.endDate), new Date()))}d left
+                                      <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 min-w-[80px] text-center">
+                                        {Math.max(0, differenceInDays(parseISO(selectedSprint.endDate), new Date()))} days left
                                       </span>
                                     )}
                                     <Link href={`/projects/${projectId}/sprints/${selectedSprint.id}?tab=run`}>
