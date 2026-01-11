@@ -1,10 +1,22 @@
-import { ChevronRight, Home as HomeIcon, ArrowLeft } from "lucide-react";
+import { ChevronRight, Home as HomeIcon, ArrowLeft, UserCog, X, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation, Link, useSearch } from "wouter";
-import { useProjects, useMilestones, useSprints } from "@/hooks/use-nexus-data";
-import { Fragment, useMemo } from "react";
+import { useProjects, useMilestones, useSprints, useUsers } from "@/hooks/use-nexus-data";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PROJECT_STAGES } from "@/lib/mock-data";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const TAB_LABELS: Record<string, string> = {
   overview: "Dashboard",
@@ -23,6 +35,9 @@ export function BreadcrumbNav() {
   const { data: projects } = useProjects();
   const { data: allMilestones } = useMilestones();
   const { data: allSprints } = useSprints();
+  const { data: usersData } = useUsers();
+  const { user, isAdmin, isImpersonating, realUser, impersonate, stopImpersonation, isImpersonating_loading, isStoppingImpersonation } = useAuth();
+  const [userSearch, setUserSearch] = useState("");
 
   const activeTab = useMemo(() => {
     const params = new URLSearchParams(searchString);
@@ -101,6 +116,30 @@ export function BreadcrumbNav() {
   });
 
   const handleGoBack = () => window.history.back();
+  
+  const filteredUsers = useMemo(() => {
+    const users = usersData?.users || [];
+    if (!userSearch.trim()) return users;
+    const search = userSearch.toLowerCase();
+    return users.filter((u: any) => 
+      u.name?.toLowerCase().includes(search) || 
+      u.email?.toLowerCase().includes(search) ||
+      u.firstName?.toLowerCase().includes(search) ||
+      u.lastName?.toLowerCase().includes(search)
+    );
+  }, [usersData?.users, userSearch]);
+
+  const getInitials = (name?: string | null, email?: string | null) => {
+    if (name) {
+      return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    }
+    return email?.[0]?.toUpperCase() || "?";
+  };
+
+  const handleImpersonate = (userId: string) => {
+    impersonate(userId);
+    setUserSearch("");
+  };
 
   const isProjectOverviewPage = pathSegments.length === 2 && pathSegments[0] === "projects";
   const isTaskDetailPage = pathSegments.length === 4 && pathSegments[0] === "projects" && pathSegments[2] === "tasks";
@@ -231,6 +270,88 @@ export function BreadcrumbNav() {
           );
         })}
       </div>
+
+      {/* Impersonation Controls (Admin Only) */}
+      {isAdmin && (
+        <div className="flex items-center gap-2 shrink-0">
+          {isImpersonating ? (
+            <div className="flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1.5 rounded-md">
+              <Eye className="h-4 w-4" />
+              <span className="text-xs font-medium">
+                Viewing as: {user?.name || user?.firstName || user?.email}
+              </span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-5 w-5 hover:bg-amber-200"
+                onClick={() => stopImpersonation()}
+                disabled={isStoppingImpersonation}
+                data-testid="button-stop-impersonation"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 gap-2 text-xs"
+                  data-testid="button-impersonate"
+                >
+                  <UserCog className="h-4 w-4" />
+                  Impersonate
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel>View as another user</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <div className="p-2">
+                  <Input 
+                    placeholder="Search users..." 
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="h-8 text-xs"
+                    data-testid="input-user-search"
+                  />
+                </div>
+                <ScrollArea className="h-[200px]">
+                  {filteredUsers.slice(0, 20).map((u: any) => (
+                    <DropdownMenuItem 
+                      key={u.id}
+                      onClick={() => handleImpersonate(u.id)}
+                      disabled={isImpersonating_loading || u.id === user?.id}
+                      className="cursor-pointer"
+                      data-testid={`impersonate-user-${u.id}`}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                            {getInitials(u.name, u.email)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{u.name || u.firstName || "Unknown"}</p>
+                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                        </div>
+                        {u.systemRole === "admin" && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Admin</span>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                  {filteredUsers.length === 0 && (
+                    <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                      No users found
+                    </div>
+                  )}
+                </ScrollArea>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      )}
     </div>
   );
 }
