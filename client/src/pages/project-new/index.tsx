@@ -801,7 +801,8 @@ export default function ProjectWizard() {
       queryClient.invalidateQueries({ queryKey: ["epics"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["milestones"] });
-      queryClient.invalidateQueries({ queryKey: ["stages"] });
+      queryClient.invalidateQueries({ queryKey: ["projectStages"] });
+      queryClient.invalidateQueries({ queryKey: ["sprints"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       if (report.projectId) {
         queryClient.invalidateQueries({ queryKey: ["projects", report.projectId] });

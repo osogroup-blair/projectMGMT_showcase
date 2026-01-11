@@ -33,6 +33,11 @@ export const users = pgTable("users", {
   systemRole: text("system_role").default("member"), // admin, manager, member, viewer
   permissions: jsonb("permissions").$type<string[]>().default([]), // Granular permissions array
   
+  // Import tracking fields (for matching imported users to authenticated users)
+  externalId: varchar("external_id"), // Original ID from external system (e.g., ClickUp ID)
+  importSource: varchar("import_source"), // Source system name (e.g., "clickup", "jira")
+  importedAt: timestamp("imported_at"), // When this user was imported
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

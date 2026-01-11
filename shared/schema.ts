@@ -9,6 +9,66 @@ export * from "./models/auth";
 // Import users from auth for relations
 import { users } from "./models/auth";
 
+// User Identities - external system connections for imported users
+export const userIdentities = pgTable("user_identities", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // External system info
+  systemId: varchar("system_id").notNull(), // e.g., "clickup", "jira"
+  systemType: varchar("system_type"), // e.g., "project_management"
+  systemName: varchar("system_name"), // Display name e.g., "ClickUp"
+  workspaceId: varchar("workspace_id"), // Workspace/org in the external system
+  
+  // External user info
+  externalUserId: varchar("external_user_id").notNull(), // User ID in external system
+  externalUsername: varchar("external_username"),
+  externalEmail: varchar("external_email"),
+  identityType: varchar("identity_type").default("user"), // user, service_account, bot
+  status: varchar("status").default("active"), // active, inactive, pending
+  
+  // Auth info (stored as JSON for flexibility)
+  auth: jsonb("auth").$type<{
+    authType: string;
+    provider: string;
+    scopes?: string[];
+    tokenRef?: string;
+    tokenExpiresAt?: string;
+  }>(),
+  
+  // Roles and permissions in external system
+  roles: jsonb("roles").$type<string[]>().default([]),
+  externalPermissions: jsonb("external_permissions").$type<Record<string, boolean>>(),
+  
+  // Profile from external system
+  profile: jsonb("profile").$type<{
+    displayName?: string;
+    avatarUrl?: string;
+    timezone?: string;
+    locale?: string;
+  }>(),
+  
+  // Sync status
+  syncSourceOfTruth: varchar("sync_source_of_truth").default("mixed"), // local, external, mixed
+  lastSyncedAt: timestamp("last_synced_at"),
+  syncStatus: varchar("sync_status").default("healthy"), // healthy, stale, error
+  lastSyncError: text("last_sync_error"),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by"),
+  updatedBy: varchar("updated_by"),
+});
+
+export const insertUserIdentitySchema = createInsertSchema(userIdentities).omit({ 
+  createdAt: true, 
+  updatedAt: true 
+});
+
+export type UserIdentity = typeof userIdentities.$inferSelect;
+export type InsertUserIdentity = z.infer<typeof insertUserIdentitySchema>;
+
 // Framework Templates
 export const frameworkTemplates = pgTable("framework_templates", {
   id: varchar("id").primaryKey(),
