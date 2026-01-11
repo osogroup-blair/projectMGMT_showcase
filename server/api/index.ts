@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "../data/storage";
 import * as userManagementService from "../services/user-management";
-import { requireAuth, requirePermission, requireSelfOrRole } from "../middleware/require-permission";
+import { requireAuth, requirePermission, requireRole, requireSelfOrRole } from "../middleware/require-permission";
 import { 
   UserPermissions,
   createUserRequestSchema,
@@ -698,8 +698,8 @@ export async function registerRoutes(
     }
   });
 
-  // User Import - import users from external systems (admin only)
-  app.post("/api/users/import", requireAuth(), requirePermission(UserPermissions.USERS_CREATE), async (req, res) => {
+  // User Import - import users from external systems (admin/manager only)
+  app.post("/api/users/import", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
     try {
       const { Users: importedUsers } = req.body;
       
