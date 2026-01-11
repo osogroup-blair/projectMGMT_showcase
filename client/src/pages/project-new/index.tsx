@@ -279,6 +279,36 @@ export default function ProjectWizard() {
     }
   }, [currentStep, stages.length, isImportMode]);
 
+  // Ensure default "Project Operations" deliverable exists for Task Alignment step
+  // This provides a catch-all bucket for orphan tasks
+  useEffect(() => {
+    if (currentStep === 3) {
+      const hasProjectOps = deliverables.some(d => d.title === 'Project Operations');
+      if (!hasProjectOps) {
+        const projectOpsDeliverable: WizardDeliverable = {
+          id: `d-ops-${Date.now()}`,
+          title: 'Project Operations',
+          description: 'Default deliverable for project-level and operational tasks',
+          epics: [
+            {
+              id: `e-mgmt-${Date.now()}-1`,
+              title: 'Project Management',
+              description: 'Project coordination and management tasks',
+              tasks: []
+            },
+            {
+              id: `e-mgmt-${Date.now()}-2`,
+              title: 'Product Management',
+              description: 'Product requirements, acceptance, and delivery activities',
+              tasks: []
+            }
+          ]
+        };
+        setDeliverables(prev => [...prev, projectOpsDeliverable]);
+      }
+    }
+  }, [currentStep, deliverables]);
+
   const syncRolesFromStagesAndTasks = () => {
     const uniqueRoleIds = new Set<string>();
     
