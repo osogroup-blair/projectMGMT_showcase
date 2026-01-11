@@ -125,6 +125,29 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+function SearchInput({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+  return (
+    <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <Input
+        placeholder="Search by name or email..."
+        className="pl-9 h-9"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        data-testid="input-search-users"
+      />
+      {value && (
+        <button 
+          onClick={() => onChange("")}
+          className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function UserManagementContent({ embedded = false }: UserManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -519,24 +542,10 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
         <div className="bg-card border rounded-lg">
           <div className="p-3 border-b">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[200px] max-w-sm">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name or email..."
-                  className="pl-9 h-9"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  data-testid="input-search-users"
-                />
-                {searchInput && (
-                  <button 
-                    onClick={() => setSearchInput("")}
-                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+              <SearchInput 
+                value={searchInput}
+                onChange={setSearchInput}
+              />
               
               <Select value={roleFilter || "all"} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
                 <SelectTrigger className="w-[130px] h-9">
