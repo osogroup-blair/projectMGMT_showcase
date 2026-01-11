@@ -50,6 +50,15 @@ The platform uses Replit Auth with OpenID Connect for authentication, supporting
 - API routes automatically populate `createdBy` and `updatedBy` from the authenticated session user
 - Helper function `getAuthUserId(req)` extracts user ID from `req.user.claims.sub`
 
+**Admin Impersonation:**
+- Allows admins to view the platform as any other user
+- API endpoints: `POST /api/admin/impersonate/:userId` and `POST /api/admin/stop-impersonate`
+- Session stores `impersonatedUserId` for the duration of the impersonation
+- `/api/auth/user` returns impersonated user data with `isImpersonating: true` and `realUser` object containing admin's info
+- UI: Dropdown on right side of breadcrumb nav (visible only to admins)
+- Visual indicator: Amber banner showing "Viewing as: [user name]" when impersonating
+- Key files: `server/replit_integrations/auth/routes.ts`, `client/src/hooks/use-auth.ts`, `client/src/components/layout/breadcrumb-nav.tsx`
+
 **User Management Architecture:**
 - Contracts: `shared/contracts/user-management.ts` defines request/response schemas and permission constants
 - Services: `server/services/user-management/` contains business logic (list, get, create, update, deactivate)
