@@ -63,13 +63,18 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(404).json({ error: "User not found" });
       }
       
-      // Store impersonated user ID in session
+      // Store impersonated user ID in session and save explicitly
       req.session.impersonatedUserId = targetUserId;
-      
-      res.json({ 
-        success: true, 
-        message: `Now impersonating ${targetUser.firstName || targetUser.email}`,
-        impersonatedUser: targetUser,
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Error saving session:", err);
+          return res.status(500).json({ error: "Failed to save session" });
+        }
+        res.json({ 
+          success: true, 
+          message: `Now impersonating ${targetUser.firstName || targetUser.email}`,
+          impersonatedUser: targetUser,
+        });
       });
     } catch (error) {
       console.error("Error starting impersonation:", error);
@@ -87,10 +92,15 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(403).json({ error: "Only admins can stop impersonation" });
       }
       
-      // Clear impersonation from session
+      // Clear impersonation from session and save explicitly
       delete req.session.impersonatedUserId;
-      
-      res.json({ success: true, message: "Stopped impersonation" });
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Error saving session:", err);
+          return res.status(500).json({ error: "Failed to save session" });
+        }
+        res.json({ success: true, message: "Stopped impersonation" });
+      });
     } catch (error) {
       console.error("Error stopping impersonation:", error);
       res.status(500).json({ message: "Failed to stop impersonation" });
