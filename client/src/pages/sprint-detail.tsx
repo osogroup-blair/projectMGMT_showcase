@@ -175,7 +175,7 @@ export default function SprintDetail() {
   const [pendingBlockerTaskId, setPendingBlockerTaskId] = useState<string | null>(null);
   const [signalFilter, setSignalFilter] = useState<"blocked" | "overdue" | "stale" | null>(null);
   const [pulseCollapsed, setPulseCollapsed] = useState(false);
-  const [goalMetricsOpen, setGoalMetricsOpen] = useState(true);
+  const [goalMetricsOpen, setGoalMetricsOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const goalInputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
