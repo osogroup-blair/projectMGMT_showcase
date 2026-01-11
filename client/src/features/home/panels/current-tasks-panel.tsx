@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PortableKanban } from "@/components/kanban/portable-kanban";
 import { useCurrentUser } from "@/context/current-user-context";
@@ -94,12 +95,20 @@ export function CurrentTasksPanel() {
     },
   });
 
+  // Create a stable lookup map for task projectIds
+  const taskProjectMap = useMemo(() => {
+    const map = new Map<string, string>();
+    tasks.forEach((t: any) => {
+      if (t.id && t.projectId) {
+        map.set(t.id, t.projectId);
+      }
+    });
+    return map;
+  }, [tasks]);
+
   const updateTaskMutation = useMutation({
-    mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<Task> }) => {
-      const task = tasks.find((t: Task) => t.id === taskId);
-      if (!task) throw new Error("Task not found");
-      
-      const response = await apiRequest("PATCH", `/api/projects/${task.projectId}/tasks/${taskId}`, updates);
+    mutationFn: async ({ taskId, projectId, updates }: { taskId: string; projectId: string; updates: Partial<Task> }) => {
+      const response = await apiRequest("PATCH", `/api/projects/${projectId}/tasks/${taskId}`, updates);
       return response.json();
     },
     onSuccess: () => {
@@ -125,16 +134,22 @@ export function CurrentTasksPanel() {
   });
 
   const handleStatusChange = (taskId: string, newStatus: string) => {
-    updateTaskMutation.mutate({ taskId, updates: { status: newStatus } });
+    const projectId = taskProjectMap.get(taskId);
+    if (!projectId) return;
+    updateTaskMutation.mutate({ taskId, projectId, updates: { status: newStatus } });
   };
 
   const handleBlockedToggle = (taskId: string, blocked: boolean) => {
-    updateTaskMutation.mutate({ taskId, updates: { blocked } });
+    const projectId = taskProjectMap.get(taskId);
+    if (!projectId) return;
+    updateTaskMutation.mutate({ taskId, projectId, updates: { blocked } });
   };
 
   const handleDueDateChange = (taskId: string, date: Date | null) => {
+    const projectId = taskProjectMap.get(taskId);
+    if (!projectId) return;
     const deadline = date ? format(date, "yyyy-MM-dd") : undefined;
-    updateTaskMutation.mutate({ taskId, updates: { deadline } });
+    updateTaskMutation.mutate({ taskId, projectId, updates: { deadline } });
   };
 
   const handleAddComment = (taskId: string, comment: string) => {
@@ -142,11 +157,15 @@ export function CurrentTasksPanel() {
   };
 
   const handleAssigneeChange = (taskId: string, assigneeId: string | null) => {
-    updateTaskMutation.mutate({ taskId, updates: { assigneeId: assigneeId ?? undefined } });
+    const projectId = taskProjectMap.get(taskId);
+    if (!projectId) return;
+    updateTaskMutation.mutate({ taskId, projectId, updates: { assigneeId: assigneeId ?? undefined } });
   };
 
   const handleTaskMove = (taskId: string, newStatus: string) => {
-    updateTaskMutation.mutate({ taskId, updates: { status: newStatus } });
+    const projectId = taskProjectMap.get(taskId);
+    if (!projectId) return;
+    updateTaskMutation.mutate({ taskId, projectId, updates: { status: newStatus } });
   };
 
   const enrichedTasks: Task[] = tasks.map((t: any) => ({
