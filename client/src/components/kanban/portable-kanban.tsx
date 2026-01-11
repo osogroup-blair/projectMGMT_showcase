@@ -29,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "wouter";
-import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight } from "lucide-react";
+import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKanbanColumns, type KanbanColumn, getTargetStatusForColumn } from "@/hooks/use-kanban-columns";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
@@ -98,9 +98,11 @@ interface PortableKanbanProps {
   isReadOnly?: boolean;
   signalFilter?: "blocked" | "overdue" | "stale" | null;
   showFilters?: boolean;
+  showAddTask?: boolean; // Show add task button in header
   hoverCard?: HoverCardConfig; // Enable hover cards with enriched task details
   onTaskMove?: (taskId: string, newStatus: string, blockerReason?: string) => void;
   onBlockerRequested?: (taskId: string) => void;
+  onAddTask?: () => void; // Callback when add task button is clicked
   className?: string;
 }
 
@@ -466,9 +468,11 @@ export function PortableKanban({
   isReadOnly,
   signalFilter,
   showFilters = true,
+  showAddTask = false,
   hoverCard,
   onTaskMove,
   onBlockerRequested,
+  onAddTask,
   className,
 }: PortableKanbanProps) {
   const { columns, isLoading: columnsLoading } = useKanbanColumns();
@@ -654,13 +658,21 @@ export function PortableKanban({
 
   return (
     <div className={cn("flex flex-col h-full gap-3", className)}>
-      {(title || timeframe) && (
-        <div className="flex items-center gap-3 pb-1">
-          {title && (
-            <h3 className="text-lg font-semibold" data-testid="kanban-title">{title}</h3>
-          )}
-          {timeframe && (
-            <span className="text-sm text-muted-foreground" data-testid="kanban-timeframe">{timeframe}</span>
+      {(title || timeframe || showAddTask) && (
+        <div className="flex items-center justify-between gap-3 pb-1">
+          <div className="flex items-center gap-3">
+            {title && (
+              <h3 className="text-lg font-semibold" data-testid="kanban-title">{title}</h3>
+            )}
+            {timeframe && (
+              <span className="text-sm text-muted-foreground" data-testid="kanban-timeframe">{timeframe}</span>
+            )}
+          </div>
+          {showAddTask && onAddTask && !isReadOnly && (
+            <Button size="sm" className="gap-2" onClick={onAddTask} data-testid="button-add-task-kanban">
+              <Plus className="h-4 w-4" />
+              Add Task
+            </Button>
           )}
         </div>
       )}

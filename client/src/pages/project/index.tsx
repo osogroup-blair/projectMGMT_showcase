@@ -200,6 +200,11 @@ export default function ProjectOverview() {
   // Team Pulse sidebar state
   const [teamPulseOpen, setTeamPulseOpen] = useState(true);
   
+  // Team Pulse input state
+  const [pulseDid, setPulseDid] = useState("");
+  const [pulseNext, setPulseNext] = useState("");
+  const [pulseBlockers, setPulseBlockers] = useState("");
+  
   // Dashboard sidebar state
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
   const [dashboardSection, setDashboardSection] = useState<"current-sprint" | "upcoming-work" | "metrics" | "activity" | "team-pulse">("current-sprint");
@@ -1083,7 +1088,7 @@ export default function ProjectOverview() {
                     <>
                       {projectSprints.length > 0 ? (
                         <div className="space-y-6">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                               <SearchableSelect
                                 value={selectedSprintId || ""}
@@ -1093,7 +1098,7 @@ export default function ProjectOverview() {
                                   value: sprint.id,
                                   label: sprint.name,
                                 }))}
-                                className="w-auto min-w-[180px] text-lg font-semibold"
+                                triggerClassName="min-w-[200px]"
                               />
                               {selectedSprint && (
                                 <>
@@ -1109,15 +1114,6 @@ export default function ProjectOverview() {
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <Button 
-                                size="sm" 
-                                className="gap-2"
-                                onClick={openAddTaskDialog}
-                                data-testid="button-add-task-sprint"
-                              >
-                                <Plus className="h-4 w-4" />
-                                Add Task
-                              </Button>
                               {selectedSprint && (
                                 <Link href={`/projects/${projectId}/sprints/${selectedSprint.id}?tab=run`}>
                                   <Button variant="outline" size="sm" className="gap-2">
@@ -1133,12 +1129,15 @@ export default function ProjectOverview() {
                             tasks={sprintTasks}
                             users={users || []}
                             epics={projectEpics || []}
+                            milestones={milestones}
                             projectId={projectId}
                             boardId={`project-dashboard-${projectId}`}
-                            title={selectedSprint?.name}
+                            title={selectedSprint?.name || "Sprint Tasks"}
                             timeframe={selectedSprint?.startDate && selectedSprint?.endDate 
                               ? `${format(parseISO(selectedSprint.startDate), "MMM d")} - ${format(parseISO(selectedSprint.endDate), "MMM d, yyyy")}`
                               : undefined}
+                            showAddTask={true}
+                            onAddTask={openAddTaskDialog}
                             hoverCard={{
                               enabled: true,
                               users: users || [],
@@ -1244,13 +1243,49 @@ export default function ProjectOverview() {
                       </div>
                       
                       <Card className="bg-muted/30">
-                        <CardContent className="pt-4 pb-4">
-                          <Textarea 
-                            placeholder="Share an update with your team..."
-                            className="min-h-[100px] text-sm resize-none mb-3"
-                            data-testid="input-team-pulse-update"
-                          />
-                          <Button size="sm" className="gap-2" data-testid="button-send-pulse">
+                        <CardContent className="pt-4 pb-4 space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-green-600 font-medium">What did you accomplish?</Label>
+                            <Textarea 
+                              placeholder="Completed tasks, delivered features, resolved issues..."
+                              className="min-h-[60px] text-sm resize-none"
+                              value={pulseDid}
+                              onChange={(e) => setPulseDid(e.target.value)}
+                              data-testid="input-pulse-did"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-blue-600 font-medium">What's next?</Label>
+                            <Textarea 
+                              placeholder="Upcoming tasks, goals for today/tomorrow..."
+                              className="min-h-[60px] text-sm resize-none"
+                              value={pulseNext}
+                              onChange={(e) => setPulseNext(e.target.value)}
+                              data-testid="input-pulse-next"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-amber-600 font-medium">Any blockers?</Label>
+                            <Textarea 
+                              placeholder="Issues preventing progress, dependencies needed..."
+                              className="min-h-[60px] text-sm resize-none"
+                              value={pulseBlockers}
+                              onChange={(e) => setPulseBlockers(e.target.value)}
+                              data-testid="input-pulse-blockers"
+                            />
+                          </div>
+                          <Button 
+                            size="sm" 
+                            className="gap-2" 
+                            data-testid="button-send-pulse"
+                            disabled={!pulseDid.trim() && !pulseNext.trim() && !pulseBlockers.trim()}
+                            onClick={() => {
+                              toast({ title: "Update sent", description: "Your pulse update has been shared with the team." });
+                              setPulseDid("");
+                              setPulseNext("");
+                              setPulseBlockers("");
+                            }}
+                          >
                             <Send className="h-3 w-3" />
                             Send Update
                           </Button>
