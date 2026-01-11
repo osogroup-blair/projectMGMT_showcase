@@ -45,6 +45,7 @@ import type {
   TaskDependency, InsertTaskDependency,
   EpicType, InsertEpicType,
   DeliverableType, InsertDeliverableType,
+  UserIdentity, InsertUserIdentity,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -54,6 +55,12 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<User>): Promise<User>;
   deleteUser(id: string): Promise<void>;
+
+  // User Identities
+  getUserIdentities(): Promise<UserIdentity[]>;
+  getUserIdentitiesByUserId(userId: string): Promise<UserIdentity[]>;
+  createUserIdentity(identity: InsertUserIdentity): Promise<UserIdentity>;
+  deleteUserIdentity(id: string): Promise<void>;
 
   // Projects
   getProjects(): Promise<Project[]>;
@@ -395,6 +402,24 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteUser(id: string): Promise<void> {
     await db.delete(schema.users).where(eq(schema.users.id, id));
+  }
+
+  // User Identities
+  async getUserIdentities(): Promise<UserIdentity[]> {
+    return db.select().from(schema.userIdentities);
+  }
+
+  async getUserIdentitiesByUserId(userId: string): Promise<UserIdentity[]> {
+    return db.select().from(schema.userIdentities).where(eq(schema.userIdentities.userId, userId));
+  }
+
+  async createUserIdentity(identity: InsertUserIdentity): Promise<UserIdentity> {
+    const [created] = await db.insert(schema.userIdentities).values(identity).returning();
+    return created;
+  }
+
+  async deleteUserIdentity(id: string): Promise<void> {
+    await db.delete(schema.userIdentities).where(eq(schema.userIdentities.id, id));
   }
 
   // Projects

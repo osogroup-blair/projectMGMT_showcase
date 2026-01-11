@@ -698,6 +698,126 @@ export async function registerRoutes(
     }
   });
 
+  // User Import - import users from external systems (admin only)
+  app.post("/api/users/import", requireAuth(), requirePermission(UserPermissions.USERS_CREATE), async (req, res) => {
+    try {
+      const { Users: importedUsers } = req.body;
+      
+      if (!importedUsers || !Array.isArray(importedUsers)) {
+        return res.status(400).json({ error: "Invalid import format. Expected { Users: [...] }" });
+      }
+
+      const results = {
+        created: 0,
+        updated: 0,
+        errors: [] as { email: string; error: string }[],
+        identitiesCreated: 0,
+      };
+
+      for (const importedUser of importedUsers) {
+        try {
+          // Check if user with this email already exists
+          const existingUsers = await storage.getUsers();
+          const existingUser = existingUsers.find((u: any) => u.email === importedUser.email);
+
+          // Parse name into first/last
+          let firstName = null;
+          let lastName = null;
+          if (importedUser.name) {
+            const nameParts = importedUser.name.trim().split(/\s+/);
+            firstName = nameParts[0] || null;
+            lastName = nameParts.slice(1).join(' ') || null;
+          }
+
+          let userId: string;
+
+          if (existingUser) {
+            // Update existing user with import data
+            await storage.updateUser(existingUser.id, {
+              name: importedUser.name || existingUser.name,
+              firstName: firstName || existingUser.firstName,
+              lastName: lastName || existingUser.lastName,
+              status: importedUser.status || existingUser.status,
+              avatar: importedUser.avatar || existingUser.avatar,
+              externalId: importedUser.id, // Store original external ID
+              importSource: importedUser.identities?.[0]?.system?.systemId || 'import',
+              importedAt: new Date(),
+            });
+            userId = existingUser.id;
+            results.updated++;
+          } else {
+            // Create new user with external ID as primary ID
+            // Use direct db insert since we need to specify the ID
+            const { users } = await import("@shared/schema");
+            const [newUser] = await db.insert(users).values({
+              id: importedUser.id, // Use external ID as primary ID initially
+              email: importedUser.email,
+              name: importedUser.name || importedUser.email,
+              firstName,
+              lastName,
+              status: importedUser.status || 'Active',
+              avatar: importedUser.avatar || null,
+              systemRole: 'member',
+              externalId: importedUser.id,
+              importSource: importedUser.identities?.[0]?.system?.systemId || 'import',
+              importedAt: new Date(),
+            }).returning();
+            userId = newUser.id;
+            results.created++;
+          }
+
+          // Store identities
+          if (importedUser.identities && Array.isArray(importedUser.identities)) {
+            for (const identity of importedUser.identities) {
+              try {
+                await storage.createUserIdentity({
+                  id: identity.identityId || `ident-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  userId,
+                  systemId: identity.system?.systemId || 'unknown',
+                  systemType: identity.system?.systemType,
+                  systemName: identity.system?.systemName,
+                  workspaceId: identity.system?.workspaceId,
+                  externalUserId: identity.externalUserId,
+                  externalUsername: identity.externalUsername,
+                  externalEmail: identity.externalEmail,
+                  identityType: identity.identityType || 'user',
+                  status: identity.status || 'active',
+                  auth: identity.auth,
+                  roles: identity.roles || [],
+                  externalPermissions: identity.permissions,
+                  profile: identity.profile,
+                  syncSourceOfTruth: identity.sync?.sourceOfTruth || 'mixed',
+                  lastSyncedAt: identity.sync?.lastSyncedAt ? new Date(identity.sync.lastSyncedAt) : null,
+                  syncStatus: identity.sync?.syncStatus || 'healthy',
+                  lastSyncError: identity.sync?.lastError,
+                  createdBy: identity.metadata?.createdBy,
+                  updatedBy: identity.metadata?.updatedBy,
+                });
+                results.identitiesCreated++;
+              } catch (identityError: any) {
+                console.error(`Failed to create identity for user ${importedUser.email}:`, identityError);
+              }
+            }
+          }
+        } catch (userError: any) {
+          results.errors.push({
+            email: importedUser.email || 'unknown',
+            error: userError.message,
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Imported ${results.created} new users, updated ${results.updated} existing users, created ${results.identitiesCreated} identities`,
+        ...results,
+      });
+    } catch (error: any) {
+      console.error("User import error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Activity
   app.get("/api/activity", async (req, res) => {
     const activity = await storage.getActivity();
