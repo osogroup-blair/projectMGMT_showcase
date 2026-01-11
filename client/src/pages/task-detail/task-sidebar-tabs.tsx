@@ -379,7 +379,7 @@ function DependenciesSection({
     );
   }
 
-  const blockedByComplete = dependsOn.filter((d: any) => isCompletedStatus(d.status)).length;
+  const blockedByComplete = dependsOn.filter((d: any) => d.status && isCompletedStatus(d.status)).length;
   const blockedByTotal = dependsOn.length;
 
   return (
@@ -481,12 +481,12 @@ function DependenciesSection({
                 >
                   <span className={cn(
                     "text-sm truncate block hover:underline",
-                    isCompletedStatus(dep.status) && "line-through text-muted-foreground"
+                    dep.status && isCompletedStatus(dep.status) && "line-through text-muted-foreground"
                   )}>
                     {dep.title}
                   </span>
                 </Link>
-                {isCompletedStatus(dep.status) && (
+                {dep.status && isCompletedStatus(dep.status) && (
                   <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
                 )}
                 <Button
@@ -535,7 +535,7 @@ function DependenciesSection({
                   )} />
                   <span className={cn(
                     "text-sm truncate flex-1",
-                    isCompletedStatus(dep.status) && "line-through text-muted-foreground"
+                    dep.status && isCompletedStatus(dep.status) && "line-through text-muted-foreground"
                   )}>
                     {dep.title}
                   </span>
