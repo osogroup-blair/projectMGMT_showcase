@@ -1075,7 +1075,7 @@ export default function ProjectWizard() {
           />
         )}
 
-        <div className="mb-8">
+        <div className="sticky top-0 z-20 bg-background pb-4 pt-2 -mt-2 mb-8 border-b">
             <div className="flex items-center justify-between relative">
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted -z-10" />
                 {STEPS.map((step, idx) => {
