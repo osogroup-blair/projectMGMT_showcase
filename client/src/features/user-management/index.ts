@@ -8,3 +8,14 @@ export {
   useBulkDeactivate,
   type UseUsersOptions 
 } from "./hooks/use-users-api";
+
+export {
+  useUserProfile,
+  useUpdateProfile,
+  useUserIdentities,
+  useLinkIdentity,
+  useUnlinkIdentity,
+  useUpdateIdentity,
+  useAvailableSystems,
+  useMergeUsers,
+} from "./hooks/use-identity-api";

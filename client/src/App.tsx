@@ -43,6 +43,7 @@ import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import ProjectTools from "@/pages/project-tools";
 import ImportWizard from "@/pages/import-wizard";
 import ImportUpload from "@/pages/import-upload";
+import ProfilePage from "@/pages/profile";
 
 function ProtectedRoutes() {
   return (
@@ -76,6 +77,7 @@ function ProtectedRoutes() {
       <Route path="/projects/:projectId/roles/:roleId/assignments" component={RoleAssignments} />
       <Route path="/projects/:projectId/views" component={SavedViewsGallery} />
       <Route path="/project-tools" component={ProjectTools} />
+      <Route path="/profile" component={ProfilePage} />
       <Route path="/admin" component={AdminHub} />
       <Route path="/admin/:section" component={AdminHub} />
       <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
