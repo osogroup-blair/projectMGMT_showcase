@@ -381,6 +381,18 @@ export async function registerRoutes(
   app.post("/api/tasks", async (req, res) => {
     try {
       const validated = insertTaskSchema.parse(req.body);
+      
+      // Server-side validation: Epic, Stage, and TaskType are required for task creation
+      if (!validated.epicId) {
+        return res.status(400).json({ error: "Epic is required for task creation" });
+      }
+      if (!validated.stageId) {
+        return res.status(400).json({ error: "Stage is required for task creation" });
+      }
+      if (!validated.taskTypeId) {
+        return res.status(400).json({ error: "Task type is required for task creation" });
+      }
+      
       const task = await storage.createTask(validated);
       res.status(201).json(task);
     } catch (error: any) {
@@ -1718,6 +1730,18 @@ export async function registerRoutes(
   app.post("/api/tasks/:taskId/subtasks", async (req, res) => {
     try {
       const validated = insertTaskSchema.parse({ ...req.body, parentTaskId: req.params.taskId });
+      
+      // Server-side validation: Epic, Stage, and TaskType are required for subtask creation
+      if (!validated.epicId) {
+        return res.status(400).json({ error: "Epic is required for subtask creation" });
+      }
+      if (!validated.stageId) {
+        return res.status(400).json({ error: "Stage is required for subtask creation" });
+      }
+      if (!validated.taskTypeId) {
+        return res.status(400).json({ error: "Task type is required for subtask creation" });
+      }
+      
       const subtask = await storage.createTask(validated);
       res.status(201).json(subtask);
     } catch (error: any) {

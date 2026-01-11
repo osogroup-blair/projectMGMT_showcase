@@ -44,7 +44,7 @@ export interface Task {
   projectId?: string; // Added for linking
   stageId?: string;
   epicId?: string;
-  status: "Todo" | "In Progress" | "Review" | "Done";
+  status: string; // Dynamic statuses from database
   assigneeId?: string;
   deadline: string;
   priority: "Low" | "Medium" | "High";
@@ -52,6 +52,8 @@ export interface Task {
   estimateHours?: number;
   effort?: number; // Fibonacci sequence: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89
   tags?: string[];
+  taskTypeId?: string | null;
+  sprintId?: string | null;
 }
 
 export interface Activity {

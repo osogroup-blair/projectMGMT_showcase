@@ -46,8 +46,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
-import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules, useProjectStages } from "@/hooks/use-nexus-data";
+import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/context/current-user-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
@@ -774,6 +775,8 @@ function TasksTab({
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const { toast } = useToast();
   const { createAsync: createTaskAsync } = useTasks();
+  const { data: taskTypes } = useResolvedTaskTypes(projectId);
+  const { currentUser } = useCurrentUser();
   const [isCreating, setIsCreating] = useState(false);
   
   // ListHeader state for filtering linked tasks
@@ -860,6 +863,10 @@ function TasksTab({
       return;
     }
 
+    // Default to "Action" task type, or isDefault, or first available
+    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
+    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
+
     setIsCreating(true);
     try {
       const newTask = await createTaskAsync({
@@ -869,11 +876,13 @@ function TasksTab({
         projectId: projectId,
         epicId: selectedEpicId,
         stageId: selectedStageId,
-        status: "Todo",
+        status: "Backlogged",
         priority: newTaskPriority,
         effort: newTaskEffort,
         deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        tags: []
+        tags: [],
+        taskTypeId: defaultTaskType?.id || null,
+        assigneeId: currentUser?.id || null
       });
 
       // Link the new task to the milestone

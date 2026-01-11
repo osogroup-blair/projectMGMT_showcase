@@ -511,7 +511,9 @@ export default function ProjectOverview() {
     setNewTaskEffort(3);
     setNewTaskEpicId(projectEpics[0]?.id || "");
     setNewTaskStageId(stages[0]?.id || "");
-    const defaultTaskType = (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
+    // Default to "Action" task type, or isDefault, or first available
+    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
+    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
     setNewTaskTypeId(defaultTaskType?.id || "");
     setAddTaskDialogOpen(true);
   };
@@ -540,6 +542,16 @@ export default function ProjectOverview() {
           setIsAddingTask(false);
           return;
         }
+        if (!newTaskStageId) {
+          toast({ title: "Error", description: "Please select a stage.", variant: "destructive" });
+          setIsAddingTask(false);
+          return;
+        }
+        if (!newTaskTypeId) {
+          toast({ title: "Error", description: "Please select a task type.", variant: "destructive" });
+          setIsAddingTask(false);
+          return;
+        }
         await createTaskAsync({
           title: newTaskTitle,
           description: newTaskDescription || "",
@@ -548,12 +560,13 @@ export default function ProjectOverview() {
           epicId: newTaskEpicId,
           stageId: newTaskStageId,
           sprintId: selectedSprint.id,
-          status: "Todo",
+          status: "Backlogged",
           priority: newTaskPriority,
           effort: newTaskEffort,
           deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           tags: [],
-          taskTypeId: newTaskTypeId || null
+          taskTypeId: newTaskTypeId || null,
+          assigneeId: currentUser?.id || null
         });
         toast({ title: "Task Created", description: "New task has been added to the sprint." });
       }

@@ -60,8 +60,9 @@ import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Task } from "@/lib/mock-data";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useCurrentUser } from "@/context/current-user-context";
 import { EFFORT_VALUES } from "@shared/schema";
 
 // Stage color mapping based on stage type/order
@@ -98,6 +99,8 @@ export default function TaskBoard() {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allSprints } = useSprints();
+  const { data: taskTypes } = useResolvedTaskTypes(projectId);
+  const { currentUser } = useCurrentUser();
   const { statusLabels, defaultStatus } = useTaskStatuses();
   
   const projectSprints = useMemo(() => {
@@ -258,6 +261,9 @@ export default function TaskBoard() {
   const handleOpenCreate = (stageId?: string, epicId?: string) => {
     if (!project) return;
     setEditingTask(null);
+    // Default to "Action" task type, or isDefault, or first available
+    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
+    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
     setFormData({
       title: "",
       description: "",
@@ -265,13 +271,14 @@ export default function TaskBoard() {
       projectId: project.id, // New field
       stageId: stageId || (stages[0]?.id || "st_plan"),
       epicId: epicId || (projectEpics[0]?.id || ""),
-      status: "Todo",
-      assigneeId: users[0]?.id || "",
+      status: "Backlogged",
+      assigneeId: currentUser?.id || "",
       deadline: new Date().toISOString().split('T')[0],
       priority: "Medium",
       estimateHours: 0,
       effort: 3, // Default to Fibonacci value 3
-      tags: []
+      tags: [],
+      taskTypeId: defaultTaskType?.id || null
     });
     setIsDialogOpen(true);
   };
@@ -811,6 +818,8 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
+  const { data: taskTypes } = useResolvedTaskTypes(projectId);
+  const { currentUser } = useCurrentUser();
   const { statusLabels, getStatusColor, defaultStatus } = useTaskStatuses();
   
   const projectDeliverables = useMemo(() => {
@@ -942,11 +951,14 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const handleOpenCreate = (stageId?: string, epicId?: string) => {
     if (!project) return;
     setEditingTask(null);
+    // Default to "Action" task type, or isDefault, or first available
+    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
+    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
     setFormData({
       title: "", description: "", project: project.name, projectId: project.id,
       stageId: stageId || (stages[0]?.id || "st_plan"), epicId: epicId || (projectEpics[0]?.id || ""),
-      status: "Todo", assigneeId: users[0]?.id || "", deadline: new Date().toISOString().split('T')[0],
-      priority: "Medium", estimateHours: 0, effort: 5, tags: []
+      status: "Backlogged", assigneeId: currentUser?.id || "", deadline: new Date().toISOString().split('T')[0],
+      priority: "Medium", estimateHours: 0, effort: 5, tags: [], taskTypeId: defaultTaskType?.id || null
     });
     setIsDialogOpen(true);
   };

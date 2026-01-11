@@ -82,9 +82,11 @@ import {
   useSavedViews,
   useUsers,
   useEpics,
-  useDeliverables
+  useDeliverables,
+  useResolvedTaskTypes
 } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useCurrentUser } from "@/context/current-user-context";
 import { EFFORT_VALUES } from "@shared/schema";
 
 export default function StageWorkspace() {
@@ -105,6 +107,8 @@ export default function StageWorkspace() {
   const { data: allGuidance, isLoading: isGuidanceLoading } = useGuidanceItems();
   const { data: allSavedViews, isLoading: isSavedViewsLoading } = useSavedViews();
   const { data: allUsers, isLoading: isUsersLoading } = useUsers();
+  const { data: taskTypes } = useResolvedTaskTypes(projectId);
+  const { currentUser } = useCurrentUser();
   const { statusLabels, getStatusBgColor, defaultStatus } = useTaskStatuses();
 
   // Memoized filtered data - stages are shared across all projects (no projectId filter)
@@ -250,6 +254,10 @@ export default function StageWorkspace() {
       toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
       return;
     }
+    
+    // Default to "Action" task type, or isDefault, or first available
+    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
+    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
 
     setIsCreatingTask(true);
     try {
@@ -260,11 +268,13 @@ export default function StageWorkspace() {
         projectId: projectId,
         epicId: newTaskEpicId,
         stageId: stageId, // Pre-filled from context
-        status: "Todo",
+        status: "Backlogged",
         priority: newTaskPriority,
         effort: newTaskEffort,
         deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        tags: []
+        tags: [],
+        taskTypeId: defaultTaskType?.id || null,
+        assigneeId: currentUser?.id || null
       });
       
       toast({ title: "Success", description: "Task created successfully." });

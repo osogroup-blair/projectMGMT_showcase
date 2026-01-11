@@ -35,7 +35,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useMilestoneScopeRules } from "@/hooks/use-nexus-data";
+import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useMilestoneScopeRules, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useCurrentUser } from "@/context/current-user-context";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
@@ -92,6 +93,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allStages, isLoading: isStagesLoading } = useProjectStages();
+  const { data: taskTypes } = useResolvedTaskTypes(projectId);
+  const { currentUser } = useCurrentUser();
 
   // Inline editing state
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
@@ -482,6 +485,10 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
       return;
     }
 
+    // Default to "Action" task type, or isDefault, or first available
+    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
+    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
+
     setIsCreating(true);
     try {
       const newTask = await createTaskAsync({
@@ -491,11 +498,13 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
         projectId: projectId,
         epicId: selectedEpicId,
         stageId: selectedStageId,
-        status: "Todo",
+        status: "Backlogged",
         priority: newTaskPriority,
         effort: newTaskEffort,
         deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        tags: []
+        tags: [],
+        taskTypeId: defaultTaskType?.id || null,
+        assigneeId: currentUser?.id || null
       });
 
       createLink({

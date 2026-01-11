@@ -492,6 +492,10 @@ export default function SprintDetail() {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
+    // Get "Action" task type as default
+    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
+    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
+    
     try {
       const newTask = {
         title: newTaskTitle,
@@ -499,8 +503,10 @@ export default function SprintDetail() {
         stageId: newTaskStageId,
         projectId,
         sprintId,
-        status: defaultStatus,
+        status: "Backlogged",
         deadline: sprint?.endDate || null,
+        taskTypeId: defaultTaskType?.id || null,
+        assigneeId: currentUser?.id || null,
       };
       await createTask(newTask);
       setShowCreateTaskDialog(false);

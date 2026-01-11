@@ -481,8 +481,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     setNewTaskEffort(3);
     setNewTaskEpicId(projectEpics[0]?.id || "");
     setNewTaskStageId(stages[0]?.id || "");
-    // Set default task type (first one marked as default, or first available)
-    const defaultTaskType = (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
+    // Default to "Action" task type, or isDefault, or first available
+    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
+    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
     setNewTaskTypeId(defaultTaskType?.id || "");
     setCreateDialogOpen(true);
   };
@@ -500,6 +501,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       toast({ title: "Error", description: "Stage is required.", variant: "destructive" });
       return;
     }
+    if (!newTaskTypeId) {
+      toast({ title: "Error", description: "Task type is required.", variant: "destructive" });
+      return;
+    }
 
     setIsCreating(true);
     try {
@@ -510,12 +515,13 @@ export function TaskListContent({ projectId }: { projectId: string }) {
         projectId: project?.id,
         epicId: newTaskEpicId,
         stageId: newTaskStageId,
-        status: defaultStatus,
+        status: "Backlogged",
         priority: newTaskPriority,
         effort: newTaskEffort,
         deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         tags: [],
-        taskTypeId: newTaskTypeId || null
+        taskTypeId: newTaskTypeId,
+        assigneeId: currentUser?.id || null
       });
       
       toast({ title: "Task created", description: "New task has been added to the project." });
