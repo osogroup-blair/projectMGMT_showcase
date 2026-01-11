@@ -49,8 +49,9 @@ import { useRoute, Link } from "wouter";
 import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions } from "@/hooks/use-nexus-data";
-import { Loader2 } from "lucide-react";
+import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones } from "@/hooks/use-nexus-data";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { Loader2, Flag, Target } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -96,6 +97,20 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allTasks, isLoading: isTasksLoading, update: updateTask, createAsync: createTaskAsync } = useTasks();
   const { data: statusOptions = [] } = useStatusOptions();
+  const { data: allSprints = [], isLoading: isSprintsLoading } = useSprints();
+  const { data: allMilestones = [], isLoading: isMilestonesLoading } = useMilestones();
+  const { statuses: taskStatuses, statusLabels, getStatusBgColor, getStatusTextColor, defaultStatus } = useTaskStatuses();
+  const { updateAsync: updateEpicAsync } = useEpics();
+
+  const projectSprints = useMemo(() => 
+    (allSprints || []).filter((s: any) => s.projectId === projectId),
+    [allSprints, projectId]
+  );
+
+  const projectMilestones = useMemo(() => 
+    (allMilestones || []).filter((m: any) => m.projectId === projectId),
+    [allMilestones, projectId]
+  );
 
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -471,10 +486,57 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     updateTask({ id: taskId, updates: { assigneeId: newAssigneeId } });
   };
 
-  const handleTaskDeadlineChange = (taskId: string, date: Date | undefined) => {
+  const handleTaskDeadlineChange = async (taskId: string, date: Date | undefined) => {
     if (!date) return;
     const dateStr = format(date, "yyyy-MM-dd");
     updateTask({ id: taskId, updates: { deadline: dateStr } });
+    
+    const task = allTasks?.find((t: any) => t.id === taskId);
+    if (task?.epicId) {
+      await autoAdjustEpicDates(task.epicId, dateStr);
+    }
+  };
+
+  const handleTaskSprintChange = (taskId: string, sprintId: string) => {
+    updateTask({ id: taskId, updates: { sprintId: sprintId === "none" ? null : sprintId } });
+  };
+
+  const handleTaskMilestoneChange = (taskId: string, milestoneId: string) => {
+    updateTask({ id: taskId, updates: { milestoneId: milestoneId === "none" ? null : milestoneId } });
+  };
+
+  const autoAdjustEpicDates = async (epicId: string, taskDeadline: string) => {
+    const epic = allEpics?.find((e: any) => e.id === epicId);
+    if (!epic) return;
+
+    const taskDate = new Date(taskDeadline);
+    const epicEndDate = epic.endDate ? new Date(epic.endDate) : null;
+    const epicStartDate = epic.startDate ? new Date(epic.startDate) : null;
+
+    let needsUpdate = false;
+    const updates: Record<string, string> = {};
+
+    if (epicEndDate && taskDate > epicEndDate) {
+      updates.endDate = format(taskDate, "yyyy-MM-dd");
+      needsUpdate = true;
+    }
+
+    if (epicStartDate && taskDate < epicStartDate) {
+      updates.startDate = format(taskDate, "yyyy-MM-dd");
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      try {
+        await updateEpicAsync({ id: epicId, updates });
+        toast({ 
+          title: "Epic Dates Adjusted", 
+          description: "Epic dates were automatically updated to accommodate the task deadline." 
+        });
+      } catch (error) {
+        console.error("Failed to auto-adjust epic dates:", error);
+      }
+    }
   };
 
   const handleCreateTask = async (epicId: string) => {
@@ -491,7 +553,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         projectId: projectId,
         epicId: epicId,
         deliverableId: epic?.deliverableId,
-        status: "Todo",
+        status: defaultStatus,
         priority: "Medium",
         effort: 3,
         deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -1094,13 +1156,23 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                       data-testid={`row-task-${task.id}`}
                                                     >
                                                       <div className="flex items-center gap-3">
-                                                        <div className={cn(
-                                                          "w-2 h-2 rounded-full shrink-0",
-                                                          task.status === "Done" ? "bg-green-500" :
-                                                          task.status === "In Progress" ? "bg-blue-500" :
-                                                          task.status === "Review" ? "bg-amber-500" :
-                                                          "bg-slate-400"
-                                                        )} />
+                                                        <div 
+                                                          className="w-2 h-2 rounded-full shrink-0"
+                                                          style={{
+                                                            backgroundColor: (() => {
+                                                              const bgClass = getStatusBgColor(task.status);
+                                                              if (bgClass.includes("green")) return "#22c55e";
+                                                              if (bgClass.includes("blue")) return "#3b82f6";
+                                                              if (bgClass.includes("amber") || bgClass.includes("yellow")) return "#f59e0b";
+                                                              if (bgClass.includes("red")) return "#ef4444";
+                                                              if (bgClass.includes("purple")) return "#a855f7";
+                                                              if (bgClass.includes("orange")) return "#f97316";
+                                                              if (bgClass.includes("cyan") || bgClass.includes("teal")) return "#14b8a6";
+                                                              if (bgClass.includes("pink")) return "#ec4899";
+                                                              return "#94a3b8";
+                                                            })()
+                                                          }}
+                                                        />
 
                                                         <div className="flex-1 min-w-0">
                                                           {isEditingThisTask && editingTaskField === "title" ? (
@@ -1146,20 +1218,26 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                               variant="outline" 
                                                               className={cn(
                                                                 "text-[10px] px-1.5 py-0",
-                                                                task.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
-                                                                task.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                                                task.status === "Review" ? "bg-amber-50 text-amber-700 border-amber-200" :
-                                                                "bg-slate-50 text-slate-700 border-slate-200"
+                                                                getStatusBgColor(task.status),
+                                                                getStatusTextColor(task.status)
                                                               )}
                                                             >
                                                               {task.status}
                                                             </Badge>
                                                           </SelectTrigger>
                                                           <SelectContent>
-                                                            <SelectItem value="Todo">Todo</SelectItem>
-                                                            <SelectItem value="In Progress">In Progress</SelectItem>
-                                                            <SelectItem value="Review">Review</SelectItem>
-                                                            <SelectItem value="Done">Done</SelectItem>
+                                                            {statusLabels.length > 0 ? (
+                                                              statusLabels.map((status) => (
+                                                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                                                              ))
+                                                            ) : (
+                                                              <>
+                                                                <SelectItem value="Todo">Todo</SelectItem>
+                                                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                                                <SelectItem value="Review">Review</SelectItem>
+                                                                <SelectItem value="Done">Done</SelectItem>
+                                                              </>
+                                                            )}
                                                           </SelectContent>
                                                         </Select>
 
@@ -1221,6 +1299,56 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                           placeholder="Assign"
                                                           options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
                                                         />
+
+                                                        <Select 
+                                                          value={task.sprintId || "none"} 
+                                                          onValueChange={(v) => handleTaskSprintChange(task.id, v)}
+                                                        >
+                                                          <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto max-w-[80px]">
+                                                            <div className="flex items-center gap-1 truncate">
+                                                              <Flag className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                              <span className="truncate text-xs">
+                                                                {task.sprintId 
+                                                                  ? projectSprints.find((s: any) => s.id === task.sprintId)?.name || "Sprint"
+                                                                  : "-"
+                                                                }
+                                                              </span>
+                                                            </div>
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            <SelectItem value="none">No Sprint</SelectItem>
+                                                            {projectSprints.map((sprint: any) => (
+                                                              <SelectItem key={sprint.id} value={sprint.id}>
+                                                                {sprint.name}
+                                                              </SelectItem>
+                                                            ))}
+                                                          </SelectContent>
+                                                        </Select>
+
+                                                        <Select 
+                                                          value={task.milestoneId || "none"} 
+                                                          onValueChange={(v) => handleTaskMilestoneChange(task.id, v)}
+                                                        >
+                                                          <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto max-w-[80px]">
+                                                            <div className="flex items-center gap-1 truncate">
+                                                              <Target className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                              <span className="truncate text-xs">
+                                                                {task.milestoneId 
+                                                                  ? projectMilestones.find((m: any) => m.id === task.milestoneId)?.title || "Milestone"
+                                                                  : "-"
+                                                                }
+                                                              </span>
+                                                            </div>
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            <SelectItem value="none">No Milestone</SelectItem>
+                                                            {projectMilestones.map((milestone: any) => (
+                                                              <SelectItem key={milestone.id} value={milestone.id}>
+                                                                {milestone.title}
+                                                              </SelectItem>
+                                                            ))}
+                                                          </SelectContent>
+                                                        </Select>
 
                                                         <Link href={`/projects/${projectId}/tasks/${task.id}`}>
                                                           <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
