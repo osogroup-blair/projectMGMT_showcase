@@ -406,12 +406,12 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 )}
               </div>
               
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <Select value={roleFilter || "all"} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
                 <SelectTrigger className="w-[130px] h-9">
                   <SelectValue placeholder="All roles" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All roles</SelectItem>
+                  <SelectItem value="all">All roles</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
@@ -419,12 +419,12 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 </SelectContent>
               </Select>
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
                 <SelectTrigger className="w-[130px] h-9">
                   <SelectValue placeholder="All status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All status</SelectItem>
+                  <SelectItem value="all">All status</SelectItem>
                   <SelectItem value="Online">Online</SelectItem>
                   <SelectItem value="Offline">Offline</SelectItem>
                   <SelectItem value="Active">Active</SelectItem>
