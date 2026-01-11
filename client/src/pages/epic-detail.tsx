@@ -15,7 +15,8 @@ import {
   Loader2,
   Trash2,
   LayoutGrid,
-  Timer
+  Timer,
+  Columns
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -64,6 +65,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
 import { EFFORT_VALUES } from "@shared/schema";
+import { PortableKanban } from "@/components/kanban/portable-kanban";
 
 interface TaskFormData {
   title: string;
@@ -94,8 +96,8 @@ export default function EpicDetail() {
   const { data: epicTypes = [], isLoading: isEpicTypesLoading } = useEpicTypes();
   const { statusLabels, defaultStatus, isCompletedStatus } = useTaskStatuses();
 
-  // View mode state (stage or sprint)
-  const [viewMode, setViewMode] = useState<"stage" | "sprint">("stage");
+  // View mode state (stage, sprint, or status)
+  const [viewMode, setViewMode] = useState<"stage" | "sprint" | "status">("stage");
 
   // Get sprints for this project
   const projectSprints = useMemo(() => {
@@ -582,11 +584,27 @@ export default function EpicDetail() {
                 <Timer className="h-4 w-4" />
                 By Sprint
               </button>
+              <button
+                onClick={() => setViewMode("status")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors text-sm",
+                  viewMode === "status" 
+                    ? "bg-primary text-primary-foreground" 
+                    : "hover:bg-muted text-muted-foreground"
+                )}
+                data-testid="button-view-by-status"
+              >
+                <Columns className="h-4 w-4" />
+                By Status
+              </button>
             </div>
             <div className="text-xs text-muted-foreground min-w-max">
-              {viewMode === "stage" ? `${epicStages.length} Stages` : `${projectSprints.length} Sprints`}
+              {viewMode === "stage" ? `${epicStages.length} Stages` : 
+               viewMode === "sprint" ? `${projectSprints.length} Sprints` :
+               `${filteredTasks.length} Tasks`}
             </div>
           </div>
+          {(viewMode === "stage" || viewMode === "sprint") && (
           <ScrollArea className="flex-1 p-6">
             <div className="flex gap-6 min-w-max pb-4">
               {viewMode === "stage" && (epicStages.length > 0 ? (
@@ -612,9 +630,8 @@ export default function EpicDetail() {
                           stageTasks.map(task => {
                             const assignee = getAssignee(task.assigneeId);
                             return (
-                              <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                              <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
                               <Card 
-                                key={task.id} 
                                 className="shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
                                 data-testid={`card-task-${task.id}`}
                               >
@@ -836,6 +853,27 @@ export default function EpicDetail() {
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
+          )}
+
+          {viewMode === "status" && (
+            <div className="flex-1 p-4">
+              <PortableKanban
+                tasks={filteredTasks}
+                users={users || []}
+                projectId={projectId}
+                boardId={`epic-${epicId}-kanban`}
+                showFilters={false}
+                showAssigneeFilter={true}
+                showAddTask={true}
+                onAddTask={() => handleOpenCreate()}
+                onTaskMove={(taskId, newStatus) => {
+                  updateTask({ id: taskId, updates: { status: newStatus } });
+                  toast({ title: "Task Updated", description: `Status changed to "${newStatus}"` });
+                }}
+                className="h-full"
+              />
+            </div>
+          )}
         </div>
       </div>
 
