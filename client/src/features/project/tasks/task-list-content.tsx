@@ -18,7 +18,12 @@ import {
   CheckCircle2,
   List,
   LayoutGrid,
-  ExternalLink
+  ExternalLink,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Columns3,
+  UserCircle
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -38,6 +43,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { EFFORT_VALUES } from "@shared/schema";
+import { useCurrentUser } from "@/context/current-user-context";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+
+type SortField = "title" | "status" | "priority" | "assignee" | "deadline" | "stage" | "sprint";
+type SortDirection = "asc" | "desc";
 
 const PRIORITY_CONFIG: Record<string, { color: string; bgColor: string }> = {
   "Low": { color: "text-slate-600", bgColor: "bg-slate-100" },
@@ -56,6 +66,7 @@ const STATUS_CONFIG: Record<string, { color: string; bgColor: string }> = {
 export function TaskListContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { currentUserId, currentUser } = useCurrentUser();
   
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
@@ -76,7 +87,14 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  const [viewMode, setViewMode] = useState<"list" | "card" | "kanban">("list");
+  
+  // My Tasks filter
+  const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   // Bulk selection state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -171,9 +189,31 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const getStage = (id?: string) => stages.find((s: any) => s.id === id);
   const getTaskType = (id?: string) => (taskTypes || []).find((tt: any) => tt.id === id);
 
-  // Apply search and filters
+  // Handle column sorting
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3.5 w-3.5 ml-1 text-muted-foreground/50" />;
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-3.5 w-3.5 ml-1 text-primary" />
+      : <ArrowDown className="h-3.5 w-3.5 ml-1 text-primary" />;
+  };
+
+  // Apply search, my tasks filter, and filters
   const filteredTasks = useMemo(() => {
-    return projectTasks.filter((task: any) => {
+    let result = projectTasks.filter((task: any) => {
+      // My Tasks filter
+      if (showMyTasksOnly && currentUserId && task.assigneeId !== currentUserId) {
+        return false;
+      }
+
       // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -243,7 +283,66 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
       return true;
     });
-  }, [projectTasks, searchQuery, filters]);
+
+    // Apply sorting
+    if (sortField) {
+      const priorityOrder = { "Critical": 4, "High": 3, "Medium": 2, "Low": 1 };
+      const statusOrder = { "Done": 4, "Review": 3, "In Progress": 2, "Todo": 1 };
+
+      result = [...result].sort((a, b) => {
+        let aVal: any, bVal: any;
+        
+        switch (sortField) {
+          case "title":
+            aVal = a.title?.toLowerCase() || "";
+            bVal = b.title?.toLowerCase() || "";
+            break;
+          case "status":
+            aVal = statusOrder[a.status as keyof typeof statusOrder] || 0;
+            bVal = statusOrder[b.status as keyof typeof statusOrder] || 0;
+            break;
+          case "priority":
+            aVal = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
+            bVal = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
+            break;
+          case "assignee":
+            aVal = getAssignee(a.assigneeId)?.name?.toLowerCase() || "zzz";
+            bVal = getAssignee(b.assigneeId)?.name?.toLowerCase() || "zzz";
+            break;
+          case "deadline":
+            aVal = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+            bVal = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+            break;
+          case "stage":
+            aVal = getStage(a.stageId)?.name?.toLowerCase() || "zzz";
+            bVal = getStage(b.stageId)?.name?.toLowerCase() || "zzz";
+            break;
+          case "sprint":
+            aVal = projectSprints.find((s: any) => s.id === a.sprintId)?.name?.toLowerCase() || "zzz";
+            bVal = projectSprints.find((s: any) => s.id === b.sprintId)?.name?.toLowerCase() || "zzz";
+            break;
+          default:
+            return 0;
+        }
+
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [projectTasks, searchQuery, filters, showMyTasksOnly, currentUserId, sortField, sortDirection, projectSprints]);
+
+  // Group tasks by status for Kanban view
+  const tasksByStatus = useMemo(() => {
+    const statuses = ["Todo", "In Progress", "Review", "Done"];
+    const grouped: Record<string, any[]> = {};
+    statuses.forEach(status => {
+      grouped[status] = filteredTasks.filter((t: any) => t.status === status);
+    });
+    return grouped;
+  }, [filteredTasks]);
 
   const activeFilterCount = getActiveFilterCount(filters);
 
@@ -421,6 +520,22 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 data-testid="input-search-tasks"
               />
             </div>
+            
+            {/* My Tasks Filter Button */}
+            <Button 
+              variant={showMyTasksOnly ? "default" : "outline"}
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowMyTasksOnly(!showMyTasksOnly)}
+              data-testid="button-my-tasks"
+            >
+              <UserCircle className="h-4 w-4" />
+              My Tasks
+              {showMyTasksOnly && currentUser && (
+                <span className="text-xs opacity-75">({currentUser.name?.split(' ')[0]})</span>
+              )}
+            </Button>
+            
             <Button 
               variant="outline" 
               size="sm"
@@ -458,6 +573,19 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               >
                 <List className="h-4 w-4" />
                 List
+              </button>
+              <button
+                onClick={() => setViewMode("kanban")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
+                  viewMode === "kanban" 
+                    ? "bg-background text-foreground shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                data-testid="button-view-kanban"
+              >
+                <Columns3 className="h-4 w-4" />
+                Kanban
               </button>
               <button
                 onClick={() => setViewMode("card")}
@@ -616,13 +744,76 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     data-testid="checkbox-select-all"
                   />
                 </TableHead>
-                <TableHead style={{ width: "21%" }}>Task</TableHead>
-                <TableHead style={{ width: "10%" }}>Stage</TableHead>
-                <TableHead style={{ width: "10%" }}>Status</TableHead>
-                <TableHead style={{ width: "13%" }}>Sprint</TableHead>
-                <TableHead style={{ width: "8%" }}>Priority</TableHead>
-                <TableHead style={{ width: "12%" }}>Assignee</TableHead>
-                <TableHead style={{ width: "10%" }} className="text-right">Due</TableHead>
+                <TableHead 
+                  style={{ width: "21%" }} 
+                  className="cursor-pointer select-none hover:bg-muted/50"
+                  onClick={() => handleSort("title")}
+                  data-testid="sort-title"
+                >
+                  <div className="flex items-center">
+                    Task {getSortIcon("title")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  style={{ width: "10%" }}
+                  className="cursor-pointer select-none hover:bg-muted/50"
+                  onClick={() => handleSort("stage")}
+                  data-testid="sort-stage"
+                >
+                  <div className="flex items-center">
+                    Stage {getSortIcon("stage")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  style={{ width: "10%" }}
+                  className="cursor-pointer select-none hover:bg-muted/50"
+                  onClick={() => handleSort("status")}
+                  data-testid="sort-status"
+                >
+                  <div className="flex items-center">
+                    Status {getSortIcon("status")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  style={{ width: "13%" }}
+                  className="cursor-pointer select-none hover:bg-muted/50"
+                  onClick={() => handleSort("sprint")}
+                  data-testid="sort-sprint"
+                >
+                  <div className="flex items-center">
+                    Sprint {getSortIcon("sprint")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  style={{ width: "8%" }}
+                  className="cursor-pointer select-none hover:bg-muted/50"
+                  onClick={() => handleSort("priority")}
+                  data-testid="sort-priority"
+                >
+                  <div className="flex items-center">
+                    Priority {getSortIcon("priority")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  style={{ width: "12%" }}
+                  className="cursor-pointer select-none hover:bg-muted/50"
+                  onClick={() => handleSort("assignee")}
+                  data-testid="sort-assignee"
+                >
+                  <div className="flex items-center">
+                    Assignee {getSortIcon("assignee")}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  style={{ width: "10%" }} 
+                  className="text-right cursor-pointer select-none hover:bg-muted/50"
+                  onClick={() => handleSort("deadline")}
+                  data-testid="sort-deadline"
+                >
+                  <div className="flex items-center justify-end">
+                    Due {getSortIcon("deadline")}
+                  </div>
+                </TableHead>
                 <TableHead style={{ width: "4%" }}></TableHead>
               </TableRow>
             </TableHeader>
@@ -804,6 +995,145 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               })}
             </TableBody>
           </Table>
+        </div>
+      ) : viewMode === "kanban" ? (
+        /* Kanban View */
+        <div className="flex gap-4 overflow-x-auto pb-4" data-testid="kanban-board">
+          {["Todo", "In Progress", "Review", "Done"].map((status) => {
+            const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.Todo;
+            const columnTasks = tasksByStatus[status] || [];
+            
+            return (
+              <div 
+                key={status}
+                className="flex-shrink-0 w-72 bg-muted/30 rounded-lg border"
+                data-testid={`kanban-column-${status.toLowerCase().replace(' ', '-')}`}
+              >
+                <div className={cn(
+                  "flex items-center justify-between p-3 border-b",
+                  statusConfig.bgColor
+                )}>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("font-medium text-sm", statusConfig.color)}>
+                      {status}
+                    </span>
+                    <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                      {columnTasks.length}
+                    </Badge>
+                  </div>
+                </div>
+                <ScrollArea className="h-[calc(100vh-320px)] min-h-[400px]">
+                  <div className="p-2 space-y-2">
+                    {columnTasks.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No tasks
+                      </div>
+                    ) : (
+                      columnTasks.map((task: any) => {
+                        const assignee = getAssignee(task.assigneeId);
+                        const epic = getEpic(task.epicId);
+                        const taskType = getTaskType(task.taskTypeId);
+                        const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
+                        const isOverdue = new Date(task.deadline) < new Date() && task.status !== "Done";
+
+                        return (
+                          <Card 
+                            key={task.id}
+                            className={cn(
+                              "hover:shadow-md transition-shadow cursor-pointer group",
+                              selectedTaskIds.has(task.id) && "ring-2 ring-primary"
+                            )}
+                            data-testid={`kanban-card-${task.id}`}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex items-start gap-2 mb-2">
+                                <Checkbox
+                                  checked={selectedTaskIds.has(task.id)}
+                                  onCheckedChange={() => toggleSelectTask(task.id)}
+                                  aria-label={`Select task ${task.title}`}
+                                  className="mt-0.5"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                                    <h4 className="font-medium text-sm hover:text-primary line-clamp-2">
+                                      {task.title}
+                                    </h4>
+                                  </Link>
+                                </div>
+                              </div>
+                              
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {taskType && (
+                                  <span 
+                                    className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                    style={{ 
+                                      backgroundColor: `${taskType.color}20`, 
+                                      color: taskType.color 
+                                    }}
+                                  >
+                                    {taskType.name}
+                                  </span>
+                                )}
+                                <Badge 
+                                  variant="secondary"
+                                  className={cn("text-[10px]", priorityConfig.bgColor, priorityConfig.color)}
+                                >
+                                  {task.priority}
+                                </Badge>
+                              </div>
+                              
+                              {epic && (
+                                <p className="text-xs text-muted-foreground truncate mb-2">
+                                  {epic.title}
+                                </p>
+                              )}
+
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1.5">
+                                  {assignee ? (
+                                    <>
+                                      <Avatar className="h-5 w-5">
+                                        <AvatarFallback className="text-[8px]">
+                                          {assignee.name?.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="truncate max-w-[60px]">{assignee.name?.split(' ')[0]}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">Unassigned</span>
+                                  )}
+                                </div>
+                                {task.deadline && (
+                                  <div className={cn(
+                                    "flex items-center gap-1",
+                                    isOverdue && "text-red-600 font-medium"
+                                  )}>
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="mt-2 pt-2 border-t flex gap-1">
+                                <SearchableSelect
+                                  value={task.status}
+                                  onValueChange={(v) => updateTask({ id: task.id, updates: { status: v } })}
+                                  placeholder="Status"
+                                  options={["Todo", "In Progress", "Review", "Done"].map(s => ({ value: s, label: s }))}
+                                  triggerClassName="h-6 text-[10px] flex-1"
+                                  data-testid={`kanban-select-status-${task.id}`}
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            );
+          })}
         </div>
       ) : (
         /* Card View */
