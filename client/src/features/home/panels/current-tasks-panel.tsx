@@ -197,8 +197,7 @@ export function CurrentTasksPanel() {
         users={users}
         projectId="cross-project"
         boardId="home-current-tasks"
-        title="My Tasks"
-        showFilters={true}
+        showFilters={false}
         hoverCard={{
           enabled: true,
           users: users,
