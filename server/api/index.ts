@@ -645,10 +645,15 @@ export async function registerRoutes(
   // Users (with permission middleware)
   app.get("/api/users", async (req, res) => {
     try {
-      const { search, role, limit, offset } = req.query;
+      const { search, role, status, page, pageSize, sortBy, sortOrder, limit, offset } = req.query;
       const result = await userManagementService.listUsers({
         search: search as string,
         role: role as string,
+        status: status as string,
+        page: page ? parseInt(page as string) : undefined,
+        pageSize: pageSize ? parseInt(pageSize as string) : undefined,
+        sortBy: sortBy as any,
+        sortOrder: sortOrder as any,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
       });
@@ -693,6 +698,33 @@ export async function registerRoutes(
     try {
       await userManagementService.deactivateUser(req.params.id);
       res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulk user operations (admin/manager only)
+  app.patch("/api/users/bulk/role", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
+    try {
+      const { ids, role } = req.body;
+      if (!ids || !Array.isArray(ids) || !role) {
+        return res.status(400).json({ error: "ids array and role are required" });
+      }
+      const count = await userManagementService.bulkUpdateRole(ids, role);
+      res.json({ updated: count });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/users/bulk/deactivate", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids)) {
+        return res.status(400).json({ error: "ids array is required" });
+      }
+      const count = await userManagementService.bulkDeactivate(ids);
+      res.json({ deactivated: count });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

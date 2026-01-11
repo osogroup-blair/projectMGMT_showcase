@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { users } from "@shared/models/auth";
-import { eq, ilike, or, sql, desc } from "drizzle-orm";
+import { eq, ilike, or, sql, desc, asc, and } from "drizzle-orm";
 import type { 
   ListUsersRequest, 
   ListUsersResponse, 
@@ -25,10 +25,21 @@ function toPublicUser(user: typeof users.$inferSelect): UserPublic {
 }
 
 export async function listUsers(params: ListUsersRequest): Promise<ListUsersResponse> {
-  const { search, role, limit = 50, offset = 0 } = params;
+  const { 
+    search, 
+    role, 
+    status,
+    page = 1, 
+    pageSize = 50, 
+    sortBy = "createdAt", 
+    sortOrder = "desc",
+    limit,
+    offset 
+  } = params;
 
-  let query = db.select().from(users);
-  
+  const actualLimit = limit ?? pageSize;
+  const actualOffset = offset ?? ((page - 1) * pageSize);
+
   const conditions = [];
   
   if (search) {
@@ -46,22 +57,44 @@ export async function listUsers(params: ListUsersRequest): Promise<ListUsersResp
     conditions.push(eq(users.systemRole, role));
   }
 
-  const baseQuery = conditions.length > 0 
-    ? db.select().from(users).where(conditions[0])
-    : db.select().from(users);
+  if (status) {
+    conditions.push(eq(users.status, status));
+  }
 
-  const allUsers = await baseQuery
-    .orderBy(desc(users.createdAt))
-    .limit(limit)
-    .offset(offset);
+  const sortColumn = {
+    name: users.name,
+    email: users.email,
+    systemRole: users.systemRole,
+    status: users.status,
+    createdAt: users.createdAt,
+  }[sortBy] || users.createdAt;
+
+  const orderFn = sortOrder === "asc" ? asc : desc;
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const allUsers = await db
+    .select()
+    .from(users)
+    .where(whereClause)
+    .orderBy(orderFn(sortColumn))
+    .limit(actualLimit)
+    .offset(actualOffset);
 
   const countResult = await db
     .select({ count: sql<number>`count(*)` })
-    .from(users);
+    .from(users)
+    .where(whereClause);
+
+  const total = Number(countResult[0]?.count || 0);
+  const totalPages = Math.ceil(total / pageSize);
 
   return {
     users: allUsers.map(toPublicUser),
-    total: Number(countResult[0]?.count || 0),
+    total,
+    page,
+    pageSize,
+    totalPages,
   };
 }
 
@@ -122,4 +155,28 @@ export async function deactivateUser(id: string): Promise<boolean> {
 export async function deleteUser(id: string): Promise<boolean> {
   await db.delete(users).where(eq(users.id, id));
   return true;
+}
+
+export async function bulkUpdateRole(ids: string[], role: string): Promise<number> {
+  const result = await db
+    .update(users)
+    .set({ 
+      systemRole: role,
+      updatedAt: new Date(),
+    })
+    .where(sql`${users.id} = ANY(${ids})`);
+
+  return ids.length;
+}
+
+export async function bulkDeactivate(ids: string[]): Promise<number> {
+  const result = await db
+    .update(users)
+    .set({ 
+      status: "Deactivated",
+      updatedAt: new Date(),
+    })
+    .where(sql`${users.id} = ANY(${ids})`);
+
+  return ids.length;
 }

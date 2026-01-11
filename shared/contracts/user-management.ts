@@ -40,6 +40,12 @@ export const RolePermissions: Record<SystemRole, UserPermission[]> = {
 export const listUsersRequestSchema = z.object({
   search: z.string().optional(),
   role: z.string().optional(),
+  status: z.string().optional(),
+  page: z.number().optional().default(1),
+  pageSize: z.number().optional().default(50),
+  sortBy: z.enum(["name", "email", "systemRole", "status", "createdAt"]).optional().default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+  // Legacy support
   limit: z.number().optional(),
   offset: z.number().optional(),
 });
@@ -49,6 +55,9 @@ export type ListUsersRequest = z.infer<typeof listUsersRequestSchema>;
 export interface ListUsersResponse {
   users: UserPublic[];
   total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface UserPublic {

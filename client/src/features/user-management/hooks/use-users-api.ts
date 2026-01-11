@@ -8,24 +8,32 @@ import type {
 
 const USERS_QUERY_KEY = "/api/users";
 
-interface UseUsersOptions {
+export interface UseUsersOptions {
   search?: string;
   role?: string;
+  status?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: "name" | "email" | "systemRole" | "status" | "createdAt";
+  sortOrder?: "asc" | "desc";
 }
 
 export function useUsers(options: UseUsersOptions = {}) {
-  const { search, role } = options;
+  const { search, role, status, page = 1, pageSize = 50, sortBy = "createdAt", sortOrder = "desc" } = options;
   
   return useQuery<ListUsersResponse>({
-    queryKey: [USERS_QUERY_KEY, { search, role }],
+    queryKey: [USERS_QUERY_KEY, { search, role, status, page, pageSize, sortBy, sortOrder }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (role) params.set("role", role);
+      if (status) params.set("status", status);
+      params.set("page", String(page));
+      params.set("pageSize", String(pageSize));
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
       
-      const url = params.toString() 
-        ? `${USERS_QUERY_KEY}?${params.toString()}`
-        : USERS_QUERY_KEY;
+      const url = `${USERS_QUERY_KEY}?${params.toString()}`;
         
       const response = await fetch(url);
       if (!response.ok) {
@@ -110,6 +118,50 @@ export function useDeactivateUser() {
         throw new Error(error.error || "Failed to deactivate user");
       }
       return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
+    },
+  });
+}
+
+export function useBulkUpdateRole() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ ids, role }: { ids: string[]; role: string }) => {
+      const response = await fetch(`${USERS_QUERY_KEY}/bulk/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, role }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update roles");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
+    },
+  });
+}
+
+export function useBulkDeactivate() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const response = await fetch(`${USERS_QUERY_KEY}/bulk/deactivate`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to deactivate users");
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
