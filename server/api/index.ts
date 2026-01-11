@@ -453,6 +453,7 @@ export async function registerRoutes(
       
       const task = await storage.createTask({
         ...validated,
+        assigneeId: validated.assigneeId || userId || null,
         createdBy: userId,
         updatedBy: userId,
       });
@@ -504,7 +505,7 @@ export async function registerRoutes(
         projectId,
         deadline,
         priority: priority || "Medium",
-        assigneeId: assigneeId || null,
+        assigneeId: assigneeId || userId || null,
         status: "BACKLOGGED",
         epicId,
         stageId,
