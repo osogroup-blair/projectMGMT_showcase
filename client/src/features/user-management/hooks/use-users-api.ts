@@ -240,6 +240,10 @@ export function useBulkDelete() {
         const error = await response.json();
         throw new Error(error.error || "Failed to delete users");
       }
+      // Handle 204 No Content response
+      if (response.status === 204) {
+        return { deleted: ids.length };
+      }
       return response.json();
     },
     onSuccess: () => {
