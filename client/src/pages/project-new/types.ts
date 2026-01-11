@@ -14,13 +14,32 @@ export interface WizardDeliverable {
   id: string;
   title: string;
   description: string;
+  startDate?: string;
+  endDate?: string;
+  deliverableTypeId?: string;
   epics: WizardEpic[];
+}
+
+export interface WizardEpicTask {
+  id: string;
+  title: string;
+  description?: string;
+  priority?: string;
+  estimateHours?: number;
+  status?: string;
+  assigneeId?: string;
+  deadline?: string;
+  externalId?: string;
 }
 
 export interface WizardEpic {
   id: string;
   title: string;
   description: string;
+  startDate?: string;
+  endDate?: string;
+  epicTypeId?: string;
+  tasks?: WizardEpicTask[];
 }
 
 export type TaskMappingStatus = 'mapped' | 'orphaned' | 'manual' | 'skipped';

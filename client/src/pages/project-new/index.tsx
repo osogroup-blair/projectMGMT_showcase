@@ -21,9 +21,27 @@ import {
   Settings,
   Save,
   Loader2,
-  Flag
+  Flag,
+  AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { useImportOptional } from "@/context/import-context";
@@ -83,6 +101,8 @@ export default function ProjectWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [importInitialized, setImportInitialized] = useState(false);
+  const [pendingStepChange, setPendingStepChange] = useState<number | null>(null);
+  const [showBackWarning, setShowBackWarning] = useState(false);
   
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
@@ -382,8 +402,66 @@ export default function ProjectWizard() {
     }
   };
 
+  const getStepResetWarning = (fromStep: number, toStep: number): string | null => {
+    if (toStep >= fromStep) return null;
+    
+    const warnings: string[] = [];
+    
+    if (toStep <= 2 && fromStep >= 4) {
+      warnings.push("Stage configurations and task assignments");
+    }
+    if (toStep <= 3 && fromStep >= 5) {
+      warnings.push("Role assignments");
+    }
+    if (toStep <= 1 && fromStep >= 2) {
+      warnings.push("Work breakdown structure (deliverables and epics)");
+    }
+    
+    if (warnings.length === 0) return null;
+    return warnings.join(", ");
+  };
+
+  const handleStepSelect = (stepId: number) => {
+    if (stepId === currentStep) return;
+    
+    if (stepId < currentStep) {
+      const warning = getStepResetWarning(currentStep, stepId);
+      if (warning) {
+        setPendingStepChange(stepId);
+        setShowBackWarning(true);
+        return;
+      }
+    }
+    
+    if (stepId > currentStep) {
+      for (let i = currentStep; i < stepId; i++) {
+        setCurrentStep(i);
+      }
+    }
+    setCurrentStep(stepId);
+  };
+
+  const confirmStepChange = () => {
+    if (pendingStepChange !== null) {
+      setCurrentStep(pendingStepChange);
+      setPendingStepChange(null);
+    }
+    setShowBackWarning(false);
+  };
+
+  const cancelStepChange = () => {
+    setPendingStepChange(null);
+    setShowBackWarning(false);
+  };
+
   const handleBack = () => {
     if (currentStep > 1) {
+      const warning = getStepResetWarning(currentStep, currentStep - 1);
+      if (warning) {
+        setPendingStepChange(currentStep - 1);
+        setShowBackWarning(true);
+        return;
+      }
       setCurrentStep(currentStep - 1);
     }
   };
@@ -969,7 +1047,91 @@ export default function ProjectWizard() {
             </div>
         </div>
 
+        <AlertDialog open={showBackWarning} onOpenChange={setShowBackWarning}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Going Back May Reset Data
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Going back to <strong>{pendingStepChange ? STEPS[pendingStepChange - 1]?.title : ''}</strong> may reset some of your progress. The following may need to be reconfigured:
+                <br /><br />
+                <span className="text-amber-600 font-medium">
+                  {pendingStepChange && getStepResetWarning(currentStep, pendingStepChange)}
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={cancelStepChange}>Stay Here</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmStepChange} className="bg-amber-600 hover:bg-amber-700">
+                Go Back Anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <Card className="min-h-[500px] flex flex-col">
+            <CardHeader className="border-b pb-4">
+              <div className="flex items-center justify-between gap-4">
+                <Button 
+                    variant="outline" 
+                    onClick={handleBack} 
+                    disabled={currentStep === 1 || isCreating}
+                    data-testid="button-back"
+                >
+                    <ChevronLeft className="h-4 w-4 mr-2" /> Back
+                </Button>
+                
+                <div className="flex-1 flex justify-center">
+                  <Select 
+                    value={String(currentStep)} 
+                    onValueChange={(val) => handleStepSelect(Number(val))}
+                    disabled={isCreating}
+                  >
+                    <SelectTrigger className="w-[280px]" data-testid="select-step">
+                      <SelectValue>
+                        Step {currentStep}: {STEPS[currentStep - 1]?.title}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STEPS.map((step) => {
+                        const isCompleted = currentStep > step.id;
+                        const isCurrent = currentStep === step.id;
+                        return (
+                          <SelectItem 
+                            key={step.id} 
+                            value={String(step.id)}
+                            className={cn(
+                              isCurrent && "bg-primary/10",
+                              step.id > currentStep && "text-muted-foreground"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isCompleted && <Check className="h-4 w-4 text-primary" />}
+                              <span>Step {step.id}: {step.title}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button onClick={handleNext} disabled={isCreating} data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}>
+                    {isCreating ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Creating...
+                        </>
+                    ) : currentStep === STEPS.length ? (
+                        <>Create Project <Save className="h-4 w-4 ml-2" /></>
+                    ) : (
+                        <>Next <ChevronRight className="h-4 w-4 ml-2" /></>
+                    )}
+                </Button>
+              </div>
+            </CardHeader>
             <CardContent className="flex-1 pt-6">
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center h-64">
@@ -987,28 +1149,6 @@ export default function ProjectWizard() {
                   </>
                 )}
             </CardContent>
-            <CardFooter className="flex justify-between border-t pt-6">
-                <Button 
-                    variant="outline" 
-                    onClick={handleBack} 
-                    disabled={currentStep === 1 || isCreating}
-                >
-                    <ChevronLeft className="h-4 w-4 mr-2" /> Back
-                </Button>
-                
-                <Button onClick={handleNext} disabled={isCreating} data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}>
-                    {isCreating ? (
-                        <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Creating Project...
-                        </>
-                    ) : currentStep === STEPS.length ? (
-                        <>Create Project <Save className="h-4 w-4 ml-2" /></>
-                    ) : (
-                        <>Next Step <ChevronRight className="h-4 w-4 ml-2" /></>
-                    )}
-                </Button>
-            </CardFooter>
         </Card>
       </div>
     </Shell>
