@@ -79,6 +79,11 @@ interface Milestone {
   title: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+}
+
 interface HoverCardConfig {
   enabled: boolean;
   users?: User[];
@@ -92,6 +97,7 @@ interface PortableKanbanProps {
   users?: User[];
   epics?: Epic[];
   milestones?: Milestone[];
+  projects?: Project[]; // For cross-project views with project filter
   projectId: string;
   boardId?: string; // Used for persisting column collapse state
   title?: string; // Board title (e.g., sprint name)
@@ -99,6 +105,7 @@ interface PortableKanbanProps {
   isReadOnly?: boolean;
   signalFilter?: "blocked" | "overdue" | "stale" | null;
   showFilters?: boolean;
+  showAssigneeFilter?: boolean; // Show assignee filter (default true)
   showAddTask?: boolean; // Show add task button in header
   hoverCard?: HoverCardConfig; // Enable hover cards with enriched task details
   onTaskMove?: (taskId: string, newStatus: string, blockerReason?: string) => void;
@@ -471,6 +478,7 @@ export function PortableKanban({
   users = [],
   epics = [],
   milestones = [],
+  projects = [],
   projectId,
   boardId,
   title,
@@ -478,6 +486,7 @@ export function PortableKanban({
   isReadOnly,
   signalFilter,
   showFilters = true,
+  showAssigneeFilter = true,
   showAddTask = false,
   hoverCard,
   onTaskMove,
@@ -493,6 +502,7 @@ export function PortableKanban({
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [epicFilter, setEpicFilter] = useState<string>("all");
   const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
+  const [projectFilter, setProjectFilter] = useState<string>("all");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -516,13 +526,14 @@ export function PortableKanban({
     return updated < threeDaysAgo && isInProgressStatus(task.status);
   };
 
-  const hasActiveFilters = searchQuery || assigneeFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all";
+  const hasActiveFilters = searchQuery || assigneeFilter !== "all" || epicFilter !== "all" || milestoneFilter !== "all" || projectFilter !== "all";
 
   const clearFilters = () => {
     setSearchQuery("");
     setAssigneeFilter("all");
     setEpicFilter("all");
     setMilestoneFilter("all");
+    setProjectFilter("all");
   };
 
   const filteredTasks = useMemo(() => {
@@ -554,8 +565,12 @@ export function PortableKanban({
       result = result.filter((t) => t.milestoneId === milestoneFilter);
     }
 
+    if (projectFilter !== "all") {
+      result = result.filter((t) => t.projectId === projectFilter);
+    }
+
     return result;
-  }, [tasks, signalFilter, searchQuery, assigneeFilter, epicFilter, milestoneFilter]);
+  }, [tasks, signalFilter, searchQuery, assigneeFilter, epicFilter, milestoneFilter, projectFilter]);
 
   const columnTasks = useMemo(() => {
     return columns.reduce((acc, col) => {
@@ -698,7 +713,20 @@ export function PortableKanban({
               data-testid="input-search-kanban"
             />
           </div>
-          {users.length > 0 && (
+          {projects.length > 0 && (
+            <SearchableSelect
+              value={projectFilter}
+              onValueChange={setProjectFilter}
+              options={[
+                { value: "all", label: "All Projects" },
+                ...projects.map((p) => ({ value: p.id, label: p.name }))
+              ]}
+              placeholder="Project"
+              triggerClassName="w-[160px] h-9"
+              data-testid="select-project-filter"
+            />
+          )}
+          {showAssigneeFilter && users.length > 0 && (
             <SearchableSelect
               value={assigneeFilter}
               onValueChange={setAssigneeFilter}

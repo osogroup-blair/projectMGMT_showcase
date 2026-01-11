@@ -84,6 +84,15 @@ export function CurrentTasksPanel() {
     },
   });
 
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/projects"],
+    queryFn: async () => {
+      const response = await fetch("/api/projects");
+      if (!response.ok) throw new Error("Failed to fetch projects");
+      return response.json();
+    },
+  });
+
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<Task> }) => {
       const task = tasks.find((t: Task) => t.id === taskId);
@@ -195,9 +204,11 @@ export function CurrentTasksPanel() {
       <PortableKanban
         tasks={enrichedTasks}
         users={users}
+        projects={projects}
         projectId="cross-project"
         boardId="home-current-tasks"
         showFilters={true}
+        showAssigneeFilter={false}
         hoverCard={{
           enabled: true,
           users: users,
