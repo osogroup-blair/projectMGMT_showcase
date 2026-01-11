@@ -14,7 +14,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import {
   Accordion,
@@ -31,15 +30,28 @@ export function CurrentProjectsPanel() {
   const { data: projectStages, isLoading: stagesLoading } = useProjectStages();
   const { currentUserId } = useCurrentUser();
   
+  // Inactive task statuses to exclude
+  const INACTIVE_STATUSES = ["done", "deferred", "archived", "complete", "completed"];
+  
   // Filter tasks to only show those assigned to the current user
-  const tasks = useMemo(() => {
+  const userTasks = useMemo(() => {
     if (!allTasks) return [];
     return allTasks.filter((task: any) => task.assigneeId === currentUserId);
   }, [allTasks, currentUserId]);
   
+  // Active tasks = user's tasks that are NOT Done/Deferred/Archived
+  const activeTasks = useMemo(() => {
+    return userTasks.filter((task: any) => 
+      !INACTIVE_STATUSES.includes(task.status?.toLowerCase())
+    );
+  }, [userTasks]);
+  
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string[]>(["In Progress", "Upcoming", "On Hold"]);
+  const [showAllTasks, setShowAllTasks] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  
+  // Use active tasks or all user tasks based on toggle
+  const tasks = showAllTasks ? userTasks : activeTasks;
 
   // Helper to map raw Task to HomeTask for the TaskCard
   const mapToHomeTask = useMemo(() => (task: any): HomeTask => {
@@ -64,14 +76,30 @@ export function CurrentProjectsPanel() {
     };
   }, [projects, epics]);
 
-  // Filter Projects
+  // Get project IDs where user has active tasks
+  const projectIdsWithActiveTasks = useMemo(() => {
+    const ids = new Set<string>();
+    tasks.forEach((task: any) => {
+      if (task.projectId) {
+        ids.add(task.projectId);
+      }
+      // Also match by project name
+      const matchedProject = projects.find((p: any) => p.name === task.project);
+      if (matchedProject) {
+        ids.add(matchedProject.id);
+      }
+    });
+    return ids;
+  }, [tasks, projects]);
+
+  // Filter Projects - only show projects where user has active tasks
   const filteredProjects = useMemo(() => {
     return projects.filter((project: any) => {
+      const hasActiveTasks = projectIdsWithActiveTasks.has(project.id);
       const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter.includes(project.status);
-      return matchesSearch && matchesStatus;
+      return hasActiveTasks && matchesSearch;
     });
-  }, [projects, searchQuery, statusFilter]);
+  }, [projects, projectIdsWithActiveTasks, searchQuery]);
 
   // Group Tasks by Project
   const getProjectTasks = (projectId: string, projectName: string) => {
@@ -80,13 +108,6 @@ export function CurrentProjectsPanel() {
       .map(mapToHomeTask);
   };
 
-  const toggleStatusFilter = (status: string) => {
-    setStatusFilter(prev => 
-      prev.includes(status) 
-        ? prev.filter(s => s !== status) 
-        : [...prev, status]
-    );
-  };
 
   // Helper to render task grid
   const renderTaskGrid = (taskList: HomeTask[]) => {
@@ -129,25 +150,14 @@ export function CurrentProjectsPanel() {
         </div>
         
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 w-full sm:w-auto">
-                <Filter className="h-4 w-4" />
-                Status: {statusFilter.length === 3 ? "Active" : statusFilter.length === 0 ? "None" : `${statusFilter.length} selected`}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {["Upcoming", "In Progress", "Completed", "On Hold", "Archived", "Overdue"].map(status => (
-                <DropdownMenuCheckboxItem 
-                  key={status}
-                  checked={statusFilter.includes(status)}
-                  onCheckedChange={() => toggleStatusFilter(status)}
-                >
-                  {status}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button 
+            variant={showAllTasks ? "secondary" : "outline"} 
+            className="gap-2 w-full sm:w-auto"
+            onClick={() => setShowAllTasks(!showAllTasks)}
+          >
+            <Filter className="h-4 w-4" />
+            {showAllTasks ? "Showing All Tasks" : "Active Tasks Only"}
+          </Button>
 
           <div className="flex items-center border rounded-md p-1 bg-background">
              <Button 
