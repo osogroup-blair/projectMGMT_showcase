@@ -20,7 +20,12 @@ import {
   ArrowUp,
   ArrowDown,
   X,
-  UserX
+  UserX,
+  Link2,
+  Unlink,
+  Clock,
+  RefreshCw,
+  GitMerge
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +62,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useToast } from "@/hooks/use-toast";
@@ -68,9 +85,15 @@ import {
   useDeactivateUser,
   useBulkUpdateRole,
   useBulkDeactivate,
+  useUserProfile,
+  useLinkIdentity,
+  useUnlinkIdentity,
+  useAvailableSystems,
+  useMergeUsers,
   type UseUsersOptions 
 } from "@/features/user-management";
 import type { UserPublic, CreateUserRequest, UpdateUserRequest } from "@shared/contracts/user-management";
+import type { IdentityPublic, LinkIdentityRequest } from "@shared/contracts/user-identity";
 
 interface UserManagementProps {
   embedded?: boolean;
@@ -127,6 +150,19 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const [importResults, setImportResults] = useState<ImportResults | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isIdentityDialogOpen, setIsIdentityDialogOpen] = useState(false);
+  const [identityUserId, setIdentityUserId] = useState<string | null>(null);
+  const [linkForm, setLinkForm] = useState<Partial<LinkIdentityRequest>>({
+    systemId: "",
+    externalUserId: "",
+    externalUsername: "",
+    externalEmail: "",
+  });
+  const [unlinkConfirm, setUnlinkConfirm] = useState<{ userId: string; identity: IdentityPublic } | null>(null);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [mergeSource, setMergeSource] = useState<UserPublic | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState<string>("");
+
   const queryOptions: UseUsersOptions = {
     search: debouncedSearch || undefined,
     role: roleFilter || undefined,
@@ -143,6 +179,11 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const deactivateUser = useDeactivateUser();
   const bulkUpdateRole = useBulkUpdateRole();
   const bulkDeactivate = useBulkDeactivate();
+  const { data: systems = [] } = useAvailableSystems();
+  const { data: profileData, refetch: refetchProfile } = useUserProfile(identityUserId || undefined);
+  const linkIdentity = useLinkIdentity();
+  const unlinkIdentity = useUnlinkIdentity();
+  const mergeUsers = useMergeUsers();
 
   const users = usersData?.users || [];
   const total = usersData?.total || 0;
@@ -270,6 +311,97 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleOpenIdentities = (userId: string) => {
+    setIdentityUserId(userId);
+    setIsIdentityDialogOpen(true);
+  };
+
+  const handleLinkIdentity = async () => {
+    if (!identityUserId || !linkForm.systemId || !linkForm.externalUserId) return;
+    
+    const selectedSystem = systems.find(s => s.id === linkForm.systemId);
+    
+    try {
+      await linkIdentity.mutateAsync({
+        userId: identityUserId,
+        data: {
+          systemId: linkForm.systemId,
+          systemType: selectedSystem?.type,
+          systemName: selectedSystem?.name,
+          externalUserId: linkForm.externalUserId,
+          externalUsername: linkForm.externalUsername || undefined,
+          externalEmail: linkForm.externalEmail || undefined,
+          identityType: "user",
+          auth: {
+            authType: "imported",
+            provider: linkForm.systemId,
+          },
+        },
+      });
+      setLinkForm({ systemId: "", externalUserId: "", externalUsername: "", externalEmail: "" });
+      refetchProfile();
+      toast({ title: "Identity linked successfully" });
+    } catch (error: any) {
+      toast({ title: "Failed to link identity", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleUnlinkIdentity = async () => {
+    if (!unlinkConfirm) return;
+    try {
+      await unlinkIdentity.mutateAsync({
+        userId: unlinkConfirm.userId,
+        identityId: unlinkConfirm.identity.id,
+      });
+      setUnlinkConfirm(null);
+      refetchProfile();
+      toast({ title: "Identity unlinked successfully" });
+    } catch (error: any) {
+      toast({ title: "Failed to unlink identity", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleOpenMerge = (user: UserPublic) => {
+    setMergeSource(user);
+    setMergeTargetId("");
+    setIsMergeDialogOpen(true);
+  };
+
+  const handleMergeUsers = async () => {
+    if (!mergeSource || !mergeTargetId) return;
+    try {
+      const result = await mergeUsers.mutateAsync({
+        sourceUserId: mergeSource.id,
+        targetUserId: mergeTargetId,
+      });
+      setIsMergeDialogOpen(false);
+      setMergeSource(null);
+      setMergeTargetId("");
+      toast({ 
+        title: "Users merged successfully", 
+        description: `Moved ${result.identitiesMoved} identities to target user`
+      });
+    } catch (error: any) {
+      toast({ title: "Failed to merge users", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const getSystemIcon = (systemId: string) => {
+    const icons: Record<string, string> = {
+      clickup: "🎯",
+      jira: "🔷",
+      asana: "🟠",
+      monday: "📅",
+      trello: "📋",
+      google: "🔵",
+      microsoft: "🟦",
+      slack: "💬",
+      github: "⚫",
+      gitlab: "🦊",
+    };
+    return icons[systemId] || "🔗";
   };
 
   const handleImportClick = () => {
@@ -609,6 +741,14 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                             <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
                               Edit User
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleOpenIdentities(user.id)}>
+                              <Link2 className="h-4 w-4 mr-2" />
+                              Manage Identities
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleOpenMerge(user)}>
+                              <GitMerge className="h-4 w-4 mr-2" />
+                              Merge User
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               className="text-destructive"
@@ -841,6 +981,217 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={isIdentityDialogOpen} onOpenChange={(open) => { setIsIdentityDialogOpen(open); if (!open) setIdentityUserId(null); }}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5" />
+                Manage Linked Identities
+              </DialogTitle>
+              <DialogDescription>
+                View and manage external account connections for this user
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Tabs defaultValue="identities" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="identities">Linked Accounts</TabsTrigger>
+                <TabsTrigger value="link">Link New Account</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="identities" className="mt-4">
+                <ScrollArea className="h-[300px] pr-4">
+                  {profileData?.identities.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Link2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No linked accounts</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {profileData?.identities.map((identity) => (
+                        <div key={identity.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="text-xl">{getSystemIcon(identity.systemId)}</div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{identity.systemName || identity.systemId}</span>
+                                {identity.workspaceId && (
+                                  <span className="text-xs text-muted-foreground">({identity.workspaceId})</span>
+                                )}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {identity.externalUsername || identity.externalEmail || identity.externalUserId}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant={identity.status === "active" ? "default" : "secondary"} className="text-xs">
+                                  {identity.status}
+                                </Badge>
+                                {identity.syncStatus === "healthy" && (
+                                  <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" /> Synced
+                                  </Badge>
+                                )}
+                                {identity.syncStatus === "stale" && (
+                                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-600">
+                                    <Clock className="w-3 h-3 mr-1" /> Stale
+                                  </Badge>
+                                )}
+                                {identity.syncStatus === "error" && (
+                                  <Badge variant="outline" className="text-xs text-red-600 border-red-600">
+                                    <AlertCircle className="w-3 h-3 mr-1" /> Error
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {(profileData?.identities.length || 0) > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setUnlinkConfirm({ userId: identityUserId!, identity })}
+                            >
+                              <Unlink className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+              
+              <TabsContent value="link" className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label>System</Label>
+                  <Select
+                    value={linkForm.systemId}
+                    onValueChange={(value) => setLinkForm({ ...linkForm, systemId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a system" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {systems.map((system) => (
+                        <SelectItem key={system.id} value={system.id}>
+                          {getSystemIcon(system.id)} {system.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>External User ID</Label>
+                  <Input
+                    placeholder="User ID in the external system"
+                    value={linkForm.externalUserId}
+                    onChange={(e) => setLinkForm({ ...linkForm, externalUserId: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Username (optional)</Label>
+                    <Input
+                      placeholder="Username"
+                      value={linkForm.externalUsername}
+                      onChange={(e) => setLinkForm({ ...linkForm, externalUsername: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email (optional)</Label>
+                    <Input
+                      placeholder="Email"
+                      value={linkForm.externalEmail}
+                      onChange={(e) => setLinkForm({ ...linkForm, externalEmail: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={handleLinkIdentity}
+                  disabled={!linkForm.systemId || !linkForm.externalUserId || linkIdentity.isPending}
+                  className="w-full"
+                >
+                  {linkIdentity.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Link Account
+                </Button>
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsIdentityDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isMergeDialogOpen} onOpenChange={setIsMergeDialogOpen}>
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <GitMerge className="h-5 w-5" />
+                Merge Users
+              </DialogTitle>
+              <DialogDescription>
+                Merge "{mergeSource?.name || mergeSource?.email}" into another user. All identities will be transferred.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                <AlertCircle className="h-4 w-4 inline mr-2" />
+                This action cannot be undone. The source user will be marked as merged.
+              </div>
+              <div className="space-y-2">
+                <Label>Merge into user</Label>
+                <Select value={mergeTargetId} onValueChange={setMergeTargetId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select target user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.filter(u => u.id !== mergeSource?.id).map(u => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name || u.email} ({u.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsMergeDialogOpen(false)}>Cancel</Button>
+              <Button
+                onClick={handleMergeUsers}
+                disabled={!mergeTargetId || mergeUsers.isPending}
+                variant="destructive"
+              >
+                {mergeUsers.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Merge Users
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={!!unlinkConfirm} onOpenChange={() => setUnlinkConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Unlink Account</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to unlink the {unlinkConfirm?.identity.systemName || unlinkConfirm?.identity.systemId} account?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleUnlinkIdentity}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {unlinkIdentity.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Unlink
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Wrapper>
   );
