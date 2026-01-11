@@ -1,9 +1,12 @@
+import { useMemo } from "react";
 import { ParseResult, extractUniqueStatuses, normalizeStatus } from "@/lib/import-parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { useStatusOptions } from "@/hooks/use-nexus-data";
+import { cn } from "@/lib/utils";
 
 interface StatusMappingStepProps {
   parseResult: ParseResult | null;
@@ -11,43 +14,40 @@ interface StatusMappingStepProps {
   onStatusMappingsChange: (mappings: Record<string, string>) => void;
 }
 
-const STANDARD_STATUSES = [
-  'Backlog',
-  'To Do',
-  'In Progress',
-  'In Review',
-  'Blocked',
-  'Done',
-  'Completed',
-  'On Hold',
-  'Cancelled',
-  'Not Started',
-  'Planning',
-  'Active'
-];
-
-const STATUS_COLORS: Record<string, string> = {
-  'Backlog': 'bg-slate-100 text-slate-700',
-  'To Do': 'bg-blue-100 text-blue-700',
-  'Not Started': 'bg-blue-100 text-blue-700',
-  'In Progress': 'bg-amber-100 text-amber-700',
-  'Active': 'bg-amber-100 text-amber-700',
-  'In Review': 'bg-purple-100 text-purple-700',
-  'Blocked': 'bg-red-100 text-red-700',
-  'On Hold': 'bg-orange-100 text-orange-700',
-  'Done': 'bg-green-100 text-green-700',
-  'Completed': 'bg-green-100 text-green-700',
-  'Cancelled': 'bg-gray-100 text-gray-700',
-  'Planning': 'bg-indigo-100 text-indigo-700'
-};
-
 export function StatusMappingStep({
   parseResult,
   statusMappings,
   onStatusMappingsChange
 }: StatusMappingStepProps) {
+  const { data: allStatusOptions = [], isLoading: isLoadingStatuses } = useStatusOptions();
+  
+  const taskStatuses = useMemo(() => {
+    return allStatusOptions
+      .filter((s: any) => s.type === "task")
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+  }, [allStatusOptions]);
+
+  const statusLabels = useMemo(() => taskStatuses.map((s: any) => s.label), [taskStatuses]);
+  
+  const statusColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    taskStatuses.forEach((s: any) => {
+      map[s.label] = s.color || 'bg-slate-100 text-slate-700';
+    });
+    return map;
+  }, [taskStatuses]);
+
   if (!parseResult) {
     return <div className="text-center text-muted-foreground">No file parsed yet</div>;
+  }
+
+  if (isLoadingStatuses) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-muted-foreground">Loading status options...</span>
+      </div>
+    );
   }
 
   const externalStatuses = extractUniqueStatuses(parseResult.entities);
@@ -59,13 +59,31 @@ export function StatusMappingStep({
     });
   };
 
+  const findBestMatch = (externalStatus: string): string => {
+    const normalized = normalizeStatus(externalStatus);
+    if (statusLabels.includes(normalized)) {
+      return normalized;
+    }
+    const lowerNormalized = normalized.toLowerCase();
+    const match = statusLabels.find((label: string) => label.toLowerCase() === lowerNormalized);
+    if (match) return match;
+    return statusLabels[0] || 'To Do';
+  };
+
+  const getAutoMappedCount = () => {
+    return externalStatuses.filter(s => {
+      const normalized = normalizeStatus(s);
+      return statusLabels.some((label: string) => label.toLowerCase() === normalized.toLowerCase());
+    }).length;
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h2 className="text-lg font-semibold">Status Mapping</h2>
         <p className="text-muted-foreground text-sm mt-1">
           {externalStatuses.length > 0 
-            ? `Found ${externalStatuses.length} unique status values. Map them to standard Nymbl statuses.`
+            ? `Found ${externalStatuses.length} unique status values. Map them to your system's configured statuses.`
             : 'No status values found in the imported data.'
           }
         </p>
@@ -98,8 +116,8 @@ export function StatusMappingStep({
                   </TableHeader>
                   <TableBody>
                     {externalStatuses.map(externalStatus => {
-                      const mappedTo = statusMappings[externalStatus] || normalizeStatus(externalStatus);
-                      const colorClass = STATUS_COLORS[mappedTo] || 'bg-muted text-muted-foreground';
+                      const mappedTo = statusMappings[externalStatus] || findBestMatch(externalStatus);
+                      const colorClass = statusColorMap[mappedTo] || 'bg-muted text-muted-foreground';
                       
                       return (
                         <TableRow key={externalStatus}>
@@ -116,7 +134,10 @@ export function StatusMappingStep({
                               value={mappedTo}
                               onValueChange={(val) => handleStatusMappingChange(externalStatus, val)}
                               placeholder="Select status..."
-                              options={STANDARD_STATUSES.map(status => ({ value: status, label: status }))}
+                              options={taskStatuses.map((status: any) => ({ 
+                                value: status.label, 
+                                label: status.label 
+                              }))}
                               triggerClassName="w-[180px]"
                             />
                           </TableCell>
@@ -136,12 +157,17 @@ export function StatusMappingStep({
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {STANDARD_STATUSES.map(status => (
-                    <Badge key={status} className={STATUS_COLORS[status] || 'bg-muted'}>
-                      {status}
+                  {taskStatuses.map((status: any) => (
+                    <Badge key={status.id} className={cn("font-normal", status.color || 'bg-muted')}>
+                      {status.label}
                     </Badge>
                   ))}
                 </div>
+                {taskStatuses.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No task statuses configured. Configure them in Admin → App Defaults.
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -155,7 +181,7 @@ export function StatusMappingStep({
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Auto-mapped</span>
                     <span className="font-medium text-green-600">
-                      {externalStatuses.filter(s => STANDARD_STATUSES.includes(normalizeStatus(s))).length}
+                      {getAutoMappedCount()}
                     </span>
                   </div>
                 </div>
@@ -167,9 +193,9 @@ export function StatusMappingStep({
                 <div className="flex items-start gap-2 text-sm text-blue-700">
                   <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-medium">Auto-Normalization</p>
+                    <p className="font-medium">System Status Options</p>
                     <p className="text-xs mt-1 opacity-90">
-                      Status values are automatically normalized (e.g., "done" → "Done", "in_progress" → "In Progress")
+                      Statuses are loaded from your app's configured defaults. Manage them in Admin → App Defaults.
                     </p>
                   </div>
                 </div>
