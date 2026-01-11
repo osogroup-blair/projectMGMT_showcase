@@ -1,4 +1,4 @@
-import { Search, Bell, LogOut, User, Settings } from "lucide-react";
+import { Search, LogOut, User, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,9 +59,6 @@ export function TopNav() {
         <div className="text-right hidden sm:block">
           <p className="text-sm text-sidebar-foreground/70 mr-2">{getTimeGreeting()}, <span className="font-medium text-sidebar-foreground">{firstName}!</span></p>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent">
-          <Bell className="h-4 w-4" />
-        </Button>
         <div className="flex items-center gap-2 pl-4 border-l border-sidebar-border">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

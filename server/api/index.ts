@@ -1472,14 +1472,14 @@ export async function registerRoutes(
       });
 
       // Helper to import a template type
-      async function importTemplates(
+      const importTemplates = async (
         items: any[],
         getAll: () => Promise<any[]>,
         create: (data: any) => Promise<any>,
         update: (id: string, data: any) => Promise<any>,
         key: keyof typeof results,
         sanitize?: (item: any) => any
-      ) {
+      ) => {
         if (!items?.length) return;
         const existing = await getAll();
         const existingIds = new Set(existing.map((e: any) => e.id));
