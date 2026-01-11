@@ -456,6 +456,8 @@ function extractTasks(
     const descField = getFieldValue<string>(row, ['description', 'desc', 'details'], '');
     const priorityField = getFieldValue<string>(row, ['priority', 'importance', 'urgency'], 'medium');
     const estimateField = getFieldValue<number>(row, ['estimateHours', 'estimate_hours', 'estimate', 'hours'], 0);
+    const deadlineField = getFieldValue<string>(row, ['deadline', 'dueDate', 'due_date', 'endDate', 'end_date'], '');
+    const startDateField = getFieldValue<string>(row, ['startDate', 'start_date', 'startAt', 'start'], '');
     
     let matchedStage = stages[0];
     const warnings: string[] = [];
@@ -517,6 +519,8 @@ function extractTasks(
       assignedEpicId,
       assignedEpicTitle,
       mappingStatus,
+      startDate: parseDate(startDateField.value) || undefined,
+      deadline: parseDate(deadlineField.value) || undefined,
       confidence: titleField.sourceField ? 'high' : 'medium',
       warnings
     };
