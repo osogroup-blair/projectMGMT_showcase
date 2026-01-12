@@ -2,6 +2,7 @@ import { storage } from "../data/storage";
 import type { User } from "@shared/schema";
 
 const SAMPLE_PROJECT_ID = "sample-website-redesign";
+const SAMPLE_FRAMEWORK_ID = "sample-framework-waterfall";
 
 function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -182,6 +183,24 @@ async function generateCoreData(
 
   const owner = users[0];
   
+  // Create or get framework template for the project
+  let frameworkId: string | undefined;
+  const existingFrameworks = await storage.getFrameworkTemplates();
+  const existingFramework = existingFrameworks.find(f => f.id === SAMPLE_FRAMEWORK_ID);
+  
+  if (!existingFramework) {
+    const framework = {
+      id: SAMPLE_FRAMEWORK_ID,
+      name: "Waterfall - Sample",
+      description: "A sequential project management approach with distinct phases: Discovery, Design, Development, Testing, and Launch.",
+      stageNames: ["Discovery", "Design", "Development", "Testing", "Launch"],
+    };
+    await storage.createFrameworkTemplate(framework as any);
+    frameworkId = SAMPLE_FRAMEWORK_ID;
+  } else {
+    frameworkId = existingFramework.id;
+  }
+  
   const project = {
     id: SAMPLE_PROJECT_ID,
     name: "Website Redesign Project",
@@ -194,6 +213,7 @@ async function generateCoreData(
     client: "Acme Corporation",
     riskLevel: "medium",
     sprintDurationWeeks: 2,
+    frameworkId,
   };
   await storage.createProject(project as any);
   result.created.projects = 1;
@@ -334,6 +354,43 @@ async function generateTaskData(
 
   const sampleEpics = epics.filter(e => sampleEpicIds.has(e.id));
   
+  // Fetch project stages and create epic-to-stage mapping based on date overlap
+  const allStages = await storage.getProjectStages();
+  const projectStages = allStages.filter(s => s.projectId === SAMPLE_PROJECT_ID);
+  
+  // Map each epic to the most appropriate stage based on date overlap
+  function findStageForEpic(epic: typeof sampleEpics[0]): string | undefined {
+    if (projectStages.length === 0) return undefined;
+    
+    const epicStart = new Date(epic.startDate).getTime();
+    const epicEnd = new Date(epic.endDate).getTime();
+    const epicMidpoint = (epicStart + epicEnd) / 2;
+    
+    // Find the stage whose date range contains the epic's midpoint
+    for (const stage of projectStages) {
+      const stageStart = new Date(stage.startDate).getTime();
+      const stageEnd = new Date(stage.endDate).getTime();
+      
+      if (epicMidpoint >= stageStart && epicMidpoint <= stageEnd) {
+        return stage.id;
+      }
+    }
+    
+    // Fallback: find closest stage by start date
+    let closestStage = projectStages[0];
+    let closestDistance = Math.abs(epicStart - new Date(closestStage.startDate).getTime());
+    
+    for (const stage of projectStages) {
+      const distance = Math.abs(epicStart - new Date(stage.startDate).getTime());
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestStage = stage;
+      }
+    }
+    
+    return closestStage?.id;
+  }
+  
   const taskTemplates = [
     { title: "Research and Analysis", description: "Conduct research and document findings", priority: "high", effort: 2, estimateHours: 8 },
     { title: "Create Wireframes", description: "Design low-fidelity wireframes", priority: "high", effort: 3, estimateHours: 16 },
@@ -353,6 +410,12 @@ async function generateTaskData(
   for (const epic of sampleEpics) {
     const numTasks = 3 + Math.floor(Math.random() * 4);
     const epicProgress = epic.progress || 0;
+    const stageId = findStageForEpic(epic);
+    
+    // Calculate task date range within the epic's date range
+    const epicStartDate = new Date(epic.startDate);
+    const epicEndDate = new Date(epic.endDate);
+    const epicDurationDays = Math.max(1, Math.floor((epicEndDate.getTime() - epicStartDate.getTime()) / (1000 * 60 * 60 * 24)));
     
     for (let i = 0; i < numTasks; i++) {
       const template = randomElement(taskTemplates);
@@ -362,6 +425,12 @@ async function generateTaskData(
           ? randomElement(["in-progress", "review", "done"])
           : randomElement(statuses);
       
+      // Calculate task dates within the epic's date range
+      const taskStartOffset = Math.floor((i / numTasks) * epicDurationDays);
+      const taskEndOffset = Math.floor(((i + 1) / numTasks) * epicDurationDays);
+      const taskStartDate = addDays(epicStartDate, taskStartOffset);
+      const taskDeadline = addDays(epicStartDate, Math.min(taskEndOffset, epicDurationDays));
+      
       const taskId = generateId("task");
       const task = {
         id: taskId,
@@ -370,9 +439,11 @@ async function generateTaskData(
         project: "Website Redesign Project",
         projectId: SAMPLE_PROJECT_ID,
         epicId: epic.id,
+        stageId,
         status,
         assigneeId: randomElement(users).id,
-        deadline: toDateString(addDays(projectStartDate, 30 + Math.floor(Math.random() * 30))),
+        startDate: toDateString(taskStartDate),
+        deadline: toDateString(taskDeadline),
         priority: template.priority,
         estimateHours: template.estimateHours,
         effort: template.effort,
