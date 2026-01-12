@@ -46,7 +46,7 @@ export function TimelineHeader({
   };
 
   return (
-    <div className="flex flex-col gap-3 p-4 border-b bg-background">
+    <div className="flex flex-col gap-3 p-4 border-b bg-background sticky top-0 z-20">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handlePrev} data-testid="btn-timeline-prev">

@@ -97,46 +97,40 @@ export function PulsePanel({
           Team Pulse
         </CardTitle>
         {!hasPostedToday && !composerOpen && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-1 px-2"
-            onClick={() => setComposerOpen(true)}
-          >
-            <Plus className="h-3 w-3" />
-            Post update
-          </Button>
+          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+            Post your update
+          </Badge>
         )}
       </CardHeader>
       <CardContent className="p-3 flex-1 flex flex-col min-h-0 overflow-auto">
+        {composerOpen ? (
+          <div className="mb-3">
+            <PulseComposer
+              open={composerOpen}
+              onOpenChange={setComposerOpen}
+              tasks={tasks.filter(t => t.assigneeId === currentUserId)}
+              sprintId={sprintId}
+              onSubmit={(data) => {
+                onPostPulse(data);
+                setComposerOpen(false);
+              }}
+            />
+          </div>
+        ) : (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full mb-3 justify-start gap-2"
+            onClick={() => setComposerOpen(true)}
+            data-testid="button-add-update"
+          >
+            <Plus className="h-4 w-4" />
+            Add update...
+          </Button>
+        )}
+
         <ScrollArea className="flex-1 h-full">
           <div className="space-y-3 pb-4">
-            {composerOpen ? (
-              <div className="mb-3">
-                <PulseComposer
-                  open={composerOpen}
-                  onOpenChange={setComposerOpen}
-                  tasks={tasks.filter(t => t.assigneeId === currentUserId)}
-                  sprintId={sprintId}
-                  onSubmit={(data) => {
-                    onPostPulse(data);
-                    setComposerOpen(false);
-                  }}
-                />
-              </div>
-            ) : (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full mb-3 justify-start gap-2"
-                onClick={() => setComposerOpen(true)}
-                data-testid="button-add-update"
-              >
-                <Plus className="h-4 w-4" />
-                Add update...
-              </Button>
-            )}
-
             {groupedUpdates.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No pulse updates yet. Be the first to share!

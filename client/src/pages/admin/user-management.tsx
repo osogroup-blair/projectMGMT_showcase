@@ -296,22 +296,6 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       return res.json();
     },
   });
-
-  const roleOptions = useMemo(() => {
-    if (systemRoles.length > 0) {
-      return systemRoles.map(role => ({
-        value: role.name,
-        label: role.displayName,
-      }));
-    }
-    return [
-      { value: "admin", label: "Admin" },
-      { value: "manager", label: "Manager" },
-      { value: "member", label: "Member" },
-      { value: "viewer", label: "Viewer" },
-      { value: "demo", label: "Demo" },
-    ];
-  }, [systemRoles]);
   const { data: allPermissions = [] } = useQuery<{ id: string; key: string; displayName: string; category: string }[]>({
     queryKey: ["/api/roles-permissions/permissions"],
     queryFn: async () => {
@@ -1452,11 +1436,13 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               <div className="grid gap-2">
                 <Label htmlFor="systemRole">System Role</Label>
                 <SearchableSelect
-                  value={formData.systemRole || ""}
+                  value={formData.systemRole}
                   onValueChange={(v) => setFormData({ ...formData, systemRole: v as any })}
                   placeholder="Select role"
-                  options={roleOptions}
-                  data-testid="select-user-role"
+                  options={systemRoles.map(role => ({
+                    value: role.name,
+                    label: role.displayName,
+                  }))}
                 />
               </div>
               <div className="grid gap-2">
