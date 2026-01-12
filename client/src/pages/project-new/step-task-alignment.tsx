@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,8 @@ export function StepTaskAlignment({
 }: TaskAlignmentStepProps) {
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [bulkAssignEpicId, setBulkAssignEpicId] = useState<string>('');
+  const hasAutoAssigned = useRef(false);
+  const [autoAssignedCount, setAutoAssignedCount] = useState<number>(0);
   
   const allEpics: FlatEpic[] = useMemo(() => {
     const epics: FlatEpic[] = [];
@@ -52,6 +54,44 @@ export function StepTaskAlignment({
       e.title.toLowerCase().includes('project management')
     );
   }, [allEpics]);
+  
+  // Auto-assign orphaned tasks to Product Management epic on mount
+  useEffect(() => {
+    if (hasAutoAssigned.current) return;
+    if (!productManagementEpic) return;
+    
+    // Count orphaned tasks
+    let orphanedCount = 0;
+    stages.forEach(stage => {
+      (stage.tasks || []).forEach(task => {
+        if (task.mappingStatus === 'orphaned' && !task.assignedEpicId) {
+          orphanedCount++;
+        }
+      });
+    });
+    
+    if (orphanedCount > 0) {
+      hasAutoAssigned.current = true;
+      setAutoAssignedCount(orphanedCount);
+      
+      setStages(prevStages => {
+        return prevStages.map(stage => ({
+          ...stage,
+          tasks: stage.tasks.map(task => {
+            if (task.mappingStatus === 'orphaned' && !task.assignedEpicId) {
+              return {
+                ...task,
+                assignedEpicId: productManagementEpic.id,
+                assignedEpicTitle: productManagementEpic.title,
+                mappingStatus: 'manual' as const
+              };
+            }
+            return task;
+          })
+        }));
+      });
+    }
+  }, [productManagementEpic, stages, setStages]);
   
   const allTasks = useMemo(() => {
     const tasks: (WizardTaskDraft & { stageName: string; stageIdx: number; taskIdx: number })[] = [];
@@ -260,6 +300,18 @@ export function StepTaskAlignment({
               <AlertDescription>
                 Some tasks with "per_epic" scope don't have an epic assigned. 
                 These tasks will not be created unless you assign them to an epic or skip them.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {autoAssignedCount > 0 && productManagementEpic && (
+            <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/30">
+              <CheckCircle2 className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-800 dark:text-blue-200">Tasks Auto-Assigned</AlertTitle>
+              <AlertDescription className="text-blue-700 dark:text-blue-300">
+                <strong>{autoAssignedCount}</strong> unassigned task{autoAssignedCount !== 1 ? 's were' : ' was'} automatically 
+                assigned to <strong>{productManagementEpic.title}</strong>. 
+                You can reassign them below if needed.
               </AlertDescription>
             </Alert>
           )}

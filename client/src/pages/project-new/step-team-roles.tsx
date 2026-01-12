@@ -208,12 +208,12 @@ export function StepTeamRoles({
     }));
   };
 
-  // Role-based task summary: which tasks would be assigned by role
+  // Role-based task summary: which tasks would be assigned by role (show preview even without assignee)
   const roleTaskSummary = useMemo(() => {
     const summary: Record<string, { roleName: string; tasks: { title: string; stageName: string }[] }> = {};
     
     roles.forEach(role => {
-      if (!role.assigneeId || !role.roleTypeId) return;
+      if (!role.roleTypeId) return;
       
       const tasksForRole: { title: string; stageName: string }[] = [];
       
@@ -339,26 +339,35 @@ export function StepTeamRoles({
             />
           </div>
           
-          {/* Role-based task assignment summary */}
-          {role.assigneeId && roleTaskSummary[role.id] && (
-            <div className="space-y-1.5 pt-2 border-t">
-              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+          {/* Role-based task assignment summary - always show if there are matching tasks */}
+          {roleTaskSummary[role.id] && (
+            <div className={`space-y-1.5 pt-2 border-t ${role.assigneeId ? 'bg-green-50/50 dark:bg-green-950/20 -mx-4 px-4 pb-2' : ''}`}>
+              <Label className={`text-xs flex items-center gap-1 ${role.assigneeId ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`}>
                 <ListTodo className="h-3 w-3" />
-                Tasks for this role ({roleTaskSummary[role.id].tasks.length})
+                {role.assigneeId ? (
+                  <span>Tasks assigned to this role ({roleTaskSummary[role.id].tasks.length})</span>
+                ) : (
+                  <span>Tasks that will be assigned ({roleTaskSummary[role.id].tasks.length})</span>
+                )}
               </Label>
-              <div className="max-h-24 overflow-y-auto space-y-1">
-                {roleTaskSummary[role.id].tasks.slice(0, 5).map((task, idx) => (
-                  <div key={idx} className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
+              <div className="max-h-28 overflow-y-auto space-y-1">
+                {roleTaskSummary[role.id].tasks.slice(0, 6).map((task, idx) => (
+                  <div key={idx} className={`text-xs rounded px-2 py-1 ${role.assigneeId ? 'bg-green-100/50 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-muted/50 text-muted-foreground'}`}>
                     <span className="font-medium">{task.title}</span>
-                    <span className="text-[10px] ml-1">({task.stageName})</span>
+                    <span className="text-[10px] ml-1 opacity-75">({task.stageName})</span>
                   </div>
                 ))}
-                {roleTaskSummary[role.id].tasks.length > 5 && (
-                  <div className="text-xs text-muted-foreground px-2">
-                    +{roleTaskSummary[role.id].tasks.length - 5} more tasks
+                {roleTaskSummary[role.id].tasks.length > 6 && (
+                  <div className="text-xs text-muted-foreground px-2 italic">
+                    +{roleTaskSummary[role.id].tasks.length - 6} more tasks
                   </div>
                 )}
               </div>
+              {!role.assigneeId && (
+                <p className="text-[10px] text-muted-foreground italic mt-1">
+                  Select an assignee above to assign these tasks
+                </p>
+              )}
             </div>
           )}
         </CardContent>
