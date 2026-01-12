@@ -1,18 +1,5 @@
 import { storage } from "../data/storage";
-import type {
-  InsertProject,
-  InsertDeliverable,
-  InsertEpic,
-  InsertTask,
-  InsertMilestone,
-  InsertSprint,
-  InsertProjectStage,
-  InsertComment,
-  InsertSprintMember,
-  InsertTaskDependency,
-  InsertActivity,
-  User,
-} from "@shared/schema";
+import type { User } from "@shared/schema";
 
 const SAMPLE_PROJECT_ID = "sample-website-redesign";
 
@@ -24,6 +11,10 @@ function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result;
+}
+
+function toDateString(date: Date): string {
+  return date.toISOString();
 }
 
 function randomElement<T>(arr: T[]): T {
@@ -191,118 +182,132 @@ async function generateCoreData(
 
   const owner = users[0];
   
-  const project: InsertProject = {
+  const project = {
     id: SAMPLE_PROJECT_ID,
     name: "Website Redesign Project",
     description: "Complete redesign of the company website with modern UI/UX, improved performance, and new features. This sample project demonstrates all capabilities of the project management system.",
     status: "active",
-    startDate: startDate,
-    deadline: endDate,
+    startDate: toDateString(startDate),
+    deadline: toDateString(endDate),
     progress: 35,
     ownerId: owner.id,
     client: "Acme Corporation",
     riskLevel: "medium",
     sprintDurationWeeks: 2,
   };
-  await storage.createProject(project);
+  await storage.createProject(project as any);
   result.created.projects = 1;
 
-  const stages: InsertProjectStage[] = [
-    { id: generateId("stage"), projectId: SAMPLE_PROJECT_ID, name: "Discovery", description: "Research and requirements gathering", order: 1, type: "planning", status: "completed", startDate: startDate, endDate: addDays(startDate, 14) },
-    { id: generateId("stage"), projectId: SAMPLE_PROJECT_ID, name: "Design", description: "UI/UX design and prototyping", order: 2, type: "design", status: "active", startDate: addDays(startDate, 14), endDate: addDays(startDate, 35) },
-    { id: generateId("stage"), projectId: SAMPLE_PROJECT_ID, name: "Development", description: "Frontend and backend implementation", order: 3, type: "development", status: "pending", startDate: addDays(startDate, 35), endDate: addDays(startDate, 70) },
-    { id: generateId("stage"), projectId: SAMPLE_PROJECT_ID, name: "Testing", description: "QA and user acceptance testing", order: 4, type: "testing", status: "pending", startDate: addDays(startDate, 70), endDate: addDays(startDate, 84) },
-    { id: generateId("stage"), projectId: SAMPLE_PROJECT_ID, name: "Launch", description: "Deployment and go-live", order: 5, type: "deployment", status: "pending", startDate: addDays(startDate, 84), endDate: endDate },
+  const stageData = [
+    { name: "Discovery", description: "Research and requirements gathering", order: 1, type: "planning", status: "completed", startOffset: 0, endOffset: 14 },
+    { name: "Design", description: "UI/UX design and prototyping", order: 2, type: "design", status: "active", startOffset: 14, endOffset: 35 },
+    { name: "Development", description: "Frontend and backend implementation", order: 3, type: "development", status: "pending", startOffset: 35, endOffset: 70 },
+    { name: "Testing", description: "QA and user acceptance testing", order: 4, type: "testing", status: "pending", startOffset: 70, endOffset: 84 },
+    { name: "Launch", description: "Deployment and go-live", order: 5, type: "deployment", status: "pending", startOffset: 84, endOffset: 90 },
   ];
   
-  for (const stage of stages) {
-    await storage.createProjectStage(stage);
+  for (const s of stageData) {
+    const stage = {
+      id: generateId("stage"),
+      projectId: SAMPLE_PROJECT_ID,
+      name: s.name,
+      description: s.description,
+      order: s.order,
+      type: s.type,
+      status: s.status,
+      startDate: toDateString(addDays(startDate, s.startOffset)),
+      endDate: toDateString(addDays(startDate, s.endOffset)),
+    };
+    await storage.createProjectStage(stage as any);
+    result.created.stages = (result.created.stages || 0) + 1;
   }
-  result.created.stages = stages.length;
 
-  const deliverables: { data: InsertDeliverable; epics: InsertEpic[] }[] = [
+  const deliverableConfigs = [
     {
-      data: {
-        id: generateId("del"),
-        projectId: SAMPLE_PROJECT_ID,
-        title: "Design System",
-        description: "Complete design system with components, patterns, and guidelines",
-        status: "in-progress",
-        ownerId: users[0]?.id,
-        startDate: startDate,
-        dueDate: addDays(startDate, 35),
-        progress: 60,
-      },
+      title: "Design System",
+      description: "Complete design system with components, patterns, and guidelines",
+      status: "in-progress",
+      ownerId: users[0]?.id,
+      startOffset: 0,
+      dueOffset: 35,
+      progress: 60,
       epics: [
-        { id: generateId("epic"), deliverableId: "", title: "Brand Guidelines", description: "Color palette, typography, and visual identity", status: "completed", ownerId: users[0]?.id, startDate: startDate, endDate: addDays(startDate, 10), progress: 100 },
-        { id: generateId("epic"), deliverableId: "", title: "Component Library", description: "Reusable UI components", status: "in-progress", ownerId: users[1]?.id || users[0]?.id, startDate: addDays(startDate, 10), endDate: addDays(startDate, 28), progress: 45 },
-        { id: generateId("epic"), deliverableId: "", title: "Documentation", description: "Usage guidelines and examples", status: "not-started", ownerId: users[0]?.id, startDate: addDays(startDate, 28), endDate: addDays(startDate, 35), progress: 0 },
+        { title: "Brand Guidelines", description: "Color palette, typography, and visual identity", status: "completed", progress: 100, startOffset: 0, endOffset: 10 },
+        { title: "Component Library", description: "Reusable UI components", status: "in-progress", progress: 45, startOffset: 10, endOffset: 28 },
+        { title: "Documentation", description: "Usage guidelines and examples", status: "not-started", progress: 0, startOffset: 28, endOffset: 35 },
       ],
     },
     {
-      data: {
-        id: generateId("del"),
-        projectId: SAMPLE_PROJECT_ID,
-        title: "Frontend Development",
-        description: "React-based frontend with responsive design",
-        status: "not-started",
-        ownerId: users[1]?.id || users[0]?.id,
-        startDate: addDays(startDate, 35),
-        dueDate: addDays(startDate, 70),
-        progress: 10,
-      },
+      title: "Frontend Development",
+      description: "React-based frontend with responsive design",
+      status: "not-started",
+      ownerId: users[1]?.id || users[0]?.id,
+      startOffset: 35,
+      dueOffset: 70,
+      progress: 10,
       epics: [
-        { id: generateId("epic"), deliverableId: "", title: "Homepage", description: "Landing page with hero section and features", status: "not-started", ownerId: users[1]?.id || users[0]?.id, startDate: addDays(startDate, 35), endDate: addDays(startDate, 45), progress: 0 },
-        { id: generateId("epic"), deliverableId: "", title: "Product Pages", description: "Product catalog and detail pages", status: "not-started", ownerId: users[0]?.id, startDate: addDays(startDate, 45), endDate: addDays(startDate, 55), progress: 0 },
-        { id: generateId("epic"), deliverableId: "", title: "User Dashboard", description: "Account management and user profile", status: "not-started", ownerId: users[1]?.id || users[0]?.id, startDate: addDays(startDate, 55), endDate: addDays(startDate, 70), progress: 0 },
+        { title: "Homepage", description: "Landing page with hero section and features", status: "not-started", progress: 0, startOffset: 35, endOffset: 45 },
+        { title: "Product Pages", description: "Product catalog and detail pages", status: "not-started", progress: 0, startOffset: 45, endOffset: 55 },
+        { title: "User Dashboard", description: "Account management and user profile", status: "not-started", progress: 0, startOffset: 55, endOffset: 70 },
       ],
     },
     {
-      data: {
-        id: generateId("del"),
-        projectId: SAMPLE_PROJECT_ID,
-        title: "Backend API",
-        description: "RESTful API with authentication and data management",
-        status: "not-started",
-        ownerId: users[2]?.id || users[0]?.id,
-        startDate: addDays(startDate, 35),
-        dueDate: addDays(startDate, 70),
-        progress: 5,
-      },
+      title: "Backend API",
+      description: "RESTful API with authentication and data management",
+      status: "not-started",
+      ownerId: users[2]?.id || users[0]?.id,
+      startOffset: 35,
+      dueOffset: 70,
+      progress: 5,
       epics: [
-        { id: generateId("epic"), deliverableId: "", title: "Authentication", description: "User login, registration, and OAuth", status: "not-started", ownerId: users[2]?.id || users[0]?.id, startDate: addDays(startDate, 35), endDate: addDays(startDate, 45), progress: 0 },
-        { id: generateId("epic"), deliverableId: "", title: "Product API", description: "CRUD operations for products and categories", status: "not-started", ownerId: users[0]?.id, startDate: addDays(startDate, 45), endDate: addDays(startDate, 60), progress: 0 },
-        { id: generateId("epic"), deliverableId: "", title: "Integration", description: "Third-party service integrations", status: "not-started", ownerId: users[2]?.id || users[0]?.id, startDate: addDays(startDate, 60), endDate: addDays(startDate, 70), progress: 0 },
+        { title: "Authentication", description: "User login, registration, and OAuth", status: "not-started", progress: 0, startOffset: 35, endOffset: 45 },
+        { title: "Product API", description: "CRUD operations for products and categories", status: "not-started", progress: 0, startOffset: 45, endOffset: 60 },
+        { title: "Integration", description: "Third-party service integrations", status: "not-started", progress: 0, startOffset: 60, endOffset: 70 },
       ],
     },
     {
-      data: {
-        id: generateId("del"),
-        projectId: SAMPLE_PROJECT_ID,
-        title: "Management Activities",
-        description: "Project management and coordination tasks",
-        status: "in-progress",
-        ownerId: users[0]?.id,
-        startDate: startDate,
-        dueDate: endDate,
-        progress: 40,
-      },
+      title: "Management Activities",
+      description: "Project management and coordination tasks",
+      status: "in-progress",
+      ownerId: users[0]?.id,
+      startOffset: 0,
+      dueOffset: 90,
+      progress: 40,
       epics: [
-        { id: generateId("epic"), deliverableId: "", title: "Project Management", description: "Planning, tracking, and coordination", status: "in-progress", ownerId: users[0]?.id, startDate: startDate, endDate: endDate, progress: 40 },
+        { title: "Project Management", description: "Planning, tracking, and coordination", status: "in-progress", progress: 40, startOffset: 0, endOffset: 90 },
       ],
     },
   ];
 
-  const createdEpics: { id: string; deliverableId: string }[] = [];
-  
-  for (const { data, epics } of deliverables) {
-    await storage.createDeliverable(data);
+  for (const config of deliverableConfigs) {
+    const deliverableId = generateId("del");
+    const deliverable = {
+      id: deliverableId,
+      projectId: SAMPLE_PROJECT_ID,
+      title: config.title,
+      description: config.description,
+      status: config.status,
+      ownerId: config.ownerId,
+      startDate: toDateString(addDays(startDate, config.startOffset)),
+      dueDate: toDateString(addDays(startDate, config.dueOffset)),
+      progress: config.progress,
+    };
+    await storage.createDeliverable(deliverable as any);
     result.created.deliverables = (result.created.deliverables || 0) + 1;
     
-    for (const epic of epics) {
-      epic.deliverableId = data.id!;
-      await storage.createEpic(epic);
-      createdEpics.push({ id: epic.id!, deliverableId: data.id! });
+    for (const epicConfig of config.epics) {
+      const epic = {
+        id: generateId("epic"),
+        deliverableId,
+        title: epicConfig.title,
+        description: epicConfig.description,
+        status: epicConfig.status,
+        ownerId: users[Math.floor(Math.random() * users.length)]?.id,
+        startDate: toDateString(addDays(startDate, epicConfig.startOffset)),
+        endDate: toDateString(addDays(startDate, epicConfig.endOffset)),
+        progress: epicConfig.progress,
+      };
+      await storage.createEpic(epic as any);
       result.created.epics = (result.created.epics || 0) + 1;
     }
   }
@@ -357,8 +362,9 @@ async function generateTaskData(
           ? randomElement(["in-progress", "review", "done"])
           : randomElement(statuses);
       
-      const task: InsertTask = {
-        id: generateId("task"),
+      const taskId = generateId("task");
+      const task = {
+        id: taskId,
         title: `${template.title} - ${epic.title}`,
         description: template.description,
         project: "Website Redesign Project",
@@ -366,8 +372,8 @@ async function generateTaskData(
         epicId: epic.id,
         status,
         assigneeId: randomElement(users).id,
-        deadline: addDays(projectStartDate, 30 + Math.floor(Math.random() * 30)),
-        priority: template.priority as any,
+        deadline: toDateString(addDays(projectStartDate, 30 + Math.floor(Math.random() * 30))),
+        priority: template.priority,
         estimateHours: template.estimateHours,
         effort: template.effort,
         tags: randomElement([["frontend"], ["backend"], ["design"], ["testing"], ["documentation"], []]),
@@ -375,8 +381,8 @@ async function generateTaskData(
         blockerReason: Math.random() < 0.1 ? "Waiting for design approval" : undefined,
       };
       
-      await storage.createTask(task);
-      createdTaskIds.push(task.id!);
+      await storage.createTask(task as any);
+      createdTaskIds.push(taskId);
       result.created.tasks = (result.created.tasks || 0) + 1;
     }
   }
@@ -386,7 +392,7 @@ async function generateTaskData(
     const taskIdx = Math.floor(Math.random() * (createdTaskIds.length - 1)) + 1;
     const dependsOnIdx = Math.floor(Math.random() * taskIdx);
     
-    const dependency: InsertTaskDependency = {
+    const dependency = {
       id: generateId("dep"),
       taskId: createdTaskIds[taskIdx],
       dependsOnTaskId: createdTaskIds[dependsOnIdx],
@@ -394,7 +400,7 @@ async function generateTaskData(
     };
     
     try {
-      await storage.createTaskDependency(dependency);
+      await storage.createTaskDependency(dependency as any);
       result.created.dependencies = (result.created.dependencies || 0) + 1;
     } catch (e) {
     }
@@ -411,63 +417,28 @@ async function generateMilestoneData(
     return;
   }
 
-  const milestones: InsertMilestone[] = [
-    {
-      id: generateId("ms"),
-      projectId: SAMPLE_PROJECT_ID,
-      name: "Design Approval",
-      description: "All designs approved by stakeholders",
-      phase: "Design",
-      targetDate: addDays(projectStartDate, 28),
-      status: "on-track",
-      scopeType: "all_tasks",
-      completionMode: "percentage",
-      completionTargetPercent: 100,
-      isBillingGate: true,
-    },
-    {
-      id: generateId("ms"),
-      projectId: SAMPLE_PROJECT_ID,
-      name: "Alpha Release",
-      description: "First internal release for testing",
-      phase: "Development",
-      targetDate: addDays(projectStartDate, 56),
-      status: "pending",
-      scopeType: "all_tasks",
-      completionMode: "percentage",
-      completionTargetPercent: 80,
-      isBillingGate: false,
-    },
-    {
-      id: generateId("ms"),
-      projectId: SAMPLE_PROJECT_ID,
-      name: "Beta Release",
-      description: "External beta testing release",
-      phase: "Testing",
-      targetDate: addDays(projectStartDate, 77),
-      status: "pending",
-      scopeType: "all_tasks",
-      completionMode: "percentage",
-      completionTargetPercent: 95,
-      isBillingGate: true,
-    },
-    {
-      id: generateId("ms"),
-      projectId: SAMPLE_PROJECT_ID,
-      name: "Go Live",
-      description: "Production launch",
-      phase: "Launch",
-      targetDate: addDays(projectStartDate, 90),
-      status: "pending",
-      scopeType: "all_tasks",
-      completionMode: "percentage",
-      completionTargetPercent: 100,
-      isBillingGate: true,
-    },
+  const milestoneConfigs = [
+    { name: "Design Approval", description: "All designs approved by stakeholders", phase: "Design", offsetDays: 28, status: "on-track", isBillingGate: true },
+    { name: "Alpha Release", description: "First internal release for testing", phase: "Development", offsetDays: 56, status: "pending", isBillingGate: false },
+    { name: "Beta Release", description: "External beta testing release", phase: "Testing", offsetDays: 77, status: "pending", isBillingGate: true },
+    { name: "Go Live", description: "Production launch", phase: "Launch", offsetDays: 90, status: "pending", isBillingGate: true },
   ];
 
-  for (const milestone of milestones) {
-    await storage.createMilestone(milestone);
+  for (const config of milestoneConfigs) {
+    const milestone = {
+      id: generateId("ms"),
+      projectId: SAMPLE_PROJECT_ID,
+      name: config.name,
+      description: config.description,
+      phase: config.phase,
+      targetDate: toDateString(addDays(projectStartDate, config.offsetDays)),
+      status: config.status,
+      scopeType: "all_tasks",
+      completionMode: "percentage",
+      completionTargetPercent: 100,
+      isBillingGate: config.isBillingGate,
+    };
+    await storage.createMilestone(milestone as any);
     result.created.milestones = (result.created.milestones || 0) + 1;
   }
 }
@@ -483,58 +454,38 @@ async function generateSprintData(
     return;
   }
 
-  const sprints: InsertSprint[] = [
-    {
-      id: generateId("sprint"),
-      projectId: SAMPLE_PROJECT_ID,
-      ownerUserId: users[0].id,
-      name: "Sprint 1 - Discovery",
-      goal: "Complete research and initial wireframes",
-      startDate: addDays(now, -28),
-      endDate: addDays(now, -14),
-      status: "completed",
-      capacityHours: 80,
-      notes: "Focused on user research and competitive analysis",
-    },
-    {
-      id: generateId("sprint"),
-      projectId: SAMPLE_PROJECT_ID,
-      ownerUserId: users[0].id,
-      name: "Sprint 2 - Design",
-      goal: "Complete design system components",
-      startDate: addDays(now, -14),
-      endDate: now,
-      status: "active",
-      capacityHours: 80,
-      notes: "Building core UI components and patterns",
-    },
-    {
-      id: generateId("sprint"),
-      projectId: SAMPLE_PROJECT_ID,
-      ownerUserId: users[0].id,
-      name: "Sprint 3 - Development Kickoff",
-      goal: "Start frontend implementation",
-      startDate: now,
-      endDate: addDays(now, 14),
-      status: "planned",
-      capacityHours: 100,
-      notes: "Begin React implementation with design system",
-    },
+  const sprintConfigs = [
+    { name: "Sprint 1 - Discovery", goal: "Complete research and initial wireframes", startOffset: -28, endOffset: -14, status: "completed", capacityHours: 80, notes: "Focused on user research and competitive analysis" },
+    { name: "Sprint 2 - Design", goal: "Complete design system components", startOffset: -14, endOffset: 0, status: "active", capacityHours: 80, notes: "Building core UI components and patterns" },
+    { name: "Sprint 3 - Development Kickoff", goal: "Start frontend implementation", startOffset: 0, endOffset: 14, status: "planned", capacityHours: 100, notes: "Begin React implementation with design system" },
   ];
 
-  for (const sprint of sprints) {
-    await storage.createSprint(sprint);
+  for (const config of sprintConfigs) {
+    const sprintId = generateId("sprint");
+    const sprint = {
+      id: sprintId,
+      projectId: SAMPLE_PROJECT_ID,
+      ownerUserId: users[0].id,
+      name: config.name,
+      goal: config.goal,
+      startDate: toDateString(addDays(now, config.startOffset)),
+      endDate: toDateString(addDays(now, config.endOffset)),
+      status: config.status,
+      capacityHours: config.capacityHours,
+      notes: config.notes,
+    };
+    await storage.createSprint(sprint as any);
     result.created.sprints = (result.created.sprints || 0) + 1;
 
     for (let i = 0; i < Math.min(3, users.length); i++) {
-      const member: InsertSprintMember = {
+      const member = {
         id: generateId("sm"),
-        sprintId: sprint.id!,
+        sprintId: sprintId,
         userId: users[i].id,
         capacityHours: 30 + Math.floor(Math.random() * 20),
         capacityPoints: 8 + Math.floor(Math.random() * 5),
       };
-      await storage.createSprintMember(member);
+      await storage.createSprintMember(member as any);
       result.created.sprintMembers = (result.created.sprintMembers || 0) + 1;
     }
   }
@@ -581,7 +532,7 @@ async function generateCommentData(
         createdAt: addDays(new Date(), -Math.floor(Math.random() * 14)),
       };
       
-      await storage.createComment(comment);
+      await storage.createComment(comment as any);
       result.created.comments = (result.created.comments || 0) + 1;
     }
   }
@@ -598,7 +549,7 @@ async function generateCommentData(
     const user = randomElement(users);
     const actType = randomElement(activityTypes);
     
-    const activity: InsertActivity = {
+    const activity = {
       id: generateId("act"),
       user: user.name || "Unknown User",
       action: actType.action,
@@ -608,7 +559,7 @@ async function generateCommentData(
       avatar: user.avatar,
     };
     
-    await storage.createActivity(activity);
+    await storage.createActivity(activity as any);
     result.created.activities = (result.created.activities || 0) + 1;
   }
 }
