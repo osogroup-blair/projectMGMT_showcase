@@ -1,6 +1,25 @@
 import { db } from "../../db";
 import { users } from "@shared/models/auth";
-import { tasks } from "@shared/schema";
+import { 
+  tasks, 
+  comments, 
+  deliverables, 
+  epics, 
+  milestones, 
+  projects, 
+  sprints,
+  roleAssignments,
+  sprintMembers,
+  sprintScopeEvents,
+  sprintPulseUpdates,
+  scheduleSyncAudit,
+  dayPlans,
+  userPreferences,
+  workBlocks,
+  userRoleEligibility,
+  projectFavorites,
+  userIdentities
+} from "@shared/schema";
 import { eq, ilike, or, sql, desc, asc, and, isNull, isNotNull, lt, gt, exists, notExists, inArray } from "drizzle-orm";
 import type { 
   ListUsersRequest, 
@@ -191,6 +210,68 @@ export async function deactivateUser(id: string): Promise<boolean> {
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
+  // Delete or nullify all related records before deleting user
+  // Order matters due to foreign key constraints
+  
+  // 1. Delete user-owned records that should be removed with the user
+  await db.delete(comments).where(eq(comments.authorId, id));
+  await db.delete(roleAssignments).where(eq(roleAssignments.userId, id));
+  await db.delete(sprintMembers).where(eq(sprintMembers.userId, id));
+  await db.delete(sprintScopeEvents).where(eq(sprintScopeEvents.userId, id));
+  await db.delete(sprintPulseUpdates).where(eq(sprintPulseUpdates.userId, id));
+  await db.delete(scheduleSyncAudit).where(eq(scheduleSyncAudit.userId, id));
+  await db.delete(dayPlans).where(eq(dayPlans.userId, id));
+  await db.delete(userPreferences).where(eq(userPreferences.userId, id));
+  await db.delete(workBlocks).where(eq(workBlocks.userId, id));
+  await db.delete(userRoleEligibility).where(eq(userRoleEligibility.userId, id));
+  await db.delete(projectFavorites).where(eq(projectFavorites.userId, id));
+  await db.delete(userIdentities).where(eq(userIdentities.userId, id));
+  
+  // 2. Nullify optional references on shared entities (only nullable fields)
+  // Tasks - all user references are nullable
+  await db.update(tasks).set({ assigneeId: null }).where(eq(tasks.assigneeId, id));
+  await db.update(tasks).set({ createdBy: null }).where(eq(tasks.createdBy, id));
+  await db.update(tasks).set({ updatedBy: null }).where(eq(tasks.updatedBy, id));
+  await db.update(tasks).set({ overrideBy: null }).where(eq(tasks.overrideBy, id));
+  
+  // Epics - ownerId is NOT NULL, but createdBy/updatedBy/overrideBy are nullable
+  await db.update(epics).set({ createdBy: null }).where(eq(epics.createdBy, id));
+  await db.update(epics).set({ updatedBy: null }).where(eq(epics.updatedBy, id));
+  await db.update(epics).set({ overrideBy: null }).where(eq(epics.overrideBy, id));
+  
+  // Deliverables - ownerId is NOT NULL, but createdBy/updatedBy are nullable
+  await db.update(deliverables).set({ createdBy: null }).where(eq(deliverables.createdBy, id));
+  await db.update(deliverables).set({ updatedBy: null }).where(eq(deliverables.updatedBy, id));
+  
+  // Milestones - ownerId is NOT NULL, but createdBy/updatedBy are nullable
+  await db.update(milestones).set({ createdBy: null }).where(eq(milestones.createdBy, id));
+  await db.update(milestones).set({ updatedBy: null }).where(eq(milestones.updatedBy, id));
+  
+  // Projects - ownerId is nullable
+  await db.update(projects).set({ ownerId: null }).where(eq(projects.ownerId, id));
+  await db.update(projects).set({ createdBy: null }).where(eq(projects.createdBy, id));
+  await db.update(projects).set({ updatedBy: null }).where(eq(projects.updatedBy, id));
+  
+  // Sprints - ownerUserId is nullable
+  await db.update(sprints).set({ ownerUserId: null }).where(eq(sprints.ownerUserId, id));
+  await db.update(sprints).set({ createdBy: null }).where(eq(sprints.createdBy, id));
+  await db.update(sprints).set({ updatedBy: null }).where(eq(sprints.updatedBy, id));
+  
+  // 3. Check if user still owns any entities with required ownerId
+  const ownedDeliverables = await db.select({ count: sql<number>`count(*)` }).from(deliverables).where(eq(deliverables.ownerId, id));
+  const ownedEpics = await db.select({ count: sql<number>`count(*)` }).from(epics).where(eq(epics.ownerId, id));
+  const ownedMilestones = await db.select({ count: sql<number>`count(*)` }).from(milestones).where(eq(milestones.ownerId, id));
+  
+  const hasBlockingOwnership = 
+    Number(ownedDeliverables[0]?.count || 0) > 0 ||
+    Number(ownedEpics[0]?.count || 0) > 0 ||
+    Number(ownedMilestones[0]?.count || 0) > 0;
+    
+  if (hasBlockingOwnership) {
+    throw new Error("Cannot delete user: they still own deliverables, epics, or milestones. Please reassign ownership first.");
+  }
+  
+  // 4. Finally delete the user
   await db.delete(users).where(eq(users.id, id));
   return true;
 }
@@ -237,12 +318,21 @@ export async function bulkActivate(ids: string[]): Promise<number> {
   return ids.length;
 }
 
-export async function bulkDelete(ids: string[]): Promise<number> {
-  if (ids.length === 0) return 0;
+export async function bulkDelete(ids: string[]): Promise<{ deleted: number; failed: string[] }> {
+  if (ids.length === 0) return { deleted: 0, failed: [] };
   
-  await db
-    .delete(users)
-    .where(inArray(users.id, ids));
+  const failed: string[] = [];
+  let deleted = 0;
+  
+  // Delete users one by one to handle foreign key constraints properly
+  for (const id of ids) {
+    try {
+      await deleteUser(id);
+      deleted++;
+    } catch (error: any) {
+      failed.push(id);
+    }
+  }
 
-  return ids.length;
+  return { deleted, failed };
 }
