@@ -114,6 +114,68 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  // Demo login - logs in as a predefined demo user without OIDC
+  app.post("/api/demo-login", async (req: any, res) => {
+    try {
+      const DEMO_USER_ID = "demo-test-user";
+      const DEMO_USER_EMAIL = "demo@nymbl.app";
+      
+      // Check if demo user exists, create if not
+      let demoUser = await authStorage.getUser(DEMO_USER_ID);
+      
+      if (!demoUser) {
+        // Create the demo user
+        demoUser = await authStorage.upsertUser({
+          id: DEMO_USER_ID,
+          email: DEMO_USER_EMAIL,
+          firstName: "Demo",
+          lastName: "User",
+          name: "Demo User",
+          systemRole: "demo",
+        });
+      } else if (demoUser.systemRole !== "demo") {
+        // Ensure demo role is set
+        await authStorage.upsertUser({
+          ...demoUser,
+          systemRole: "demo",
+        });
+        demoUser.systemRole = "demo";
+      }
+      
+      // Create a mock user object that matches what Passport OIDC provides
+      // The isAuthenticated middleware checks: req.isAuthenticated(), user.expires_at
+      const mockUser = {
+        claims: {
+          sub: DEMO_USER_ID,
+          email: DEMO_USER_EMAIL,
+          first_name: "Demo",
+          last_name: "User",
+        },
+        access_token: "demo-token",
+        refresh_token: null,
+        expires_at: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days from now
+      };
+      
+      // Use Passport's login method to properly set up the session
+      req.login(mockUser, (err: any) => {
+        if (err) {
+          console.error("Error during passport login:", err);
+          return res.status(500).json({ error: "Failed to create demo session" });
+        }
+        
+        res.json({ 
+          success: true, 
+          message: "Logged in as Demo User",
+          user: demoUser,
+          redirectTo: "/"
+        });
+      });
+    } catch (error) {
+      console.error("Error during demo login:", error);
+      res.status(500).json({ message: "Failed to start demo session" });
+    }
+  });
+
   // Get impersonation status (admin and demo roles)
   app.get("/api/admin/impersonation-status", isAuthenticated, async (req: any, res) => {
     try {

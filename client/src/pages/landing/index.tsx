@@ -1,7 +1,31 @@
 import { Button } from "@/components/ui/button";
-import { Layers, CheckCircle2, Users, BarChart3 } from "lucide-react";
+import { Layers, CheckCircle2, Users, BarChart3, Play } from "lucide-react";
+import { useState } from "react";
 
 export default function LandingPage() {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/demo-login", {
+        method: "POST",
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Redirect to home page
+        window.location.href = data.redirectTo || "/";
+      } else {
+        console.error("Demo login failed");
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("Demo login error:", error);
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-slate-700/50">
@@ -33,13 +57,23 @@ export default function LandingPage() {
             managing sprints, and coordinating your team—all in one place.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button 
+              size="lg" 
+              onClick={handleDemoLogin}
+              disabled={isLoading}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-6 text-lg"
+              data-testid="demo-first-button"
+            >
+              <Play className="w-5 h-5 mr-2" />
+              {isLoading ? "Loading..." : "Demo First"}
+            </Button>
             <a href="/api/login" data-testid="get-started-button">
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg">
                 Get Started — It's Free
               </Button>
             </a>
           </div>
-          <p className="text-sm text-slate-500 mt-6">No credit card required</p>
+          <p className="text-sm text-slate-500 mt-6">No credit card required • Try the demo to explore all features</p>
         </div>
 
         <div className="max-w-6xl mx-auto mt-24">
