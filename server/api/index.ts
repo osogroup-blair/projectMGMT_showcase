@@ -3395,13 +3395,14 @@ export async function registerRoutes(
         Epics: {},
         Milestones: {},
         Sprints: {},
-        Tasks: {}
+        Tasks: {},
+        Comments: {}
       };
 
       const results: Record<string, { created: number; errors: string[] }> = {};
       const errors: string[] = [];
 
-      const importOrder = ['Users', 'Projects', 'ProjectStages', 'Deliverables', 'Epics', 'Milestones', 'Sprints', 'Tasks'];
+      const importOrder = ['Users', 'Projects', 'ProjectStages', 'Deliverables', 'Epics', 'Milestones', 'Sprints', 'Tasks', 'Comments'];
 
       const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -3424,7 +3425,8 @@ export async function registerRoutes(
         Epics: new Set<string>(),
         ProjectStages: new Set<string>(),
         Milestones: new Set<string>(),
-        Sprints: new Set<string>()
+        Sprints: new Set<string>(),
+        Tasks: new Set<string>()
       };
 
       // Pre-fetch existing entities for FK validation
@@ -3448,6 +3450,9 @@ export async function registerRoutes(
       
       const existingMilestones = await storage.getMilestones();
       existingMilestones.forEach(m => existingEntityCache.Milestones.add(m.id));
+      
+      const existingTasks = await storage.getTasks();
+      existingTasks.forEach(t => existingEntityCache.Tasks.add(t.id));
 
       // Cache for fallback user - fetched once when needed
       let fallbackUserId: string | undefined;
@@ -3767,6 +3772,36 @@ export async function registerRoutes(
                 };
                 await storage.createTask(taskData);
                 idMappings.Tasks[sourceId] = newId;
+                registerCreatedEntity('Tasks', newId);
+                results[entityType].created++;
+                break;
+              }
+
+              case 'Comments': {
+                // Validate taskId is required for comments
+                const validTaskId = validateForeignKey(row.taskId, 'Tasks');
+                if (!validTaskId) {
+                  results[entityType].errors.push(`Comment: taskId "${row.taskId}" not found`);
+                  continue;
+                }
+                // Validate authorId with fallback
+                let commentAuthorId = await validateOwnerId(row.authorId);
+                if (!commentAuthorId) {
+                  commentAuthorId = await getFallbackUserId();
+                }
+                if (!commentAuthorId) {
+                  results[entityType].errors.push(`Comment: No author available`);
+                  continue;
+                }
+                const commentData = {
+                  id: newId,
+                  taskId: validTaskId,
+                  authorId: commentAuthorId,
+                  authorName: row.authorName || 'Imported User',
+                  body: row.body || row.content || row.text || '',
+                  createdAt: row.createdAt ? new Date(row.createdAt) : new Date()
+                };
+                await storage.createComment(commentData);
                 results[entityType].created++;
                 break;
               }
