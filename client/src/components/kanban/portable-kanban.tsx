@@ -122,18 +122,39 @@ interface PortableKanbanProps {
 }
 
 // Helper hook for persisting collapsed columns state
-function useCollapsedColumns(boardId: string) {
+function useCollapsedColumns(boardId: string, columns: KanbanColumn[]) {
   const storageKey = `kanban-collapsed-${boardId}`;
+  const [initialized, setInitialized] = useState(false);
   
   const [collapsedColumnIds, setCollapsedColumnIds] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
     try {
       const stored = localStorage.getItem(storageKey);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
+      if (stored) {
+        return new Set(JSON.parse(stored));
+      }
+      // No stored value - will initialize from column defaults once columns load
+      return new Set();
     } catch {
       return new Set();
     }
   });
+
+  // Initialize from column defaults when columns first load and no stored preference exists
+  useEffect(() => {
+    if (initialized || columns.length === 0) return;
+    
+    const hasStoredValue = localStorage.getItem(storageKey) !== null;
+    if (!hasStoredValue) {
+      const defaultCollapsed = columns
+        .filter(col => col.defaultCollapsed)
+        .map(col => col.id);
+      if (defaultCollapsed.length > 0) {
+        setCollapsedColumnIds(new Set(defaultCollapsed));
+      }
+    }
+    setInitialized(true);
+  }, [columns, storageKey, initialized]);
 
   useEffect(() => {
     try {
@@ -504,7 +525,7 @@ export function PortableKanban({
   className,
 }: PortableKanbanProps) {
   const { columns, isLoading: columnsLoading } = useKanbanColumns();
-  const { toggleColumn, collapseAll, expandAll, isCollapsed, collapsedColumnIds } = useCollapsedColumns(boardId || projectId);
+  const { toggleColumn, collapseAll, expandAll, isCollapsed, collapsedColumnIds } = useCollapsedColumns(boardId || projectId, columns);
   const { isCompletedStatus, isInProgressStatus } = useTaskStatuses();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");

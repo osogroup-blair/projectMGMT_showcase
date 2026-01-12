@@ -11,6 +11,7 @@ export interface KanbanColumn {
   bgColor: string;
   borderColor: string;
   order: number;
+  defaultCollapsed?: boolean;
 }
 
 const DEFAULT_COLUMNS: KanbanColumn[] = [
@@ -72,6 +73,7 @@ export function useKanbanColumns(): { columns: KanbanColumn[]; isLoading: boolea
         bgColor: colorConfig.bgColor,
         borderColor: colorConfig.borderColor,
         order: status.order ?? index,
+        defaultCollapsed: status.kanbanCollapsed ?? false,
       };
     });
   }, [statusOptions]);
