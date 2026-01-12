@@ -44,6 +44,8 @@ import {
   insertEpicTemplateSchema,
   insertTaskTemplateSchema,
   insertMappingTemplateSchema,
+  insertMilestoneTemplateSchema,
+  insertTemplateSnippetSchema,
   insertStatusOptionSchema,
   insertProjectTaskStatusSchema,
   insertProjectSettingsSchema,
@@ -1593,6 +1595,66 @@ export async function registerRoutes(
 
   app.delete("/api/mappingTemplates/:id", async (req, res) => {
     await storage.deleteMappingTemplate(req.params.id);
+    res.status(204).send();
+  });
+
+  // Milestone Templates
+  app.get("/api/milestoneTemplates", async (req, res) => {
+    const templates = await storage.getMilestoneTemplates();
+    res.json(templates);
+  });
+
+  app.post("/api/milestoneTemplates", async (req, res) => {
+    try {
+      const validated = insertMilestoneTemplateSchema.parse(req.body);
+      const template = await storage.createMilestoneTemplate(validated);
+      res.status(201).json(template);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/milestoneTemplates/:id", async (req, res) => {
+    try {
+      const template = await storage.updateMilestoneTemplate(req.params.id, req.body);
+      res.json(template);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/milestoneTemplates/:id", async (req, res) => {
+    await storage.deleteMilestoneTemplate(req.params.id);
+    res.status(204).send();
+  });
+
+  // Template Snippets
+  app.get("/api/templateSnippets", async (req, res) => {
+    const snippets = await storage.getTemplateSnippets();
+    res.json(snippets);
+  });
+
+  app.post("/api/templateSnippets", async (req, res) => {
+    try {
+      const validated = insertTemplateSnippetSchema.parse(req.body);
+      const snippet = await storage.createTemplateSnippet(validated);
+      res.status(201).json(snippet);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/templateSnippets/:id", async (req, res) => {
+    try {
+      const snippet = await storage.updateTemplateSnippet(req.params.id, req.body);
+      res.json(snippet);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/templateSnippets/:id", async (req, res) => {
+    await storage.deleteTemplateSnippet(req.params.id);
     res.status(204).send();
   });
 

@@ -32,6 +32,8 @@ import type {
   EpicTemplate, InsertEpicTemplate,
   TaskTemplate, InsertTaskTemplate,
   MappingTemplate, InsertMappingTemplate,
+  MilestoneTemplate, InsertMilestoneTemplate,
+  TemplateSnippet, InsertTemplateSnippet,
   StatusOption, InsertStatusOption,
   ProjectTaskStatus, InsertProjectTaskStatus,
   ProjectSettings, InsertProjectSettings,
@@ -240,6 +242,20 @@ export interface IStorage {
   createMappingTemplate(template: InsertMappingTemplate): Promise<MappingTemplate>;
   updateMappingTemplate(id: string, template: Partial<MappingTemplate>): Promise<MappingTemplate>;
   deleteMappingTemplate(id: string): Promise<void>;
+
+  // Milestone Templates
+  getMilestoneTemplates(): Promise<MilestoneTemplate[]>;
+  getMilestoneTemplateById(id: string): Promise<MilestoneTemplate | undefined>;
+  createMilestoneTemplate(template: InsertMilestoneTemplate): Promise<MilestoneTemplate>;
+  updateMilestoneTemplate(id: string, template: Partial<MilestoneTemplate>): Promise<MilestoneTemplate>;
+  deleteMilestoneTemplate(id: string): Promise<void>;
+
+  // Template Snippets
+  getTemplateSnippets(): Promise<TemplateSnippet[]>;
+  getTemplateSnippetById(id: string): Promise<TemplateSnippet | undefined>;
+  createTemplateSnippet(snippet: InsertTemplateSnippet): Promise<TemplateSnippet>;
+  updateTemplateSnippet(id: string, snippet: Partial<TemplateSnippet>): Promise<TemplateSnippet>;
+  deleteTemplateSnippet(id: string): Promise<void>;
 
   // Status Options
   getStatusOptions(): Promise<StatusOption[]>;
@@ -1070,6 +1086,48 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteMappingTemplate(id: string): Promise<void> {
     await db.delete(schema.mappingTemplates).where(eq(schema.mappingTemplates.id, id));
+  }
+
+  // Milestone Templates
+  async getMilestoneTemplates(): Promise<MilestoneTemplate[]> {
+    return await db.select().from(schema.milestoneTemplates);
+  }
+  async getMilestoneTemplateById(id: string): Promise<MilestoneTemplate | undefined> {
+    const [template] = await db.select().from(schema.milestoneTemplates).where(eq(schema.milestoneTemplates.id, id));
+    return template;
+  }
+  async createMilestoneTemplate(template: InsertMilestoneTemplate): Promise<MilestoneTemplate> {
+    const id = (arguments[0] as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.milestoneTemplates).values({ ...template, id }).returning();
+    return created;
+  }
+  async updateMilestoneTemplate(id: string, template: Partial<MilestoneTemplate>): Promise<MilestoneTemplate> {
+    const [updated] = await db.update(schema.milestoneTemplates).set(template).where(eq(schema.milestoneTemplates.id, id)).returning();
+    return updated;
+  }
+  async deleteMilestoneTemplate(id: string): Promise<void> {
+    await db.delete(schema.milestoneTemplates).where(eq(schema.milestoneTemplates.id, id));
+  }
+
+  // Template Snippets
+  async getTemplateSnippets(): Promise<TemplateSnippet[]> {
+    return await db.select().from(schema.templateSnippets);
+  }
+  async getTemplateSnippetById(id: string): Promise<TemplateSnippet | undefined> {
+    const [snippet] = await db.select().from(schema.templateSnippets).where(eq(schema.templateSnippets.id, id));
+    return snippet;
+  }
+  async createTemplateSnippet(snippet: InsertTemplateSnippet): Promise<TemplateSnippet> {
+    const id = (arguments[0] as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.templateSnippets).values({ ...snippet, id }).returning();
+    return created;
+  }
+  async updateTemplateSnippet(id: string, snippet: Partial<TemplateSnippet>): Promise<TemplateSnippet> {
+    const [updated] = await db.update(schema.templateSnippets).set(snippet).where(eq(schema.templateSnippets.id, id)).returning();
+    return updated;
+  }
+  async deleteTemplateSnippet(id: string): Promise<void> {
+    await db.delete(schema.templateSnippets).where(eq(schema.templateSnippets.id, id));
   }
 
   // Status Options
