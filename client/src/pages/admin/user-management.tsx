@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Shell } from "@/components/layout/shell";
 import { 
   Users, 
@@ -267,6 +267,14 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const bulkActivate = useBulkActivate();
   const bulkDelete = useBulkDelete();
   const { data: systems = [] } = useAvailableSystems();
+  const { data: systemRoles = [] } = useQuery<{ id: string; name: string; displayName: string; description: string }[]>({
+    queryKey: ["/api/roles-permissions/roles"],
+    queryFn: async () => {
+      const res = await fetch("/api/roles-permissions/roles", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch roles");
+      return res.json();
+    },
+  });
   const { data: profileData, refetch: refetchProfile } = useUserProfile(identityUserId || undefined);
   const linkIdentity = useLinkIdentity();
   const unlinkIdentity = useUnlinkIdentity();
@@ -1241,12 +1249,10 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   value={formData.systemRole}
                   onValueChange={(v) => setFormData({ ...formData, systemRole: v as any })}
                   placeholder="Select role"
-                  options={[
-                    { value: "admin", label: "Admin" },
-                    { value: "manager", label: "Manager" },
-                    { value: "member", label: "Member" },
-                    { value: "viewer", label: "Viewer" },
-                  ]}
+                  options={systemRoles.map(role => ({
+                    value: role.name,
+                    label: role.displayName,
+                  }))}
                 />
               </div>
             </div>
