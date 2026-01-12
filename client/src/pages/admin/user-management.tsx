@@ -1436,13 +1436,14 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               <div className="grid gap-2">
                 <Label htmlFor="systemRole">System Role</Label>
                 <SearchableSelect
-                  value={formData.systemRole}
+                  value={formData.systemRole || ""}
                   onValueChange={(v) => setFormData({ ...formData, systemRole: v as any })}
                   placeholder="Select role"
                   options={systemRoles.map(role => ({
                     value: role.name,
                     label: role.displayName,
                   }))}
+                  data-testid="select-user-role"
                 />
               </div>
               <div className="grid gap-2">
