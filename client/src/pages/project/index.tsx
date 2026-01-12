@@ -1005,7 +1005,7 @@ export default function ProjectOverview() {
             </div>
           </div>
 
-          <div className="px-6 py-6">
+          <div className="px-6 pb-6">
             <TabsContent value="overview" className="mt-0 outline-none">
               <div className="flex gap-0">
                 {dashboardSidebarOpen ? (

@@ -22,7 +22,7 @@ export function TimelineAxis({ viewMode, timelineRange, totalWidth }: TimelineAx
 
   return (
     <div 
-      className="bg-background border-b"
+      className="bg-background border-b sticky top-0 z-30"
       style={{ width: totalWidth }}
     >
       <div className="relative h-12 flex">
