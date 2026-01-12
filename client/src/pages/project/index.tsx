@@ -1552,7 +1552,7 @@ export default function ProjectOverview() {
               </div>
             </TabsContent>
 
-            <TabsContent value="timeline" className="h-[700px] mt-0 outline-none">
+            <TabsContent value="timeline" className="mt-0 outline-none">
               <UnifiedTimeline 
                 project={project}
                 sprints={projectSprints}

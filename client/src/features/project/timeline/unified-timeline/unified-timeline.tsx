@@ -166,7 +166,7 @@ export function UnifiedTimeline({
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-full bg-background rounded-lg border overflow-hidden">
+      <div className="flex flex-col bg-background rounded-lg border">
         <TimelineHeader
           viewMode={viewMode}
           onViewModeChange={setViewMode}
@@ -177,9 +177,9 @@ export function UnifiedTimeline({
           onLayerToggle={handleLayerToggle}
         />
 
-        <div className="flex flex-1 relative overflow-hidden">
+        <div className="flex relative">
           <div 
-            className="flex-shrink-0 w-48 border-r bg-background relative z-40 flex flex-col overflow-hidden"
+            className="flex-shrink-0 w-48 border-r bg-background relative z-40 flex flex-col"
           >
             <div 
               className="h-12 border-b flex items-center px-3 bg-muted/30 shrink-0"
@@ -192,8 +192,7 @@ export function UnifiedTimeline({
 
             <div 
               ref={sidebarRef}
-              className="flex-1 overflow-y-auto overflow-x-hidden"
-              style={{ scrollbarWidth: 'none' }}
+              className="overflow-x-hidden"
               data-testid="sidebar-scroll-container"
             >
               <div className="flex flex-col" style={{ paddingBottom: 100 }}>
@@ -316,7 +315,7 @@ export function UnifiedTimeline({
 
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-auto"
+            className="flex-1 overflow-x-auto overflow-y-visible"
             onScroll={handleScroll}
             data-testid="timeline-scroll-container"
           >
