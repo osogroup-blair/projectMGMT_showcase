@@ -49,7 +49,7 @@ import { useRoute, Link } from "wouter";
 import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones } from "@/hooks/use-nexus-data";
+import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { Loader2, Flag, Target } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -99,6 +99,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { data: statusOptions = [] } = useStatusOptions();
   const { data: allSprints = [], isLoading: isSprintsLoading } = useSprints();
   const { data: allMilestones = [], isLoading: isMilestonesLoading } = useMilestones();
+  const { data: allProjectStages = [] } = useProjectStages();
   const { statuses: taskStatuses, statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor, defaultStatus } = useTaskStatuses();
   const { updateAsync: updateEpicAsync } = useEpics();
 
@@ -110,6 +111,11 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const projectMilestones = useMemo(() => 
     (allMilestones || []).filter((m: any) => m.projectId === projectId),
     [allMilestones, projectId]
+  );
+
+  const projectStages = useMemo(() => 
+    (allProjectStages || []).filter((s: any) => s.projectId === projectId),
+    [allProjectStages, projectId]
   );
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -551,6 +557,13 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
       return;
     }
     
+    // Get the first stage from the epic's stageIds, or fallback to project stages
+    const stageId = epic.stageIds?.[0] || projectStages?.[0]?.id;
+    if (!stageId) {
+      toast({ title: "Error", description: "No stage available for this task.", variant: "destructive" });
+      return;
+    }
+    
     try {
       await createTaskAsync({
         title: newTaskTitle.trim(),
@@ -559,6 +572,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         projectId: projectId,
         epicId: epicId,
         deliverableId: epic?.deliverableId,
+        stageId: stageId,
         status: defaultStatus,
         priority: "Medium",
         effort: 3,
