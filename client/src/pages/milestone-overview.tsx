@@ -774,7 +774,7 @@ function TasksTab({
   const [selectedEpicId, setSelectedEpicId] = useState<string>("");
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const { toast } = useToast();
-  const { createAsync: createTaskAsync } = useTasks();
+  const { createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { currentUser } = useCurrentUser();
   const [isCreating, setIsCreating] = useState(false);
@@ -921,6 +921,19 @@ function TasksTab({
     setDialogOpen(true);
   };
 
+  const TASK_STATUS_OPTIONS = [
+    { value: "BACKLOGGED", label: "Backlogged" },
+    { value: "Pending", label: "Pending" },
+    { value: "In Progress", label: "In Progress" },
+    { value: "Review", label: "Review" },
+    { value: "Done", label: "Done" },
+    { value: "Blocked", label: "Blocked" }
+  ];
+
+  const handleTaskStatusChange = (taskId: string, newStatus: string) => {
+    updateTask({ id: taskId, updates: { status: newStatus } });
+  };
+
   return (
     <>
     <div className="space-y-4">
@@ -952,76 +965,77 @@ function TasksTab({
               const hasConflict = hasTaskDateConflict(task);
               
               return (
-                <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
-                  <div 
-                    className={cn(
-                      "group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer",
-                      hasConflict && "border-amber-300 bg-amber-50/30"
-                    )}
-                    data-testid={`milestone-task-${task.id}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full shrink-0",
-                        task.status === "Done" ? "bg-green-500" :
-                        task.status === "In Progress" ? "bg-blue-500" :
-                        task.status === "Review" ? "bg-amber-500" :
-                        "bg-slate-400"
-                      )} />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-medium group-hover:text-primary transition-colors">{task.title}</h4>
-                          {hasConflict && (
-                            <span className="flex items-center gap-1 text-amber-600" title="Task due date is after milestone target date">
-                              <AlertTriangle className="h-3.5 w-3.5" />
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {epic && <span>{epic.title}</span>}
-                          {(task.targetDate || task.dueDate) && (
-                            <span className={cn(
-                              "flex items-center gap-1",
-                              hasConflict && "text-amber-600 font-medium"
-                            )}>
-                              <CalendarIcon className="h-3 w-3" />
-                              {new Date(task.targetDate || task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                          {task.stageId && (
-                            <span className="px-1.5 py-0.5 rounded bg-muted">
-                              {task.stageId}
-                            </span>
-                          )}
-                        </div>
+                <div 
+                  key={task.id}
+                  className={cn(
+                    "group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all",
+                    hasConflict && "border-amber-300 bg-amber-50/30"
+                  )}
+                  data-testid={`milestone-task-${task.id}`}
+                >
+                  <Link href={`/projects/${projectId}/tasks/${task.id}`} className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                    <div className={cn(
+                      "w-2 h-2 rounded-full shrink-0",
+                      task.status === "Done" ? "bg-green-500" :
+                      task.status === "In Progress" ? "bg-blue-500" :
+                      task.status === "Review" ? "bg-amber-500" :
+                      "bg-slate-400"
+                    )} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium group-hover:text-primary transition-colors truncate">{task.title}</h4>
+                        {hasConflict && (
+                          <span className="flex items-center gap-1 text-amber-600 shrink-0" title="Task due date is after milestone target date">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {epic && <span className="truncate">{epic.title}</span>}
+                        {(task.targetDate || task.dueDate) && (
+                          <span className={cn(
+                            "flex items-center gap-1 shrink-0",
+                            hasConflict && "text-amber-600 font-medium"
+                          )}>
+                            <CalendarIcon className="h-3 w-3" />
+                            {new Date(task.targetDate || task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <Badge variant="outline" className={cn("font-normal text-xs", priorityClass)}>
-                        {task.priority}
-                      </Badge>
-                      <Badge 
-                        variant="secondary" 
+                  </Link>
+                  <div className="flex items-center gap-3 shrink-0 ml-3">
+                    <Badge variant="outline" className={cn("font-normal text-xs", priorityClass)}>
+                      {task.priority}
+                    </Badge>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <SearchableSelect
+                        value={task.status || "Pending"}
+                        onValueChange={(value) => handleTaskStatusChange(task.id, value)}
+                        options={TASK_STATUS_OPTIONS}
                         className={cn(
-                          "font-normal text-xs",
-                          task.status === "Done" ? "bg-green-100 text-green-700" :
-                          task.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                          "bg-slate-100 text-slate-700"
+                          "h-7 text-xs min-w-[100px] border-0",
+                          task.status === "Done" ? "bg-green-100 text-green-700 hover:bg-green-200" :
+                          task.status === "In Progress" ? "bg-blue-100 text-blue-700 hover:bg-blue-200" :
+                          task.status === "Review" ? "bg-amber-100 text-amber-700 hover:bg-amber-200" :
+                          task.status === "Blocked" ? "bg-red-100 text-red-700 hover:bg-red-200" :
+                          "bg-slate-100 text-slate-700 hover:bg-slate-200"
                         )}
-                      >
-                        {task.status}
-                      </Badge>
-                      {assignee && (
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-[9px]">
-                            {assignee.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                        data-testid={`select-task-status-${task.id}`}
+                      />
                     </div>
+                    {assignee && (
+                      <Avatar className="h-6 w-6">
+                        <AvatarFallback className="text-[9px]">
+                          {assignee.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 hover:text-primary cursor-pointer" />
+                    </Link>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -1530,14 +1544,19 @@ function ScopeDefinitionTab({
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="manual" className="w-full">
+      <Tabs defaultValue="rules" className="w-full">
         <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
           <TabsTrigger 
-            value="manual"
+            value="rules" 
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
           >
-            <ListTodo className="w-4 h-4 mr-2" />
-            Manual Adjustments
+            <SlidersHorizontal className="w-4 h-4 mr-2" />
+            Rule-Based
+            {pendingTasks.length > 0 && (
+              <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 text-xs">
+                {pendingTasks.length} pending
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger 
             value="matrix"
@@ -1547,16 +1566,11 @@ function ScopeDefinitionTab({
             Coverage Matrix
           </TabsTrigger>
           <TabsTrigger 
-            value="rules" 
+            value="manual"
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
           >
-            <SlidersHorizontal className="w-4 h-4 mr-2" />
-            Rule-Based Scope
-            {pendingTasks.length > 0 && (
-              <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 text-xs">
-                {pendingTasks.length} pending
-              </Badge>
-            )}
+            <ListTodo className="w-4 h-4 mr-2" />
+            Manual Addition
           </TabsTrigger>
         </TabsList>
 
