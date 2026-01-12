@@ -210,6 +210,165 @@ export async function deactivateUser(id: string): Promise<boolean> {
   return true;
 }
 
+export interface UserDeletionPreflight {
+  canDelete: boolean;
+  blockers: {
+    isLastAdmin: boolean;
+    ownedProjects: { id: string; name: string }[];
+    ownedDeliverables: { id: string; name: string; projectName: string }[];
+    ownedEpics: { id: string; name: string; projectName: string }[];
+    ownedMilestones: { id: string; name: string; projectName: string }[];
+    ownedSprints: { id: string; name: string; projectName: string }[];
+  };
+  warnings: {
+    assignedTasks: number;
+    comments: number;
+    identities: number;
+    roleAssignments: number;
+    sprintMemberships: number;
+  };
+}
+
+export async function getUserDeletionPreflight(userId: string): Promise<UserDeletionPreflight> {
+  // Check if this is the last admin
+  const admins = await db.select({ id: users.id }).from(users).where(eq(users.systemRole, "admin"));
+  const isLastAdmin = admins.length === 1 && admins[0].id === userId;
+
+  // Get owned projects
+  const ownedProjectsData = await db
+    .select({ id: projects.id, name: projects.name })
+    .from(projects)
+    .where(eq(projects.ownerId, userId));
+
+  // Get owned deliverables with project names
+  const ownedDeliverablesData = await db
+    .select({ 
+      id: deliverables.id, 
+      title: deliverables.title, 
+      projectName: projects.name 
+    })
+    .from(deliverables)
+    .leftJoin(projects, eq(deliverables.projectId, projects.id))
+    .where(eq(deliverables.ownerId, userId));
+
+  // Get owned epics with project names
+  const ownedEpicsData = await db
+    .select({ 
+      id: epics.id, 
+      title: epics.title, 
+      projectName: projects.name 
+    })
+    .from(epics)
+    .leftJoin(deliverables, eq(epics.deliverableId, deliverables.id))
+    .leftJoin(projects, eq(deliverables.projectId, projects.id))
+    .where(eq(epics.ownerId, userId));
+
+  // Get owned milestones with project names
+  const ownedMilestonesData = await db
+    .select({ 
+      id: milestones.id, 
+      name: milestones.name, 
+      projectName: projects.name 
+    })
+    .from(milestones)
+    .leftJoin(projects, eq(milestones.projectId, projects.id))
+    .where(eq(milestones.ownerId, userId));
+
+  // Get owned sprints with project names
+  const ownedSprintsData = await db
+    .select({ 
+      id: sprints.id, 
+      name: sprints.name, 
+      projectName: projects.name 
+    })
+    .from(sprints)
+    .leftJoin(projects, eq(sprints.projectId, projects.id))
+    .where(eq(sprints.ownerUserId, userId));
+
+  // Count warning items (things that will be deleted/nullified)
+  const [assignedTasksCount] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(eq(tasks.assigneeId, userId));
+  const [commentsCount] = await db.select({ count: sql<number>`count(*)` }).from(comments).where(eq(comments.authorId, userId));
+  const [identitiesCount] = await db.select({ count: sql<number>`count(*)` }).from(userIdentities).where(eq(userIdentities.userId, userId));
+  const [roleAssignmentsCount] = await db.select({ count: sql<number>`count(*)` }).from(roleAssignments).where(eq(roleAssignments.userId, userId));
+  const [sprintMembershipsCount] = await db.select({ count: sql<number>`count(*)` }).from(sprintMembers).where(eq(sprintMembers.userId, userId));
+
+  const hasBlockers = isLastAdmin || 
+    ownedProjectsData.length > 0 ||
+    ownedDeliverablesData.length > 0 || 
+    ownedEpicsData.length > 0 || 
+    ownedMilestonesData.length > 0 ||
+    ownedSprintsData.length > 0;
+
+  return {
+    canDelete: !hasBlockers,
+    blockers: {
+      isLastAdmin,
+      ownedProjects: ownedProjectsData.map(p => ({ id: p.id, name: p.name || "Unnamed" })),
+      ownedDeliverables: ownedDeliverablesData.map(d => ({ id: d.id, name: d.title || "Unnamed", projectName: d.projectName || "Unknown" })),
+      ownedEpics: ownedEpicsData.map(e => ({ id: e.id, name: e.title || "Unnamed", projectName: e.projectName || "Unknown" })),
+      ownedMilestones: ownedMilestonesData.map(m => ({ id: m.id, name: m.name || "Unnamed", projectName: m.projectName || "Unknown" })),
+      ownedSprints: ownedSprintsData.map(s => ({ id: s.id, name: s.name || "Unnamed", projectName: s.projectName || "Unknown" })),
+    },
+    warnings: {
+      assignedTasks: Number(assignedTasksCount?.count || 0),
+      comments: Number(commentsCount?.count || 0),
+      identities: Number(identitiesCount?.count || 0),
+      roleAssignments: Number(roleAssignmentsCount?.count || 0),
+      sprintMemberships: Number(sprintMembershipsCount?.count || 0),
+    },
+  };
+}
+
+export async function transferOwnership(
+  fromUserId: string, 
+  toUserId: string, 
+  entityType: "projects" | "deliverables" | "epics" | "milestones" | "sprints",
+  entityIds: string[]
+): Promise<number> {
+  if (entityIds.length === 0) return 0;
+
+  switch (entityType) {
+    case "projects":
+      await db.update(projects)
+        .set({ ownerId: toUserId, updatedAt: new Date() })
+        .where(and(eq(projects.ownerId, fromUserId), inArray(projects.id, entityIds)));
+      break;
+    case "deliverables":
+      await db.update(deliverables)
+        .set({ ownerId: toUserId, updatedAt: new Date() })
+        .where(and(eq(deliverables.ownerId, fromUserId), inArray(deliverables.id, entityIds)));
+      break;
+    case "epics":
+      await db.update(epics)
+        .set({ ownerId: toUserId, updatedAt: new Date() })
+        .where(and(eq(epics.ownerId, fromUserId), inArray(epics.id, entityIds)));
+      break;
+    case "milestones":
+      await db.update(milestones)
+        .set({ ownerId: toUserId, updatedAt: new Date() })
+        .where(and(eq(milestones.ownerId, fromUserId), inArray(milestones.id, entityIds)));
+      break;
+    case "sprints":
+      await db.update(sprints)
+        .set({ ownerUserId: toUserId, updatedAt: new Date() })
+        .where(and(eq(sprints.ownerUserId, fromUserId), inArray(sprints.id, entityIds)));
+      break;
+  }
+
+  return entityIds.length;
+}
+
+export async function archiveUser(id: string): Promise<boolean> {
+  await db.update(users)
+    .set({ 
+      status: "Archived",
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, id));
+
+  return true;
+}
+
 export async function deleteUser(id: string): Promise<boolean> {
   // Delete or nullify all related records before deleting user
   // Order matters due to foreign key constraints

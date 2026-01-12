@@ -186,6 +186,57 @@ export function registerUserRoutes(
     }
   });
 
+  // Preflight check before deletion - shows all dependencies
+  app.get("/api/users/:id/deletion-preflight", requireAuth(), requireRole("admin"), async (req, res) => {
+    try {
+      const preflight = await userManagementService.getUserDeletionPreflight(req.params.id);
+      res.json(preflight);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Transfer ownership of entities from one user to another
+  app.post("/api/users/:id/transfer-ownership", requireAuth(), requireRole("admin"), async (req, res) => {
+    try {
+      const { targetUserId, entityType, entityIds } = req.body;
+      if (!targetUserId || !entityType || !entityIds || !Array.isArray(entityIds)) {
+        return res.status(400).json({ error: "targetUserId, entityType, and entityIds array are required" });
+      }
+      const count = await userManagementService.transferOwnership(req.params.id, targetUserId, entityType, entityIds);
+      res.json({ transferred: count });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Soft delete - archives user without hard deleting
+  app.post("/api/users/:id/archive", requireAuth(), requirePermission(UserPermissions.USERS_DELETE), async (req, res) => {
+    try {
+      await userManagementService.archiveUser(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Hard delete - permanently removes user (requires preflight check to pass)
+  app.delete("/api/users/:id/permanent", requireAuth(), requireRole("admin"), async (req, res) => {
+    try {
+      const preflight = await userManagementService.getUserDeletionPreflight(req.params.id);
+      if (!preflight.canDelete) {
+        return res.status(400).json({ 
+          error: "Cannot delete user with blocking dependencies. Use preflight check to see details.",
+          blockers: preflight.blockers 
+        });
+      }
+      await userManagementService.deleteUser(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/users/:id", requireAuth(), requirePermission(UserPermissions.USERS_DELETE), async (req, res) => {
     try {
       await userManagementService.deactivateUser(req.params.id);
