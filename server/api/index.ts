@@ -29,6 +29,8 @@ import { registerTemplateRoutes } from "./routes/templates";
 import { registerConfigRoutes } from "./routes/config";
 import { registerImportExportRoutes } from "./routes/import-export";
 import { registerScheduleSyncRoutes } from "./routes/schedule-sync";
+import rolesPermissionsRoutes from "./routes/roles-permissions";
+import { seedRolesAndPermissions } from "../services/roles-permissions-service";
 
 // Helper to extract authenticated user ID from request
 function getAuthUserId(req: any): string | null {
@@ -188,6 +190,18 @@ export async function registerRoutes(
 
   // Register schedule-sync routes
   registerScheduleSyncRoutes(app, getAuthUserId);
+
+  // Register roles & permissions routes
+  app.use("/api/roles-permissions", rolesPermissionsRoutes);
+
+  // Seed roles and permissions on startup
+  seedRolesAndPermissions().then(result => {
+    if (result.roles > 0 || result.permissions > 0 || result.mappings > 0) {
+      console.log(`Seeded roles/permissions: ${result.roles} roles, ${result.permissions} permissions, ${result.mappings} mappings`);
+    }
+  }).catch(err => {
+    console.error("Failed to seed roles/permissions:", err);
+  });
 
   return httpServer;
 }
