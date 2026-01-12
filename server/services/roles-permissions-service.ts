@@ -117,6 +117,14 @@ export async function seedRolesAndPermissions(): Promise<{ roles: number; permis
   return { roles: rolesCreated, permissions: permissionsCreated, mappings: mappingsCreated };
 }
 
+export async function getRoles() {
+  return db.select().from(systemRoles).orderBy(systemRoles.order);
+}
+
+export async function getPermissions() {
+  return db.select().from(systemPermissions).orderBy(systemPermissions.category, systemPermissions.order);
+}
+
 export async function getRolesWithPermissions() {
   const roles = await db.select().from(systemRoles).orderBy(systemRoles.order);
   const permissions = await db.select().from(systemPermissions).orderBy(systemPermissions.category, systemPermissions.order);

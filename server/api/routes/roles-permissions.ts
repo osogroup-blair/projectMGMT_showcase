@@ -3,10 +3,32 @@ import { requireAuth, requirePermission } from "../../middleware/require-permiss
 import { 
   seedRolesAndPermissions, 
   getRolesWithPermissions, 
-  setRolePermission 
+  setRolePermission,
+  getRoles,
+  getPermissions,
 } from "../../services/roles-permissions-service";
 
 const router = Router();
+
+router.get("/roles", requireAuth(), async (req: Request, res: Response) => {
+  try {
+    const roles = await getRoles();
+    res.json(roles);
+  } catch (error) {
+    console.error("Error getting roles:", error);
+    res.status(500).json({ error: "Failed to get roles" });
+  }
+});
+
+router.get("/permissions", requireAuth(), async (req: Request, res: Response) => {
+  try {
+    const permissions = await getPermissions();
+    res.json(permissions);
+  } catch (error) {
+    console.error("Error getting permissions:", error);
+    res.status(500).json({ error: "Failed to get permissions" });
+  }
+});
 
 router.get("/", requireAuth(), async (req: Request, res: Response) => {
   try {
