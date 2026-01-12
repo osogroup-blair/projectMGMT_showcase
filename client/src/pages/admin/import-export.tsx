@@ -494,6 +494,11 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
       MilestoneTaskLinks: [],
       ProjectStages: [],
       Sprints: [],
+      SprintMembers: [],
+      SprintScopeEvents: [],
+      SprintScopeTargets: [],
+      SprintPulseUpdates: [],
+      TaskDependencies: [],
       Comments: [],
       Attachments: [],
       History: []
@@ -524,8 +529,28 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
 
         if (Array.isArray(sprints)) {
           sprints.forEach((sprint: any) => {
+            const { members, scopeEvents, scopeTargets, pulseUpdates, scope_events, scope_targets, pulse_updates, ...sprintData } = sprint;
             existingSprintIds.add(sprint.id);
-            flat.Sprints.push(sprint);
+            flat.Sprints.push(sprintData);
+            
+            // Extract sprint-related entities
+            const sprintMembers = members;
+            const sprintScopeEvents = scopeEvents || scope_events;
+            const sprintScopeTargets = scopeTargets || scope_targets;
+            const sprintPulseUpdates = pulseUpdates || pulse_updates;
+            
+            if (Array.isArray(sprintMembers)) {
+              flat.SprintMembers.push(...sprintMembers);
+            }
+            if (Array.isArray(sprintScopeEvents)) {
+              flat.SprintScopeEvents.push(...sprintScopeEvents);
+            }
+            if (Array.isArray(sprintScopeTargets)) {
+              flat.SprintScopeTargets.push(...sprintScopeTargets);
+            }
+            if (Array.isArray(sprintPulseUpdates)) {
+              flat.SprintPulseUpdates.push(...sprintPulseUpdates);
+            }
           });
         }
 
@@ -559,7 +584,7 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
 
                 if (Array.isArray(tasks)) {
                   tasks.forEach((task: any) => {
-                    const { comments, attachments, history, ...taskData } = task;
+                    const { comments, attachments, history, dependencies, ...taskData } = task;
                     
                     if (taskData.sprintId) {
                       referencedSprintIds.add(taskData.sprintId);
@@ -585,6 +610,9 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
                     }
                     if (Array.isArray(history)) {
                       flat.History.push(...history);
+                    }
+                    if (Array.isArray(dependencies)) {
+                      flat.TaskDependencies.push(...dependencies);
                     }
                   });
                 }
