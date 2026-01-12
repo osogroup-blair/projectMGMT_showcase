@@ -381,7 +381,18 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
         });
       } else if (ext === 'json') {
         const text = await file.text();
-        const json = JSON.parse(text);
+        // Check for BOM or HTML content
+        const trimmedText = text.trim();
+        if (trimmedText.startsWith('<!DOCTYPE') || trimmedText.startsWith('<html') || trimmedText.startsWith('<')) {
+          throw new Error('The file appears to contain HTML instead of JSON. Please ensure you are uploading a valid JSON export file.');
+        }
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (parseError: any) {
+          const preview = text.substring(0, 100);
+          throw new Error(`Invalid JSON format: ${parseError.message}. File starts with: ${preview}...`);
+        }
         if (json.projects && Array.isArray(json.projects)) {
           parsedData = flattenNestedImport(json);
         } else {
@@ -425,17 +436,25 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
         }
 
         const existingIds: string[] = [];
-        const existingData = await db.getAll(collection as any);
-        const existingIdSet = new Set(existingData.map((item: any) => item.id));
+        let existingCount = 0;
+        let newCount = records.length;
         
-        for (const record of records) {
-          if (record.id && existingIdSet.has(record.id)) {
-            existingIds.push(record.id);
+        try {
+          const existingData = await db.getAll(collection as any);
+          const existingIdSet = new Set((existingData || []).map((item: any) => item.id));
+          
+          for (const record of records) {
+            if (record.id && existingIdSet.has(record.id)) {
+              existingIds.push(record.id);
+            }
           }
+          
+          existingCount = existingIds.length;
+          newCount = records.length - existingCount;
+        } catch (fetchError: any) {
+          entityErrors.push(`Warning: Could not check existing ${entityName}: ${fetchError.message}`);
         }
 
-        const existingCount = existingIds.length;
-        const newCount = records.length - existingCount;
         totalExisting += existingCount;
         totalNew += newCount;
 
