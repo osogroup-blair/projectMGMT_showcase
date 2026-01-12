@@ -13,8 +13,13 @@ export {
   useArchiveUser,
   useTransferOwnership,
   usePermanentDelete,
+  useBulkDeletionPreflight,
+  useBulkDeleteWithPreflight,
   type UseUsersOptions,
   type DeletionPreflightResponse,
+  type BulkPreflightUser,
+  type BulkPreflightResponse,
+  type BulkDeleteResult,
 } from "./hooks/use-users-api";
 
 export {

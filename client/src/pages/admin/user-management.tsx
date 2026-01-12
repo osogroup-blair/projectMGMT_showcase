@@ -97,6 +97,8 @@ import {
   useArchiveUser,
   useTransferOwnership,
   usePermanentDelete,
+  useBulkDeletionPreflight,
+  useBulkDeleteWithPreflight,
   useUserProfile,
   useLinkIdentity,
   useUnlinkIdentity,
@@ -104,6 +106,8 @@ import {
   useMergeUsers,
   type UseUsersOptions,
   type DeletionPreflightResponse,
+  type BulkPreflightResponse,
+  type BulkDeleteResult,
 } from "@/features/user-management";
 import type { UserPublic, CreateUserRequest, UpdateUserRequest } from "@shared/contracts/user-management";
 import type { IdentityPublic, LinkIdentityRequest } from "@shared/contracts/user-identity";
@@ -253,6 +257,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const [preflightUser, setPreflightUser] = useState<UserPublic | null>(null);
   const [preflightData, setPreflightData] = useState<DeletionPreflightResponse | null>(null);
   const [transferTargetId, setTransferTargetId] = useState<string>("");
+  const [bulkPreflightData, setBulkPreflightData] = useState<BulkPreflightResponse | null>(null);
+  const [bulkDeleteResult, setBulkDeleteResult] = useState<BulkDeleteResult | null>(null);
 
   const queryOptions: UseUsersOptions = {
     search: searchQuery || undefined,
@@ -279,6 +285,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const archiveUser = useArchiveUser();
   const transferOwnership = useTransferOwnership();
   const permanentDelete = usePermanentDelete();
+  const bulkDeletionPreflight = useBulkDeletionPreflight();
+  const bulkDeleteWithPreflight = useBulkDeleteWithPreflight();
   const { data: systems = [] } = useAvailableSystems();
   const { data: systemRoles = [] } = useQuery<{ id: string; name: string; displayName: string; description: string }[]>({
     queryKey: ["/api/roles-permissions/roles"],
@@ -383,14 +391,47 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleOpenBulkPreflight = async () => {
     try {
-      await bulkDelete.mutateAsync(Array.from(selectedIds));
-      toast({ title: "Users Deleted", description: `Deleted ${selectedIds.size} users permanently.` });
-      setSelectedIds(new Set());
+      const data = await bulkDeletionPreflight.mutateAsync(Array.from(selectedIds));
+      setBulkPreflightData(data);
+      setBulkDeleteResult(null);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleBulkDelete = async (mode: "archive" | "delete") => {
+    if (!bulkPreflightData) return;
+    try {
+      const ids = bulkPreflightData.users.map(u => u.id);
+      const result = await bulkDeleteWithPreflight.mutateAsync({ ids, mode });
+      setBulkDeleteResult(result);
+      
+      const msgs: string[] = [];
+      if (result.deleted.length > 0) msgs.push(`${result.deleted.length} deleted`);
+      if (result.archived.length > 0) msgs.push(`${result.archived.length} archived`);
+      if (result.failed.length > 0) msgs.push(`${result.failed.length} failed`);
+      
+      toast({ 
+        title: "Bulk Delete Complete", 
+        description: msgs.join(", "),
+        variant: result.failed.length > 0 ? "destructive" : "default"
+      });
+      
+      if (result.failed.length === 0) {
+        setBulkPreflightData(null);
+        setSelectedIds(new Set());
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCloseBulkPreflight = () => {
+    setBulkPreflightData(null);
+    setBulkDeleteResult(null);
+    setSelectedIds(new Set());
   };
 
   const handleOpenAdd = () => {
@@ -1102,32 +1143,21 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <X className="h-3.5 w-3.5 mr-1" />
-                        Delete
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete {selectedIds.size} users?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. The selected users will be permanently deleted from the system.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Delete Users
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleOpenBulkPreflight}
+                    disabled={bulkDeletionPreflight.isPending}
+                    data-testid="button-bulk-delete"
+                  >
+                    {bulkDeletionPreflight.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <X className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    Delete
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
                     Clear selection
                   </Button>
@@ -2016,6 +2046,167 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 {permanentDelete.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Delete Permanently
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!bulkPreflightData} onOpenChange={() => handleCloseBulkPreflight()}>
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" data-testid="dialog-bulk-deletion-preflight">
+            <DialogHeader>
+              <DialogTitle>Delete {bulkPreflightData?.users.length || 0} Users</DialogTitle>
+              <DialogDescription>
+                Review the dependencies for each selected user before proceeding.
+              </DialogDescription>
+            </DialogHeader>
+
+            {bulkDeleteResult ? (
+              <div className="space-y-4">
+                <div className="text-lg font-medium">Delete Results</div>
+                
+                {bulkDeleteResult.deleted.length > 0 && (
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium mb-2">
+                      <CheckCircle2 className="w-5 h-5" />
+                      {bulkDeleteResult.deleted.length} Users Permanently Deleted
+                    </div>
+                  </div>
+                )}
+
+                {bulkDeleteResult.archived.length > 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium mb-2">
+                      <AlertCircle className="w-5 h-5" />
+                      {bulkDeleteResult.archived.length} Users Archived (had blockers)
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      These users owned entities that couldn't be automatically transferred.
+                    </p>
+                  </div>
+                )}
+
+                {bulkDeleteResult.failed.length > 0 && (
+                  <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-destructive font-medium mb-2">
+                      <X className="w-5 h-5" />
+                      {bulkDeleteResult.failed.length} Users Failed
+                    </div>
+                    <div className="text-sm space-y-1">
+                      {bulkDeleteResult.failed.map(f => (
+                        <div key={f.id} className="text-muted-foreground">
+                          {f.id}: {f.reason}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : bulkPreflightData ? (
+              <div className="space-y-4">
+                <ScrollArea className="max-h-[400px]">
+                  <div className="space-y-3">
+                    {bulkPreflightData.users.map(user => {
+                      const hasBlockers = !user.canDelete;
+                      const blockerCount = 
+                        user.blockers.ownedProjects.length +
+                        user.blockers.ownedDeliverables.length +
+                        user.blockers.ownedEpics.length +
+                        user.blockers.ownedMilestones.length +
+                        user.blockers.ownedSprints.length;
+                      
+                      return (
+                        <div 
+                          key={user.id}
+                          className={`p-3 rounded-lg border ${
+                            user.blockers.isLastAdmin 
+                              ? "bg-destructive/10 border-destructive" 
+                              : hasBlockers 
+                                ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+                                : "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium">{user.name}</div>
+                            <div className="flex items-center gap-2">
+                              {user.blockers.isLastAdmin ? (
+                                <Badge variant="destructive">Last Admin</Badge>
+                              ) : hasBlockers ? (
+                                <Badge variant="outline" className="text-amber-700 border-amber-300">
+                                  {blockerCount} owned entities
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-green-700 border-green-300">
+                                  Ready to delete
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          {hasBlockers && !user.blockers.isLastAdmin && (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              {user.blockers.ownedProjects.length > 0 && `${user.blockers.ownedProjects.length} projects, `}
+                              {user.blockers.ownedDeliverables.length > 0 && `${user.blockers.ownedDeliverables.length} deliverables, `}
+                              {user.blockers.ownedEpics.length > 0 && `${user.blockers.ownedEpics.length} epics, `}
+                              {user.blockers.ownedMilestones.length > 0 && `${user.blockers.ownedMilestones.length} milestones, `}
+                              {user.blockers.ownedSprints.length > 0 && `${user.blockers.ownedSprints.length} sprints`}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <div className="text-sm font-medium mb-2">Summary</div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-green-600 font-medium">
+                        {bulkPreflightData.users.filter(u => u.canDelete).length}
+                      </span>{" "}
+                      ready to delete
+                    </div>
+                    <div>
+                      <span className="text-amber-600 font-medium">
+                        {bulkPreflightData.users.filter(u => !u.canDelete && !u.blockers.isLastAdmin).length}
+                      </span>{" "}
+                      will be archived
+                    </div>
+                    <div>
+                      <span className="text-destructive font-medium">
+                        {bulkPreflightData.users.filter(u => u.blockers.isLastAdmin).length}
+                      </span>{" "}
+                      cannot be deleted
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <DialogFooter className="flex gap-2 sm:gap-0">
+              <Button variant="outline" onClick={handleCloseBulkPreflight}>
+                {bulkDeleteResult ? "Close" : "Cancel"}
+              </Button>
+              {!bulkDeleteResult && (
+                <>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => handleBulkDelete("archive")}
+                    disabled={bulkDeleteWithPreflight.isPending}
+                    data-testid="button-bulk-archive"
+                  >
+                    {bulkDeleteWithPreflight.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Delete & Archive Blocked
+                  </Button>
+                  <Button 
+                    variant="destructive"
+                    onClick={() => handleBulkDelete("delete")}
+                    disabled={bulkDeleteWithPreflight.isPending || bulkPreflightData?.users.every(u => !u.canDelete)}
+                    data-testid="button-bulk-delete-only"
+                  >
+                    {bulkDeleteWithPreflight.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Delete Ready Only
+                  </Button>
+                </>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -286,14 +286,41 @@ export function registerUserRoutes(
     }
   });
 
-  app.delete("/api/users/bulk", requireAuth(), requireRole("admin"), async (req, res) => {
+  // Bulk preflight check for multiple users
+  app.post("/api/users/bulk/deletion-preflight", requireAuth(), requireRole("admin"), async (req, res) => {
     try {
       const { ids } = req.body;
       if (!ids || !Array.isArray(ids)) {
         return res.status(400).json({ error: "ids array is required" });
       }
-      const count = await userManagementService.bulkDelete(ids);
-      res.json({ deleted: count });
+      
+      const results = await Promise.all(
+        ids.map(async (id: string) => {
+          const preflight = await userManagementService.getUserDeletionPreflight(id);
+          const user = await userManagementService.getUserById(id);
+          return { 
+            id, 
+            name: user?.name || user?.email || id,
+            ...preflight 
+          };
+        })
+      );
+      
+      res.json({ users: results });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulk delete with preflight - archives users with blockers, deletes clean users
+  app.delete("/api/users/bulk", requireAuth(), requireRole("admin"), async (req, res) => {
+    try {
+      const { ids, mode = "archive" } = req.body;
+      if (!ids || !Array.isArray(ids)) {
+        return res.status(400).json({ error: "ids array is required" });
+      }
+      const result = await userManagementService.bulkDeleteWithPreflight(ids, mode);
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

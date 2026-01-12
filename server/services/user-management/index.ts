@@ -478,21 +478,61 @@ export async function bulkActivate(ids: string[]): Promise<number> {
   return ids.length;
 }
 
-export async function bulkDelete(ids: string[]): Promise<{ deleted: number; failed: string[] }> {
-  if (ids.length === 0) return { deleted: 0, failed: [] };
+export interface BulkDeleteResult {
+  deleted: string[];
+  archived: string[];
+  failed: Array<{ id: string; reason: string }>;
+}
+
+export async function bulkDeleteWithPreflight(
+  ids: string[], 
+  mode: "archive" | "delete" = "archive"
+): Promise<BulkDeleteResult> {
+  if (ids.length === 0) return { deleted: [], archived: [], failed: [] };
   
-  const failed: string[] = [];
-  let deleted = 0;
+  const deleted: string[] = [];
+  const archived: string[] = [];
+  const failed: Array<{ id: string; reason: string }> = [];
   
-  // Delete users one by one to handle foreign key constraints properly
   for (const id of ids) {
     try {
+      const preflight = await getUserDeletionPreflight(id);
+      
+      if (preflight.blockers.isLastAdmin) {
+        failed.push({ id, reason: "Cannot delete the last administrator" });
+        continue;
+      }
+      
+      if (!preflight.canDelete) {
+        if (mode === "archive") {
+          await archiveUser(id);
+          archived.push(id);
+        } else {
+          const blockerCount = 
+            preflight.blockers.ownedProjects.length +
+            preflight.blockers.ownedDeliverables.length +
+            preflight.blockers.ownedEpics.length +
+            preflight.blockers.ownedMilestones.length +
+            preflight.blockers.ownedSprints.length;
+          failed.push({ id, reason: `User owns ${blockerCount} entities that must be transferred first` });
+        }
+        continue;
+      }
+      
       await deleteUser(id);
-      deleted++;
+      deleted.push(id);
     } catch (error: any) {
-      failed.push(id);
+      failed.push({ id, reason: error.message || "Unknown error" });
     }
   }
 
-  return { deleted, failed };
+  return { deleted, archived, failed };
+}
+
+export async function bulkDelete(ids: string[]): Promise<{ deleted: number; failed: string[] }> {
+  const result = await bulkDeleteWithPreflight(ids, "archive");
+  return { 
+    deleted: result.deleted.length + result.archived.length, 
+    failed: result.failed.map(f => f.id) 
+  };
 }

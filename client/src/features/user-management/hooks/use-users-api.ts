@@ -358,3 +358,57 @@ export function usePermanentDelete() {
     },
   });
 }
+
+export interface BulkPreflightUser extends DeletionPreflightResponse {
+  id: string;
+  name: string;
+}
+
+export interface BulkPreflightResponse {
+  users: BulkPreflightUser[];
+}
+
+export function useBulkDeletionPreflight() {
+  return useMutation({
+    mutationFn: async (ids: string[]): Promise<BulkPreflightResponse> => {
+      const response = await fetch(`${USERS_QUERY_KEY}/bulk/deletion-preflight`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fetch bulk deletion preflight");
+      }
+      return response.json();
+    },
+  });
+}
+
+export interface BulkDeleteResult {
+  deleted: string[];
+  archived: string[];
+  failed: Array<{ id: string; reason: string }>;
+}
+
+export function useBulkDeleteWithPreflight() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ ids, mode = "archive" }: { ids: string[]; mode?: "archive" | "delete" }): Promise<BulkDeleteResult> => {
+      const response = await fetch(`${USERS_QUERY_KEY}/bulk`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, mode }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete users");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
+    },
+  });
+}
