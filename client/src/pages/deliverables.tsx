@@ -49,7 +49,7 @@ import { useRoute, Link } from "wouter";
 import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages } from "@/hooks/use-nexus-data";
+import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { Loader2, Flag, Target } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -100,6 +100,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { data: allSprints = [], isLoading: isSprintsLoading } = useSprints();
   const { data: allMilestones = [], isLoading: isMilestonesLoading } = useMilestones();
   const { data: allProjectStages = [] } = useProjectStages();
+  const { data: resolvedTaskTypes = [] } = useResolvedTaskTypes(projectId);
   const { statuses: taskStatuses, statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor, defaultStatus } = useTaskStatuses();
   const { updateAsync: updateEpicAsync } = useEpics();
 
@@ -564,6 +565,13 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
       return;
     }
     
+    // Get default task type from resolved types (default or first available)
+    const defaultTaskType = resolvedTaskTypes.find((t: any) => t.isDefault) || resolvedTaskTypes[0];
+    if (!defaultTaskType?.id) {
+      toast({ title: "Error", description: "No task type available for this project.", variant: "destructive" });
+      return;
+    }
+    
     try {
       await createTaskAsync({
         title: newTaskTitle.trim(),
@@ -573,6 +581,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         epicId: epicId,
         deliverableId: epic?.deliverableId,
         stageId: stageId,
+        typeId: defaultTaskType.id,
         status: defaultStatus,
         priority: "Medium",
         effort: 3,
