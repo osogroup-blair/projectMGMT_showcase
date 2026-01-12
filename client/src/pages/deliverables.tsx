@@ -540,10 +540,16 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   };
 
   const handleCreateTask = async (epicId: string) => {
-    if (!newTaskTitle.trim()) return;
+    if (!newTaskTitle.trim()) {
+      toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
+      return;
+    }
     
     const epic = allEpics?.find((e: any) => e.id === epicId);
-    const deliverable = allDeliverables?.find((d: any) => d.id === epic?.deliverableId);
+    if (!epic) {
+      toast({ title: "Error", description: "Epic not found.", variant: "destructive" });
+      return;
+    }
     
     try {
       await createTaskAsync({
@@ -563,8 +569,13 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
       setNewTaskTitle("");
       setCreatingTaskForEpic(null);
       toast({ title: "Task Created", description: "New task has been added to the epic." });
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to create task.", variant: "destructive" });
+    } catch (error: any) {
+      console.error("Failed to create task:", error);
+      toast({ 
+        title: "Error", 
+        description: error?.message || "Failed to create task.", 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -1321,7 +1332,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                               <Target className="h-3 w-3 text-muted-foreground shrink-0" />
                                                               <span className="truncate text-xs">
                                                                 {task.milestoneId 
-                                                                  ? allMilestones.find((m: any) => m.id === task.milestoneId)?.title || "Milestone"
+                                                                  ? projectMilestones.find((m: any) => m.id === task.milestoneId)?.title || "Milestone"
                                                                   : "-"
                                                                 }
                                                               </span>
@@ -1329,13 +1340,11 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                           </SelectTrigger>
                                                           <SelectContent>
                                                             <SelectItem value="none">No Milestone</SelectItem>
-                                                            {allMilestones
-                                                              .filter((m: any) => m.projectId === projectId)
-                                                              .map((milestone: any) => (
-                                                                <SelectItem key={milestone.id} value={milestone.id}>
-                                                                  {milestone.title}
-                                                                </SelectItem>
-                                                              ))}
+                                                            {projectMilestones.map((milestone: any) => (
+                                                              <SelectItem key={milestone.id} value={milestone.id}>
+                                                                {milestone.title}
+                                                              </SelectItem>
+                                                            ))}
                                                           </SelectContent>
                                                         </Select>
 
