@@ -1938,14 +1938,25 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
                      </DropdownMenuItem>
                    </DropdownMenuContent>
                  </DropdownMenu>
-                 <Button onClick={handleExport} disabled={isExporting} className="gap-2">
-                    {isExporting ? "Exporting..." : (
-                        <>
-                            <Download className="h-4 w-4" />
-                            Export {exportFormat.toUpperCase()}
-                        </>
-                    )}
-                 </Button>
+                 <div className="flex gap-2">
+                   <Button 
+                     variant="outline" 
+                     onClick={() => window.location.href = '/api/export/sql'} 
+                     className="gap-2"
+                     data-testid="button-export-sql"
+                   >
+                     <Database className="h-4 w-4" />
+                     Export SQL
+                   </Button>
+                   <Button onClick={handleExport} disabled={isExporting} className="gap-2">
+                      {isExporting ? "Exporting..." : (
+                          <>
+                              <Download className="h-4 w-4" />
+                              Export {exportFormat.toUpperCase()}
+                          </>
+                      )}
+                   </Button>
+                 </div>
               </CardFooter>
             </Card>
           </div>

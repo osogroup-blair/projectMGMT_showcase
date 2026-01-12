@@ -4600,5 +4600,102 @@ export async function registerRoutes(
     }
   });
 
+  // SQL Export Endpoint - generates INSERT statements for all data
+  app.get("/api/export/sql", async (req, res) => {
+    try {
+      const escapeValue = (val: any): string => {
+        if (val === null || val === undefined) return 'NULL';
+        if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+        if (typeof val === 'number') return String(val);
+        if (val instanceof Date) return `'${val.toISOString()}'`;
+        if (Array.isArray(val)) {
+          const escaped = val.map(v => typeof v === 'string' ? v.replace(/'/g, "''") : v);
+          return `ARRAY[${escaped.map(v => typeof v === 'string' ? `'${v}'` : v).join(', ')}]`;
+        }
+        if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+        return `'${String(val).replace(/'/g, "''")}'`;
+      };
+
+      const generateInserts = (tableName: string, rows: any[]): string => {
+        if (!rows || rows.length === 0) return '';
+        const columns = Object.keys(rows[0]);
+        const lines = rows.map(row => {
+          const values = columns.map(col => escapeValue(row[col]));
+          return `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values.join(', ')});`;
+        });
+        return `-- ${tableName} (${rows.length} rows)\n${lines.join('\n')}\n`;
+      };
+
+      const sqlParts: string[] = [];
+      sqlParts.push('-- Nexus Database Export');
+      sqlParts.push(`-- Generated: ${new Date().toISOString()}`);
+      sqlParts.push('-- Run these statements in your production database\n');
+
+      // Order matters for foreign key constraints
+      const tableConfigs = [
+        { name: 'users', getData: () => storage.getUsers() },
+        { name: 'user_identities', getData: () => storage.getUserIdentities() },
+        { name: 'user_preferences', getData: () => storage.getAllUserPreferences() },
+        { name: 'status_options', getData: () => storage.getStatusOptions() },
+        { name: 'role_types', getData: () => storage.getRoleTypes() },
+        { name: 'task_types', getData: () => storage.getTaskTypes() },
+        { name: 'epic_types', getData: () => storage.getEpicTypes() },
+        { name: 'deliverable_types', getData: () => storage.getDeliverableTypes() },
+        { name: 'framework_templates', getData: () => storage.getFrameworkTemplates() },
+        { name: 'stage_templates', getData: () => storage.getStageTemplates() },
+        { name: 'deliverable_templates', getData: () => storage.getDeliverableTemplates() },
+        { name: 'epic_templates', getData: () => storage.getEpicTemplates() },
+        { name: 'task_templates', getData: () => storage.getTaskTemplates() },
+        { name: 'milestone_templates', getData: () => storage.getMilestoneTemplates() },
+        { name: 'role_templates', getData: () => storage.getRoleTemplates() },
+        { name: 'project_templates', getData: () => storage.getProjectTemplates() },
+        { name: 'template_snippets', getData: () => storage.getTemplateSnippets() },
+        { name: 'mapping_templates', getData: () => storage.getMappingTemplates() },
+        { name: 'projects', getData: () => storage.getProjects() },
+        { name: 'project_favorites', getData: () => storage.getAllProjectFavorites() },
+        { name: 'project_stages', getData: () => storage.getProjectStages() },
+        { name: 'project_task_types', getData: () => storage.getProjectTaskTypes() },
+        { name: 'deliverables', getData: () => storage.getDeliverables() },
+        { name: 'epics', getData: () => storage.getEpics() },
+        { name: 'milestones', getData: () => storage.getMilestones() },
+        { name: 'sprints', getData: () => storage.getSprints() },
+        { name: 'sprint_scope_targets', getData: () => storage.getSprintScopeTargets() },
+        { name: 'tasks', getData: () => storage.getTasks() },
+        { name: 'task_dependencies', getData: () => storage.getTaskDependencies() },
+        { name: 'activity', getData: () => storage.getActivity() },
+        { name: 'project_roles', getData: () => storage.getProjectRoles() },
+        { name: 'role_assignments', getData: () => storage.getRoleAssignments() },
+        { name: 'user_role_eligibility', getData: () => storage.getUserRoleEligibility() },
+        { name: 'saved_views', getData: () => storage.getSavedViews() },
+        { name: 'guidance_items', getData: () => storage.getGuidanceItems() },
+        { name: 'work_blocks', getData: () => storage.getAllWorkBlocks() },
+        { name: 'day_plans', getData: () => storage.getAllDayPlans() },
+        { name: 'sprint_pulse_updates', getData: () => storage.getSprintPulseUpdates() },
+        { name: 'sprint_scope_events', getData: () => storage.getSprintScopeEvents() }
+      ];
+
+      for (const config of tableConfigs) {
+        try {
+          const data = await config.getData();
+          if (data && data.length > 0) {
+            sqlParts.push(generateInserts(config.name, data));
+          }
+        } catch (err) {
+          // Skip tables that don't have getters
+          console.log(`Skipping ${config.name}: getter not available`);
+        }
+      }
+
+      const sql = sqlParts.join('\n');
+      
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename=nexus_export_${new Date().toISOString().split('T')[0]}.sql`);
+      res.send(sql);
+    } catch (error: any) {
+      console.error("SQL export error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
