@@ -412,3 +412,23 @@ export function useProjectDetails(projectId: string) {
     isLoading: project.isLoading || deliverables.isLoading
   };
 }
+
+// Task History Hook
+export function useTaskHistory(taskId: string) {
+  const query = useQuery({
+    queryKey: ["taskHistory", taskId],
+    queryFn: async () => {
+      const response = await fetch(`/api/tasks/${taskId}/history`);
+      if (!response.ok) throw new Error("Failed to fetch task history");
+      return response.json();
+    },
+    enabled: !!taskId,
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+  };
+}

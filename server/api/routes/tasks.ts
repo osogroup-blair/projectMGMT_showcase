@@ -113,9 +113,27 @@ export function registerTaskRoutes(
     }
   });
 
+  // Get task history
+  app.get("/api/tasks/:id/history", async (req, res) => {
+    try {
+      const history = await storage.getHistoryByTaskId(req.params.id);
+      res.json(history);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/tasks/:id", async (req, res) => {
     try {
       const userId = getAuthUserId(req);
+      const taskId = req.params.id;
+      
+      // Get the current task to compare changes
+      const currentTask = await storage.getTaskById(taskId);
+      if (!currentTask) {
+        return res.status(404).json({ error: "Task not found" });
+      }
+      
       const updates = { ...req.body };
       if (updates.updatedAt && typeof updates.updatedAt === 'string') {
         updates.updatedAt = new Date(updates.updatedAt);
@@ -126,7 +144,45 @@ export function registerTaskRoutes(
         updates.dueDate = new Date(updates.dueDate);
       }
       updates.updatedBy = userId;
-      const task = await storage.updateTask(req.params.id, updates);
+      
+      // Collect changes to log AFTER successful update
+      const fieldsToTrack = ['status', 'priority', 'assigneeId', 'title', 'description', 'deadline', 'dueDate', 'targetDate', 'effort', 'epicId', 'stageId', 'milestoneId', 'sprintId'];
+      const changesToLog: Array<{ field: string; oldValue: string; newValue: string }> = [];
+      
+      for (const field of fieldsToTrack) {
+        if (field in updates && updates[field] !== (currentTask as any)[field]) {
+          const oldValue = (currentTask as any)[field];
+          const newValue = updates[field];
+          
+          // Only log if values are actually different
+          if (String(oldValue || '') !== String(newValue || '')) {
+            changesToLog.push({
+              field,
+              oldValue: oldValue != null ? String(oldValue) : '',
+              newValue: newValue != null ? String(newValue) : '',
+            });
+          }
+        }
+      }
+      
+      // First, update the task
+      const task = await storage.updateTask(taskId, updates);
+      
+      // Only log history AFTER successful update
+      for (const change of changesToLog) {
+        try {
+          await storage.createHistory({
+            taskId,
+            field: change.field,
+            oldValue: change.oldValue,
+            newValue: change.newValue,
+            changedBy: userId || 'system',
+          });
+        } catch (historyError) {
+          console.error('Failed to log history:', historyError);
+        }
+      }
+      
       res.json(task);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
