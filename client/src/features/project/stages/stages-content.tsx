@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, Fragment } from "react";
 import { 
   Layers,
   CheckCircle2, 
@@ -19,8 +19,11 @@ import {
   Calendar as CalendarIcon,
   Pencil,
   Check,
-  X
+  X,
+  Trash2
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -63,7 +66,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
-  const { data: allProjectStages, isLoading: isStagesLoading, update: updateStage, createAsync: createStageAsync } = useProjectStages();
+  const { data: allProjectStages, isLoading: isStagesLoading, update: updateStage, createAsync: createStageAsync, removeAsync: removeStageAsync } = useProjectStages();
   const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
 
   // Get stages for this project, sorted by order
@@ -115,6 +118,16 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState("Medium");
   const [newTaskEffort, setNewTaskEffort] = useState<number | null>(3);
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [stageToDelete, setStageToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Bulk selection state
+  const [selectedStageIds, setSelectedStageIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const projectDeliverables = useMemo(() => 
     (allDeliverables || []).filter((d: any) => d.projectId === projectId),
@@ -274,6 +287,70 @@ export function StagesContent({ projectId }: { projectId: string }) {
     setNewTaskPriority("Medium");
     setNewTaskEffort(3);
     setDialogOpen(true);
+  };
+
+  // Delete stage handlers
+  const openDeleteDialog = (stage: { id: string; name: string }) => {
+    setStageToDelete(stage);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteStage = async () => {
+    if (!stageToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await removeStageAsync(stageToDelete.id);
+      toast({ title: "Stage deleted", description: `"${stageToDelete.name}" has been removed.` });
+      setDeleteDialogOpen(false);
+      setStageToDelete(null);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to delete stage.", variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Bulk selection handlers
+  const toggleStageSelection = (stageId: string) => {
+    setSelectedStageIds(prev => {
+      const next = new Set(prev);
+      if (next.has(stageId)) {
+        next.delete(stageId);
+      } else {
+        next.add(stageId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedStageIds.size === filteredAndSortedStages.length) {
+      setSelectedStageIds(new Set());
+    } else {
+      setSelectedStageIds(new Set(filteredAndSortedStages.map((s: any) => s.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedStageIds.size === 0) return;
+    
+    setIsBulkDeleting(true);
+    try {
+      const deletePromises = Array.from(selectedStageIds).map(id => removeStageAsync(id));
+      await Promise.all(deletePromises);
+      toast({ title: "Stages deleted", description: `${selectedStageIds.size} stage(s) have been removed.` });
+      setSelectedStageIds(new Set());
+      setBulkDeleteDialogOpen(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to delete some stages.", variant: "destructive" });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedStageIds(new Set());
   };
 
   const handleCreateTask = async () => {
@@ -555,6 +632,97 @@ export function StagesContent({ projectId }: { projectId: string }) {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Stage Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Stage</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{stageToDelete?.name}"? This action cannot be undone.
+              Tasks in this stage will need to be reassigned.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteStage}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedStageIds.size} Stage{selectedStageIds.size !== 1 ? 's' : ''}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedStageIds.size} selected stage{selectedStageIds.size !== 1 ? 's' : ''}? 
+              This action cannot be undone. Tasks in these stages will need to be reassigned.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isBulkDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete All"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Actions Toolbar */}
+      {selectedStageIds.size > 0 && (
+        <div className="sticky top-12 z-20 bg-primary text-primary-foreground px-4 py-2 rounded-lg flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">
+              {selectedStageIds.size} stage{selectedStageIds.size !== 1 ? 's' : ''} selected
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary-foreground hover:bg-primary-foreground/20"
+              onClick={clearSelection}
+            >
+              Clear selection
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary-foreground hover:bg-primary-foreground/20"
+              onClick={() => setBulkDeleteDialogOpen(true)}
+              data-testid="button-bulk-delete"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4 pt-2">
         {filteredAndSortedStages.length === 0 && stages.length > 0 ? (
           <Card className="bg-muted/10 border-dashed">
@@ -581,8 +749,16 @@ export function StagesContent({ projectId }: { projectId: string }) {
             <Table style={{ minWidth: "900px" }}>
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead style={{ width: "3%" }}>
+                    <Checkbox
+                      checked={filteredAndSortedStages.length > 0 && selectedStageIds.size === filteredAndSortedStages.length}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all stages"
+                      data-testid="checkbox-select-all-stages"
+                    />
+                  </TableHead>
                   <TableHead style={{ width: "3%" }}></TableHead>
-                  <TableHead style={{ width: "6%" }}>
+                  <TableHead style={{ width: "5%" }}>
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -671,12 +847,19 @@ export function StagesContent({ projectId }: { projectId: string }) {
                   const stageTasks = getTasksForStage(stage.id);
 
                   return (
-                    <>
+                    <Fragment key={stage.id}>
                       <TableRow 
-                        key={stage.id} 
-                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30")} 
+                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30", selectedStageIds.has(stage.id) && "bg-primary/5")} 
                         data-testid={`row-stage-${stage.id}`}
                       >
+                        <TableCell className="py-2">
+                          <Checkbox
+                            checked={selectedStageIds.has(stage.id)}
+                            onCheckedChange={() => toggleStageSelection(stage.id)}
+                            aria-label={`Select ${stage.name}`}
+                            data-testid={`checkbox-stage-${stage.id}`}
+                          />
+                        </TableCell>
                         <TableCell className="py-2">
                           <Button
                             variant="ghost"
@@ -793,12 +976,21 @@ export function StagesContent({ projectId }: { projectId: string }) {
                             >
                               <Plus className="h-3.5 w-3.5" />
                             </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => openDeleteDialog({ id: stage.id, name: stage.name })}
+                              data-testid={`button-delete-stage-${stage.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
                       {isExpanded && stageTasks.length > 0 && (
                         <TableRow className="bg-muted/10 hover:bg-muted/10">
-                          <TableCell colSpan={9} className="p-0">
+                          <TableCell colSpan={10} className="p-0">
                             <div className="pl-12 pr-4 py-2">
                               <Table>
                                 <TableHeader>
@@ -935,7 +1127,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
                       )}
                       {isExpanded && stageTasks.length === 0 && (
                         <TableRow className="bg-muted/10 hover:bg-muted/10">
-                          <TableCell colSpan={9} className="py-4 text-center text-sm text-muted-foreground">
+                          <TableCell colSpan={10} className="py-4 text-center text-sm text-muted-foreground">
                             No tasks in this stage.
                             <Button 
                               variant="link" 
@@ -948,7 +1140,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
@@ -989,11 +1181,22 @@ export function StagesContent({ projectId }: { projectId: string }) {
                           )}
                         </div>
                       </div>
-                      <Link href={`/projects/${projectId}/stages/${stage.id}`}>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100">
-                          <ExternalLink className="h-3.5 w-3.5" />
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                        <Link href={`/projects/${projectId}/stages/${stage.id}`}>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        </Link>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => openDeleteDialog({ id: stage.id, name: stage.name })}
+                          data-testid={`card-button-delete-stage-${stage.id}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      </Link>
+                      </div>
                     </div>
 
                     <div className="space-y-3">
