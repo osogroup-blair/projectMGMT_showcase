@@ -244,6 +244,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const [mergeSource, setMergeSource] = useState<UserPublic | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserPublic | null>(null);
+  const [permissionsDialogUser, setPermissionsDialogUser] = useState<UserPublic | null>(null);
 
   const queryOptions: UseUsersOptions = {
     search: searchQuery || undefined,
@@ -282,6 +283,16 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       if (!res.ok) throw new Error("Failed to fetch permissions");
       return res.json();
     },
+  });
+  const { data: effectivePermsData } = useQuery<{ permissions: { key: string; displayName: string; source: "role" | "individual" }[] }>({
+    queryKey: ["/api/roles-permissions/user", permissionsDialogUser?.id, "effective"],
+    queryFn: async () => {
+      if (!permissionsDialogUser?.id) return { permissions: [] };
+      const res = await fetch(`/api/roles-permissions/user/${permissionsDialogUser.id}/effective`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch effective permissions");
+      return res.json();
+    },
+    enabled: !!permissionsDialogUser,
   });
   const { data: profileData, refetch: refetchProfile } = useUserProfile(identityUserId || undefined);
   const linkIdentity = useLinkIdentity();
@@ -1140,6 +1151,9 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                             <DropdownMenuItem onClick={() => handleOpenEdit(user)}>
                               Edit User
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setPermissionsDialogUser(user)}>
+                              View Permissions
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleOpenIdentities(user.id)}>
                               <Link2 className="h-4 w-4 mr-2" />
                               Manage Identities
@@ -1600,6 +1614,50 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               >
                 {mergeUsers.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Merge Users
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!permissionsDialogUser} onOpenChange={() => setPermissionsDialogUser(null)}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Effective Permissions</DialogTitle>
+              <DialogDescription>
+                Permissions for {permissionsDialogUser?.name || permissionsDialogUser?.email}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="flex items-center gap-4 text-sm">
+                <span className="font-medium">Role:</span>
+                <Badge variant="secondary">{permissionsDialogUser?.systemRole || "member"}</Badge>
+              </div>
+              <ScrollArea className="h-64 border rounded-md p-3">
+                {effectivePermsData?.permissions && effectivePermsData.permissions.length > 0 ? (
+                  <div className="space-y-2">
+                    {effectivePermsData.permissions.map(perm => (
+                      <div key={perm.key} className="flex items-center justify-between py-1">
+                        <span className="text-sm">{perm.displayName}</span>
+                        <Badge variant={perm.source === "role" ? "secondary" : "default"} className="text-xs">
+                          {perm.source === "role" ? "From Role" : "Individual"}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    No permissions assigned
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPermissionsDialogUser(null)}>Close</Button>
+              <Button onClick={() => {
+                setPermissionsDialogUser(null);
+                if (permissionsDialogUser) handleOpenEdit(permissionsDialogUser);
+              }}>
+                Edit Permissions
               </Button>
             </DialogFooter>
           </DialogContent>

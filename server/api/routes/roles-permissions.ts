@@ -23,7 +23,13 @@ router.get("/roles", requireAuth(), async (req: Request, res: Response) => {
 router.get("/permissions", requireAuth(), async (req: Request, res: Response) => {
   try {
     const permissions = await getPermissions();
-    res.json(permissions);
+    const transformed = permissions.map(p => ({
+      id: p.id,
+      key: p.key,
+      displayName: p.label,
+      category: p.category,
+    }));
+    res.json(transformed);
   } catch (error) {
     console.error("Error getting permissions:", error);
     res.status(500).json({ error: "Failed to get permissions" });
@@ -91,6 +97,18 @@ router.post("/toggle", requireAuth(), async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error toggling role permission:", error);
     res.status(500).json({ error: "Failed to toggle role permission" });
+  }
+});
+
+router.get("/user/:userId/effective", requireAuth(), async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { getUserEffectivePermissions } = await import("../../services/roles-permissions-service");
+    const permissions = await getUserEffectivePermissions(userId);
+    res.json({ permissions });
+  } catch (error) {
+    console.error("Error getting user effective permissions:", error);
+    res.status(500).json({ error: "Failed to get user effective permissions" });
   }
 });
 

@@ -187,3 +187,36 @@ export async function getUserPermissions(systemRoleName: string, userPermissions
 
   return Array.from(new Set([...permissionKeys, ...userPermissions]));
 }
+
+export async function getUserEffectivePermissions(userId: string): Promise<{ key: string; displayName: string; source: "role" | "individual" }[]> {
+  const { users } = await import("@shared/models/auth");
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user) {
+    return [];
+  }
+
+  const systemRoleName = user.systemRole || "member";
+  const userIndividualPerms: string[] = (user.permissions as string[]) || [];
+
+  const role = await db.select().from(systemRoles).where(eq(systemRoles.name, systemRoleName));
+  const allPermissions = await db.select().from(systemPermissions);
+  
+  const rolePermissionIds = role.length 
+    ? (await db.select().from(rolePermissions).where(eq(rolePermissions.roleId, role[0].id))).map(m => m.permissionId)
+    : [];
+
+  const result: { key: string; displayName: string; source: "role" | "individual" }[] = [];
+
+  for (const perm of allPermissions) {
+    const fromRole = rolePermissionIds.includes(perm.id);
+    const fromIndividual = userIndividualPerms.includes(perm.key);
+
+    if (fromRole) {
+      result.push({ key: perm.key, displayName: perm.label, source: "role" });
+    } else if (fromIndividual) {
+      result.push({ key: perm.key, displayName: perm.label, source: "individual" });
+    }
+  }
+
+  return result;
+}
