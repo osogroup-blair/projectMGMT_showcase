@@ -646,13 +646,13 @@ async function createDeliverablesWithEpicsAndTasks(
       for (let i = 0; i < numTasks; i++) {
         const template = taskTemplates[Math.floor(Math.random() * taskTemplates.length)];
         
-        let taskStatus = "todo";
+        let taskStatus = "BACKLOGGED";
         if (epicConfig.progress >= 100) {
-          taskStatus = "done";
+          taskStatus = "DONE";
         } else if (epicConfig.progress > 50) {
-          taskStatus = Math.random() < 0.5 ? "done" : "in-progress";
+          taskStatus = Math.random() < 0.5 ? "DONE" : "IN PROGRESS";
         } else if (epicConfig.progress > 0) {
-          taskStatus = Math.random() < 0.3 ? "in-progress" : "todo";
+          taskStatus = Math.random() < 0.3 ? "IN PROGRESS" : "BACKLOGGED";
         }
 
         const taskStartDate = addDays(projectStartDate, dayOffset + (i * 2));
