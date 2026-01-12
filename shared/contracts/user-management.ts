@@ -79,6 +79,7 @@ export interface UserPublic {
   jobTitle: string | null;
   status: string | null;
   systemRole: string | null;
+  permissions: string[] | null;
   createdAt: Date | null;
 }
 
@@ -100,6 +101,7 @@ export const createUserRequestSchema = z.object({
   name: z.string().min(1),
   jobTitle: z.string().optional(),
   systemRole: z.enum(["admin", "manager", "member", "viewer", "demo"]).default("member"),
+  permissions: z.array(z.string()).optional(),
 });
 
 export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;

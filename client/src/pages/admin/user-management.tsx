@@ -275,6 +275,14 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       return res.json();
     },
   });
+  const { data: allPermissions = [] } = useQuery<{ id: string; key: string; displayName: string; category: string }[]>({
+    queryKey: ["/api/roles-permissions/permissions"],
+    queryFn: async () => {
+      const res = await fetch("/api/roles-permissions/permissions", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch permissions");
+      return res.json();
+    },
+  });
   const { data: profileData, refetch: refetchProfile } = useUserProfile(identityUserId || undefined);
   const linkIdentity = useLinkIdentity();
   const unlinkIdentity = useUnlinkIdentity();
@@ -368,7 +376,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       name: "",
       email: "",
       jobTitle: "",
-      systemRole: "member"
+      systemRole: "member",
+      permissions: []
     });
     setIsDialogOpen(true);
   };
@@ -378,7 +387,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     setFormData({
       name: user.name || "",
       jobTitle: user.jobTitle || "",
-      systemRole: (user.systemRole as any) || "member"
+      systemRole: (user.systemRole as any) || "member",
+      permissions: (user as any).permissions || []
     });
     setIsDialogOpen(true);
   };
@@ -391,7 +401,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
           data: {
             name: formData.name,
             jobTitle: formData.jobTitle,
-            systemRole: formData.systemRole as any
+            systemRole: formData.systemRole as any,
+            permissions: formData.permissions as string[]
           }
         });
         toast({ title: "User Updated", description: "User details saved successfully." });
@@ -409,7 +420,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
           name: formData.name!,
           email: formData.email!,
           jobTitle: formData.jobTitle,
-          systemRole: (formData.systemRole as any) || "member"
+          systemRole: (formData.systemRole as any) || "member",
+          permissions: formData.permissions as string[]
         });
         toast({ title: "User Created", description: "New user added to the system." });
         setIsDialogOpen(false);
@@ -418,6 +430,25 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       }
     }
   };
+
+  const togglePermission = (permKey: string) => {
+    const current = formData.permissions || [];
+    const newPerms = current.includes(permKey)
+      ? current.filter(p => p !== permKey)
+      : [...current, permKey];
+    setFormData({ ...formData, permissions: newPerms });
+  };
+
+  const permissionsByCategory = useMemo(() => {
+    const grouped: Record<string, typeof allPermissions> = {};
+    for (const perm of allPermissions) {
+      if (!grouped[perm.category]) {
+        grouped[perm.category] = [];
+      }
+      grouped[perm.category].push(perm);
+    }
+    return grouped;
+  }, [allPermissions]);
 
   const handleDeactivate = async (id: string) => {
     try {
@@ -1254,6 +1285,34 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                     label: role.displayName,
                   }))}
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label>Additional Permissions</Label>
+                <p className="text-xs text-muted-foreground">
+                  Grant extra permissions beyond the user's role
+                </p>
+                <ScrollArea className="h-48 border rounded-md p-3">
+                  {Object.entries(permissionsByCategory).map(([category, perms]) => (
+                    <div key={category} className="mb-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">{category}</p>
+                      <div className="space-y-1">
+                        {perms.map(perm => (
+                          <div key={perm.key} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`perm-${perm.key}`}
+                              checked={(formData.permissions || []).includes(perm.key)}
+                              onCheckedChange={() => togglePermission(perm.key)}
+                              data-testid={`checkbox-permission-${perm.key}`}
+                            />
+                            <label htmlFor={`perm-${perm.key}`} className="text-sm cursor-pointer">
+                              {perm.displayName}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </ScrollArea>
               </div>
             </div>
             <DialogFooter>

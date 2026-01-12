@@ -40,6 +40,7 @@ function toPublicUser(user: typeof users.$inferSelect): UserPublic {
     jobTitle: user.jobTitle,
     status: user.status,
     systemRole: user.systemRole,
+    permissions: user.permissions || [],
     createdAt: user.createdAt,
   };
 }
@@ -190,7 +191,7 @@ export async function createUser(data: CreateUserRequest): Promise<UserPublic> {
       name: data.name,
       jobTitle: data.jobTitle || null,
       systemRole: data.systemRole || "member",
-      permissions: [],
+      permissions: data.permissions || [],
     })
     .returning();
 
