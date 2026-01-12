@@ -21,7 +21,9 @@ import {
   Check,
   X,
   Plus,
-  Zap
+  Zap,
+  ClipboardList,
+  Users as UsersIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -207,7 +209,7 @@ export default function ProjectOverview() {
   
   // Dashboard sidebar state
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(false);
-  const [dashboardSection, setDashboardSection] = useState<"current-sprint" | "upcoming-work" | "metrics" | "activity" | "team-pulse">("current-sprint");
+  const [dashboardSection, setDashboardSection] = useState<"assigned-work" | "current-sprint" | "upcoming-work" | "metrics" | "activity" | "team-pulse">("assigned-work");
 
   // Add Task to Sprint Dialog state
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
@@ -491,6 +493,60 @@ export default function ProjectOverview() {
     if (!allTasks) return [];
     return allTasks.filter((t: any) => t.projectId === projectId);
   }, [allTasks, projectId]);
+
+  // Get tasks assigned to current user for "Assigned Work" section
+  const myAssignedTasks = useMemo(() => {
+    if (!allTasks || !currentUser?.id) return [];
+    return allTasks.filter((t: any) => 
+      t.projectId === projectId && 
+      t.assigneeId === currentUser.id &&
+      t.status !== "Done"
+    );
+  }, [allTasks, projectId, currentUser?.id]);
+
+  // Sprint metrics for the selected sprint
+  const sprintMetrics = useMemo(() => {
+    if (!selectedSprint || !sprintTasks) return null;
+    
+    const totalTasks = sprintTasks.length;
+    const completedTasks = sprintTasks.filter((t: any) => t.status === "Done").length;
+    const inProgressTasks = sprintTasks.filter((t: any) => t.status === "In Progress").length;
+    const blockedTasks = sprintTasks.filter((t: any) => t.status === "Blocked" || t.blocked).length;
+    const todoTasks = sprintTasks.filter((t: any) => t.status === "Todo" || t.status === "BACKLOGGED").length;
+    
+    // Calculate workload by assignee
+    const workloadByUser: Record<string, { name: string; total: number; completed: number; inProgress: number; blocked: number }> = {};
+    sprintTasks.forEach((task: any) => {
+      const userId = task.assigneeId || "unassigned";
+      const userName = users?.find((u: any) => u.id === task.assigneeId)?.name || "Unassigned";
+      
+      if (!workloadByUser[userId]) {
+        workloadByUser[userId] = { name: userName, total: 0, completed: 0, inProgress: 0, blocked: 0 };
+      }
+      workloadByUser[userId].total++;
+      if (task.status === "Done") workloadByUser[userId].completed++;
+      if (task.status === "In Progress") workloadByUser[userId].inProgress++;
+      if (task.status === "Blocked" || task.blocked) workloadByUser[userId].blocked++;
+    });
+    
+    // Calculate total effort/story points
+    const totalEffort = sprintTasks.reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
+    const completedEffort = sprintTasks.filter((t: any) => t.status === "Done").reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
+    
+    const percentComplete = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    
+    return {
+      totalTasks,
+      completedTasks,
+      inProgressTasks,
+      blockedTasks,
+      todoTasks,
+      totalEffort,
+      completedEffort,
+      percentComplete,
+      workloadByUser: Object.values(workloadByUser).sort((a, b) => b.total - a.total)
+    };
+  }, [selectedSprint, sprintTasks, users]);
 
   // Get available tasks (any project task not already in the selected sprint)
   const availableTasks = useMemo(() => {
@@ -968,6 +1024,19 @@ export default function ProjectOverview() {
                     </div>
                     <nav className="space-y-1">
                       <button
+                        onClick={() => setDashboardSection("assigned-work")}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          dashboardSection === "assigned-work" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid="nav-assigned-work"
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                        Assigned Work
+                      </button>
+                      <button
                         onClick={() => setDashboardSection("current-sprint")}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
@@ -1047,6 +1116,14 @@ export default function ProjectOverview() {
                     </Button>
                     <div className="flex flex-col items-center gap-0.5">
                       <Button 
+                        variant={dashboardSection === "assigned-work" ? "default" : "ghost"} 
+                        size="icon" 
+                        className="h-7 w-7"
+                        onClick={() => setDashboardSection("assigned-work")}
+                      >
+                        <ClipboardList className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
                         variant={dashboardSection === "current-sprint" ? "default" : "ghost"} 
                         size="icon" 
                         className="h-7 w-7"
@@ -1091,10 +1168,168 @@ export default function ProjectOverview() {
                 )}
 
                 <div className={cn("flex-1 min-w-0", dashboardSidebarOpen ? "pl-6" : "pl-4")}>
+                  {dashboardSection === "assigned-work" && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-lg font-semibold flex items-center gap-2">
+                            <ClipboardList className="h-5 w-5" />
+                            My Assigned Work
+                          </h2>
+                          <p className="text-sm text-muted-foreground">Tasks assigned to you in this project</p>
+                        </div>
+                        <Badge variant="outline" className="text-sm">
+                          {myAssignedTasks.length} task{myAssignedTasks.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+
+                      {myAssignedTasks.length > 0 ? (
+                        <div className="space-y-2">
+                          {myAssignedTasks.map((task: any) => {
+                            const epic = projectEpics.find((e: any) => e.id === task.epicId);
+                            return (
+                              <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
+                                <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+                                  <CardContent className="py-3 px-4">
+                                    <div className="flex items-center justify-between gap-4">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-medium truncate">{task.title}</div>
+                                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                          {epic && <span className="truncate">Epic: {epic.title}</span>}
+                                          {task.deadline && (
+                                            <span className={cn(
+                                              "shrink-0",
+                                              differenceInDays(parseISO(task.deadline), new Date()) < 0 && "text-red-600 font-medium"
+                                            )}>
+                                              Due: {format(parseISO(task.deadline), "MMM d")}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <Badge variant="outline" className="capitalize text-xs">
+                                          {task.status}
+                                        </Badge>
+                                        {task.priority && (
+                                          <Badge 
+                                            variant={task.priority === "High" || task.priority === "Critical" ? "destructive" : "secondary"} 
+                                            className="text-xs"
+                                          >
+                                            {task.priority}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <Card className="p-8 text-center">
+                          <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No Assigned Tasks</h3>
+                          <p className="text-muted-foreground">You don't have any tasks assigned to you in this project.</p>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+
                   {dashboardSection === "current-sprint" && (
                     <>
                       {projectSprints.length > 0 ? (
                         <div className="space-y-4">
+                          {/* Sprint Metrics Accordion */}
+                          {sprintMetrics && (
+                            <Collapsible defaultOpen={true}>
+                              <Card>
+                                <CollapsibleTrigger asChild>
+                                  <button type="button" className="group w-full py-3 px-4 cursor-pointer hover:bg-muted/50 transition-colors text-left flex items-center justify-between border-b">
+                                    <div className="flex items-center gap-2">
+                                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                                      <span className="font-medium text-sm">Sprint Metrics</span>
+                                      <Badge variant="outline" className="text-xs">
+                                        {sprintMetrics.percentComplete}% Complete
+                                      </Badge>
+                                    </div>
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                  </button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <CardContent className="pt-0 pb-4 px-4">
+                                    <div className="space-y-4">
+                                      {/* Task Status Metrics */}
+                                      <div className="grid grid-cols-5 gap-3">
+                                        <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg text-center">
+                                          <div className="text-2xl font-bold">{sprintMetrics.totalTasks}</div>
+                                          <div className="text-xs text-muted-foreground">Total</div>
+                                        </div>
+                                        <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg text-center">
+                                          <div className="text-2xl font-bold text-green-600">{sprintMetrics.completedTasks}</div>
+                                          <div className="text-xs text-muted-foreground">Done</div>
+                                        </div>
+                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-center">
+                                          <div className="text-2xl font-bold text-blue-600">{sprintMetrics.inProgressTasks}</div>
+                                          <div className="text-xs text-muted-foreground">In Progress</div>
+                                        </div>
+                                        <div className="p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-center">
+                                          <div className="text-2xl font-bold text-amber-600">{sprintMetrics.todoTasks}</div>
+                                          <div className="text-xs text-muted-foreground">To Do</div>
+                                        </div>
+                                        <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg text-center">
+                                          <div className="text-2xl font-bold text-red-600">{sprintMetrics.blockedTasks}</div>
+                                          <div className="text-xs text-muted-foreground">Blocked</div>
+                                        </div>
+                                      </div>
+
+                                      {/* Progress Bar */}
+                                      <div className="space-y-1.5">
+                                        <div className="flex justify-between text-xs text-muted-foreground">
+                                          <span>Sprint Progress</span>
+                                          <span>{sprintMetrics.completedEffort} / {sprintMetrics.totalEffort} effort points</span>
+                                        </div>
+                                        <Progress value={sprintMetrics.percentComplete} className="h-2" />
+                                      </div>
+
+                                      {/* Workload by Team Member */}
+                                      {sprintMetrics.workloadByUser.length > 0 && (
+                                        <div className="space-y-2">
+                                          <div className="flex items-center gap-2 text-sm font-medium">
+                                            <UsersIcon className="h-4 w-4 text-muted-foreground" />
+                                            Team Workload
+                                          </div>
+                                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                            {sprintMetrics.workloadByUser.slice(0, 8).map((user, idx) => (
+                                              <div key={idx} className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
+                                                <Avatar className="h-6 w-6">
+                                                  <AvatarFallback className="text-xs">
+                                                    {user.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                  </AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1 min-w-0">
+                                                  <div className="text-xs font-medium truncate">{user.name}</div>
+                                                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                    <span className="text-green-600">{user.completed}</span>
+                                                    <span>/</span>
+                                                    <span>{user.total}</span>
+                                                    {user.blocked > 0 && (
+                                                      <span className="text-red-600 ml-1">({user.blocked} blocked)</span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CardContent>
+                                </CollapsibleContent>
+                              </Card>
+                            </Collapsible>
+                          )}
+                          
                           <PortableKanban
                             tasks={sprintTasks}
                             users={users || []}
