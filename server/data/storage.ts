@@ -1,6 +1,10 @@
 import { db } from "../db";
 import { eq, and, gte, lte, or, isNull, sql } from "drizzle-orm";
 import * as schema from "@shared/schema";
+import * as userRepository from "./repositories/user-repository";
+import * as taskRepository from "./repositories/task-repository";
+import * as milestoneRepository from "./repositories/milestone-repository";
+import * as sprintRepository from "./repositories/sprint-repository";
 import type {
   User, InsertUser,
   Project, InsertProject,
@@ -415,43 +419,38 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // Users
+  // Users (delegated to user-repository)
   async getUsers(): Promise<User[]> {
-    return await db.select().from(schema.users);
+    return userRepository.getUsers();
   }
   async getUserById(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, id));
-    return user;
+    return userRepository.getUserById(id);
   }
   async createUser(user: InsertUser): Promise<User> {
-    const id = (user as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.users).values({ ...user, id }).returning();
-    return created;
+    return userRepository.createUser(user);
   }
   async updateUser(id: string, user: Partial<User>): Promise<User> {
-    const [updated] = await db.update(schema.users).set(user).where(eq(schema.users.id, id)).returning();
-    return updated;
+    return userRepository.updateUser(id, user);
   }
   async deleteUser(id: string): Promise<void> {
-    await db.delete(schema.users).where(eq(schema.users.id, id));
+    return userRepository.deleteUser(id);
   }
 
-  // User Identities
+  // User Identities (delegated to user-repository)
   async getUserIdentities(): Promise<UserIdentity[]> {
-    return db.select().from(schema.userIdentities);
+    return userRepository.getUserIdentities();
   }
 
   async getUserIdentitiesByUserId(userId: string): Promise<UserIdentity[]> {
-    return db.select().from(schema.userIdentities).where(eq(schema.userIdentities.userId, userId));
+    return userRepository.getUserIdentitiesByUserId(userId);
   }
 
   async createUserIdentity(identity: InsertUserIdentity): Promise<UserIdentity> {
-    const [created] = await db.insert(schema.userIdentities).values(identity).returning();
-    return created;
+    return userRepository.createUserIdentity(identity);
   }
 
   async deleteUserIdentity(id: string): Promise<void> {
-    await db.delete(schema.userIdentities).where(eq(schema.userIdentities.id, id));
+    return userRepository.deleteUserIdentity(id);
   }
 
   // Projects
@@ -634,100 +633,84 @@ export class DatabaseStorage implements IStorage {
     await db.delete(schema.epics).where(eq(schema.epics.id, id));
   }
 
-  // Tasks
+  // Tasks (delegated to task-repository)
   async getTasks(): Promise<Task[]> {
-    return await db.select().from(schema.tasks);
+    return taskRepository.getTasks();
   }
   async getTaskById(id: string): Promise<Task | undefined> {
-    const [task] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id));
-    return task;
+    return taskRepository.getTaskById(id);
   }
   async getTasksByProjectId(projectId: string): Promise<Task[]> {
-    return await db.select().from(schema.tasks).where(eq(schema.tasks.projectId, projectId));
+    return taskRepository.getTasksByProjectId(projectId);
   }
   async createTask(task: InsertTask): Promise<Task> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.tasks).values({ ...task, id }).returning();
-    return created;
+    return taskRepository.createTask(task);
   }
   async updateTask(id: string, task: Partial<Task>): Promise<Task> {
-    const [updated] = await db.update(schema.tasks).set(task).where(eq(schema.tasks.id, id)).returning();
-    return updated;
+    return taskRepository.updateTask(id, task);
   }
   async deleteTask(id: string): Promise<void> {
-    await db.delete(schema.tasks).where(eq(schema.tasks.id, id));
+    return taskRepository.deleteTask(id);
   }
 
-  // Milestones
+  // Milestones (delegated to milestone-repository)
   async getMilestones(): Promise<Milestone[]> {
-    return await db.select().from(schema.milestones);
+    return milestoneRepository.getMilestones();
   }
   async getMilestoneById(id: string): Promise<Milestone | undefined> {
-    const [milestone] = await db.select().from(schema.milestones).where(eq(schema.milestones.id, id));
-    return milestone;
+    return milestoneRepository.getMilestoneById(id);
   }
   async getMilestonesByProjectId(projectId: string): Promise<Milestone[]> {
-    return await db.select().from(schema.milestones).where(eq(schema.milestones.projectId, projectId));
+    return milestoneRepository.getMilestonesByProjectId(projectId);
   }
   async createMilestone(milestone: InsertMilestone): Promise<Milestone> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.milestones).values({ ...milestone, id }).returning();
-    return created;
+    return milestoneRepository.createMilestone(milestone);
   }
   async updateMilestone(id: string, milestone: Partial<Milestone>): Promise<Milestone> {
-    const [updated] = await db.update(schema.milestones).set(milestone).where(eq(schema.milestones.id, id)).returning();
-    return updated;
+    return milestoneRepository.updateMilestone(id, milestone);
   }
   async deleteMilestone(id: string): Promise<void> {
-    await db.delete(schema.milestones).where(eq(schema.milestones.id, id));
+    return milestoneRepository.deleteMilestone(id);
   }
 
-  // Milestone Scope Rules
+  // Milestone Scope Rules (delegated to milestone-repository)
   async getMilestoneScopeRules(): Promise<MilestoneScopeRule[]> {
-    return await db.select().from(schema.milestoneScopeRules);
+    return milestoneRepository.getMilestoneScopeRules();
   }
   async getMilestoneScopeRuleById(id: string): Promise<MilestoneScopeRule | undefined> {
-    const [rule] = await db.select().from(schema.milestoneScopeRules).where(eq(schema.milestoneScopeRules.id, id));
-    return rule;
+    return milestoneRepository.getMilestoneScopeRuleById(id);
   }
   async getMilestoneScopeRulesByMilestoneId(milestoneId: string): Promise<MilestoneScopeRule[]> {
-    return await db.select().from(schema.milestoneScopeRules).where(eq(schema.milestoneScopeRules.milestoneId, milestoneId));
+    return milestoneRepository.getMilestoneScopeRulesByMilestoneId(milestoneId);
   }
   async createMilestoneScopeRule(rule: InsertMilestoneScopeRule): Promise<MilestoneScopeRule> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.milestoneScopeRules).values({ ...rule, id }).returning();
-    return created;
+    return milestoneRepository.createMilestoneScopeRule(rule);
   }
   async updateMilestoneScopeRule(id: string, rule: Partial<MilestoneScopeRule>): Promise<MilestoneScopeRule> {
-    const [updated] = await db.update(schema.milestoneScopeRules).set(rule).where(eq(schema.milestoneScopeRules.id, id)).returning();
-    return updated;
+    return milestoneRepository.updateMilestoneScopeRule(id, rule);
   }
   async deleteMilestoneScopeRule(id: string): Promise<void> {
-    await db.delete(schema.milestoneScopeRules).where(eq(schema.milestoneScopeRules.id, id));
+    return milestoneRepository.deleteMilestoneScopeRule(id);
   }
 
-  // Milestone Task Links
+  // Milestone Task Links (delegated to milestone-repository)
   async getMilestoneTaskLinks(): Promise<MilestoneTaskLink[]> {
-    return await db.select().from(schema.milestoneTaskLinks);
+    return milestoneRepository.getMilestoneTaskLinks();
   }
   async getMilestoneTaskLinkById(id: string): Promise<MilestoneTaskLink | undefined> {
-    const [link] = await db.select().from(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.id, id));
-    return link;
+    return milestoneRepository.getMilestoneTaskLinkById(id);
   }
   async getMilestoneTaskLinksByMilestoneId(milestoneId: string): Promise<MilestoneTaskLink[]> {
-    return await db.select().from(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.milestoneId, milestoneId));
+    return milestoneRepository.getMilestoneTaskLinksByMilestoneId(milestoneId);
   }
   async createMilestoneTaskLink(link: InsertMilestoneTaskLink): Promise<MilestoneTaskLink> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.milestoneTaskLinks).values({ ...link, id }).returning();
-    return created;
+    return milestoneRepository.createMilestoneTaskLink(link);
   }
   async updateMilestoneTaskLink(id: string, link: Partial<MilestoneTaskLink>): Promise<MilestoneTaskLink> {
-    const [updated] = await db.update(schema.milestoneTaskLinks).set(link).where(eq(schema.milestoneTaskLinks.id, id)).returning();
-    return updated;
+    return milestoneRepository.updateMilestoneTaskLink(id, link);
   }
   async deleteMilestoneTaskLink(id: string): Promise<void> {
-    await db.delete(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.id, id));
+    return milestoneRepository.deleteMilestoneTaskLink(id);
   }
 
   // Activity
@@ -1368,116 +1351,92 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Sprints
+  // Sprints (delegated to sprint-repository)
   async getSprints(): Promise<Sprint[]> {
-    return await db.select().from(schema.sprints);
+    return sprintRepository.getSprints();
   }
   async getSprintById(id: string): Promise<Sprint | undefined> {
-    const [sprint] = await db.select().from(schema.sprints).where(eq(schema.sprints.id, id));
-    return sprint;
+    return sprintRepository.getSprintById(id);
   }
   async getSprintsByProjectId(projectId: string): Promise<Sprint[]> {
-    return await db.select().from(schema.sprints).where(eq(schema.sprints.projectId, projectId));
+    return sprintRepository.getSprintsByProjectId(projectId);
   }
   async createSprint(sprint: InsertSprint): Promise<Sprint> {
-    const id = (sprint as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.sprints).values({ ...sprint, id }).returning();
-    return created;
+    return sprintRepository.createSprint(sprint);
   }
   async updateSprint(id: string, sprint: Partial<Sprint>): Promise<Sprint> {
-    const [updated] = await db.update(schema.sprints).set(sprint).where(eq(schema.sprints.id, id)).returning();
-    return updated;
+    return sprintRepository.updateSprint(id, sprint);
   }
   async deleteSprint(id: string): Promise<void> {
-    await db.delete(schema.sprints).where(eq(schema.sprints.id, id));
+    return sprintRepository.deleteSprint(id);
   }
 
-  // Sprint Members
+  // Sprint Members (delegated to sprint-repository)
   async getSprintMembers(): Promise<SprintMember[]> {
-    return await db.select().from(schema.sprintMembers);
+    return sprintRepository.getSprintMembers();
   }
   async getSprintMemberById(id: string): Promise<SprintMember | undefined> {
-    const [member] = await db.select().from(schema.sprintMembers).where(eq(schema.sprintMembers.id, id));
-    return member;
+    return sprintRepository.getSprintMemberById(id);
   }
   async getSprintMembersBySprintId(sprintId: string): Promise<SprintMember[]> {
-    return await db.select().from(schema.sprintMembers).where(eq(schema.sprintMembers.sprintId, sprintId));
+    return sprintRepository.getSprintMembersBySprintId(sprintId);
   }
   async createSprintMember(member: InsertSprintMember): Promise<SprintMember> {
-    const id = (member as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.sprintMembers).values({ ...member, id }).returning();
-    return created;
+    return sprintRepository.createSprintMember(member);
   }
   async updateSprintMember(id: string, member: Partial<SprintMember>): Promise<SprintMember> {
-    const [updated] = await db.update(schema.sprintMembers).set(member).where(eq(schema.sprintMembers.id, id)).returning();
-    return updated;
+    return sprintRepository.updateSprintMember(id, member);
   }
   async deleteSprintMember(id: string): Promise<void> {
-    await db.delete(schema.sprintMembers).where(eq(schema.sprintMembers.id, id));
+    return sprintRepository.deleteSprintMember(id);
   }
 
-  // Sprint Scope Events
+  // Sprint Scope Events (delegated to sprint-repository)
   async getSprintScopeEvents(): Promise<SprintScopeEvent[]> {
-    return await db.select().from(schema.sprintScopeEvents);
+    return sprintRepository.getSprintScopeEvents();
   }
   async getSprintScopeEventsBySprintId(sprintId: string): Promise<SprintScopeEvent[]> {
-    return await db.select().from(schema.sprintScopeEvents).where(eq(schema.sprintScopeEvents.sprintId, sprintId));
+    return sprintRepository.getSprintScopeEventsBySprintId(sprintId);
   }
   async createSprintScopeEvent(event: InsertSprintScopeEvent): Promise<SprintScopeEvent> {
-    const id = (event as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.sprintScopeEvents).values({ ...event, id }).returning();
-    return created;
+    return sprintRepository.createSprintScopeEvent(event);
   }
 
-  // Sprint Scope Targets
+  // Sprint Scope Targets (delegated to sprint-repository)
   async getSprintScopeTargets(): Promise<SprintScopeTarget[]> {
-    return await db.select().from(schema.sprintScopeTargets);
+    return sprintRepository.getSprintScopeTargets();
   }
   async getSprintScopeTargetsBySprintId(sprintId: string): Promise<SprintScopeTarget[]> {
-    return await db.select().from(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.sprintId, sprintId));
+    return sprintRepository.getSprintScopeTargetsBySprintId(sprintId);
   }
   async createSprintScopeTarget(target: InsertSprintScopeTarget): Promise<SprintScopeTarget> {
-    const id = (target as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.sprintScopeTargets).values({ ...target, id }).returning();
-    return created;
+    return sprintRepository.createSprintScopeTarget(target);
   }
   async deleteSprintScopeTarget(id: string): Promise<void> {
-    await db.delete(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.id, id));
+    return sprintRepository.deleteSprintScopeTarget(id);
   }
   async deleteSprintScopeTargetsBySprintId(sprintId: string): Promise<void> {
-    await db.delete(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.sprintId, sprintId));
+    return sprintRepository.deleteSprintScopeTargetsBySprintId(sprintId);
   }
 
-  // Sprint Pulse Updates
+  // Sprint Pulse Updates (delegated to sprint-repository)
   async getSprintPulseUpdates(): Promise<SprintPulseUpdate[]> {
-    return await db.select().from(schema.sprintPulseUpdates);
+    return sprintRepository.getSprintPulseUpdates();
   }
   async getSprintPulseUpdatesBySprintId(sprintId: string): Promise<SprintPulseUpdate[]> {
-    return await db.select().from(schema.sprintPulseUpdates).where(eq(schema.sprintPulseUpdates.sprintId, sprintId));
+    return sprintRepository.getSprintPulseUpdatesBySprintId(sprintId);
   }
   async getSprintPulseUpdateByUserAndDate(sprintId: string, userId: string, date: string): Promise<SprintPulseUpdate | undefined> {
-    const [update] = await db.select().from(schema.sprintPulseUpdates)
-      .where(and(
-        eq(schema.sprintPulseUpdates.sprintId, sprintId),
-        eq(schema.sprintPulseUpdates.userId, userId),
-        eq(schema.sprintPulseUpdates.date, date)
-      ));
-    return update;
+    return sprintRepository.getSprintPulseUpdateByUserAndDate(sprintId, userId, date);
   }
   async createSprintPulseUpdate(update: InsertSprintPulseUpdate): Promise<SprintPulseUpdate> {
-    const id = (update as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.sprintPulseUpdates).values({ ...update, id }).returning();
-    return created;
+    return sprintRepository.createSprintPulseUpdate(update);
   }
   async updateSprintPulseUpdate(id: string, update: Partial<SprintPulseUpdate>): Promise<SprintPulseUpdate> {
-    const [updated] = await db.update(schema.sprintPulseUpdates)
-      .set({ ...update, updatedAt: new Date() })
-      .where(eq(schema.sprintPulseUpdates.id, id))
-      .returning();
-    return updated;
+    return sprintRepository.updateSprintPulseUpdate(id, update);
   }
   async deleteSprintPulseUpdate(id: string): Promise<void> {
-    await db.delete(schema.sprintPulseUpdates).where(eq(schema.sprintPulseUpdates.id, id));
+    return sprintRepository.deleteSprintPulseUpdate(id);
   }
 
   // Home Page Data
@@ -1681,32 +1640,27 @@ export class DatabaseStorage implements IStorage {
     await db.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, projectId));
   }
 
-  // Task Dependencies
+  // Task Dependencies (delegated to task-repository)
   async getTaskDependencies(): Promise<TaskDependency[]> {
-    return await db.select().from(schema.taskDependencies);
+    return taskRepository.getTaskDependencies();
   }
   async getTaskDependencyById(id: string): Promise<TaskDependency | undefined> {
-    const [dependency] = await db.select().from(schema.taskDependencies).where(eq(schema.taskDependencies.id, id));
-    return dependency;
+    return taskRepository.getTaskDependencyById(id);
   }
   async getTaskDependenciesByTaskId(taskId: string): Promise<TaskDependency[]> {
-    return await db.select().from(schema.taskDependencies).where(eq(schema.taskDependencies.taskId, taskId));
+    return taskRepository.getTaskDependenciesByTaskId(taskId);
   }
   async getDependentTasksByTaskId(taskId: string): Promise<TaskDependency[]> {
-    return await db.select().from(schema.taskDependencies).where(eq(schema.taskDependencies.dependsOnTaskId, taskId));
+    return taskRepository.getDependentTasksByTaskId(taskId);
   }
   async createTaskDependency(dependency: InsertTaskDependency): Promise<TaskDependency> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.taskDependencies).values({ ...dependency, id }).returning();
-    return created;
+    return taskRepository.createTaskDependency(dependency);
   }
   async deleteTaskDependency(id: string): Promise<void> {
-    await db.delete(schema.taskDependencies).where(eq(schema.taskDependencies.id, id));
+    return taskRepository.deleteTaskDependency(id);
   }
   async deleteTaskDependenciesByTaskId(taskId: string): Promise<void> {
-    await db.delete(schema.taskDependencies).where(
-      or(eq(schema.taskDependencies.taskId, taskId), eq(schema.taskDependencies.dependsOnTaskId, taskId))
-    );
+    return taskRepository.deleteTaskDependenciesByTaskId(taskId);
   }
 
   // Epic Types (global)
@@ -1751,9 +1705,9 @@ export class DatabaseStorage implements IStorage {
     await db.delete(schema.deliverableTypes).where(eq(schema.deliverableTypes.id, id));
   }
 
-  // Subtasks
+  // Subtasks (delegated to task-repository)
   async getSubtasksByParentId(parentTaskId: string): Promise<Task[]> {
-    return await db.select().from(schema.tasks).where(eq(schema.tasks.parentTaskId, parentTaskId));
+    return taskRepository.getSubtasksByParentId(parentTaskId);
   }
 
   // User Role Eligibility
