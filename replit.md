@@ -67,9 +67,37 @@ The platform uses Replit Auth with OpenID Connect for authentication, supporting
 - Admin page: `client/src/pages/admin/user-management.tsx` protected by AuthGuard requiring admin or manager role
 - API response format: `/api/users` returns `{ users: [...], total: number }` for pagination support
 
-### API Structure
+### API Structure (Modularized)
 
-API routes are RESTful, organized logically around core entities (e.g., `/api/projects`, `/api/users`, `/api/sprints`) and nested resources (e.g., `/api/projects/:projectId/deliverables`). Specific endpoints handle project import workflows and home page data aggregation.
+The API layer uses a modular route architecture for maintainability. Routes are organized by domain in `server/api/routes/`:
+
+| Module | Endpoints | Description |
+|--------|-----------|-------------|
+| `admin.ts` | `/api/seed`, `/api/admin/sample-data/*` | Database seeding and sample data |
+| `projects.ts` | `/api/projects/*`, deliverables, epics | Core project hierarchy CRUD |
+| `tasks.ts` | `/api/tasks/*`, dependencies | Task management |
+| `milestones.ts` | `/api/milestones/*`, scope rules, task links | Milestone tracking |
+| `users.ts` | `/api/users/*`, identities, preferences | User management |
+| `templates.ts` | `/api/*Templates`, snippets | Template CRUD |
+| `sprints.ts` | `/api/sprints/*`, members, scope, pulse | Sprint planning |
+| `config.ts` | `/api/statusOptions`, roleTypes, taskTypes | System configuration |
+| `import-export.ts` | `/api/imports`, `/api/export/*` | Bulk data operations |
+| `schedule-sync.ts` | `/api/schedule-sync/*` | Date synchronization |
+
+Each module exports a `register*Routes(app, getAuthUserId)` function called from `server/api/index.ts`.
+
+### Data Layer (Repository Pattern)
+
+The data access layer uses the repository pattern in `server/data/repositories/`:
+
+| Repository | Entities |
+|------------|----------|
+| `user-repository.ts` | Users, UserIdentities |
+| `task-repository.ts` | Tasks, TaskDependencies |
+| `milestone-repository.ts` | Milestones, ScopeRules, TaskLinks |
+| `sprint-repository.ts` | Sprints, Members, ScopeEvents, PulseUpdates |
+
+The `DatabaseStorage` class in `storage.ts` composes these repositories while maintaining the `IStorage` interface for backwards compatibility.
 
 ### Project Creation Wizard
 
