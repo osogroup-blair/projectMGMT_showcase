@@ -38,7 +38,7 @@ export function BreadcrumbNav() {
   const { data: projects } = useProjects();
   const { data: allMilestones } = useMilestones();
   const { data: allSprints } = useSprints();
-  const { user, isAdmin, isImpersonating, realUser, impersonate, stopImpersonation, isImpersonating_loading, isStoppingImpersonation } = useAuth();
+  const { user, isAdmin, canImpersonate, isImpersonating, realUser, impersonate, stopImpersonation, isImpersonating_loading, isStoppingImpersonation } = useAuth();
   
   const { data: usersWithCounts } = useQuery<Array<{
     id: string;
@@ -57,7 +57,7 @@ export function BreadcrumbNav() {
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: isAdmin,
+    enabled: canImpersonate,
   });
   const [impersonateOpen, setImpersonateOpen] = useState(false);
 
@@ -281,8 +281,8 @@ export function BreadcrumbNav() {
         })}
       </div>
 
-      {/* Impersonation Controls (Admin Only) */}
-      {isAdmin && (
+      {/* Impersonation Controls (Admin and Demo users) */}
+      {canImpersonate && (
         <div className="flex items-center gap-2 shrink-0">
           {isImpersonating ? (
             <div className="flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1.5 rounded-md">
