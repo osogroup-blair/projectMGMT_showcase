@@ -190,11 +190,20 @@ Large page components are being decomposed into modular feature folders for main
 3. Container component orchestrates state and composes child modules
 4. Page component imports container, handles routing params
 
+**Completed Decompositions**:
+- `sprint-detail.tsx`: 3,310 → 189 LOC (94% reduction) - Uses features/sprints/detail/ modules
+- `import-export.tsx`: 2,183 → modular feature folder - Uses features/import-export/ modules
+
 **Remaining Large Files** (candidates for future decomposition):
 - `milestone-overview.tsx` (2,037 LOC)
-- `user-management.tsx` (1,559 LOC)
+- `user-management.tsx` (1,596 LOC)
 - `deliverables.tsx` (1,504 LOC)
 - `project/index.tsx` (1,496 LOC)
+- `templates.tsx` (1,454 LOC)
+
+**Zombie Code Status**:
+- `mock-data.ts` (1,022 LOC): Contains mix of static config constants and mock data arrays. Still imported by 7 pages that use mock data instead of database queries. Deferred for later cleanup.
+- Static constants extracted to `client/src/lib/constants.ts` for reuse
 
 ## External Dependencies
 
