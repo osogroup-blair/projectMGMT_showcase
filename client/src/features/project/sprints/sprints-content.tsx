@@ -30,7 +30,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useSprints, useTasks } from "@/hooks/use-nexus-data";
+import { useSprints, useTasks, useProject } from "@/hooks/use-nexus-data";
+import { addDays, addWeeks, format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -50,11 +51,52 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const { data: allSprints, isLoading: isSprintsLoading, create: createSprint, update: updateSprint, remove: removeSprint } = useSprints();
   const { data: allTasks, update: updateTask } = useTasks();
+  const { data: project } = useProject(projectId);
 
   const sprints = useMemo(() => 
     (allSprints || []).filter((s: any) => s.projectId === projectId),
     [allSprints, projectId]
   );
+
+  const getNextSprintDefaults = useMemo(() => {
+    const sprintDurationWeeks = project?.sprintDurationWeeks || 2;
+    
+    const sprintNumbers = sprints
+      .map((s: any) => {
+        const match = s.name?.match(/Sprint\s*(\d+)/i);
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter((n: number) => n > 0);
+    
+    const nextNumber = sprintNumbers.length > 0 ? Math.max(...sprintNumbers) + 1 : 1;
+    const nextName = `Sprint ${nextNumber}`;
+    
+    const sortedSprints = [...sprints].sort((a: any, b: any) => {
+      if (!a.endDate && !b.endDate) return 0;
+      if (!a.endDate) return 1;
+      if (!b.endDate) return -1;
+      return a.endDate.localeCompare(b.endDate);
+    });
+    
+    const lastSprint = sortedSprints[sortedSprints.length - 1];
+    let startDate: Date;
+    
+    if (lastSprint?.endDate) {
+      startDate = addDays(parseISO(lastSprint.endDate), 1);
+    } else {
+      startDate = new Date();
+    }
+    
+    const endDate = addWeeks(startDate, sprintDurationWeeks);
+    endDate.setDate(endDate.getDate() - 1);
+    
+    return {
+      name: nextName,
+      goal: "",
+      startDate: format(startDate, "yyyy-MM-dd"),
+      endDate: format(endDate, "yyyy-MM-dd"),
+    };
+  }, [sprints, project?.sprintDurationWeeks]);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
@@ -324,7 +366,10 @@ export function SprintsContent({ projectId }: { projectId: string }) {
       {/* Hidden trigger for tab-level Add button */}
       <button 
         data-testid="button-create-sprints" 
-        onClick={() => setShowCreateDialog(true)} 
+        onClick={() => {
+          setNewSprint(getNextSprintDefaults);
+          setShowCreateDialog(true);
+        }} 
         className="hidden" 
         aria-hidden="true"
       />
@@ -336,8 +381,11 @@ export function SprintsContent({ projectId }: { projectId: string }) {
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         showFilter={false}
-        addButtonLabel="Add Sprint"
-        onAddClick={() => setShowCreateDialog(true)}
+        addButtonLabel="Add Next Sprint"
+        onAddClick={() => {
+          setNewSprint(getNextSprintDefaults);
+          setShowCreateDialog(true);
+        }}
         sticky={false}
       />
 
@@ -399,9 +447,12 @@ export function SprintsContent({ projectId }: { projectId: string }) {
               <p className="text-muted-foreground text-center mb-4">
                 Create your first sprint to organize work into time-boxed iterations.
               </p>
-              <Button onClick={() => setShowCreateDialog(true)} data-testid="button-create-first-sprint">
+              <Button onClick={() => {
+                setNewSprint(getNextSprintDefaults);
+                setShowCreateDialog(true);
+              }} data-testid="button-create-first-sprint">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Sprint
+                Add Next Sprint
               </Button>
             </CardContent>
           </Card>
@@ -795,9 +846,9 @@ export function SprintsContent({ projectId }: { projectId: string }) {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Sprint</DialogTitle>
+            <DialogTitle>Add Next Sprint</DialogTitle>
             <DialogDescription>
-              Plan a new time-boxed iteration for your project.
+              Create the next sprint with auto-calculated dates based on your project's sprint duration.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
