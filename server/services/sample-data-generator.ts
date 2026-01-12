@@ -149,7 +149,7 @@ export async function generateSampleData(
     }
 
     if (section === "milestones" || section === "all") {
-      await generateMilestoneData(result, projectStartDate);
+      await generateMilestoneData(result, users, projectStartDate);
     }
 
     if (section === "sprints" || section === "all") {
@@ -335,16 +335,16 @@ async function generateTaskData(
   const sampleEpics = epics.filter(e => sampleEpicIds.has(e.id));
   
   const taskTemplates = [
-    { title: "Research and Analysis", description: "Conduct research and document findings", priority: "high", effort: "medium", estimateHours: 8 },
-    { title: "Create Wireframes", description: "Design low-fidelity wireframes", priority: "high", effort: "large", estimateHours: 16 },
-    { title: "Design Mockups", description: "Create high-fidelity design mockups", priority: "high", effort: "large", estimateHours: 24 },
-    { title: "Review and Feedback", description: "Collect stakeholder feedback", priority: "medium", effort: "small", estimateHours: 4 },
-    { title: "Implementation", description: "Develop the feature", priority: "high", effort: "extra-large", estimateHours: 40 },
-    { title: "Unit Testing", description: "Write and run unit tests", priority: "medium", effort: "medium", estimateHours: 8 },
-    { title: "Code Review", description: "Peer review of code changes", priority: "medium", effort: "small", estimateHours: 4 },
-    { title: "Documentation", description: "Update technical documentation", priority: "low", effort: "small", estimateHours: 4 },
-    { title: "Integration Testing", description: "Test integration with other components", priority: "medium", effort: "medium", estimateHours: 8 },
-    { title: "Bug Fixes", description: "Fix reported issues", priority: "high", effort: "medium", estimateHours: 8 },
+    { title: "Research and Analysis", description: "Conduct research and document findings", priority: "high", effort: 2, estimateHours: 8 },
+    { title: "Create Wireframes", description: "Design low-fidelity wireframes", priority: "high", effort: 3, estimateHours: 16 },
+    { title: "Design Mockups", description: "Create high-fidelity design mockups", priority: "high", effort: 3, estimateHours: 24 },
+    { title: "Review and Feedback", description: "Collect stakeholder feedback", priority: "medium", effort: 1, estimateHours: 4 },
+    { title: "Implementation", description: "Develop the feature", priority: "high", effort: 5, estimateHours: 40 },
+    { title: "Unit Testing", description: "Write and run unit tests", priority: "medium", effort: 2, estimateHours: 8 },
+    { title: "Code Review", description: "Peer review of code changes", priority: "medium", effort: 1, estimateHours: 4 },
+    { title: "Documentation", description: "Update technical documentation", priority: "low", effort: 1, estimateHours: 4 },
+    { title: "Integration Testing", description: "Test integration with other components", priority: "medium", effort: 2, estimateHours: 8 },
+    { title: "Bug Fixes", description: "Fix reported issues", priority: "high", effort: 2, estimateHours: 8 },
   ];
 
   const statuses = ["todo", "in-progress", "review", "done"];
@@ -409,6 +409,7 @@ async function generateTaskData(
 
 async function generateMilestoneData(
   result: SampleDataResult,
+  users: User[],
   projectStartDate: Date
 ): Promise<void> {
   const existingMilestones = await storage.getMilestones();
@@ -433,6 +434,7 @@ async function generateMilestoneData(
       phase: config.phase,
       targetDate: toDateString(addDays(projectStartDate, config.offsetDays)),
       status: config.status,
+      ownerId: users[0].id,
       scopeType: "all_tasks",
       completionMode: "percentage",
       completionTargetPercent: 100,
