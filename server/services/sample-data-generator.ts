@@ -356,7 +356,7 @@ async function generateTaskData(
   
   // Fetch project stages and create epic-to-stage mapping based on date overlap
   const allStages = await storage.getProjectStages();
-  const projectStages = allStages.filter(s => s.projectId === SAMPLE_PROJECT_ID);
+  const projectStages = allStages.filter(s => s.projectId === SAMPLE_PROJECT_ID && s.startDate && s.endDate);
   
   // Map each epic to the most appropriate stage based on date overlap
   function findStageForEpic(epic: typeof sampleEpics[0]): string | undefined {
@@ -368,6 +368,7 @@ async function generateTaskData(
     
     // Find the stage whose date range contains the epic's midpoint
     for (const stage of projectStages) {
+      if (!stage.startDate || !stage.endDate) continue;
       const stageStart = new Date(stage.startDate).getTime();
       const stageEnd = new Date(stage.endDate).getTime();
       
@@ -378,9 +379,12 @@ async function generateTaskData(
     
     // Fallback: find closest stage by start date
     let closestStage = projectStages[0];
+    if (!closestStage?.startDate) return projectStages[0]?.id;
+    
     let closestDistance = Math.abs(epicStart - new Date(closestStage.startDate).getTime());
     
     for (const stage of projectStages) {
+      if (!stage.startDate) continue;
       const distance = Math.abs(epicStart - new Date(stage.startDate).getTime());
       if (distance < closestDistance) {
         closestDistance = distance;
