@@ -63,7 +63,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
-  const { data: allProjectStages, isLoading: isStagesLoading, update: updateStage } = useProjectStages();
+  const { data: allProjectStages, isLoading: isStagesLoading, update: updateStage, createAsync: createStageAsync } = useProjectStages();
   const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
 
   // Get stages for this project, sorted by order
@@ -80,6 +80,15 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const [dialogMode, setDialogMode] = useState<"search" | "create">("create");
   const [selectedEpicId, setSelectedEpicId] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
+
+  // Add Stage Dialog state
+  const [addStageDialogOpen, setAddStageDialogOpen] = useState(false);
+  const [newStageName, setNewStageName] = useState("");
+  const [newStageType, setNewStageType] = useState("development");
+  const [newStageStatus, setNewStageStatus] = useState("pending");
+  const [newStageStartDate, setNewStageStartDate] = useState<Date | undefined>(undefined);
+  const [newStageEndDate, setNewStageEndDate] = useState<Date | undefined>(undefined);
+  const [isCreatingStage, setIsCreatingStage] = useState(false);
 
   // Toolbar state - default to list view
   const [searchQuery, setSearchQuery] = useState("");
@@ -308,6 +317,40 @@ export function StagesContent({ projectId }: { projectId: string }) {
     }
   };
 
+  const handleCreateStage = async () => {
+    if (!newStageName.trim()) {
+      toast({ title: "Error", description: "Stage name is required.", variant: "destructive" });
+      return;
+    }
+
+    setIsCreatingStage(true);
+    try {
+      const nextOrder = stages.length > 0 ? Math.max(...stages.map((s: any) => s.order || 0)) + 1 : 1;
+      
+      await createStageAsync({
+        projectId,
+        name: newStageName.trim(),
+        type: newStageType,
+        status: newStageStatus,
+        order: nextOrder,
+        startDate: newStageStartDate ? format(newStageStartDate, "yyyy-MM-dd") : null,
+        endDate: newStageEndDate ? format(newStageEndDate, "yyyy-MM-dd") : null,
+      });
+      
+      toast({ title: "Stage created", description: `${newStageName} has been added.` });
+      setAddStageDialogOpen(false);
+      setNewStageName("");
+      setNewStageType("development");
+      setNewStageStatus("pending");
+      setNewStageStartDate(undefined);
+      setNewStageEndDate(undefined);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to create stage.", variant: "destructive" });
+    } finally {
+      setIsCreatingStage(false);
+    }
+  };
+
   const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading;
 
   // Filter and sort stages
@@ -389,13 +432,6 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-      {/* Hidden trigger for tab-level Add button (stages are created at project setup) */}
-      <button 
-        data-testid="button-create-stages" 
-        className="hidden" 
-        aria-hidden="true"
-      />
-
       <div className="sticky top-0 z-10 bg-background pb-2">
         <TabToolbar
           searchQuery={searchQuery}
@@ -405,12 +441,119 @@ export function StagesContent({ projectId }: { projectId: string }) {
           onViewModeChange={setViewMode}
           showFilter={false}
           addButtonLabel="Add Stage"
-          onAddClick={() => {
-            const btn = document.querySelector('[data-testid="button-create-stages"]') as HTMLButtonElement;
-            if (btn) btn.click();
-          }}
+          onAddClick={() => setAddStageDialogOpen(true)}
         />
       </div>
+
+      {/* Add Stage Dialog */}
+      <Dialog open={addStageDialogOpen} onOpenChange={setAddStageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Stage</DialogTitle>
+            <DialogDescription>
+              Create a new stage for this project's workflow.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="stage-name">Name *</Label>
+              <Input
+                id="stage-name"
+                value={newStageName}
+                onChange={(e) => setNewStageName(e.target.value)}
+                placeholder="e.g., Design Review"
+                data-testid="input-stage-name"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select value={newStageType} onValueChange={setNewStageType}>
+                  <SelectTrigger data-testid="select-stage-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="discovery">Discovery</SelectItem>
+                    <SelectItem value="design">Design</SelectItem>
+                    <SelectItem value="development">Development</SelectItem>
+                    <SelectItem value="testing">Testing</SelectItem>
+                    <SelectItem value="deployment">Deployment</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={newStageStatus} onValueChange={setNewStageStatus}>
+                  <SelectTrigger data-testid="select-stage-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAGE_STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.label}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newStageStartDate ? format(newStageStartDate, "MMM d, yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={newStageStartDate}
+                      onSelect={setNewStageStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newStageEndDate ? format(newStageEndDate, "MMM d, yyyy") : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={newStageEndDate}
+                      onSelect={setNewStageEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddStageDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateStage} disabled={isCreatingStage || !newStageName.trim()}>
+              {isCreatingStage ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Stage"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="space-y-4 pt-2">
         {filteredAndSortedStages.length === 0 && stages.length > 0 ? (
