@@ -57,13 +57,9 @@ export function MilestoneScopeInline({
   const [epicFilter, setEpicFilter] = useState("all");
   const [expandedRules, setExpandedRules] = useState<Record<string, boolean>>({});
 
-  const existingRecord = useMemo(() => {
-    return scopeRules.find((r: any) => r.milestoneId === milestone.id);
-  }, [scopeRules, milestone.id]);
-
-  const rules = useMemo(() => {
-    return existingRecord || { milestoneId: milestone.id, rules: [] };
-  }, [existingRecord, milestone.id]);
+  // Compute directly instead of useMemo to ensure fresh values on prop changes
+  const existingRecord = scopeRules.find((r: any) => r.milestoneId === milestone.id);
+  const rules = existingRecord || { milestoneId: milestone.id, rules: [] };
 
   const linkedTaskIds = useMemo(() => 
     links.map((l: any) => l.taskId),
@@ -146,11 +142,13 @@ export function MilestoneScopeInline({
     };
     
     if (existingRecord?.id) {
-      // Update existing record
+      // Update existing record - use { id, updates } format
       onUpdateScopeRule({
         id: existingRecord.id,
-        milestoneId: milestone.id,
-        rules: [...(rules.rules || []), newRule]
+        updates: {
+          milestoneId: milestone.id,
+          rules: [...(rules.rules || []), newRule]
+        }
       });
     } else {
       // Create new record
@@ -169,10 +167,12 @@ export function MilestoneScopeInline({
     
     onUpdateScopeRule({
       id: existingRecord.id,
-      milestoneId: milestone.id,
-      rules: (rules.rules || []).map((r: any) => 
-        r.id === ruleId ? { ...r, ...updates } : r
-      )
+      updates: {
+        milestoneId: milestone.id,
+        rules: (rules.rules || []).map((r: any) => 
+          r.id === ruleId ? { ...r, ...updates } : r
+        )
+      }
     });
   };
 
@@ -184,8 +184,10 @@ export function MilestoneScopeInline({
     
     onUpdateScopeRule({
       id: existingRecord.id,
-      milestoneId: milestone.id,
-      rules: (rules.rules || []).filter((r: any) => r.id !== ruleId)
+      updates: {
+        milestoneId: milestone.id,
+        rules: (rules.rules || []).filter((r: any) => r.id !== ruleId)
+      }
     });
   };
 
