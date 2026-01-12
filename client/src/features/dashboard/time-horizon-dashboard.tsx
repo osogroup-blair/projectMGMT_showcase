@@ -1090,7 +1090,7 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-base">
                       <MilestoneIcon className="h-5 w-5 text-purple-600" />
-                      Upcoming Milestones
+                      Upcoming Sprints
                     </CardTitle>
                     <CardDescription>Key dates approaching</CardDescription>
                   </CardHeader>
@@ -1102,7 +1102,7 @@ export default function TimeHorizonDashboard({ projectId, externalFilters, onFil
                         )) : (
                           <div className="text-center text-muted-foreground py-4">
                             <MilestoneIcon className="h-6 w-6 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No upcoming milestones</p>
+                            <p className="text-sm">No upcoming sprints</p>
                           </div>
                         )}
                       </div>

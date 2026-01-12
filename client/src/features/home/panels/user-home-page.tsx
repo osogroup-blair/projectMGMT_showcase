@@ -192,13 +192,13 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-2 font-medium"
             >
               <Target className="w-4 h-4 mr-2" />
-              Upcoming Milestones
+              Upcoming Sprints
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="upcoming" className="mt-0">
             <div className="bg-card rounded-xl border shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Upcoming Milestones</h2>
+              <h2 className="text-lg font-semibold mb-4">Upcoming Sprints</h2>
               <p className="text-muted-foreground text-sm">Key milestones and upcoming deadlines across your projects.</p>
               <div className="mt-6 space-y-6">
                  {homeState.upcomingMilestones.map(milestone => (
@@ -221,7 +221,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                  ))}
                  {homeState.upcomingMilestones.length === 0 && (
                    <div className="text-center py-8">
-                     <p className="text-muted-foreground">No upcoming milestones found.</p>
+                     <p className="text-muted-foreground">No upcoming sprints found.</p>
                    </div>
                  )}
               </div>

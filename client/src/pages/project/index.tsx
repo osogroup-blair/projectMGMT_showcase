@@ -1073,7 +1073,7 @@ export default function ProjectOverview() {
                         data-testid="nav-upcoming-work"
                       >
                         <Clock className="h-4 w-4" />
-                        Upcoming Milestones
+                        Upcoming Sprints
                       </button>
                       <button
                         onClick={() => setDashboardSection("activity")}

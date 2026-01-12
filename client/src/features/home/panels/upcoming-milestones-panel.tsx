@@ -15,13 +15,13 @@ export function UpcomingMilestonesPanel({ milestones }: UpcomingMilestonesPanelP
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Flag className="w-5 h-5 text-primary" />
-          Upcoming Milestones
+          Upcoming Sprints
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {milestones.length === 0 ? (
           <div className="text-sm text-muted-foreground py-4 text-center">
-            No upcoming milestones.
+            No upcoming sprints.
           </div>
         ) : (
           milestones.map(milestone => (

@@ -743,7 +743,7 @@ export default function StageWorkspace() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4" />
-                    Upcoming Milestones
+                    Upcoming Sprints
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
