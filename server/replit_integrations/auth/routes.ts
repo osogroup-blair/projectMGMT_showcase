@@ -2,6 +2,13 @@ import type { Express } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
 
+// Roles that can use impersonation feature
+const IMPERSONATION_ROLES = ["admin", "demo"];
+
+function canImpersonate(role: string | null | undefined): boolean {
+  return IMPERSONATION_ROLES.includes(role || "");
+}
+
 // Register auth-specific routes
 export function registerAuthRoutes(app: Express): void {
   // Get current authenticated user (includes impersonation state)
@@ -10,10 +17,10 @@ export function registerAuthRoutes(app: Express): void {
       const realUserId = req.user.claims.sub;
       const realUser = await authStorage.getUser(realUserId);
       
-      // Check if admin is impersonating another user
+      // Check if admin/demo is impersonating another user
       const impersonatedUserId = req.session?.impersonatedUserId;
       
-      if (impersonatedUserId && realUser?.systemRole === "admin") {
+      if (impersonatedUserId && canImpersonate(realUser?.systemRole)) {
         const impersonatedUser = await authStorage.getUser(impersonatedUserId);
         if (impersonatedUser) {
           res.json({
@@ -42,14 +49,14 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  // Start impersonation (admin only)
+  // Start impersonation (admin and demo roles)
   app.post("/api/admin/impersonate/:userId", isAuthenticated, async (req: any, res) => {
     try {
       const realUserId = req.user.claims.sub;
       const realUser = await authStorage.getUser(realUserId);
       
-      if (realUser?.systemRole !== "admin") {
-        return res.status(403).json({ error: "Only admins can impersonate users" });
+      if (!canImpersonate(realUser?.systemRole)) {
+        return res.status(403).json({ error: "Only admins and demo users can impersonate users" });
       }
       
       const targetUserId = req.params.userId;
@@ -88,8 +95,8 @@ export function registerAuthRoutes(app: Express): void {
       const realUserId = req.user.claims.sub;
       const realUser = await authStorage.getUser(realUserId);
       
-      if (realUser?.systemRole !== "admin") {
-        return res.status(403).json({ error: "Only admins can stop impersonation" });
+      if (!canImpersonate(realUser?.systemRole)) {
+        return res.status(403).json({ error: "Only admins and demo users can stop impersonation" });
       }
       
       // Clear impersonation from session and save explicitly
@@ -107,14 +114,17 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  // Get impersonation status
+  // Get impersonation status (admin and demo roles)
   app.get("/api/admin/impersonation-status", isAuthenticated, async (req: any, res) => {
     try {
       const realUserId = req.user.claims.sub;
       const realUser = await authStorage.getUser(realUserId);
       
-      if (realUser?.systemRole !== "admin") {
-        return res.json({ isAdmin: false, isImpersonating: false });
+      const canUserImpersonate = canImpersonate(realUser?.systemRole);
+      const isAdmin = realUser?.systemRole === "admin";
+      
+      if (!canUserImpersonate) {
+        return res.json({ isAdmin: false, canImpersonate: false, isImpersonating: false });
       }
       
       const impersonatedUserId = req.session?.impersonatedUserId;
@@ -122,7 +132,8 @@ export function registerAuthRoutes(app: Express): void {
       if (impersonatedUserId) {
         const impersonatedUser = await authStorage.getUser(impersonatedUserId);
         res.json({
-          isAdmin: true,
+          isAdmin,
+          canImpersonate: true,
           isImpersonating: true,
           impersonatedUser: impersonatedUser ? {
             id: impersonatedUser.id,
@@ -132,7 +143,7 @@ export function registerAuthRoutes(app: Express): void {
           } : null,
         });
       } else {
-        res.json({ isAdmin: true, isImpersonating: false });
+        res.json({ isAdmin, canImpersonate: true, isImpersonating: false });
       }
     } catch (error) {
       console.error("Error getting impersonation status:", error);
