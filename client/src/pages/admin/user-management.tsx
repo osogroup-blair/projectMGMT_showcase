@@ -296,6 +296,22 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       return res.json();
     },
   });
+
+  const roleOptions = useMemo(() => {
+    if (systemRoles.length > 0) {
+      return systemRoles.map(role => ({
+        value: role.name,
+        label: role.displayName,
+      }));
+    }
+    return [
+      { value: "admin", label: "Admin" },
+      { value: "manager", label: "Manager" },
+      { value: "member", label: "Member" },
+      { value: "viewer", label: "Viewer" },
+      { value: "demo", label: "Demo" },
+    ];
+  }, [systemRoles]);
   const { data: allPermissions = [] } = useQuery<{ id: string; key: string; displayName: string; category: string }[]>({
     queryKey: ["/api/roles-permissions/permissions"],
     queryFn: async () => {
@@ -1439,10 +1455,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   value={formData.systemRole || ""}
                   onValueChange={(v) => setFormData({ ...formData, systemRole: v as any })}
                   placeholder="Select role"
-                  options={systemRoles.map(role => ({
-                    value: role.name,
-                    label: role.displayName,
-                  }))}
+                  options={roleOptions}
                   data-testid="select-user-role"
                 />
               </div>
