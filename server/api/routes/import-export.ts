@@ -2063,12 +2063,17 @@ export function registerImportExportRoutes(
         return `'${String(val).replace(/'/g, "''")}'`;
       };
 
+      const camelToSnake = (str: string): string => {
+        return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      };
+
       const generateInserts = (tableName: string, rows: any[]): string => {
         if (!rows || rows.length === 0) return '';
         const columns = Object.keys(rows[0]);
+        const snakeColumns = columns.map(camelToSnake);
         const lines = rows.map(row => {
           const values = columns.map(col => escapeValue(row[col]));
-          return `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values.join(', ')});`;
+          return `INSERT INTO "${tableName}" ("${snakeColumns.join('", "')}") VALUES (${values.join(', ')});`;
         });
         return `-- ${tableName} (${rows.length} rows)\n${lines.join('\n')}\n`;
       };
