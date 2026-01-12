@@ -80,7 +80,9 @@ import { PortableKanban } from "@/components/kanban";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
 import { NextSprintBacklog } from "@/features/project/sprints/next-sprint-backlog";
-import { Activity, PanelLeft, Send, BarChart3, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { Activity, PanelLeft, Send, BarChart3, ChevronLeftIcon, ChevronRightIcon, Search, Filter, MessageSquare } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function ProjectOverview() {
   const [match, params] = useRoute("/projects/:projectId");
@@ -206,6 +208,55 @@ export default function ProjectOverview() {
   const [pulseDid, setPulseDid] = useState("");
   const [pulseNext, setPulseNext] = useState("");
   const [pulseBlockers, setPulseBlockers] = useState("");
+  
+  // Team Pulse updates filter state
+  const [pulseSearch, setPulseSearch] = useState("");
+  const [pulseTypeFilter, setPulseTypeFilter] = useState<"all" | "accomplishments" | "blockers" | "next-steps">("all");
+  const [pulseUserFilter, setPulseUserFilter] = useState<string>("all");
+  
+  // Mock pulse updates data (in a real app, this would come from an API)
+  const [pulseUpdates, setPulseUpdates] = useState<Array<{
+    id: string;
+    userId: string;
+    userName: string;
+    userAvatar?: string;
+    type: "accomplishment" | "blocker" | "next-step";
+    content: string;
+    timestamp: Date;
+  }>>([
+    {
+      id: "1",
+      userId: "user1",
+      userName: "Alex Chen",
+      type: "accomplishment",
+      content: "Completed the user authentication flow and integration tests",
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    },
+    {
+      id: "2",
+      userId: "user2",
+      userName: "Sarah Miller",
+      type: "blocker",
+      content: "Waiting on API documentation from the backend team",
+      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+    },
+    {
+      id: "3",
+      userId: "user1",
+      userName: "Alex Chen",
+      type: "next-step",
+      content: "Will start working on the dashboard analytics component",
+      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+    },
+    {
+      id: "4",
+      userId: "user3",
+      userName: "Jordan Lee",
+      type: "accomplishment",
+      content: "Fixed critical bug in payment processing module",
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    },
+  ]);
   
   // Dashboard sidebar state
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(true);
@@ -1409,14 +1460,6 @@ export default function ProjectOverview() {
                     />
                   )}
 
-                  {dashboardSection === "metrics" && (
-                    <TimeHorizonDashboard 
-                      projectId={projectId}
-                      externalFilters={dashboardFilters}
-                      onFiltersChange={setDashboardFilters}
-                    />
-                  )}
-
                   {dashboardSection === "activity" && (
                     <Card>
                       <CardHeader>
@@ -1456,75 +1499,266 @@ export default function ProjectOverview() {
                   )}
 
                   {dashboardSection === "team-pulse" && (
-                    <div className="space-y-6">
-                      <div>
-                        <h2 className="text-lg font-semibold flex items-center gap-2 mb-2">
-                          <Send className="h-5 w-5" />
-                          Team Pulse
-                        </h2>
-                        <p className="text-sm text-muted-foreground">Share updates and stay connected with your team</p>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-lg font-semibold flex items-center gap-2">
+                            <Send className="h-5 w-5" />
+                            Team Pulse
+                          </h2>
+                          <p className="text-sm text-muted-foreground">Stay connected with your team's progress</p>
+                        </div>
+                        <Badge variant="outline" className="text-sm">
+                          {pulseUpdates.length} update{pulseUpdates.length !== 1 ? 's' : ''}
+                        </Badge>
                       </div>
                       
-                      <Card className="bg-muted/30">
-                        <CardContent className="pt-4 pb-4 space-y-4">
-                          <div className="space-y-2">
-                            <Label className="text-xs text-green-600 font-medium">What did you accomplish?</Label>
-                            <Textarea 
-                              placeholder="Completed tasks, delivered features, resolved issues..."
-                              className="min-h-[60px] text-sm resize-none"
-                              value={pulseDid}
-                              onChange={(e) => setPulseDid(e.target.value)}
-                              data-testid="input-pulse-did"
-                            />
+                      {/* Share Update Accordion */}
+                      <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="share-update" className="border rounded-lg bg-muted/20">
+                          <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30 rounded-t-lg">
+                            <div className="flex items-center gap-2">
+                              <Plus className="h-4 w-4" />
+                              <span className="font-medium">Share an Update</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-4">
+                            <div className="space-y-4 pt-2">
+                              <div className="space-y-2">
+                                <Label className="text-xs text-green-600 font-medium">What did you accomplish?</Label>
+                                <Textarea 
+                                  placeholder="Completed tasks, delivered features, resolved issues..."
+                                  className="min-h-[60px] text-sm resize-none"
+                                  value={pulseDid}
+                                  onChange={(e) => setPulseDid(e.target.value)}
+                                  data-testid="input-pulse-did"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-blue-600 font-medium">What's next?</Label>
+                                <Textarea 
+                                  placeholder="Upcoming tasks, goals for today/tomorrow..."
+                                  className="min-h-[60px] text-sm resize-none"
+                                  value={pulseNext}
+                                  onChange={(e) => setPulseNext(e.target.value)}
+                                  data-testid="input-pulse-next"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs text-amber-600 font-medium">Any blockers?</Label>
+                                <Textarea 
+                                  placeholder="Issues preventing progress, dependencies needed..."
+                                  className="min-h-[60px] text-sm resize-none"
+                                  value={pulseBlockers}
+                                  onChange={(e) => setPulseBlockers(e.target.value)}
+                                  data-testid="input-pulse-blockers"
+                                />
+                              </div>
+                              <Button 
+                                size="sm" 
+                                className="gap-2" 
+                                data-testid="button-send-pulse"
+                                disabled={!pulseDid.trim() && !pulseNext.trim() && !pulseBlockers.trim()}
+                                onClick={() => {
+                                  const newUpdates: typeof pulseUpdates = [];
+                                  if (pulseDid.trim()) {
+                                    newUpdates.push({
+                                      id: `pulse-${Date.now()}-1`,
+                                      userId: currentUser?.id || "current",
+                                      userName: currentUser?.name || currentUser?.firstName || "You",
+                                      type: "accomplishment",
+                                      content: pulseDid.trim(),
+                                      timestamp: new Date(),
+                                    });
+                                  }
+                                  if (pulseNext.trim()) {
+                                    newUpdates.push({
+                                      id: `pulse-${Date.now()}-2`,
+                                      userId: currentUser?.id || "current",
+                                      userName: currentUser?.name || currentUser?.firstName || "You",
+                                      type: "next-step",
+                                      content: pulseNext.trim(),
+                                      timestamp: new Date(),
+                                    });
+                                  }
+                                  if (pulseBlockers.trim()) {
+                                    newUpdates.push({
+                                      id: `pulse-${Date.now()}-3`,
+                                      userId: currentUser?.id || "current",
+                                      userName: currentUser?.name || currentUser?.firstName || "You",
+                                      type: "blocker",
+                                      content: pulseBlockers.trim(),
+                                      timestamp: new Date(),
+                                    });
+                                  }
+                                  setPulseUpdates(prev => [...newUpdates, ...prev]);
+                                  toast({ title: "Update sent", description: "Your pulse update has been shared with the team." });
+                                  setPulseDid("");
+                                  setPulseNext("");
+                                  setPulseBlockers("");
+                                }}
+                              >
+                                <Send className="h-3 w-3" />
+                                Send Update
+                              </Button>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+
+                      {/* Recent Updates Section */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between gap-4">
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <MessageSquare className="h-4 w-4" />
+                              Recent Updates
+                            </CardTitle>
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs text-blue-600 font-medium">What's next?</Label>
-                            <Textarea 
-                              placeholder="Upcoming tasks, goals for today/tomorrow..."
-                              className="min-h-[60px] text-sm resize-none"
-                              value={pulseNext}
-                              onChange={(e) => setPulseNext(e.target.value)}
-                              data-testid="input-pulse-next"
-                            />
+                          
+                          {/* Search and Filter Row */}
+                          <div className="flex flex-col sm:flex-row gap-3 pt-3">
+                            <div className="relative flex-1">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input
+                                placeholder="Search updates..."
+                                className="pl-9 h-9"
+                                value={pulseSearch}
+                                onChange={(e) => setPulseSearch(e.target.value)}
+                                data-testid="input-pulse-search"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <Select value={pulseTypeFilter} onValueChange={(v) => setPulseTypeFilter(v as typeof pulseTypeFilter)}>
+                                <SelectTrigger className="w-[140px] h-9" data-testid="select-pulse-type-filter">
+                                  <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                  <SelectValue placeholder="Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Types</SelectItem>
+                                  <SelectItem value="accomplishments">Accomplishments</SelectItem>
+                                  <SelectItem value="next-steps">Next Steps</SelectItem>
+                                  <SelectItem value="blockers">Blockers</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select value={pulseUserFilter} onValueChange={setPulseUserFilter}>
+                                <SelectTrigger className="w-[140px] h-9" data-testid="select-pulse-user-filter">
+                                  <UsersIcon className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                  <SelectValue placeholder="Team Member" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Members</SelectItem>
+                                  {Array.from(new Set(pulseUpdates.map(u => u.userName))).map(name => (
+                                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs text-amber-600 font-medium">Any blockers?</Label>
-                            <Textarea 
-                              placeholder="Issues preventing progress, dependencies needed..."
-                              className="min-h-[60px] text-sm resize-none"
-                              value={pulseBlockers}
-                              onChange={(e) => setPulseBlockers(e.target.value)}
-                              data-testid="input-pulse-blockers"
-                            />
-                          </div>
-                          <Button 
-                            size="sm" 
-                            className="gap-2" 
-                            data-testid="button-send-pulse"
-                            disabled={!pulseDid.trim() && !pulseNext.trim() && !pulseBlockers.trim()}
-                            onClick={() => {
-                              toast({ title: "Update sent", description: "Your pulse update has been shared with the team." });
-                              setPulseDid("");
-                              setPulseNext("");
-                              setPulseBlockers("");
-                            }}
-                          >
-                            <Send className="h-3 w-3" />
-                            Send Update
-                          </Button>
+                        </CardHeader>
+                        <CardContent>
+                          <ScrollArea className="h-[400px]">
+                            <div className="space-y-3 pr-4">
+                              {(() => {
+                                const filtered = pulseUpdates.filter(update => {
+                                  const matchesSearch = !pulseSearch || 
+                                    update.content.toLowerCase().includes(pulseSearch.toLowerCase()) ||
+                                    update.userName.toLowerCase().includes(pulseSearch.toLowerCase());
+                                  
+                                  const matchesType = pulseTypeFilter === "all" || 
+                                    (pulseTypeFilter === "accomplishments" && update.type === "accomplishment") ||
+                                    (pulseTypeFilter === "next-steps" && update.type === "next-step") ||
+                                    (pulseTypeFilter === "blockers" && update.type === "blocker");
+                                  
+                                  const matchesUser = pulseUserFilter === "all" || update.userName === pulseUserFilter;
+                                  
+                                  return matchesSearch && matchesType && matchesUser;
+                                });
+
+                                if (filtered.length === 0) {
+                                  return (
+                                    <div className="text-center py-8 text-muted-foreground">
+                                      <Send className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                                      <p className="text-sm">No updates found</p>
+                                      <p className="text-xs mt-1">
+                                        {pulseSearch || pulseTypeFilter !== "all" || pulseUserFilter !== "all" 
+                                          ? "Try adjusting your filters" 
+                                          : "Be the first to share progress with your team!"}
+                                      </p>
+                                    </div>
+                                  );
+                                }
+
+                                return filtered.map(update => {
+                                  const typeConfig = {
+                                    accomplishment: { 
+                                      icon: CheckCircle2, 
+                                      color: "text-green-600", 
+                                      bg: "bg-green-50 dark:bg-green-900/20",
+                                      label: "Accomplishment"
+                                    },
+                                    blocker: { 
+                                      icon: AlertTriangle, 
+                                      color: "text-amber-600", 
+                                      bg: "bg-amber-50 dark:bg-amber-900/20",
+                                      label: "Blocker"
+                                    },
+                                    "next-step": { 
+                                      icon: ChevronRight, 
+                                      color: "text-blue-600", 
+                                      bg: "bg-blue-50 dark:bg-blue-900/20",
+                                      label: "Next Step"
+                                    },
+                                  }[update.type];
+                                  
+                                  const Icon = typeConfig.icon;
+                                  const timeAgo = (() => {
+                                    const diff = Date.now() - update.timestamp.getTime();
+                                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                                    if (hours < 1) return "Just now";
+                                    if (hours < 24) return `${hours}h ago`;
+                                    const days = Math.floor(hours / 24);
+                                    return `${days}d ago`;
+                                  })();
+
+                                  return (
+                                    <div 
+                                      key={update.id} 
+                                      className={cn("p-3 rounded-lg border", typeConfig.bg)}
+                                      data-testid={`pulse-update-${update.id}`}
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <Avatar className="h-8 w-8">
+                                          {update.userAvatar && <AvatarImage src={update.userAvatar} />}
+                                          <AvatarFallback className="text-xs">
+                                            {update.userName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-medium text-sm">{update.userName}</span>
+                                              <Badge 
+                                                variant="outline" 
+                                                className={cn("text-[10px] px-1.5 py-0", typeConfig.color)}
+                                              >
+                                                <Icon className="h-3 w-3 mr-1" />
+                                                {typeConfig.label}
+                                              </Badge>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo}</span>
+                                          </div>
+                                          <p className="text-sm mt-1">{update.content}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </ScrollArea>
                         </CardContent>
                       </Card>
-
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Recent Updates</h3>
-                        <Card className="p-4 bg-muted/20">
-                          <div className="text-center py-6 text-muted-foreground">
-                            <Send className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                            <p className="text-sm">No updates yet</p>
-                            <p className="text-xs mt-1">Be the first to share progress with your team!</p>
-                          </div>
-                        </Card>
-                      </div>
                     </div>
                   )}
                 </div>
