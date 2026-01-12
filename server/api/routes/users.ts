@@ -85,6 +85,76 @@ export function registerUserRoutes(
     }
   });
 
+  // User Export - export all users with identities for migration to another instance (admin/manager only)
+  // Note: This route must be defined BEFORE /api/users/:id to prevent "export" from being matched as an :id
+  app.get("/api/users/export", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
+    try {
+      const allUsers = await storage.getUsers();
+      const allIdentities = await storage.getUserIdentities();
+      
+      const usersWithIdentities = allUsers.map((user: any) => {
+        const userIdentities = allIdentities.filter((ident: any) => ident.userId === user.id);
+        
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          status: user.status || 'Active',
+          avatar: user.avatar || user.profileImageUrl,
+          systemRole: user.systemRole,
+          jobTitle: user.jobTitle,
+          externalId: user.externalId,
+          importSource: user.importSource,
+          createdAt: user.createdAt,
+          identities: userIdentities.map((ident: any) => ({
+            identityId: ident.id,
+            externalUserId: ident.externalUserId,
+            externalUsername: ident.externalUsername,
+            externalEmail: ident.externalEmail,
+            identityType: ident.identityType,
+            status: ident.status,
+            system: {
+              systemId: ident.systemId,
+              systemType: ident.systemType,
+              systemName: ident.systemName,
+              workspaceId: ident.workspaceId,
+            },
+            auth: ident.auth,
+            roles: ident.roles,
+            permissions: ident.externalPermissions,
+            profile: ident.profile,
+            sync: {
+              sourceOfTruth: ident.syncSourceOfTruth,
+              lastSyncedAt: ident.lastSyncedAt,
+              syncStatus: ident.syncStatus,
+              lastError: ident.lastSyncError,
+            },
+            metadata: {
+              createdBy: ident.createdBy,
+              updatedBy: ident.updatedBy,
+              createdAt: ident.createdAt,
+              updatedAt: ident.updatedAt,
+            },
+          })),
+        };
+      });
+
+      const exportData = {
+        exportedAt: new Date().toISOString(),
+        exportVersion: "1.0",
+        sourceInstance: process.env.REPL_SLUG || "nymbl-workspace",
+        Users: usersWithIdentities,
+      };
+
+      res.json(exportData);
+    } catch (error: any) {
+      console.error("User export error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/users/:id", async (req, res) => {
     try {
       const user = await userManagementService.getUserById(req.params.id);

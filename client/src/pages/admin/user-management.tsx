@@ -572,6 +572,43 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const response = await fetch('/api/users/export', {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Export failed');
+      }
+
+      const exportData = await response.json();
+      
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `users-export-${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({ 
+        title: "Export Complete", 
+        description: `Exported ${exportData.Users?.length || 0} users to file.` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: "Export Failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  };
+
   const getInitials = (user: UserPublic) => {
     const name = user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || '';
     return name.substring(0, 2).toUpperCase();
@@ -656,7 +693,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 <Upload className="h-3.5 w-3.5" />
                 Import
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport} data-testid="button-export-users">
                 <Download className="h-3.5 w-3.5" />
                 Export
               </Button>
