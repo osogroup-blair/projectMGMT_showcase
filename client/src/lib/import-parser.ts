@@ -118,6 +118,8 @@ interface FlattenedNexusData {
   tasks: Record<string, any>[];
   stages: Record<string, any>[];
   milestones: Record<string, any>[];
+  sprints: Record<string, any>[];
+  comments: Record<string, any>[];
 }
 
 function isNestedNexusFormat(data: any): boolean {
@@ -139,7 +141,9 @@ function flattenNexusExport(data: any): FlattenedNexusData {
     epics: [],
     tasks: [],
     stages: [],
-    milestones: []
+    milestones: [],
+    sprints: [],
+    comments: []
   };
   
   if (!data.projects || !Array.isArray(data.projects)) {
@@ -147,7 +151,7 @@ function flattenNexusExport(data: any): FlattenedNexusData {
   }
   
   for (const project of data.projects) {
-    const { deliverables, stages, milestones, ...projectData } = project;
+    const { deliverables, stages, milestones, sprints, ...projectData } = project;
     result.projects.push(projectData);
     
     if (Array.isArray(stages)) {
@@ -156,6 +160,10 @@ function flattenNexusExport(data: any): FlattenedNexusData {
     
     if (Array.isArray(milestones)) {
       result.milestones.push(...milestones);
+    }
+    
+    if (Array.isArray(sprints)) {
+      result.sprints.push(...sprints);
     }
     
     if (Array.isArray(deliverables)) {
@@ -169,7 +177,14 @@ function flattenNexusExport(data: any): FlattenedNexusData {
             result.epics.push(epicData);
             
             if (Array.isArray(tasks)) {
-              result.tasks.push(...tasks);
+              for (const task of tasks) {
+                const { comments, ...taskData } = task;
+                result.tasks.push(taskData);
+                
+                if (Array.isArray(comments)) {
+                  result.comments.push(...comments);
+                }
+              }
             }
           }
         }
@@ -198,7 +213,9 @@ async function parseJSON(content: string): Promise<ParseResult> {
         { key: 'epics', type: 'Epics' },
         { key: 'tasks', type: 'Tasks' },
         { key: 'stages', type: 'ProjectStages' },
-        { key: 'milestones', type: 'Milestones' }
+        { key: 'milestones', type: 'Milestones' },
+        { key: 'sprints', type: 'Sprints' },
+        { key: 'comments', type: 'Comments' }
       ];
       
       for (const { key, type } of entityTypes) {
