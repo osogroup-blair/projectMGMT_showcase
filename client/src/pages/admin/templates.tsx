@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
-  FileBox, 
   Layers, 
-  LayoutTemplate, 
   ListTodo, 
   Plus, 
   Search, 
@@ -14,7 +12,6 @@ import {
   Trash2,
   Copy,
   ChevronRight,
-  Package,
   Check,
   Workflow,
   Loader2,
@@ -72,9 +69,6 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
-  ProjectTemplate,
-  DeliverableTemplate,
-  EpicTemplate,
   TaskTemplate,
   StageTemplate,
   FrameworkTemplate,
@@ -101,7 +95,7 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("projects");
+  const [activeTab, setActiveTab] = useState("frameworks");
 
   // Database hooks for all template types
   const { 
@@ -597,29 +591,8 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
           </div>
         </div>
 
-        <Tabs defaultValue="projects" className="w-full" onValueChange={setActiveTab}>
+        <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
           <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto">
-            <TabsTrigger 
-              value="projects" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
-            >
-              <LayoutTemplate className="h-4 w-4" />
-              Projects
-            </TabsTrigger>
-            <TabsTrigger 
-              value="deliverables" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
-            >
-              <Package className="h-4 w-4" />
-              Deliverables
-            </TabsTrigger>
-            <TabsTrigger 
-              value="epics" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
-            >
-              <FileBox className="h-4 w-4" />
-              Epics
-            </TabsTrigger>
             <TabsTrigger 
               value="frameworks" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
@@ -664,32 +637,6 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
           </div>
 
           <div className="mt-6">
-            <TabsContent value="projects" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filterTemplates(projectTemplates).map(t => (
-                  <TemplateCard 
-                    key={t.id}
-                    item={t}
-                    type="project"
-                    icon={LayoutTemplate}
-                    itemsCount={t.defaultDeliverables?.length || 0}
-                    itemLabel="Deliverables"
-                    badge="Full Stack"
-                  />
-                ))}
-                <Card 
-                    className="flex flex-col items-center justify-center border-dashed cursor-pointer hover:bg-muted/10 transition-colors min-h-[200px]"
-                    onClick={() => handleCreate('project')}
-                >
-                  <div className="p-4 rounded-full bg-muted text-muted-foreground mb-4">
-                    <Plus className="h-6 w-6" />
-                  </div>
-                  <h3 className="font-semibold text-lg">Create New Project Template</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Define stages, roles, and defaults</p>
-                </Card>
-              </div>
-            </TabsContent>
-
             <TabsContent value="frameworks" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filterTemplates(frameworkTemplates).map(t => (
@@ -739,36 +686,6 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
                     icon={Layers}
                     itemsCount={t.defaultTasks?.length || 0}
                     itemLabel="Tasks"
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="deliverables" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filterTemplates(deliverableTemplates).map(t => (
-                  <TemplateCard 
-                    key={t.id}
-                    item={t}
-                    type="deliverable"
-                    icon={Package}
-                    itemsCount={t.defaultEpics?.length || 0}
-                    itemLabel="Default Epics"
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="epics" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filterTemplates(epicTemplates).map(t => (
-                  <TemplateCard 
-                    key={t.id}
-                    item={t}
-                    type="epic"
-                    icon={FileBox}
-                    itemsCount={t.defaultStages?.length || 0}
-                    itemLabel="Default Stages"
                   />
                 ))}
               </div>
