@@ -14,6 +14,7 @@ export const SystemRoles = {
   MANAGER: "manager",
   MEMBER: "member",
   VIEWER: "viewer",
+  DEMO: "demo",
 } as const;
 
 export type SystemRole = typeof SystemRoles[keyof typeof SystemRoles];
@@ -33,6 +34,9 @@ export const RolePermissions: Record<SystemRole, UserPermission[]> = {
     UserPermissions.USERS_READ,
   ],
   viewer: [
+    UserPermissions.USERS_READ,
+  ],
+  demo: [
     UserPermissions.USERS_READ,
   ],
 };
@@ -81,7 +85,7 @@ export interface UserPublic {
 export const updateUserRequestSchema = z.object({
   name: z.string().optional(),
   jobTitle: z.string().optional(),
-  systemRole: z.enum(["admin", "manager", "member", "viewer"]).optional(),
+  systemRole: z.enum(["admin", "manager", "member", "viewer", "demo"]).optional(),
   permissions: z.array(z.string()).optional(),
 });
 
@@ -95,7 +99,7 @@ export const createUserRequestSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
   jobTitle: z.string().optional(),
-  systemRole: z.enum(["admin", "manager", "member", "viewer"]).default("member"),
+  systemRole: z.enum(["admin", "manager", "member", "viewer", "demo"]).default("member"),
 });
 
 export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
