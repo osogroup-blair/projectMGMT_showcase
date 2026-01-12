@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import type { StatusOption } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
@@ -560,6 +561,7 @@ export function StatusOptionsTab() {
         type: currentType,
         order: currentType === "project" ? projectStatuses.length : taskStatuses.length,
         isDefault: formData.isDefault || false,
+        kanbanCollapsed: formData.kanbanCollapsed || false,
       };
       if (editingItem) {
         await updateStatusOption({ id: editingItem.id, updates: statusData });
@@ -784,6 +786,23 @@ export function StatusOptionsTab() {
                 </Badge>
               </div>
             </div>
+            
+            {currentType === "task" && (
+              <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <Label htmlFor="kanban-collapsed">Collapsed on Kanban</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Column will be collapsed by default on kanban boards
+                  </p>
+                </div>
+                <Switch
+                  id="kanban-collapsed"
+                  checked={formData.kanbanCollapsed || false}
+                  onCheckedChange={(checked) => setFormData({...formData, kanbanCollapsed: checked})}
+                  data-testid="switch-kanban-collapsed"
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)} data-testid="button-cancel-status">Cancel</Button>
