@@ -352,10 +352,20 @@ export interface IStorage {
   deleteSprintPulseUpdate(id: string): Promise<void>;
 
   // Project Favorites
+  getAllProjectFavorites(): Promise<ProjectFavorite[]>;
   getProjectFavoritesByUserId(userId: string): Promise<ProjectFavorite[]>;
   createProjectFavorite(favorite: InsertProjectFavorite): Promise<ProjectFavorite>;
   deleteProjectFavorite(userId: string, projectId: string): Promise<void>;
   isProjectFavorite(userId: string, projectId: string): Promise<boolean>;
+
+  // User Preferences
+  getAllUserPreferences(): Promise<UserPreferences[]>;
+
+  // Work Blocks
+  getAllWorkBlocks(): Promise<WorkBlock[]>;
+
+  // Day Plans
+  getAllDayPlans(): Promise<DayPlan[]>;
 
   // Task Types (global)
   getTaskTypes(): Promise<TaskType[]>;
@@ -1534,6 +1544,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User Preferences
+  async getAllUserPreferences(): Promise<UserPreferences[]> {
+    return await db.select().from(schema.userPreferences);
+  }
   async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
     const [prefs] = await db.select().from(schema.userPreferences).where(eq(schema.userPreferences.userId, userId));
     return prefs;
@@ -1549,6 +1562,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Work Blocks
+  async getAllWorkBlocks(): Promise<WorkBlock[]> {
+    return await db.select().from(schema.workBlocks);
+  }
   async getWorkBlocksByUserAndDate(userId: string, date: string): Promise<WorkBlock[]> {
     return await db.select().from(schema.workBlocks).where(
       and(eq(schema.workBlocks.userId, userId), eq(schema.workBlocks.date, date))
@@ -1568,6 +1584,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Day Plans
+  async getAllDayPlans(): Promise<DayPlan[]> {
+    return await db.select().from(schema.dayPlans);
+  }
   async getDayPlan(userId: string, date: string): Promise<DayPlan | undefined> {
     const [plan] = await db.select().from(schema.dayPlans).where(
       and(eq(schema.dayPlans.userId, userId), eq(schema.dayPlans.date, date))
@@ -1587,6 +1606,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Project Favorites
+  async getAllProjectFavorites(): Promise<ProjectFavorite[]> {
+    return await db.select().from(schema.projectFavorites);
+  }
   async getProjectFavoritesByUserId(userId: string): Promise<ProjectFavorite[]> {
     return await db.select().from(schema.projectFavorites).where(eq(schema.projectFavorites.userId, userId));
   }

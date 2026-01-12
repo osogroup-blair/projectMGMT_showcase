@@ -291,6 +291,12 @@ export async function registerRoutes(
     }
   });
 
+  // Project Favorites (global list for import/export)
+  app.get("/api/projectFavorites", async (req, res) => {
+    const projectFavorites = await storage.getAllProjectFavorites();
+    res.json(projectFavorites);
+  });
+
   // Project Favorites
   app.get("/api/favorites", async (req, res) => {
     try {
@@ -2138,6 +2144,12 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // Project Task Types (global list for import/export)
+  app.get("/api/projectTaskTypes", async (req, res) => {
+    const projectTaskTypes = await storage.getProjectTaskTypes();
+    res.json(projectTaskTypes);
+  });
+
   // Project Task Types (project-level overrides)
   app.get("/api/projects/:projectId/task-types", async (req, res) => {
     const projectTaskTypes = await storage.getProjectTaskTypesByProjectId(req.params.projectId);
@@ -2331,6 +2343,12 @@ export async function registerRoutes(
     }
   });
 
+  // Project Task Statuses (global list for import/export)
+  app.get("/api/projectTaskStatuses", async (req, res) => {
+    const projectTaskStatuses = await storage.getProjectTaskStatuses();
+    res.json(projectTaskStatuses);
+  });
+
   // Project Task Statuses (project-level overrides)
   app.get("/api/projects/:projectId/task-statuses", async (req, res) => {
     const statuses = await storage.getProjectTaskStatusesByProjectId(req.params.projectId);
@@ -2375,6 +2393,12 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
+  });
+
+  // Project Settings (global list for import/export)
+  app.get("/api/projectSettings", async (req, res) => {
+    const projectSettings = await storage.getProjectSettings();
+    res.json(projectSettings);
   });
 
   // Project Settings
@@ -2813,6 +2837,12 @@ export async function registerRoutes(
     }
   });
 
+  // User Preferences (global list for import/export)
+  app.get("/api/userPreferences", async (req, res) => {
+    const userPreferences = await storage.getAllUserPreferences();
+    res.json(userPreferences);
+  });
+
   // User Preferences
   app.get("/api/users/:userId/preferences", async (req, res) => {
     try {
@@ -2846,6 +2876,12 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
+  });
+
+  // Work Blocks (global list for import/export)
+  app.get("/api/workBlocks", async (req, res) => {
+    const workBlocks = await storage.getAllWorkBlocks();
+    res.json(workBlocks);
   });
 
   // Work Blocks
@@ -3244,6 +3280,12 @@ export async function registerRoutes(
       console.error("Dashboard API error:", error);
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // Day Plans (global list for import/export)
+  app.get("/api/dayPlans", async (req, res) => {
+    const dayPlans = await storage.getAllDayPlans();
+    res.json(dayPlans);
   });
 
   // Day Plans
