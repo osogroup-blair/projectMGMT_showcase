@@ -43,6 +43,15 @@ export function StepTaskAlignment({
     });
     return epics;
   }, [deliverables]);
+
+  // Find the Product Management epic for default assignment
+  const productManagementEpic = useMemo(() => {
+    return allEpics.find(e => 
+      e.title.toLowerCase().includes('product management') ||
+      e.title.toLowerCase() === 'pm' ||
+      e.title.toLowerCase().includes('project management')
+    );
+  }, [allEpics]);
   
   const allTasks = useMemo(() => {
     const tasks: (WizardTaskDraft & { stageName: string; stageIdx: number; taskIdx: number })[] = [];
@@ -167,6 +176,27 @@ export function StepTaskAlignment({
     
     setSelectedTasks(new Set());
   };
+
+  const assignAllOrphanedToProductManagement = () => {
+    if (!productManagementEpic) return;
+    
+    setStages(prevStages => {
+      return prevStages.map(stage => ({
+        ...stage,
+        tasks: stage.tasks.map(task => {
+          if (task.mappingStatus === 'orphaned' && !task.assignedEpicId) {
+            return {
+              ...task,
+              assignedEpicId: productManagementEpic.id,
+              assignedEpicTitle: productManagementEpic.title,
+              mappingStatus: 'manual' as const
+            };
+          }
+          return task;
+        })
+      }));
+    });
+  };
   
   if (!hasImportedTasks && allTasks.length === 0) {
     return (
@@ -247,6 +277,16 @@ export function StepTaskAlignment({
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                {productManagementEpic && orphanedTasks.length > 0 && (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={assignAllOrphanedToProductManagement}
+                    data-testid="button-assign-pm-epic"
+                  >
+                    Assign All to {productManagementEpic.title}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={selectAllOrphaned}>
                   Select All
                 </Button>

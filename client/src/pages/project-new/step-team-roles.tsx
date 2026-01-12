@@ -36,6 +36,8 @@ interface TaskAssignmentStats {
   fromImport: boolean;
 }
 
+type AssignmentMode = 'none' | 'all_to_one' | 'by_stage';
+
 export function StepTeamRoles({
   roles,
   setRoles,
@@ -49,6 +51,8 @@ export function StepTeamRoles({
 }: StepProps) {
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
   const [bulkAssigneeId, setBulkAssigneeId] = useState<string>("");
+  const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>('none');
+  const [stageAssignees, setStageAssignees] = useState<Record<string, string>>({});
 
   // Auto-expand all stages with unassigned tasks on mount
   useEffect(() => {
@@ -191,6 +195,48 @@ export function StepTeamRoles({
     setBulkAssigneeId("");
   };
 
+  const assignAllTasksInStage = (stageId: string, userId: string) => {
+    if (!userId) return;
+    
+    setStageAssignees(prev => ({ ...prev, [stageId]: userId }));
+    setStages(prev => prev.map(stage => {
+      if (stage.id !== stageId) return stage;
+      return {
+        ...stage,
+        tasks: stage.tasks.map(task => ({ ...task, assigneeId: userId }))
+      };
+    }));
+  };
+
+  // Role-based task summary: which tasks would be assigned by role
+  const roleTaskSummary = useMemo(() => {
+    const summary: Record<string, { roleName: string; tasks: { title: string; stageName: string }[] }> = {};
+    
+    roles.forEach(role => {
+      if (!role.assigneeId || !role.roleTypeId) return;
+      
+      const tasksForRole: { title: string; stageName: string }[] = [];
+      
+      stages.forEach(stage => {
+        stage.tasks.forEach(task => {
+          // Check if task's role type matches the role
+          if (task.assigneeRoleTypeId === role.roleTypeId) {
+            tasksForRole.push({ title: task.title, stageName: stage.name });
+          }
+        });
+      });
+      
+      if (tasksForRole.length > 0) {
+        summary[role.id] = {
+          roleName: role.name,
+          tasks: tasksForRole
+        };
+      }
+    });
+    
+    return summary;
+  }, [roles, stages]);
+
   const toggleStageExpanded = (stageId: string) => {
     setExpandedStages(prev => {
       const next = new Set(prev);
@@ -292,6 +338,29 @@ export function StepTeamRoles({
               data-testid={`select-role-assignee-${globalIndex}`}
             />
           </div>
+          
+          {/* Role-based task assignment summary */}
+          {role.assigneeId && roleTaskSummary[role.id] && (
+            <div className="space-y-1.5 pt-2 border-t">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <ListTodo className="h-3 w-3" />
+                Tasks for this role ({roleTaskSummary[role.id].tasks.length})
+              </Label>
+              <div className="max-h-24 overflow-y-auto space-y-1">
+                {roleTaskSummary[role.id].tasks.slice(0, 5).map((task, idx) => (
+                  <div key={idx} className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                    <span className="font-medium">{task.title}</span>
+                    <span className="text-[10px] ml-1">({task.stageName})</span>
+                  </div>
+                ))}
+                {roleTaskSummary[role.id].tasks.length > 5 && (
+                  <div className="text-xs text-muted-foreground px-2">
+                    +{roleTaskSummary[role.id].tasks.length - 5} more tasks
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -374,100 +443,156 @@ export function StepTeamRoles({
           <CardContent className="space-y-4">
             {unassignedTasksByStage.length > 0 && (
               <>
-                <div className="flex items-center gap-4 p-4 bg-background rounded-lg border shadow-sm">
-                  <div className="flex-1">
-                    <p className="font-medium">Quick Assign All Unassigned Tasks</p>
-                    <p className="text-sm text-muted-foreground">
-                      Assign all {taskAssignmentStats.unassignedTasks} remaining tasks to one person
-                    </p>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <SearchableSelect
-                      value={bulkAssigneeId}
-                      onValueChange={setBulkAssigneeId}
-                      options={taskAssigneeOptions}
-                      placeholder="Select person..."
-                      className="w-[200px]"
-                      data-testid="bulk-assign-select"
-                    />
-                    <Button 
-                      onClick={() => bulkAssignAllUnassigned(bulkAssigneeId)}
-                      disabled={!bulkAssigneeId}
-                      data-testid="bulk-assign-btn"
-                    >
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Assign All
-                    </Button>
+                {/* Assignment Mode Selector */}
+                <div className="p-4 bg-background rounded-lg border shadow-sm">
+                  <p className="font-medium mb-3">How would you like to assign tasks?</p>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="assignment-mode"
+                        checked={assignmentMode === 'all_to_one'}
+                        onChange={() => setAssignmentMode('all_to_one')}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm">Assign all to one person</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="assignment-mode"
+                        checked={assignmentMode === 'by_stage'}
+                        onChange={() => setAssignmentMode('by_stage')}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm">Assign by stage</span>
+                    </label>
                   </div>
                 </div>
 
-                <Separator />
+                {/* All to One Person Mode */}
+                {assignmentMode === 'all_to_one' && (
+                  <div className="flex items-center gap-4 p-4 bg-background rounded-lg border shadow-sm">
+                    <div className="flex-1">
+                      <p className="font-medium">Assign All Unassigned Tasks</p>
+                      <p className="text-sm text-muted-foreground">
+                        Assign all {taskAssignmentStats.unassignedTasks} remaining tasks to one person
+                      </p>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <SearchableSelect
+                        value={bulkAssigneeId}
+                        onValueChange={setBulkAssigneeId}
+                        options={taskAssigneeOptions}
+                        placeholder="Select person..."
+                        className="w-[200px]"
+                        data-testid="bulk-assign-select"
+                      />
+                      <Button 
+                        onClick={() => bulkAssignAllUnassigned(bulkAssigneeId)}
+                        disabled={!bulkAssigneeId}
+                        data-testid="bulk-assign-btn"
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Assign All
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-                <div className="space-y-3">
-                  <p className="font-medium">Or assign individually by stage:</p>
-                  
-                  {unassignedTasksByStage.map(({ stage, tasks }) => (
-                    <Collapsible 
-                      key={stage.id} 
-                      open={expandedStages.has(stage.id)}
-                      onOpenChange={() => toggleStageExpanded(stage.id)}
-                    >
-                      <Card className="bg-background shadow-sm">
-                        <CollapsibleTrigger asChild>
-                          <CardHeader className="py-3 px-4 cursor-pointer hover:bg-muted/50 transition-colors">
-                            <div className="flex items-center justify-between">
+                {/* By Stage Mode */}
+                {assignmentMode === 'by_stage' && (
+                  <div className="space-y-3">
+                    <p className="font-medium">Assign one person per stage:</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      All tasks within a stage will be assigned to the selected person.
+                    </p>
+                    
+                    {unassignedTasksByStage.map(({ stage, tasks }) => (
+                      <div 
+                        key={stage.id} 
+                        className="flex items-center justify-between p-4 bg-background rounded-lg border shadow-sm gap-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Layers className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <span className="font-medium">{stage.name}</span>
+                            <p className="text-xs text-muted-foreground">
+                              {stage.tasks.length} tasks total, {tasks.length} unassigned
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <SearchableSelect
+                            value={stageAssignees[stage.id] || ""}
+                            onValueChange={(val) => val && assignAllTasksInStage(stage.id, val)}
+                            options={taskAssigneeOptions}
+                            placeholder="Assign all tasks to..."
+                            className="w-[220px]"
+                            data-testid={`stage-assign-${stage.id}`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <Separator className="my-4" />
+                    
+                    <Collapsible>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground">
+                          <ChevronDown className="h-4 w-4 mr-2" />
+                          View individual task details
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-3 space-y-3">
+                        {unassignedTasksByStage.map(({ stage, tasks }) => (
+                          <Card key={stage.id} className="bg-background shadow-sm">
+                            <CardHeader className="py-2 px-4">
                               <div className="flex items-center gap-2">
                                 <Layers className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium">{stage.name}</span>
-                                <Badge variant="destructive" className="text-xs">
-                                  {tasks.length} unassigned
+                                <span className="font-medium text-sm">{stage.name}</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {tasks.length} tasks
                                 </Badge>
                               </div>
-                              {expandedStages.has(stage.id) ? (
-                                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </div>
-                          </CardHeader>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <CardContent className="pt-0 pb-3 px-4">
-                            <div className="space-y-2">
-                              {tasks.map(task => (
-                                <div 
-                                  key={task.id}
-                                  className="flex items-center justify-between p-3 bg-muted/30 rounded-lg gap-3 border"
-                                  data-testid={`task-row-${task.id}`}
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium truncate">{task.title}</p>
-                                    {task.assignedEpicTitle && (
-                                      <p className="text-xs text-muted-foreground truncate">
-                                        Epic: {task.assignedEpicTitle}
-                                      </p>
-                                    )}
+                            </CardHeader>
+                            <CardContent className="pt-0 pb-3 px-4">
+                              <div className="space-y-2">
+                                {tasks.map(task => (
+                                  <div 
+                                    key={task.id}
+                                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg gap-3 border"
+                                    data-testid={`task-row-${task.id}`}
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium truncate">{task.title}</p>
+                                      {task.assignedEpicTitle && (
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          Epic: {task.assignedEpicTitle}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <SearchableSelect
+                                      value={task.assigneeId || ""}
+                                      onValueChange={(val) => assignTaskToUser(stage.id, task.id, val || null)}
+                                      options={[
+                                        { value: "", label: "Unassigned" },
+                                        ...taskAssigneeOptions
+                                      ]}
+                                      placeholder="Assign to..."
+                                      className="w-[200px] shrink-0"
+                                      data-testid={`task-assign-${task.id}`}
+                                    />
                                   </div>
-                                  <SearchableSelect
-                                    value={task.assigneeId || ""}
-                                    onValueChange={(val) => assignTaskToUser(stage.id, task.id, val || null)}
-                                    options={[
-                                      { value: "", label: "Unassigned" },
-                                      ...taskAssigneeOptions
-                                    ]}
-                                    placeholder="Assign to..."
-                                    className="w-[200px] shrink-0"
-                                    data-testid={`task-assign-${task.id}`}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </CollapsibleContent>
-                      </Card>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </CollapsibleContent>
                     </Collapsible>
-                  ))}
-                </div>
+                  </div>
+                )}
               </>
             )}
             
