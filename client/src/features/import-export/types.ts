@@ -23,7 +23,7 @@ export type ImportState = {
 
 export type ExportFormat = "xlsx" | "json" | "yaml";
 
-export type ExportTab = "all" | "projects" | "templates" | "defaults" | "users";
+export type ExportTab = "all" | "projects" | "templates" | "defaults" | "users" | "sample";
 
 export type SampleSection = "core" | "tasks" | "milestones" | "sprints" | "comments" | "all";
 
