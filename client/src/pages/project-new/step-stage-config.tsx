@@ -246,7 +246,8 @@ export function StepStageConfig({
       .filter(Boolean) as WizardStage[];
 
     setStages(frameworkStages);
-    setExpandedStages(frameworkStages.map(s => s.id));
+    setExpandedStages([]);  // Close all accordions when applying framework
+    setExpandedMilestones([]);  // Also close milestone accordions
     setFrameworkPanelOpen(false);
   };
 
