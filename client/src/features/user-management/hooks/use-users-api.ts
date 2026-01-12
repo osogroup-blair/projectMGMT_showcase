@@ -251,3 +251,110 @@ export function useBulkDelete() {
     },
   });
 }
+
+export interface DeletionPreflightResponse {
+  canDelete: boolean;
+  blockers: {
+    isLastAdmin: boolean;
+    ownedProjects: Array<{ id: string; name: string }>;
+    ownedDeliverables: Array<{ id: string; name: string; projectName: string }>;
+    ownedEpics: Array<{ id: string; name: string; projectName: string }>;
+    ownedMilestones: Array<{ id: string; name: string; projectName: string }>;
+    ownedSprints: Array<{ id: string; name: string; projectName: string }>;
+  };
+  warnings: {
+    assignedTasks: number;
+    comments: number;
+    identities: number;
+    roleAssignments: number;
+    sprintMemberships: number;
+  };
+}
+
+export function useDeletionPreflight() {
+  return useMutation({
+    mutationFn: async (userId: string): Promise<DeletionPreflightResponse> => {
+      const response = await fetch(`${USERS_QUERY_KEY}/${userId}/deletion-preflight`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fetch deletion preflight");
+      }
+      return response.json();
+    },
+  });
+}
+
+export function useArchiveUser() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch(`${USERS_QUERY_KEY}/${userId}/archive`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to archive user");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
+    },
+  });
+}
+
+export function useTransferOwnership() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      userId, 
+      targetUserId, 
+      entityType, 
+      entityIds 
+    }: { 
+      userId: string; 
+      targetUserId: string; 
+      entityType: "projects" | "deliverables" | "epics" | "milestones" | "sprints"; 
+      entityIds: string[] 
+    }) => {
+      const response = await fetch(`${USERS_QUERY_KEY}/${userId}/transfer-ownership`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId, entityType, entityIds }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to transfer ownership");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
+    },
+  });
+}
+
+export function usePermanentDelete() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch(`${USERS_QUERY_KEY}/${userId}/permanent`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to permanently delete user");
+      }
+      if (response.status === 204) {
+        return { success: true };
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_QUERY_KEY] });
+    },
+  });
+}

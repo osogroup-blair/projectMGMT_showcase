@@ -9,7 +9,12 @@ export {
   useBulkDeactivate,
   useBulkActivate,
   useBulkDelete,
-  type UseUsersOptions 
+  useDeletionPreflight,
+  useArchiveUser,
+  useTransferOwnership,
+  usePermanentDelete,
+  type UseUsersOptions,
+  type DeletionPreflightResponse,
 } from "./hooks/use-users-api";
 
 export {

@@ -93,12 +93,17 @@ import {
   useBulkDeactivate,
   useBulkActivate,
   useBulkDelete,
+  useDeletionPreflight,
+  useArchiveUser,
+  useTransferOwnership,
+  usePermanentDelete,
   useUserProfile,
   useLinkIdentity,
   useUnlinkIdentity,
   useAvailableSystems,
   useMergeUsers,
-  type UseUsersOptions 
+  type UseUsersOptions,
+  type DeletionPreflightResponse,
 } from "@/features/user-management";
 import type { UserPublic, CreateUserRequest, UpdateUserRequest } from "@shared/contracts/user-management";
 import type { IdentityPublic, LinkIdentityRequest } from "@shared/contracts/user-identity";
@@ -245,6 +250,9 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
   const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserPublic | null>(null);
   const [permissionsDialogUser, setPermissionsDialogUser] = useState<UserPublic | null>(null);
+  const [preflightUser, setPreflightUser] = useState<UserPublic | null>(null);
+  const [preflightData, setPreflightData] = useState<DeletionPreflightResponse | null>(null);
+  const [transferTargetId, setTransferTargetId] = useState<string>("");
 
   const queryOptions: UseUsersOptions = {
     search: searchQuery || undefined,
@@ -267,6 +275,10 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const bulkDeactivate = useBulkDeactivate();
   const bulkActivate = useBulkActivate();
   const bulkDelete = useBulkDelete();
+  const deletionPreflight = useDeletionPreflight();
+  const archiveUser = useArchiveUser();
+  const transferOwnership = useTransferOwnership();
+  const permanentDelete = usePermanentDelete();
   const { data: systems = [] } = useAvailableSystems();
   const { data: systemRoles = [] } = useQuery<{ id: string; name: string; displayName: string; description: string }[]>({
     queryKey: ["/api/roles-permissions/roles"],
@@ -478,6 +490,109 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       setDeleteConfirmUser(null);
       setSelectedIds(new Set());
     } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleOpenPreflight = async (user: UserPublic) => {
+    try {
+      const data = await deletionPreflight.mutateAsync(user.id);
+      setPreflightUser(user);
+      setPreflightData(data);
+      setTransferTargetId("");
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleArchiveUser = async () => {
+    if (!preflightUser) return;
+    try {
+      await archiveUser.mutateAsync(preflightUser.id);
+      toast({ title: "User Archived", description: `${preflightUser.name || preflightUser.email} has been archived.` });
+      setPreflightUser(null);
+      setPreflightData(null);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTransferAll = async () => {
+    if (!preflightUser || !preflightData || !transferTargetId) return;
+    const { blockers } = preflightData;
+    
+    try {
+      if (blockers.ownedProjects.length > 0) {
+        await transferOwnership.mutateAsync({
+          userId: preflightUser.id,
+          targetUserId: transferTargetId,
+          entityType: "projects",
+          entityIds: blockers.ownedProjects.map(p => p.id),
+        });
+      }
+      if (blockers.ownedDeliverables.length > 0) {
+        await transferOwnership.mutateAsync({
+          userId: preflightUser.id,
+          targetUserId: transferTargetId,
+          entityType: "deliverables",
+          entityIds: blockers.ownedDeliverables.map(d => d.id),
+        });
+      }
+      if (blockers.ownedEpics.length > 0) {
+        await transferOwnership.mutateAsync({
+          userId: preflightUser.id,
+          targetUserId: transferTargetId,
+          entityType: "epics",
+          entityIds: blockers.ownedEpics.map(e => e.id),
+        });
+      }
+      if (blockers.ownedMilestones.length > 0) {
+        await transferOwnership.mutateAsync({
+          userId: preflightUser.id,
+          targetUserId: transferTargetId,
+          entityType: "milestones",
+          entityIds: blockers.ownedMilestones.map(m => m.id),
+        });
+      }
+      if (blockers.ownedSprints.length > 0) {
+        await transferOwnership.mutateAsync({
+          userId: preflightUser.id,
+          targetUserId: transferTargetId,
+          entityType: "sprints",
+          entityIds: blockers.ownedSprints.map(s => s.id),
+        });
+      }
+      
+      toast({ title: "Ownership Transferred", description: "All owned entities have been transferred to the new owner." });
+      const newData = await deletionPreflight.mutateAsync(preflightUser.id);
+      setPreflightData(newData);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!preflightUser) return;
+    try {
+      const freshPreflight = await deletionPreflight.mutateAsync(preflightUser.id);
+      setPreflightData(freshPreflight);
+      
+      if (!freshPreflight.canDelete) {
+        toast({ 
+          title: "Cannot Delete", 
+          description: "There are still blocking dependencies. Please transfer ownership first.",
+          variant: "destructive" 
+        });
+        return;
+      }
+      
+      await permanentDelete.mutateAsync(preflightUser.id);
+      toast({ title: "User Deleted", description: `${preflightUser.name || preflightUser.email} has been permanently deleted.` });
+      setPreflightUser(null);
+      setPreflightData(null);
+    } catch (error: any) {
+      const freshPreflight = await deletionPreflight.mutateAsync(preflightUser.id).catch(() => null);
+      if (freshPreflight) setPreflightData(freshPreflight);
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
@@ -1172,7 +1287,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-destructive"
-                              onClick={() => setDeleteConfirmUser(user)}
+                              onClick={() => handleOpenPreflight(user)}
                             >
                               <X className="h-4 w-4 mr-2" />
                               Delete Permanently
@@ -1705,6 +1820,205 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={!!preflightUser} onOpenChange={() => { setPreflightUser(null); setPreflightData(null); }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="dialog-deletion-preflight">
+            <DialogHeader>
+              <DialogTitle>Delete User: {preflightUser?.name || preflightUser?.email}</DialogTitle>
+              <DialogDescription>
+                Review the dependencies below before deleting this user.
+              </DialogDescription>
+            </DialogHeader>
+
+            {deletionPreflight.isPending ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : preflightData ? (
+              <div className="space-y-6">
+                {preflightData.blockers.isLastAdmin && (
+                  <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-destructive font-medium mb-2">
+                      <AlertCircle className="w-5 h-5" />
+                      Cannot Delete: Last Admin
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      This user is the last administrator. Promote another user to admin before deleting.
+                    </p>
+                  </div>
+                )}
+
+                {!preflightData.canDelete && !preflightData.blockers.isLastAdmin && (
+                  <div className="space-y-4">
+                    <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium mb-2">
+                        <AlertCircle className="w-5 h-5" />
+                        Ownership Transfer Required
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        This user owns entities that must be transferred before deletion.
+                      </p>
+
+                      <div className="space-y-3">
+                        {preflightData.blockers.ownedProjects.length > 0 && (
+                          <div>
+                            <span className="text-sm font-medium">Projects ({preflightData.blockers.ownedProjects.length}):</span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {preflightData.blockers.ownedProjects.map(p => (
+                                <Badge key={p.id} variant="secondary" className="text-xs">{p.name}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {preflightData.blockers.ownedDeliverables.length > 0 && (
+                          <div>
+                            <span className="text-sm font-medium">Deliverables ({preflightData.blockers.ownedDeliverables.length}):</span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {preflightData.blockers.ownedDeliverables.slice(0, 10).map(d => (
+                                <Badge key={d.id} variant="secondary" className="text-xs">{d.name}</Badge>
+                              ))}
+                              {preflightData.blockers.ownedDeliverables.length > 10 && (
+                                <Badge variant="outline" className="text-xs">+{preflightData.blockers.ownedDeliverables.length - 10} more</Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {preflightData.blockers.ownedEpics.length > 0 && (
+                          <div>
+                            <span className="text-sm font-medium">Epics ({preflightData.blockers.ownedEpics.length}):</span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {preflightData.blockers.ownedEpics.slice(0, 10).map(e => (
+                                <Badge key={e.id} variant="secondary" className="text-xs">{e.name}</Badge>
+                              ))}
+                              {preflightData.blockers.ownedEpics.length > 10 && (
+                                <Badge variant="outline" className="text-xs">+{preflightData.blockers.ownedEpics.length - 10} more</Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {preflightData.blockers.ownedMilestones.length > 0 && (
+                          <div>
+                            <span className="text-sm font-medium">Milestones ({preflightData.blockers.ownedMilestones.length}):</span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {preflightData.blockers.ownedMilestones.slice(0, 10).map(m => (
+                                <Badge key={m.id} variant="secondary" className="text-xs">{m.name}</Badge>
+                              ))}
+                              {preflightData.blockers.ownedMilestones.length > 10 && (
+                                <Badge variant="outline" className="text-xs">+{preflightData.blockers.ownedMilestones.length - 10} more</Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {preflightData.blockers.ownedSprints.length > 0 && (
+                          <div>
+                            <span className="text-sm font-medium">Sprints ({preflightData.blockers.ownedSprints.length}):</span>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {preflightData.blockers.ownedSprints.slice(0, 10).map(s => (
+                                <Badge key={s.id} variant="secondary" className="text-xs">{s.name}</Badge>
+                              ))}
+                              {preflightData.blockers.ownedSprints.length > 10 && (
+                                <Badge variant="outline" className="text-xs">+{preflightData.blockers.ownedSprints.length - 10} more</Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t">
+                        <Label className="text-sm font-medium">Transfer all ownership to:</Label>
+                        <div className="flex gap-2 mt-2">
+                          <Select value={transferTargetId} onValueChange={setTransferTargetId}>
+                            <SelectTrigger className="flex-1" data-testid="select-transfer-target">
+                              <SelectValue placeholder="Select a user..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {users.filter(u => u.id !== preflightUser?.id && u.status === "Active").map(u => (
+                                <SelectItem key={u.id} value={u.id}>
+                                  {u.name || u.email}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            onClick={handleTransferAll}
+                            disabled={!transferTargetId || transferOwnership.isPending}
+                            data-testid="button-transfer-ownership"
+                          >
+                            {transferOwnership.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Transfer All
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(preflightData.warnings.assignedTasks > 0 || 
+                  preflightData.warnings.comments > 0 || 
+                  preflightData.warnings.identities > 0 ||
+                  preflightData.warnings.roleAssignments > 0 ||
+                  preflightData.warnings.sprintMemberships > 0) && (
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <div className="text-sm font-medium mb-2">Data that will be affected:</div>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                      {preflightData.warnings.assignedTasks > 0 && (
+                        <div>Task assignments: {preflightData.warnings.assignedTasks} (will be unassigned)</div>
+                      )}
+                      {preflightData.warnings.comments > 0 && (
+                        <div>Comments: {preflightData.warnings.comments} (will be deleted)</div>
+                      )}
+                      {preflightData.warnings.identities > 0 && (
+                        <div>Linked identities: {preflightData.warnings.identities} (will be removed)</div>
+                      )}
+                      {preflightData.warnings.roleAssignments > 0 && (
+                        <div>Role assignments: {preflightData.warnings.roleAssignments} (will be removed)</div>
+                      )}
+                      {preflightData.warnings.sprintMemberships > 0 && (
+                        <div>Sprint memberships: {preflightData.warnings.sprintMemberships} (will be removed)</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {preflightData.canDelete && (
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium">
+                      <CheckCircle2 className="w-5 h-5" />
+                      Ready to Delete
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      All blocking dependencies have been resolved. You can now permanently delete this user.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <DialogFooter className="flex gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => { setPreflightUser(null); setPreflightData(null); }}>
+                Cancel
+              </Button>
+              <Button 
+                variant="secondary"
+                onClick={handleArchiveUser}
+                disabled={archiveUser.isPending}
+                data-testid="button-archive-user"
+              >
+                {archiveUser.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Archive Instead
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={handlePermanentDelete}
+                disabled={!preflightData?.canDelete || permanentDelete.isPending}
+                data-testid="button-permanent-delete"
+              >
+                {permanentDelete.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Delete Permanently
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Wrapper>
   );
