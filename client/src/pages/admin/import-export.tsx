@@ -114,6 +114,8 @@ const SCHEMA_DEFINITIONS = {
     { sheet: "StatusOptions", columns: ["id", "label", "color", "isDefault", "type", "order"] },
     { sheet: "RoleTypes", columns: ["id", "label", "description", "isDefault"] },
     { sheet: "MappingTemplates", columns: ["id", "name", "dataType"] },
+    { sheet: "EpicTypes", columns: ["id", "name", "color", "icon", "isDefault", "order", "createdAt"] },
+    { sheet: "DeliverableTypes", columns: ["id", "name", "color", "icon", "isDefault", "order", "createdAt"] },
     // Users & Roles
     { sheet: "Users", columns: ["id", "name", "role", "email", "status", "avatar"] },
     { sheet: "ProjectRoles", columns: ["id", "name", "description", "roleType", "isRequired", "maxAssignees", "permissions"] },
@@ -165,7 +167,9 @@ const SCHEMA_DEFINITIONS = {
     { sheet: "MappingTemplates", columns: ["id", "name", "dataType"] },
     { sheet: "GuidanceItems", columns: ["id", "title", "body", "priority", "stageId"] },
     { sheet: "SavedViews", columns: ["id", "name", "description", "stageIds", "viewType", "visibility", "isDefault", "config"] },
-    { sheet: "TaskTypes", columns: ["id", "name", "color", "icon", "isDefault", "order", "createdAt"] }
+    { sheet: "TaskTypes", columns: ["id", "name", "color", "icon", "isDefault", "order", "createdAt"] },
+    { sheet: "EpicTypes", columns: ["id", "name", "color", "icon", "isDefault", "order", "createdAt"] },
+    { sheet: "DeliverableTypes", columns: ["id", "name", "color", "icon", "isDefault", "order", "createdAt"] }
   ],
   users: [
     { sheet: "Users", columns: ["id", "name", "role", "email", "status", "avatar"] },
@@ -221,6 +225,8 @@ const ENTITY_TO_COLLECTION: Record<string, string> = {
   // Task Related
   TaskDependencies: "taskDependencies",
   TaskTypes: "taskTypes",
+  EpicTypes: "epicTypes",
+  DeliverableTypes: "deliverableTypes",
   ProjectTaskTypes: "projectTaskTypes",
   ProjectTaskStatuses: "projectTaskStatuses",
   ProjectSettings: "projectSettings",
@@ -1021,6 +1027,8 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
          StatusOptions: await safeGetAll("statusOptions"),
          RoleTypes: await safeGetAll("roleTypes"),
          MappingTemplates: await safeGetAll("mappingTemplates"),
+         EpicTypes: await safeGetAll("epicTypes"),
+         DeliverableTypes: await safeGetAll("deliverableTypes"),
          // Users & Roles
          Users: await safeGetAll("users"),
          ProjectRoles: await safeGetAll("projectRoles"),
@@ -1106,7 +1114,9 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
         MappingTemplates: await safeGetAll("mappingTemplates"),
         GuidanceItems: await safeGetAll("guidanceItems"),
         SavedViews: await safeGetAll("savedViews"),
-        TaskTypes: await safeGetAll("taskTypes")
+        TaskTypes: await safeGetAll("taskTypes"),
+        EpicTypes: await safeGetAll("epicTypes"),
+        DeliverableTypes: await safeGetAll("deliverableTypes")
       };
     } else if (activeTab === "users") {
       data = {
@@ -1231,7 +1241,9 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
           mappingTemplates: await safeGet("mappingTemplates"),
           guidanceItems: await safeGet("guidanceItems"),
           savedViews: await safeGet("savedViews"),
-          taskTypes: await safeGet("taskTypes")
+          taskTypes: await safeGet("taskTypes"),
+          epicTypes: await safeGet("epicTypes"),
+          deliverableTypes: await safeGet("deliverableTypes")
         },
         users: {
           users: await safeGet("users"),
