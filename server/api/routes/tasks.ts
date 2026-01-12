@@ -193,4 +193,53 @@ export function registerTaskRoutes(
     await storage.deleteTask(req.params.id);
     res.status(204).send();
   });
+
+  // Task Attachments
+  app.get("/api/tasks/:id/attachments", async (req, res) => {
+    try {
+      const attachments = await storage.getAttachmentsByTaskId(req.params.id);
+      res.json(attachments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/tasks/:id/attachments", async (req, res) => {
+    try {
+      const userId = getAuthUserId(req);
+      
+      // Validate URL scheme to prevent XSS
+      const url = req.body.url;
+      const allowedSchemes = ['http:', 'https:', 'file:'];
+      try {
+        const parsedUrl = new URL(url);
+        if (!allowedSchemes.includes(parsedUrl.protocol)) {
+          return res.status(400).json({ error: "Invalid URL scheme. Only http, https, and file URLs are allowed." });
+        }
+      } catch {
+        return res.status(400).json({ error: "Invalid URL format" });
+      }
+      
+      const attachment = await storage.createAttachment({
+        taskId: req.params.id,
+        fileName: req.body.fileName,
+        url: url,
+        fileType: req.body.fileType,
+        size: req.body.size,
+        uploadedBy: userId || 'system',
+      });
+      res.status(201).json(attachment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/tasks/:taskId/attachments/:id", async (req, res) => {
+    try {
+      await storage.deleteAttachment(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
 }

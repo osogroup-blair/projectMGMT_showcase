@@ -1,5 +1,5 @@
-import { useState, type DragEvent } from "react";
-import { Paperclip, Upload, File, Image, FileText, Trash2, Download, MoreHorizontal } from "lucide-react";
+import { useState, useRef, type DragEvent, type ChangeEvent } from "react";
+import { Paperclip, Upload, File, Image, FileText, Trash2, Download, MoreHorizontal, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,26 +9,37 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { useTaskAttachments, useUsers } from "@/hooks/use-nexus-data";
+import { toast } from "sonner";
 
 interface TaskAttachmentsTabProps {
   task: any;
   projectId: string;
 }
 
-interface Attachment {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  uploadedBy: string;
-  uploadedAt: string;
-  url?: string;
-}
-
 export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps) {
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const { data: attachments, isLoading, create, delete: deleteAttachment, isCreating, isDeleting } = useTaskAttachments(task.id);
+  const { data: users } = useUsers();
   const [isDragging, setIsDragging] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getUserName = (userId: string) => {
+    const user = users?.find((u: any) => u.id === userId);
+    return user?.name || user?.email || userId;
+  };
 
   const getFileIcon = (type: string) => {
     if (type.startsWith("image/")) return <Image className="h-8 w-8 text-blue-500" />;
@@ -36,8 +47,9 @@ export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps)
     return <File className="h-8 w-8 text-muted-foreground" />;
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
+  const formatFileSize = (size: string | number) => {
+    const bytes = typeof size === 'string' ? parseInt(size, 10) : size;
+    if (bytes === 0 || isNaN(bytes)) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -53,14 +65,67 @@ export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps)
     setIsDragging(false);
   };
 
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    await uploadFiles(files);
   };
 
-  const handleDelete = (attachmentId: string) => {
-    setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    await uploadFiles(files);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
+
+  const uploadFiles = async (files: File[]) => {
+    for (const file of files) {
+      try {
+        const url = `file://${file.name}`;
+        
+        await create({
+          fileName: file.name,
+          url: url,
+          fileType: file.type || 'application/octet-stream',
+          size: String(file.size),
+        });
+        
+        toast.success(`Uploaded ${file.name}`);
+      } catch (error) {
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!attachmentToDelete) return;
+    
+    try {
+      await deleteAttachment(attachmentToDelete);
+      toast.success("Attachment deleted");
+    } catch (error) {
+      toast.error("Failed to delete attachment");
+    } finally {
+      setDeleteDialogOpen(false);
+      setAttachmentToDelete(null);
+    }
+  };
+
+  const confirmDelete = (attachmentId: string) => {
+    setAttachmentToDelete(attachmentId);
+    setDeleteDialogOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -72,10 +137,24 @@ export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps)
             <Badge variant="secondary">{attachments.length}</Badge>
           )}
         </div>
-        <Button size="sm" variant="outline" className="gap-2" data-testid="button-upload-attachment">
-          <Upload className="h-4 w-4" />
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="gap-2" 
+          data-testid="button-upload-attachment"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isCreating}
+        >
+          {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
           Upload
         </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={handleFileSelect}
+        />
       </div>
 
       <Card 
@@ -86,6 +165,7 @@ export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps)
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
         data-testid="dropzone-attachments"
       >
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
@@ -111,7 +191,7 @@ export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps)
 
       {attachments.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {attachments.map((attachment) => (
+          {attachments.map((attachment: any) => (
             <Card 
               key={attachment.id} 
               className="p-4 hover:shadow-md transition-shadow"
@@ -119,17 +199,17 @@ export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps)
             >
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0">
-                  {getFileIcon(attachment.type)}
+                  {getFileIcon(attachment.fileType)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" title={attachment.name}>
-                    {attachment.name}
+                  <p className="text-sm font-medium truncate" title={attachment.fileName}>
+                    {attachment.fileName}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {formatFileSize(attachment.size)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {attachment.uploadedBy} • {new Date(attachment.uploadedAt).toLocaleDateString()}
+                    {getUserName(attachment.uploadedBy)} • {new Date(attachment.uploadedAt).toLocaleDateString()}
                   </p>
                 </div>
                 <DropdownMenu>
@@ -139,13 +219,24 @@ export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps)
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {attachment.url && 
+                     !attachment.url.startsWith('file://') && 
+                     (attachment.url.startsWith('http://') || attachment.url.startsWith('https://')) && (
+                      <DropdownMenuItem className="gap-2" asChild>
+                        <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                          Open
+                        </a>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem className="gap-2">
                       <Download className="h-4 w-4" />
                       Download
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="gap-2 text-destructive"
-                      onClick={() => handleDelete(attachment.id)}
+                      onClick={() => confirmDelete(attachment.id)}
+                      disabled={isDeleting}
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
@@ -163,6 +254,23 @@ export function TaskAttachmentsTab({ task, projectId }: TaskAttachmentsTabProps)
           <p className="text-xs mt-1">Upload files to share with your team</p>
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Attachment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this attachment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

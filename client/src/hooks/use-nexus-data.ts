@@ -432,3 +432,56 @@ export function useTaskHistory(taskId: string) {
     refetch: query.refetch,
   };
 }
+
+// Task Attachments Hook
+export function useTaskAttachments(taskId: string) {
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
+    queryKey: ["taskAttachments", taskId],
+    queryFn: async () => {
+      const response = await fetch(`/api/tasks/${taskId}/attachments`);
+      if (!response.ok) throw new Error("Failed to fetch attachments");
+      return response.json();
+    },
+    enabled: !!taskId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { fileName: string; url: string; fileType: string; size: string }) => {
+      const response = await fetch(`/api/tasks/${taskId}/attachments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to create attachment");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["taskAttachments", taskId] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (attachmentId: string) => {
+      const response = await fetch(`/api/tasks/${taskId}/attachments/${attachmentId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete attachment");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["taskAttachments", taskId] });
+    },
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+    create: createMutation.mutateAsync,
+    delete: deleteMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+  };
+}
