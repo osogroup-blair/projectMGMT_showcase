@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from "express";
-import { RolePermissions, SystemRole, UserPermission } from "@shared/contracts/user-management";
+import { SystemRole, UserPermission } from "@shared/contracts/user-management";
 import { authStorage } from "../replit_integrations/auth/storage";
+import { getUserPermissions } from "../services/roles-permissions-service";
 
 export function requireAuth(): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -30,12 +31,11 @@ export function requirePermission(permission: UserPermission): RequestHandler {
       }
 
       const userRole = (dbUser.systemRole || "member") as SystemRole;
-      const rolePermissions = RolePermissions[userRole] || [];
       const userPermissions = dbUser.permissions || [];
-
-      const hasPermission = 
-        rolePermissions.includes(permission) || 
-        userPermissions.includes(permission);
+      
+      // Get effective permissions from database
+      const effectivePermissions = await getUserPermissions(userRole, userPermissions);
+      const hasPermission = effectivePermissions.includes(permission);
 
       if (!hasPermission) {
         res.status(403).json({ error: "Insufficient permissions" });

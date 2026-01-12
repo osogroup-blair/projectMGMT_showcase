@@ -5,7 +5,8 @@ import {
   Sliders,
   ListChecks,
   Layers,
-  Package
+  Package,
+  Shield
 } from "lucide-react";
 import { 
   Tabs, 
@@ -20,6 +21,7 @@ import {
   DeliverableTypesTab,
   TagsTab,
   GeneralTab,
+  RolesPermissionsTab,
 } from "./appdefaults";
 
 interface AdminAppDefaultsProps {
@@ -67,6 +69,10 @@ export default function AdminAppDefaults({ embedded = false }: AdminAppDefaultsP
               <Sliders className="h-4 w-4" />
               General
             </TabsTrigger>
+            <TabsTrigger value="roles-permissions" className="gap-2" data-testid="tab-roles-permissions">
+              <Shield className="h-4 w-4" />
+              Roles & Permissions
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="status" className="space-y-8 mt-6">
@@ -91,6 +97,10 @@ export default function AdminAppDefaults({ embedded = false }: AdminAppDefaultsP
 
           <TabsContent value="general" className="mt-6">
             <GeneralTab />
+          </TabsContent>
+
+          <TabsContent value="roles-permissions" className="mt-6">
+            <RolesPermissionsTab />
           </TabsContent>
         </Tabs>
       </div>
