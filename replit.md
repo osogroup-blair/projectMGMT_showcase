@@ -37,7 +37,9 @@ A repository pattern is used in `server/data/repositories/` for data access, wit
 ### Key Features
 
 -   **Project Creation Wizard**: A 6-step guided flow for creating projects, defining work breakdown, configuring stages, assigning teams, and reviewing. Supports importing tasks with automatic epic matching.
--   **Sample Data Generation**: An admin feature to generate comprehensive test data including projects, deliverables, epics, tasks, stages, and templates.
+-   **Sample Data Generation**: An admin feature to generate test data for a Website Redesign project, available in `/admin/import-export` under the "Sample Data" tab.
+-   **Demo Data Generation**: Creates realistic multi-project demo scenarios with 5 demo users, a Delivery Framework, and 3 projects at different completion stages (CRM System ~60%, Task Management App ~30%, Time Entry System ~10%). Demo users are named by role (Demo Solution Consultant, Demo Product Designer, Demo Developer Lead, Demo QA Engineer, Demo Documentation Manager). Available in `/admin/import-export` under the "Demo Data" tab.
+-   **Data Viewer**: A JSON viewer at `/admin/data-viewer` to inspect generated project data structure including hierarchical views of projects, deliverables, epics, and tasks.
 -   **Import/Export System**: Supports multi-format (JSON, Excel/CSV, YAML) import with a 6-step wizard for file upload, entity/user/status mapping, preview, and results. Features nested Nexus export format support, array field normalization, and foreign key validation.
 -   **Homepage Current Projects Kanban**: An interactive Kanban board on the homepage displaying tasks for projects with user involvement, supporting filtering by Assignee, Epic, Milestone, and Sprint.
 -   **Identity Linking System**: Allows users to link multiple external accounts (e.g., ClickUp, Jira, Asana, Google) to their Nymbl profile, managed via the profile page or by administrators. Supports user merging.
