@@ -39,11 +39,12 @@ The platform uses Replit Auth with OpenID Connect for authentication, supporting
 4. Authenticated users access protected routes
 
 **RBAC Support:**
-- `systemRole` field: 'admin' | 'manager' | 'member' | 'viewer' (default: 'member')
+- `systemRole` field: 'admin' | 'manager' | 'member' | 'viewer' | 'demo' (default: 'member')
 - `permissions` array: Granular permission strings
 - `AuthGuard` component accepts `requiredRoles` and `requiredPermissions` props
 - Permission middleware in `server/middleware/require-permission.ts` enforces route-level access control
 - Admin pages (`/admin/*`) protected with AuthGuard requiring admin or manager roles
+- **Demo role**: Can impersonate users (like admin) but cannot access admin pages or other admin-only features
 
 **Audit Logging:**
 - Core entities (projects, deliverables, epics, tasks, milestones, sprints) track `createdBy`, `updatedBy`, `createdAt`, and `updatedAt` fields
@@ -51,11 +52,11 @@ The platform uses Replit Auth with OpenID Connect for authentication, supporting
 - Helper function `getAuthUserId(req)` extracts user ID from `req.user.claims.sub`
 
 **Admin Impersonation:**
-- Allows admins to view the platform as any other user
+- Allows admins and demo users to view the platform as any other user
 - API endpoints: `POST /api/admin/impersonate/:userId` and `POST /api/admin/stop-impersonate`
 - Session stores `impersonatedUserId` for the duration of the impersonation
 - `/api/auth/user` returns impersonated user data with `isImpersonating: true` and `realUser` object containing admin's info
-- UI: Dropdown on right side of breadcrumb nav (visible only to admins)
+- UI: Dropdown on right side of breadcrumb nav (visible to admins and demo users via `canImpersonate` flag)
 - Visual indicator: Amber banner showing "Viewing as: [user name]" when impersonating
 - Key files: `server/replit_integrations/auth/routes.ts`, `client/src/hooks/use-auth.ts`, `client/src/components/layout/breadcrumb-nav.tsx`
 
