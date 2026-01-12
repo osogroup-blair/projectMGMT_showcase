@@ -586,6 +586,7 @@ export const statusOptions = pgTable("status_options", {
   isDefault: boolean("is_default").default(false),
   type: text("type").notNull(), // "project" | "task"
   order: integer("order").notNull().default(0),
+  kanbanCollapsed: boolean("kanban_collapsed").default(false), // Whether column is collapsed by default on kanban board
 });
 
 // Project Task Statuses (project-level overrides)
