@@ -1298,55 +1298,27 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                           options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
                                                         />
 
-                                                        <Select 
-                                                          value={task.sprintId || "none"} 
-                                                          onValueChange={(v) => handleTaskSprintChange(task.id, v)}
-                                                        >
-                                                          <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto max-w-[80px]">
-                                                            <div className="flex items-center gap-1 truncate">
-                                                              <Flag className="h-3 w-3 text-muted-foreground shrink-0" />
-                                                              <span className="truncate text-xs">
-                                                                {task.sprintId 
-                                                                  ? projectSprints.find((s: any) => s.id === task.sprintId)?.name || "Sprint"
-                                                                  : "-"
-                                                                }
-                                                              </span>
-                                                            </div>
-                                                          </SelectTrigger>
-                                                          <SelectContent>
-                                                            <SelectItem value="none">No Sprint</SelectItem>
-                                                            {projectSprints.map((sprint: any) => (
-                                                              <SelectItem key={sprint.id} value={sprint.id}>
-                                                                {sprint.name}
-                                                              </SelectItem>
-                                                            ))}
-                                                          </SelectContent>
-                                                        </Select>
+                                                        <SearchableSelect
+                                                          value={task.sprintId || ""}
+                                                          onValueChange={(v) => handleTaskSprintChange(task.id, v || "none")}
+                                                          className="h-6 text-xs w-[100px]"
+                                                          placeholder="Sprint"
+                                                          options={[
+                                                            { value: "none", label: "No Sprint" },
+                                                            ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                                                          ]}
+                                                        />
 
-                                                        <Select 
-                                                          value={task.milestoneId || "none"} 
-                                                          onValueChange={(v) => handleTaskMilestoneChange(task.id, v)}
-                                                        >
-                                                          <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto max-w-[80px]">
-                                                            <div className="flex items-center gap-1 truncate">
-                                                              <Target className="h-3 w-3 text-muted-foreground shrink-0" />
-                                                              <span className="truncate text-xs">
-                                                                {task.milestoneId 
-                                                                  ? projectMilestones.find((m: any) => m.id === task.milestoneId)?.title || "Milestone"
-                                                                  : "-"
-                                                                }
-                                                              </span>
-                                                            </div>
-                                                          </SelectTrigger>
-                                                          <SelectContent>
-                                                            <SelectItem value="none">No Milestone</SelectItem>
-                                                            {projectMilestones.map((milestone: any) => (
-                                                              <SelectItem key={milestone.id} value={milestone.id}>
-                                                                {milestone.title}
-                                                              </SelectItem>
-                                                            ))}
-                                                          </SelectContent>
-                                                        </Select>
+                                                        <SearchableSelect
+                                                          value={task.milestoneId || ""}
+                                                          onValueChange={(v) => handleTaskMilestoneChange(task.id, v || "none")}
+                                                          className="h-6 text-xs w-[100px]"
+                                                          placeholder="Milestone"
+                                                          options={[
+                                                            { value: "none", label: "No Milestone" },
+                                                            ...projectMilestones.map((m: any) => ({ value: m.id, label: m.title || m.name }))
+                                                          ]}
+                                                        />
 
                                                         <Link href={`/projects/${projectId}/tasks/${task.id}`}>
                                                           <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
