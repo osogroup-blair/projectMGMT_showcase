@@ -175,6 +175,15 @@ Large page components are being decomposed into modular feature folders for main
 - `tabs/` - PlanTab (scope definition), RunTab (kanban + pulse), SettingsTab
 - `types.ts` - Shared interfaces and config objects
 
+**Import/Export Page** (`client/src/features/import-export/`):
+- `hooks/use-export.ts` - Export state, format selection, nested/selective export, file generation
+- `hooks/use-import.ts` - Import state, file parsing, nested JSON flattening, record processing
+- `components/` - SampleDataCard, FormatCard, SchemaPreview, ImportDropzone, ExportOptions
+- `container.tsx` - Orchestrates hooks and composes components
+- `types.ts` - ImportState, ExportFormat, ExportTab, SchemaDefinition
+- `constants.ts` - SCHEMA_DEFINITIONS, ENTITY_TO_COLLECTION, IMPORT_ORDER
+- `utils.ts` - normalizeRecord, serialize, deserialize, flattenNestedImport
+
 **Decomposition Pattern**:
 1. Extract custom hooks for data (use*Data) and actions (use*Actions)
 2. Break UI into reusable components and tab-level containers
@@ -182,7 +191,6 @@ Large page components are being decomposed into modular feature folders for main
 4. Page component imports container, handles routing params
 
 **Remaining Large Files** (candidates for future decomposition):
-- `import-export.tsx` (2,183 LOC)
 - `milestone-overview.tsx` (2,037 LOC)
 - `user-management.tsx` (1,559 LOC)
 - `deliverables.tsx` (1,504 LOC)
