@@ -1127,7 +1127,12 @@ export async function registerRoutes(
 
   app.patch("/api/comments/:id", async (req, res) => {
     try {
-      const comment = await storage.updateComment(req.params.id, req.body);
+      // Convert date strings to Date objects for timestamp fields
+      const updateData = { ...req.body };
+      if (updateData.createdAt && typeof updateData.createdAt === 'string') {
+        updateData.createdAt = new Date(updateData.createdAt);
+      }
+      const comment = await storage.updateComment(req.params.id, updateData);
       res.json(comment);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
