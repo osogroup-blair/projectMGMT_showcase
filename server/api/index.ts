@@ -2211,6 +2211,11 @@ export async function registerRoutes(
   });
 
   // Task Dependencies
+  app.get("/api/taskDependencies", async (req, res) => {
+    const dependencies = await storage.getTaskDependencies();
+    res.json(dependencies);
+  });
+
   app.get("/api/tasks/:taskId/dependencies", async (req, res) => {
     const dependencies = await storage.getTaskDependenciesByTaskId(req.params.taskId);
     res.json(dependencies);
@@ -2492,6 +2497,11 @@ export async function registerRoutes(
     res.json(members);
   });
 
+  app.get("/api/sprintMembers", async (req, res) => {
+    const members = await storage.getSprintMembers();
+    res.json(members);
+  });
+
   app.post("/api/sprintMembers", async (req, res) => {
     try {
       const validated = insertSprintMemberSchema.parse(req.body);
@@ -2522,6 +2532,11 @@ export async function registerRoutes(
     res.json(events);
   });
 
+  app.get("/api/sprintScopeEvents", async (req, res) => {
+    const events = await storage.getSprintScopeEvents();
+    res.json(events);
+  });
+
   // Sprint Scope Targets
   app.get("/api/sprints/:sprintId/scope-targets", async (req, res) => {
     try {
@@ -2530,6 +2545,11 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  app.get("/api/sprintScopeTargets", async (req, res) => {
+    const targets = await storage.getSprintScopeTargets();
+    res.json(targets);
   });
 
   app.post("/api/sprints/:sprintId/scope-targets", async (req, res) => {
@@ -2615,6 +2635,11 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  app.get("/api/sprintPulseUpdates", async (req, res) => {
+    const updates = await storage.getSprintPulseUpdates();
+    res.json(updates);
   });
 
   app.post("/api/sprints/:sprintId/pulse", async (req, res) => {
