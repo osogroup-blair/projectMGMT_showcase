@@ -164,6 +164,30 @@ The platform supports linking multiple external accounts to a single Nexus user 
 
 The codebase is structured feature-first. The `client/src/` directory contains global UI components (`components/`), React contexts (`context/`), feature-specific components and logic (`features/`), custom hooks (`hooks/`), utilities (`lib/`), and page-level components (`pages/`). The `server/` directory organizes Express application setup, API routes, database connection, and data access layers. Shared types are defined in `shared/schema.ts`.
 
+### Frontend Decomposition (In Progress)
+
+Large page components are being decomposed into modular feature folders for maintainability:
+
+**Sprint Detail Page** (`client/src/features/sprints/detail/`):
+- `hooks/use-sprint-data.ts` - Data fetching, derived state, memoized selectors
+- `hooks/use-sprint-actions.ts` - Business logic handlers (mutations, API calls)
+- `components/` - SprintHeader, AddTasksDialog, CreateTaskDialog, BulkEditDialog
+- `tabs/` - PlanTab (scope definition), RunTab (kanban + pulse), SettingsTab
+- `types.ts` - Shared interfaces and config objects
+
+**Decomposition Pattern**:
+1. Extract custom hooks for data (use*Data) and actions (use*Actions)
+2. Break UI into reusable components and tab-level containers
+3. Container component orchestrates state and composes child modules
+4. Page component imports container, handles routing params
+
+**Remaining Large Files** (candidates for future decomposition):
+- `import-export.tsx` (2,183 LOC)
+- `milestone-overview.tsx` (2,037 LOC)
+- `user-management.tsx` (1,559 LOC)
+- `deliverables.tsx` (1,504 LOC)
+- `project/index.tsx` (1,496 LOC)
+
 ## External Dependencies
 
 ### Database
