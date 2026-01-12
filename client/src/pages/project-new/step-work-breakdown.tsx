@@ -258,6 +258,34 @@ export function StepWorkBreakdown({
     }]
   });
 
+  const bulkSetDeliverableType = (typeId: string | undefined) => {
+    const newDeliverables = deliverables.map(d => ({
+      ...d,
+      deliverableTypeId: typeId
+    }));
+    setDeliverables(newDeliverables);
+    toast({
+      title: "Deliverable types updated",
+      description: `Applied type to ${deliverables.length} deliverable${deliverables.length !== 1 ? 's' : ''}.`,
+    });
+  };
+
+  const bulkSetEpicType = (typeId: string | undefined) => {
+    const newDeliverables = deliverables.map(d => ({
+      ...d,
+      epics: d.epics.map(e => ({
+        ...e,
+        epicTypeId: typeId
+      }))
+    }));
+    setDeliverables(newDeliverables);
+    const totalEpics = deliverables.reduce((sum, d) => sum + d.epics.length, 0);
+    toast({
+      title: "Epic types updated",
+      description: `Applied type to ${totalEpics} epic${totalEpics !== 1 ? 's' : ''}.`,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -267,12 +295,60 @@ export function StepWorkBreakdown({
         </div>
         <div className="flex gap-2">
           {deliverables.length > 0 && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button size="sm" variant="outline" data-testid="button-auto-dates">
-                  <Wand2 className="h-4 w-4 mr-2" /> Auto-generate Dates
-                </Button>
-              </PopoverTrigger>
+            <>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline" data-testid="button-bulk-types">
+                    <Package className="h-4 w-4 mr-2" /> Bulk Set Types
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">All Deliverable Types</p>
+                      <Select
+                        onValueChange={(value) => bulkSetDeliverableType(value === "none" ? undefined : value)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Set for all deliverables..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {deliverableTypes.map((type: any) => (
+                            <SelectItem key={type.id} value={type.id}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">All Epic Types</p>
+                      <Select
+                        onValueChange={(value) => bulkSetEpicType(value === "none" ? undefined : value)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Set for all epics..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {epicTypes.map((type: any) => (
+                            <SelectItem key={type.id} value={type.id}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline" data-testid="button-auto-dates">
+                    <Wand2 className="h-4 w-4 mr-2" /> Auto-generate Dates
+                  </Button>
+                </PopoverTrigger>
               <PopoverContent className="w-56" align="end">
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Date Sequencing Mode</p>
@@ -318,6 +394,7 @@ export function StepWorkBreakdown({
                 </div>
               </PopoverContent>
             </Popover>
+            </>
           )}
           <div className="relative">
             <input
