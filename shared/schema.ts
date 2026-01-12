@@ -617,6 +617,36 @@ export const roleTypes = pgTable("role_types", {
   isDefault: boolean("is_default").default(false),
 });
 
+// System Roles (platform-level access control)
+export const systemRoles = pgTable("system_roles", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  label: text("label").notNull(),
+  description: text("description"),
+  isBuiltIn: boolean("is_built_in").default(true),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// System Permissions (granular access rights)
+export const systemPermissions = pgTable("system_permissions", {
+  id: varchar("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  label: text("label").notNull(),
+  description: text("description"),
+  category: text("category").notNull(),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Role Permissions (junction table for role-permission assignments)
+export const rolePermissions = pgTable("role_permissions", {
+  id: varchar("id").primaryKey(),
+  roleId: varchar("role_id").notNull().references(() => systemRoles.id, { onDelete: "cascade" }),
+  permissionId: varchar("permission_id").notNull().references(() => systemPermissions.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // User Preferences (for work hours and settings)
 export const userPreferences = pgTable("user_preferences", {
   id: varchar("id").primaryKey(),
@@ -713,6 +743,9 @@ export const insertEpicTypeSchema = createInsertSchema(epicTypes).omit({ id: tru
 export const insertDeliverableTypeSchema = createInsertSchema(deliverableTypes).omit({ id: true, createdAt: true });
 export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({ id: true, createdAt: true });
 export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
+export const insertSystemRoleSchema = createInsertSchema(systemRoles).omit({ id: true, createdAt: true });
+export const insertSystemPermissionSchema = createInsertSchema(systemPermissions).omit({ id: true, createdAt: true });
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({ id: true, createdAt: true });
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true });
 export const insertWorkBlockSchema = createInsertSchema(workBlocks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDayPlanSchema = createInsertSchema(dayPlans).omit({ id: true, createdAt: true, updatedAt: true });
@@ -844,6 +877,15 @@ export type InsertProjectSettings = z.infer<typeof insertProjectSettingsSchema>;
 
 export type RoleType = typeof roleTypes.$inferSelect;
 export type InsertRoleType = z.infer<typeof insertRoleTypeSchema>;
+
+export type SystemRole = typeof systemRoles.$inferSelect;
+export type InsertSystemRole = z.infer<typeof insertSystemRoleSchema>;
+
+export type SystemPermission = typeof systemPermissions.$inferSelect;
+export type InsertSystemPermission = z.infer<typeof insertSystemPermissionSchema>;
+
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 
 export type UserPreferences = typeof userPreferences.$inferSelect;
 export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
