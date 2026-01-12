@@ -79,7 +79,27 @@ class StorageEngine {
       return null;
     }
     
-    return await response.json();
+    // Check content-type to ensure we're getting JSON, not HTML
+    const contentType = response.headers.get('content-type');
+    if (contentType && !contentType.includes('application/json')) {
+      throw new Error(`Expected JSON response but got ${contentType} for ${path}`);
+    }
+    
+    const text = await response.text();
+    if (!text) {
+      return [];
+    }
+    
+    // Check if response looks like HTML (common error when endpoint doesn't exist)
+    if (text.startsWith('<!DOCTYPE') || text.startsWith('<html') || text.startsWith('<')) {
+      throw new Error(`Received HTML instead of JSON for ${path}. The API endpoint may not exist.`);
+    }
+    
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Failed to parse JSON response for ${path}: ${text.substring(0, 100)}...`);
+    }
   }
 
   // Generic Get All
