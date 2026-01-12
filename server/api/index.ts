@@ -2284,6 +2284,12 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // User Role Eligibility (for import/export)
+  app.get("/api/userRoleEligibility", async (req, res) => {
+    const eligibility = await storage.getUserRoleEligibility();
+    res.json(eligibility);
+  });
+
   // Task Dependencies
   app.get("/api/taskDependencies", async (req, res) => {
     const dependencies = await storage.getTaskDependencies();

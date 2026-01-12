@@ -48,6 +48,7 @@ import type {
   EpicType, InsertEpicType,
   DeliverableType, InsertDeliverableType,
   UserIdentity, InsertUserIdentity,
+  UserRoleEligibility,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -366,6 +367,9 @@ export interface IStorage {
 
   // Day Plans
   getAllDayPlans(): Promise<DayPlan[]>;
+
+  // User Role Eligibility
+  getUserRoleEligibility(): Promise<UserRoleEligibility[]>;
 
   // Task Types (global)
   getTaskTypes(): Promise<TaskType[]>;
@@ -1750,6 +1754,11 @@ export class DatabaseStorage implements IStorage {
   // Subtasks
   async getSubtasksByParentId(parentTaskId: string): Promise<Task[]> {
     return await db.select().from(schema.tasks).where(eq(schema.tasks.parentTaskId, parentTaskId));
+  }
+
+  // User Role Eligibility
+  async getUserRoleEligibility(): Promise<UserRoleEligibility[]> {
+    return await db.select().from(schema.userRoleEligibility);
   }
 }
 
