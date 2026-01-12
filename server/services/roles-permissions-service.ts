@@ -130,12 +130,11 @@ export async function getRolesWithPermissions() {
     permissionsByCategory[perm.category].push(perm);
   }
 
-  const matrix: Record<string, Record<string, boolean>> = {};
+  const matrix: Record<string, string[]> = {};
   for (const role of roles) {
-    matrix[role.id] = {};
-    for (const perm of permissions) {
-      matrix[role.id][perm.id] = mappings.some(m => m.roleId === role.id && m.permissionId === perm.id);
-    }
+    matrix[role.id] = mappings
+      .filter(m => m.roleId === role.id)
+      .map(m => m.permissionId);
   }
 
   return {

@@ -24,7 +24,15 @@ The core data model is hierarchical, comprising Projects, Deliverables, Epics, T
 
 ### Authentication and Authorization
 
-The platform uses Replit Auth with OpenID Connect for authentication (supporting Google, GitHub, Apple, email). Role-Based Access Control (RBAC) is implemented with `systemRole` and granular `permissions` arrays, enforced by `AuthGuard` components and API middleware. Admins and demo users can impersonate other users. Core entities track `createdBy`, `updatedBy`, `createdAt`, and `updatedAt` for audit logging.
+The platform uses Replit Auth with OpenID Connect for authentication (supporting Google, GitHub, Apple, email). Role-Based Access Control (RBAC) is implemented with database-driven roles and permissions:
+
+-   **System Roles**: 5 built-in roles (admin, manager, member, viewer, demo) stored in `system_roles` table
+-   **Permissions**: 13 permissions across 4 categories (User Management, Admin Access, Projects, Data Management) stored in `system_permissions` table
+-   **Role-Permission Mappings**: Stored in `role_permissions` table, configurable via Admin > App Defaults > Roles & Permissions
+-   **User Permissions**: Users inherit permissions from their role, plus any additional permissions granted directly via `permissions` array
+-   **Enforcement**: `AuthGuard` components on frontend, `requirePermission` middleware on backend reads from database
+
+Admins and demo users can impersonate other users. Core entities track `createdBy`, `updatedBy`, `createdAt`, and `updatedAt` for audit logging.
 
 ### API Structure
 

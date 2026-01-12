@@ -18,6 +18,16 @@ router.get("/", requireAuth(), async (req: Request, res: Response) => {
   }
 });
 
+router.get("/matrix", requireAuth(), async (req: Request, res: Response) => {
+  try {
+    const data = await getRolesWithPermissions();
+    res.json(data);
+  } catch (error) {
+    console.error("Error getting roles and permissions matrix:", error);
+    res.status(500).json({ error: "Failed to get roles and permissions matrix" });
+  }
+});
+
 router.post("/seed", requireAuth(), async (req: Request, res: Response) => {
   try {
     const result = await seedRolesAndPermissions();
@@ -42,6 +52,23 @@ router.put("/assignment", requireAuth(), async (req: Request, res: Response) => 
   } catch (error) {
     console.error("Error updating role permission:", error);
     res.status(500).json({ error: "Failed to update role permission" });
+  }
+});
+
+router.post("/toggle", requireAuth(), async (req: Request, res: Response) => {
+  try {
+    const { roleId, permissionId, enabled } = req.body;
+    
+    if (!roleId || !permissionId || typeof enabled !== "boolean") {
+      res.status(400).json({ error: "roleId, permissionId, and enabled are required" });
+      return;
+    }
+
+    const result = await setRolePermission(roleId, permissionId, enabled);
+    res.json(result);
+  } catch (error) {
+    console.error("Error toggling role permission:", error);
+    res.status(500).json({ error: "Failed to toggle role permission" });
   }
 });
 
