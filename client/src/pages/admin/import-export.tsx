@@ -705,6 +705,8 @@ export default function AdminImportExport({ embedded = false }: AdminImportExpor
     "RoleTypes",
     "StatusOptions",
     "TaskTypes",
+    "EpicTypes",
+    "DeliverableTypes",
     // Templates (config before data)
     "FrameworkTemplates",
     "StageTemplates",
