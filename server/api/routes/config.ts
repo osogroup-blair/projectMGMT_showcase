@@ -9,6 +9,11 @@ import {
   insertEpicTypeSchema,
   insertDeliverableTypeSchema,
 } from "@shared/schema";
+import { 
+  getMicrosoftAuthConfig, 
+  setMicrosoftAuthEnabled, 
+  setMicrosoftAllowedDomains 
+} from "../../replit_integrations/auth";
 
 export function registerConfigRoutes(
   app: Express,
@@ -378,6 +383,50 @@ export function registerConfigRoutes(
       res.json(globalStatuses);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Authentication Settings (Admin only)
+  app.get("/api/auth/config", async (req, res) => {
+    try {
+      const config = await getMicrosoftAuthConfig();
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/auth/microsoft/toggle", async (req, res) => {
+    try {
+      const userId = getAuthUserId(req);
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ error: "enabled must be a boolean" });
+      }
+      
+      await setMicrosoftAuthEnabled(enabled, userId || undefined);
+      const config = await getMicrosoftAuthConfig();
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/auth/microsoft/domains", async (req, res) => {
+    try {
+      const userId = getAuthUserId(req);
+      const { domains } = req.body;
+      
+      if (!Array.isArray(domains)) {
+        return res.status(400).json({ error: "domains must be an array" });
+      }
+      
+      await setMicrosoftAllowedDomains(domains, userId || undefined);
+      const config = await getMicrosoftAuthConfig();
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 }

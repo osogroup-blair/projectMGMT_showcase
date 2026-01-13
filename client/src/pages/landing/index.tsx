@@ -26,6 +26,7 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [demoAvailable, setDemoAvailable] = useState(false);
   const [demoChecked, setDemoChecked] = useState(false);
+  const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
 
   useEffect(() => {
     fetch("/api/demo-status")
@@ -37,6 +38,13 @@ export default function LandingPage() {
       .catch(() => {
         setDemoChecked(true);
       });
+
+    fetch("/api/auth/config")
+      .then(res => res.json())
+      .then(data => {
+        setMicrosoftEnabled(data.enabled === true);
+      })
+      .catch(() => {});
   }, []);
 
   const handleDemoLogin = async () => {
@@ -81,6 +89,19 @@ export default function LandingPage() {
                 {isLoading ? "Loading..." : "Try Demo"}
               </Button>
             )}
+            {microsoftEnabled && (
+              <a href="/api/auth/microsoft" data-testid="microsoft-login-button">
+                <Button variant="outline" size="default" className="border-slate-500 text-slate-200 hover:bg-slate-700 gap-2">
+                  <svg className="w-4 h-4" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                  </svg>
+                  Microsoft
+                </Button>
+              </a>
+            )}
             <a href="/api/login" data-testid="login-button">
               <Button variant="default" size="default" className="bg-blue-600 hover:bg-blue-700 text-white">
                 Sign In
@@ -104,6 +125,19 @@ export default function LandingPage() {
             and tracked with unified status management across your entire portfolio.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            {microsoftEnabled && (
+              <a href="/api/auth/microsoft" data-testid="hero-microsoft-button">
+                <Button size="lg" className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-6 text-lg gap-3">
+                  <svg className="w-6 h-6" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                  </svg>
+                  Continue with Microsoft
+                </Button>
+              </a>
+            )}
             {demoChecked && demoAvailable && (
               <Button 
                 size="lg" 
@@ -117,8 +151,8 @@ export default function LandingPage() {
               </Button>
             )}
             <a href="/api/login" data-testid="get-started-button">
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg">
-                Get Started Free
+              <Button size="lg" variant={microsoftEnabled ? "outline" : "default"} className={microsoftEnabled ? "border-slate-500 text-slate-200 hover:bg-slate-700 px-8 py-6 text-lg" : "bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"}>
+                {microsoftEnabled ? "Sign in with Replit" : "Get Started Free"}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </a>

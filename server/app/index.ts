@@ -4,7 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { connectWithRetry, isDatabaseConnected, setDatabaseReady } from "../db";
 import { isApplicationReady } from "./readiness";
-import { setupAuth, registerAuthRoutes } from "../replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, setupMicrosoftAuth } from "../replit_integrations/auth";
 
 const app = express();
 const httpServer = createServer(app);
@@ -171,6 +171,7 @@ app.use((req, res, next) => {
 
       // Setup auth BEFORE registering other routes
       await setupAuth(app);
+      await setupMicrosoftAuth(app);
       registerAuthRoutes(app);
       log('Auth routes configured');
 
