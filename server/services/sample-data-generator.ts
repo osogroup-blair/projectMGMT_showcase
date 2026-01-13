@@ -562,10 +562,13 @@ async function generateMilestoneData(
     return;
   }
 
+  // Milestone dates should align with stage end dates:
+  // Discovery: ends day 14, Design: ends day 35, Development: ends day 70, Testing: ends day 84, Launch: ends day 90
   const milestoneConfigs = [
-    { name: "Design Approval", description: "All designs approved by stakeholders", phase: "Design", offsetDays: 28, status: "on-track", isBillingGate: true },
-    { name: "Alpha Release", description: "First internal release for testing", phase: "Development", offsetDays: 56, status: "pending", isBillingGate: false },
-    { name: "Beta Release", description: "External beta testing release", phase: "Testing", offsetDays: 77, status: "pending", isBillingGate: true },
+    { name: "Discovery Complete", description: "Research completed and requirements finalized", phase: "Discovery", offsetDays: 14, status: "completed", isBillingGate: false },
+    { name: "Design Approval", description: "All designs approved by stakeholders", phase: "Design", offsetDays: 35, status: "on-track", isBillingGate: true },
+    { name: "Alpha Release", description: "First internal release for testing", phase: "Development", offsetDays: 70, status: "pending", isBillingGate: false },
+    { name: "Beta Release", description: "External beta testing release", phase: "Testing", offsetDays: 84, status: "pending", isBillingGate: true },
     { name: "Go Live", description: "Production launch", phase: "Launch", offsetDays: 90, status: "pending", isBillingGate: true },
   ];
 
