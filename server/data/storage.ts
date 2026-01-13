@@ -53,6 +53,7 @@ import type {
   DeliverableType, InsertDeliverableType,
   UserIdentity, InsertUserIdentity,
   UserRoleEligibility,
+  AppSettings, InsertAppSettings,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -374,6 +375,10 @@ export interface IStorage {
 
   // User Role Eligibility
   getUserRoleEligibility(): Promise<UserRoleEligibility[]>;
+
+  // App Settings
+  getAppSettings(): Promise<AppSettings | undefined>;
+  updateAppSettings(settings: Partial<AppSettings>): Promise<AppSettings>;
 
   // Task Types (global)
   getTaskTypes(): Promise<TaskType[]>;
@@ -1713,6 +1718,28 @@ export class DatabaseStorage implements IStorage {
   // User Role Eligibility
   async getUserRoleEligibility(): Promise<UserRoleEligibility[]> {
     return await db.select().from(schema.userRoleEligibility);
+  }
+
+  // App Settings
+  async getAppSettings(): Promise<AppSettings | undefined> {
+    const [settings] = await db.select().from(schema.appSettings).where(eq(schema.appSettings.id, "default"));
+    return settings;
+  }
+
+  async updateAppSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
+    const existing = await this.getAppSettings();
+    if (existing) {
+      const [updated] = await db.update(schema.appSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(schema.appSettings.id, "default"))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(schema.appSettings)
+        .values({ id: "default", ...settings })
+        .returning();
+      return created;
+    }
   }
 }
 

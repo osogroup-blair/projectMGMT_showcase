@@ -685,6 +685,14 @@ export const dayPlans = pgTable("day_plans", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// App Settings (global application configuration)
+export const appSettings = pgTable("app_settings", {
+  id: varchar("id").primaryKey().default("default"),
+  demoDataReady: boolean("demo_data_ready").default(false),
+  demoLoginUserId: varchar("demo_login_user_id"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true });
@@ -749,6 +757,7 @@ export const insertRolePermissionSchema = createInsertSchema(rolePermissions).om
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true });
 export const insertWorkBlockSchema = createInsertSchema(workBlocks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDayPlanSchema = createInsertSchema(dayPlans).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({ updatedAt: true });
 
 // Bulk-create schemas (include optional id for import/full-create scenarios)
 export const bulkInsertDeliverableSchema = insertDeliverableSchema.extend({ id: z.string().optional() });
@@ -910,3 +919,6 @@ export type InsertDeliverableType = z.infer<typeof insertDeliverableTypeSchema>;
 
 export type TaskDependency = typeof taskDependencies.$inferSelect;
 export type InsertTaskDependency = z.infer<typeof insertTaskDependencySchema>;
+
+export type AppSettings = typeof appSettings.$inferSelect;
+export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
