@@ -739,9 +739,14 @@ export const dayPlans = pgTable("day_plans", {
 // App Settings (global application configuration)
 export const appSettings = pgTable("app_settings", {
   id: varchar("id").primaryKey().default("default"),
+  key: varchar("key").unique(),
+  value: jsonb("value"),
+  description: text("description"),
   demoDataReady: boolean("demo_data_ready").default(false),
   demoLoginUserId: varchar("demo_login_user_id"),
   completedTaskStatusIds: text("completed_task_status_ids").array().default([]),
+  updatedBy: varchar("updated_by"),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
