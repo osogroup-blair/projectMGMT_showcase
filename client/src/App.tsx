@@ -6,8 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrentUserProvider } from "@/context/current-user-context";
 import { ImportProvider } from "@/context/import-context";
 import { CreationReportProvider } from "@/context/creation-report-context";
-import { TaskInspectorProvider } from "@/context/task-inspector-context";
-import { TaskInspector } from "@/components/task-inspector";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
@@ -116,13 +114,10 @@ function AuthenticatedApp() {
     <CurrentUserProvider>
       <ImportProvider>
         <CreationReportProvider>
-          <TaskInspectorProvider>
-            <TooltipProvider>
-              <Toaster />
-              <ProtectedRoutes />
-              <TaskInspector />
-            </TooltipProvider>
-          </TaskInspectorProvider>
+          <TooltipProvider>
+            <Toaster />
+            <ProtectedRoutes />
+          </TooltipProvider>
         </CreationReportProvider>
       </ImportProvider>
     </CurrentUserProvider>
