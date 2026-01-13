@@ -261,7 +261,7 @@ export default function ProjectOverview() {
   
   // Dashboard sidebar state
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(true);
-  const [dashboardSection, setDashboardSection] = useState<"team-pulse" | "assigned-work" | "current-sprint" | "upcoming-work" | "activity">("team-pulse");
+  const [dashboardSection, setDashboardSection] = useState<"team-pulse" | "assigned-work" | "current-sprint" | "upcoming-work" | "activity">("assigned-work");
 
   // Add Task to Sprint Dialog state
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
@@ -1076,19 +1076,6 @@ export default function ProjectOverview() {
                     </div>
                     <nav className="space-y-1">
                       <button
-                        onClick={() => setDashboardSection("team-pulse")}
-                        className={cn(
-                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          dashboardSection === "team-pulse" 
-                            ? "bg-primary text-primary-foreground" 
-                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                        )}
-                        data-testid="nav-team-pulse"
-                      >
-                        <Send className="h-4 w-4" />
-                        Team Pulse
-                      </button>
-                      <button
                         onClick={() => setDashboardSection("assigned-work")}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
@@ -1100,6 +1087,19 @@ export default function ProjectOverview() {
                       >
                         <ClipboardList className="h-4 w-4" />
                         Assigned Work
+                      </button>
+                      <button
+                        onClick={() => setDashboardSection("team-pulse")}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                          dashboardSection === "team-pulse" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid="nav-team-pulse"
+                      >
+                        <Send className="h-4 w-4" />
+                        Team Pulse
                       </button>
                       <button
                         onClick={() => setDashboardSection("current-sprint")}
@@ -1155,20 +1155,20 @@ export default function ProjectOverview() {
                     </Button>
                     <div className="flex flex-col items-center gap-0.5">
                       <Button 
-                        variant={dashboardSection === "team-pulse" ? "default" : "ghost"} 
-                        size="icon" 
-                        className="h-7 w-7"
-                        onClick={() => setDashboardSection("team-pulse")}
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button 
                         variant={dashboardSection === "assigned-work" ? "default" : "ghost"} 
                         size="icon" 
                         className="h-7 w-7"
                         onClick={() => setDashboardSection("assigned-work")}
                       >
                         <ClipboardList className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
+                        variant={dashboardSection === "team-pulse" ? "default" : "ghost"} 
+                        size="icon" 
+                        className="h-7 w-7"
+                        onClick={() => setDashboardSection("team-pulse")}
+                      >
+                        <Send className="h-3.5 w-3.5" />
                       </Button>
                       <Button 
                         variant={dashboardSection === "current-sprint" ? "default" : "ghost"} 
