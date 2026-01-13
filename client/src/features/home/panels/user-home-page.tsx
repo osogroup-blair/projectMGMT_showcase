@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { UserHomeState, HomeTask, WorkBlock } from "../types";
 import { Shell } from "@/components/layout/shell";
 import { TodayTasksPanel } from "./today-tasks-panel";
@@ -355,6 +356,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
               <h2 className="text-lg font-semibold mb-4">Upcoming Milestones</h2>
               <p className="text-muted-foreground text-sm">Key milestones and upcoming deadlines across your projects.</p>
               <div className="mt-6 space-y-6">
+                 {homeState.upcomingMilestones.map((milestone: any) => (
                    <Link key={milestone.id} href={`/projects/${milestone.projectId}/milestones/${milestone.id}`} className="block">
                      <div className="flex items-start gap-4 p-4 border rounded-lg bg-background hover:border-primary/50 transition-colors">
                        <div className="mt-1">
@@ -373,6 +375,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                        </div>
                      </div>
                    </Link>
+                 ))}
                  {homeState.upcomingMilestones.length === 0 && (
                    <div className="text-center py-8">
                      <p className="text-muted-foreground">No upcoming milestones found.</p>
