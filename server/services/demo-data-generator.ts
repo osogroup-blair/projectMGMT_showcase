@@ -286,14 +286,39 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
   }
 }
 
+interface StageData {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+interface SprintData {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
+interface MilestoneData {
+  id: string;
+  name: string;
+  phase: string;
+  stageId: string;
+  targetDate: string;
+  status: string;
+}
+
 async function createProjectWithStages(
   projectId: string,
   projectData: any,
   frameworkId: string,
   startDate: Date,
   result: DemoDataResult
-): Promise<{ stageIds: Record<string, string> }> {
+): Promise<{ stageIds: Record<string, string>; stages: StageData[] }> {
   const stageIds: Record<string, string> = {};
+  const stages: StageData[] = [];
 
   // Create project
   await storage.createProject({
@@ -314,6 +339,8 @@ async function createProjectWithStages(
 
     const stageStartOffset = i * stageDuration;
     const stageEndOffset = (i + 1) * stageDuration;
+    const stageStartDate = addDays(startDate, stageStartOffset);
+    const stageEndDate = addDays(startDate, stageEndOffset);
 
     // Determine stage status based on project's current stage
     let stageStatus = "pending";
@@ -333,13 +360,103 @@ async function createProjectWithStages(
       order: stageDef.order,
       type: stageDef.type,
       status: stageStatus,
-      startDate: toDateString(addDays(startDate, stageStartOffset)),
-      endDate: toDateString(addDays(startDate, stageEndOffset)),
+      startDate: toDateString(stageStartDate),
+      endDate: toDateString(stageEndDate),
     } as any);
     result.created.stages = (result.created.stages || 0) + 1;
+
+    stages.push({
+      id: stageId,
+      name: stageDef.name,
+      startDate: toDateString(stageStartDate),
+      endDate: toDateString(stageEndDate),
+    });
   }
 
-  return { stageIds };
+  return { stageIds, stages };
+}
+
+async function createSprintsForProject(
+  projectId: string,
+  sprintConfigs: Array<{ name: string; goal: string; startOffset: number; endOffset: number; status: string }>,
+  projectStartDate: Date,
+  demoUsers: User[],
+  result: DemoDataResult
+): Promise<SprintData[]> {
+  const sprints: SprintData[] = [];
+
+  for (const config of sprintConfigs) {
+    const sprintId = generateId("sprint");
+    const startDate = addDays(projectStartDate, config.startOffset);
+    const endDate = addDays(projectStartDate, config.endOffset);
+
+    await storage.createSprint({
+      id: sprintId,
+      projectId,
+      name: config.name,
+      goal: config.goal,
+      startDate: toDateString(startDate),
+      endDate: toDateString(endDate),
+      status: config.status,
+      capacityHours: 160,
+    } as any);
+    result.created.sprints = (result.created.sprints || 0) + 1;
+
+    sprints.push({
+      id: sprintId,
+      name: config.name,
+      startDate: toDateString(startDate),
+      endDate: toDateString(endDate),
+      status: config.status,
+    });
+  }
+
+  return sprints;
+}
+
+async function createMilestonesForProject(
+  projectId: string,
+  milestoneConfigs: Array<{ name: string; description: string; phase: string; targetOffset: number; status: string; ownerIndex: number }>,
+  projectStartDate: Date,
+  stageIds: Record<string, string>,
+  demoUsers: User[],
+  result: DemoDataResult
+): Promise<MilestoneData[]> {
+  const milestones: MilestoneData[] = [];
+
+  for (const config of milestoneConfigs) {
+    const milestoneId = generateId("ms");
+    const targetDate = addDays(projectStartDate, config.targetOffset);
+    const stageId = stageIds[config.phase];
+
+    await storage.createMilestone({
+      id: milestoneId,
+      projectId,
+      name: config.name,
+      description: config.description,
+      phase: config.phase,
+      stageId,
+      targetDate: toDateString(targetDate),
+      status: config.status,
+      ownerId: demoUsers[config.ownerIndex]?.id,
+      scopeType: "all_tasks",
+      completionMode: "percentage",
+      completionTargetPercent: 100,
+      isBillingGate: false,
+    } as any);
+    result.created.milestones = (result.created.milestones || 0) + 1;
+
+    milestones.push({
+      id: milestoneId,
+      name: config.name,
+      phase: config.phase,
+      stageId,
+      targetDate: toDateString(targetDate),
+      status: config.status,
+    });
+  }
+
+  return milestones;
 }
 
 async function createCRMProject(
@@ -352,7 +469,7 @@ async function createCRMProject(
   const startDate = addDays(now, -60);
   const deadline = addDays(now, 30);
 
-  const { stageIds } = await createProjectWithStages(
+  const { stageIds, stages } = await createProjectWithStages(
     projectId,
     {
       name: "CRM System",
@@ -371,6 +488,25 @@ async function createCRMProject(
     startDate,
     result
   );
+
+  // Create sprints FIRST (before tasks)
+  const sprintConfigs = [
+    { name: "Sprint 1", goal: "Requirements and initial design", startOffset: 0, endOffset: 14, status: "completed" },
+    { name: "Sprint 2", goal: "Design completion", startOffset: 14, endOffset: 28, status: "completed" },
+    { name: "Sprint 3", goal: "Core development", startOffset: 28, endOffset: 42, status: "completed" },
+    { name: "Sprint 4", goal: "Feature development", startOffset: 42, endOffset: 56, status: "active" },
+    { name: "Sprint 5", goal: "QA and polish", startOffset: 56, endOffset: 70, status: "planned" },
+  ];
+  const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
+
+  // Create milestones FIRST (before tasks)
+  const milestoneConfigs = [
+    { name: "Requirements Complete", description: "All requirements documented", phase: "Requirements", targetOffset: 18, status: "completed", ownerIndex: 0 },
+    { name: "Design Sign-off", description: "All designs approved", phase: "Design", targetOffset: 36, status: "completed", ownerIndex: 1 },
+    { name: "Beta Release", description: "Internal beta testing", phase: "Development", targetOffset: 67, status: "on-track", ownerIndex: 2 },
+    { name: "Go Live", description: "Production release", phase: "Documentation", targetOffset: 90, status: "pending", ownerIndex: 4 },
+  ];
+  const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
   // Deliverables for CRM
   const deliverables = [
@@ -409,20 +545,7 @@ async function createCRMProject(
     },
   ];
 
-  await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, demoUsers, startDate, result);
-
-  // Add milestones
-  await createMilestone(projectId, "Requirements Complete", "All requirements documented", "Requirements", addDays(startDate, 18), "completed", demoUsers[0]?.id, stageIds, result);
-  await createMilestone(projectId, "Design Sign-off", "All designs approved", "Design", addDays(startDate, 36), "completed", demoUsers[1]?.id, stageIds, result);
-  await createMilestone(projectId, "Beta Release", "Internal beta testing", "Development", addDays(now, 7), "on-track", demoUsers[2]?.id, stageIds, result);
-  await createMilestone(projectId, "Go Live", "Production release", "Documentation", deadline, "pending", demoUsers[4]?.id, stageIds, result);
-
-  // Add sprints
-  await createSprint(projectId, "Sprint 1", "Requirements and initial design", addDays(startDate, 0), addDays(startDate, 14), "completed", demoUsers, result);
-  await createSprint(projectId, "Sprint 2", "Design completion", addDays(startDate, 14), addDays(startDate, 28), "completed", demoUsers, result);
-  await createSprint(projectId, "Sprint 3", "Core development", addDays(startDate, 28), addDays(startDate, 42), "completed", demoUsers, result);
-  await createSprint(projectId, "Sprint 4", "Feature development", addDays(startDate, 42), addDays(startDate, 56), "active", demoUsers, result);
-  await createSprint(projectId, "Sprint 5", "QA and polish", addDays(startDate, 56), addDays(startDate, 70), "planned", demoUsers, result);
+  await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
 }
 
 async function createTaskManagementProject(
@@ -435,7 +558,7 @@ async function createTaskManagementProject(
   const startDate = addDays(now, -30);
   const deadline = addDays(now, 60);
 
-  const { stageIds } = await createProjectWithStages(
+  const { stageIds, stages } = await createProjectWithStages(
     projectId,
     {
       name: "Task Management App",
@@ -454,6 +577,22 @@ async function createTaskManagementProject(
     startDate,
     result
   );
+
+  // Create sprints FIRST
+  const sprintConfigs = [
+    { name: "Sprint 1", goal: "Requirements gathering", startOffset: 0, endOffset: 14, status: "completed" },
+    { name: "Sprint 2", goal: "UI Design", startOffset: 14, endOffset: 28, status: "active" },
+    { name: "Sprint 3", goal: "Development kickoff", startOffset: 28, endOffset: 42, status: "planned" },
+  ];
+  const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
+
+  // Create milestones FIRST
+  const milestoneConfigs = [
+    { name: "Requirements Complete", description: "All requirements documented", phase: "Requirements", targetOffset: 18, status: "completed", ownerIndex: 0 },
+    { name: "Design Review", description: "UI/UX design review", phase: "Design", targetOffset: 44, status: "on-track", ownerIndex: 1 },
+    { name: "MVP Launch", description: "Minimum viable product", phase: "Development", targetOffset: 75, status: "pending", ownerIndex: 2 },
+  ];
+  const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
   const deliverables = [
     {
@@ -491,17 +630,7 @@ async function createTaskManagementProject(
     },
   ];
 
-  await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, demoUsers, startDate, result);
-
-  // Add milestones
-  await createMilestone(projectId, "Requirements Complete", "All requirements documented", "Requirements", addDays(startDate, 18), "completed", demoUsers[0]?.id, stageIds, result);
-  await createMilestone(projectId, "Design Review", "UI/UX design review", "Design", addDays(now, 14), "on-track", demoUsers[1]?.id, stageIds, result);
-  await createMilestone(projectId, "MVP Launch", "Minimum viable product", "Development", addDays(now, 45), "pending", demoUsers[2]?.id, stageIds, result);
-
-  // Add sprints
-  await createSprint(projectId, "Sprint 1", "Requirements gathering", addDays(startDate, 0), addDays(startDate, 14), "completed", demoUsers, result);
-  await createSprint(projectId, "Sprint 2", "UI Design", addDays(startDate, 14), addDays(startDate, 28), "active", demoUsers, result);
-  await createSprint(projectId, "Sprint 3", "Development kickoff", addDays(startDate, 28), addDays(startDate, 42), "planned", demoUsers, result);
+  await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
 }
 
 async function createTimeEntryProject(
@@ -514,7 +643,7 @@ async function createTimeEntryProject(
   const startDate = addDays(now, -7);
   const deadline = addDays(now, 83);
 
-  const { stageIds } = await createProjectWithStages(
+  const { stageIds, stages } = await createProjectWithStages(
     projectId,
     {
       name: "Time Entry System",
@@ -533,6 +662,21 @@ async function createTimeEntryProject(
     startDate,
     result
   );
+
+  // Create sprints FIRST
+  const sprintConfigs = [
+    { name: "Sprint 1", goal: "Discovery and requirements", startOffset: 0, endOffset: 14, status: "active" },
+    { name: "Sprint 2", goal: "Requirements completion", startOffset: 14, endOffset: 28, status: "planned" },
+  ];
+  const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
+
+  // Create milestones FIRST
+  const milestoneConfigs = [
+    { name: "Requirements Kickoff", description: "Project kickoff meeting", phase: "Requirements", targetOffset: 3, status: "completed", ownerIndex: 0 },
+    { name: "Requirements Sign-off", description: "All requirements approved", phase: "Requirements", targetOffset: 21, status: "on-track", ownerIndex: 0 },
+    { name: "Design Complete", description: "All designs finalized", phase: "Design", targetOffset: 42, status: "pending", ownerIndex: 1 },
+  ];
+  const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
   const deliverables = [
     {
@@ -569,22 +713,16 @@ async function createTimeEntryProject(
     },
   ];
 
-  await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, demoUsers, startDate, result);
-
-  // Add milestones
-  await createMilestone(projectId, "Requirements Kickoff", "Project kickoff meeting", "Requirements", addDays(startDate, 3), "completed", demoUsers[0]?.id, stageIds, result);
-  await createMilestone(projectId, "Requirements Sign-off", "All requirements approved", "Requirements", addDays(now, 14), "on-track", demoUsers[0]?.id, stageIds, result);
-  await createMilestone(projectId, "Design Complete", "All designs finalized", "Design", addDays(now, 35), "pending", demoUsers[1]?.id, stageIds, result);
-
-  // Add sprints
-  await createSprint(projectId, "Sprint 1", "Discovery and requirements", addDays(startDate, 0), addDays(startDate, 14), "active", demoUsers, result);
-  await createSprint(projectId, "Sprint 2", "Requirements completion", addDays(startDate, 14), addDays(startDate, 28), "planned", demoUsers, result);
+  await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
 }
 
 async function createDeliverablesWithEpicsAndTasks(
   projectId: string,
   deliverables: any[],
   stageIds: Record<string, string>,
+  stages: StageData[],
+  sprints: SprintData[],
+  milestones: MilestoneData[],
   demoUsers: User[],
   projectStartDate: Date,
   result: DemoDataResult
@@ -605,6 +743,46 @@ async function createDeliverablesWithEpicsAndTasks(
     { title: "User guide", priority: "low", effort: 2 },
     { title: "API documentation", priority: "medium", effort: 2 },
   ];
+
+  // Helper: Find sprint for a task based on date overlap
+  function findSprintForTask(taskStartDate: Date, taskDeadline: Date): { sprintId: string | undefined; sprintStatus: string | undefined } {
+    if (sprints.length === 0) return { sprintId: undefined, sprintStatus: undefined };
+    
+    const taskMidpoint = (taskStartDate.getTime() + taskDeadline.getTime()) / 2;
+    
+    // Find sprint where task midpoint falls within sprint dates
+    for (const sprint of sprints) {
+      const sprintStart = new Date(sprint.startDate).getTime();
+      const sprintEnd = new Date(sprint.endDate).getTime();
+      
+      if (taskMidpoint >= sprintStart && taskMidpoint <= sprintEnd) {
+        return { sprintId: sprint.id, sprintStatus: sprint.status };
+      }
+    }
+    
+    // Fallback: find closest sprint by date
+    let closestSprint = sprints[0];
+    if (!closestSprint?.startDate) return { sprintId: sprints[0]?.id, sprintStatus: sprints[0]?.status };
+    
+    let closestDistance = Math.abs(taskMidpoint - new Date(closestSprint.startDate).getTime());
+    
+    for (const sprint of sprints) {
+      if (!sprint.startDate) continue;
+      const distance = Math.abs(taskMidpoint - new Date(sprint.startDate).getTime());
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestSprint = sprint;
+      }
+    }
+    
+    return { sprintId: closestSprint?.id, sprintStatus: closestSprint?.status };
+  }
+
+  // Helper: Find milestone for a stage
+  function findMilestoneForStage(stageName: string): string | undefined {
+    const milestone = milestones.find(m => m.phase === stageName);
+    return milestone?.id;
+  }
 
   let dayOffset = 0;
   for (const delConfig of deliverables) {
@@ -628,6 +806,9 @@ async function createDeliverablesWithEpicsAndTasks(
       const stageId = stageIds[epicConfig.stage];
       const assignee = getUserForStage(epicConfig.stage, demoUsers);
 
+      const epicStartDate = addDays(projectStartDate, dayOffset);
+      const epicEndDate = addDays(projectStartDate, dayOffset + 14);
+
       await storage.createEpic({
         id: epicId,
         deliverableId,
@@ -636,27 +817,41 @@ async function createDeliverablesWithEpicsAndTasks(
         status: epicConfig.status,
         progress: epicConfig.progress,
         ownerId: assignee?.id || demoUsers[0]?.id,
-        startDate: toDateString(addDays(projectStartDate, dayOffset)),
-        endDate: toDateString(addDays(projectStartDate, dayOffset + 14)),
+        startDate: toDateString(epicStartDate),
+        endDate: toDateString(epicEndDate),
       } as any);
       result.created.epics = (result.created.epics || 0) + 1;
 
       // Create 2-4 tasks per epic
       const numTasks = 2 + Math.floor(Math.random() * 3);
+      const epicDurationDays = 14;
+      const milestoneId = findMilestoneForStage(epicConfig.stage);
+
       for (let i = 0; i < numTasks; i++) {
         const template = taskTemplates[Math.floor(Math.random() * taskTemplates.length)];
         
+        // Calculate task dates within epic range
+        const taskStartOffset = Math.floor((i / numTasks) * epicDurationDays);
+        const taskEndOffset = Math.min(taskStartOffset + 5, epicDurationDays);
+        const taskStartDate = addDays(epicStartDate, taskStartOffset);
+        const taskDeadline = addDays(epicStartDate, taskEndOffset);
+
+        // Find sprint for this task based on dates
+        const { sprintId, sprintStatus } = findSprintForTask(taskStartDate, taskDeadline);
+
+        // Determine task status based on sprint status and epic progress
         let taskStatus = "BACKLOGGED";
-        if (epicConfig.progress >= 100) {
+        
+        // If sprint is completed, task should be DONE
+        if (sprintStatus === "completed") {
+          taskStatus = "DONE";
+        } else if (epicConfig.progress >= 100) {
           taskStatus = "DONE";
         } else if (epicConfig.progress > 50) {
           taskStatus = Math.random() < 0.5 ? "DONE" : "IN PROGRESS";
         } else if (epicConfig.progress > 0) {
           taskStatus = Math.random() < 0.3 ? "IN PROGRESS" : "BACKLOGGED";
         }
-
-        const taskStartDate = addDays(projectStartDate, dayOffset + (i * 2));
-        const taskDeadline = addDays(taskStartDate, 5);
 
         await storage.createTask({
           id: generateId("task"),
@@ -668,6 +863,8 @@ async function createDeliverablesWithEpicsAndTasks(
           projectId,
           epicId,
           stageId,
+          sprintId,
+          milestoneId,
           status: taskStatus,
           priority: template.priority,
           effort: template.effort,
@@ -682,58 +879,6 @@ async function createDeliverablesWithEpicsAndTasks(
       dayOffset += 5;
     }
   }
-}
-
-async function createMilestone(
-  projectId: string,
-  name: string,
-  description: string,
-  phase: string,
-  targetDate: Date,
-  status: string,
-  ownerId: string | undefined,
-  stageIds: Record<string, string>,
-  result: DemoDataResult
-): Promise<void> {
-  await storage.createMilestone({
-    id: generateId("ms"),
-    projectId,
-    name,
-    description,
-    phase,
-    stageId: stageIds[phase],
-    targetDate: toDateString(targetDate),
-    status,
-    ownerId,
-    scopeType: "all_tasks",
-    completionMode: "percentage",
-    completionTargetPercent: 100,
-    isBillingGate: false,
-  } as any);
-  result.created.milestones = (result.created.milestones || 0) + 1;
-}
-
-async function createSprint(
-  projectId: string,
-  name: string,
-  goal: string,
-  startDate: Date,
-  endDate: Date,
-  status: string,
-  demoUsers: User[],
-  result: DemoDataResult
-): Promise<void> {
-  await storage.createSprint({
-    id: generateId("sprint"),
-    projectId,
-    name,
-    goal,
-    startDate: toDateString(startDate),
-    endDate: toDateString(endDate),
-    status,
-    capacityHours: 160,
-  } as any);
-  result.created.sprints = (result.created.sprints || 0) + 1;
 }
 
 export async function hasDemoData(): Promise<boolean> {
