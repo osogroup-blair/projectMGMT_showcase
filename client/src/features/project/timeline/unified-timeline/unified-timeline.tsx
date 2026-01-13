@@ -175,12 +175,12 @@ export function UnifiedTimeline({
           onLayerToggle={handleLayerToggle}
         />
 
-        <div className="flex relative">
+        <div className="flex">
           <div 
-            className="flex-shrink-0 w-48 border-r bg-background relative z-40 flex flex-col"
+            className="flex-shrink-0 w-48 border-r bg-background flex flex-col"
           >
             <div 
-              className="h-12 border-b flex items-center px-3 bg-muted/30 shrink-0"
+              className="h-12 border-b flex items-center px-3 bg-muted/30 shrink-0 sticky top-0 z-10"
               style={{ height: AXIS_HEIGHT }}
             >
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -190,7 +190,6 @@ export function UnifiedTimeline({
 
             <div 
               ref={sidebarRef}
-              className="overflow-visible"
               data-testid="sidebar-scroll-container"
             >
               <div className="flex flex-col" style={{ paddingBottom: 100 }}>
@@ -313,7 +312,8 @@ export function UnifiedTimeline({
 
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-x-auto overflow-y-visible min-h-0"
+            className="flex-1 overflow-x-auto"
+            style={{ overflowY: 'visible' }}
             onScroll={handleScroll}
             data-testid="timeline-scroll-container"
           >
