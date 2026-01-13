@@ -141,6 +141,306 @@ export function TaskSidebarTabs({
   );
 }
 
+function SubtaskCard({
+  subtask,
+  projectId,
+  users,
+  isCompletedStatus,
+  getStatusColor,
+  statusLabels,
+  updateTask,
+  onDeleteClick
+}: {
+  subtask: any;
+  projectId: string;
+  users: any[];
+  isCompletedStatus: (status: string) => boolean;
+  getStatusColor: (status: string) => string;
+  statusLabels: string[];
+  updateTask?: (data: { id: string; updates: any }) => void;
+  onDeleteClick: () => void;
+}) {
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [priorityOpen, setPriorityOpen] = useState(false);
+  const [deadlineOpen, setDeadlineOpen] = useState(false);
+  const [effortOpen, setEffortOpen] = useState(false);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+
+  const isComplete = isCompletedStatus(subtask.status);
+  const getUser = (userId?: string | null) => users.find((u: any) => u.id === userId);
+  const assignee = getUser(subtask.assigneeId);
+
+  const getPriorityColor = (priority?: string) => {
+    switch (priority?.toLowerCase()) {
+      case 'high': return 'text-red-500';
+      case 'medium': return 'text-amber-500';
+      case 'low': return 'text-slate-400';
+      default: return 'text-muted-foreground/30';
+    }
+  };
+
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    const now = new Date();
+    const isOverdue = date < now;
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = date.getDate();
+    return { text: `${month} ${day}`, isOverdue };
+  };
+
+  const formatDateForInput = (dateStr?: string | null) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    return date.toISOString().split('T')[0];
+  };
+
+  const deadline = formatDate(subtask.deadline);
+
+  const handleUpdate = (updates: any) => {
+    if (!updateTask) return;
+    updateTask({ id: subtask.id, updates });
+  };
+
+  const handleToggleComplete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!updateTask) return;
+    const newStatus = isComplete ? "BACKLOGGED" : "DONE";
+    updateTask({ id: subtask.id, updates: { status: newStatus } });
+  };
+
+  return (
+    <div
+      className={cn(
+        "group p-3 rounded-lg border bg-card hover:bg-muted/50 transition-all hover:shadow-sm",
+        isComplete && "opacity-60 bg-muted/20"
+      )}
+      data-testid={`sidebar-subtask-${subtask.id}`}
+    >
+      <div className="flex items-start gap-2">
+        <button
+          onClick={handleToggleComplete}
+          className={cn(
+            "flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center transition-colors",
+            isComplete 
+              ? "bg-green-500 border-green-500 text-white" 
+              : "border-muted-foreground/40 hover:border-green-500"
+          )}
+          data-testid={`checkbox-subtask-${subtask.id}`}
+        >
+          {isComplete && <Check className="h-3 w-3" />}
+        </button>
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <Link
+              href={`/projects/${projectId}/tasks/${subtask.id}`}
+              className="block flex-1"
+            >
+              <span className={cn(
+                "text-sm font-medium hover:text-primary",
+                isComplete && "line-through text-muted-foreground"
+              )}>
+                {subtask.title}
+              </span>
+            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  data-testid={`subtask-menu-${subtask.id}`}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href={`/projects/${projectId}/tasks/${subtask.id}`}>
+                    Open Task
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={onDeleteClick}
+                  data-testid={`delete-subtask-${subtask.id}`}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Subtask
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Popover open={statusOpen} onOpenChange={setStatusOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className={cn("text-[10px] px-1.5 py-0.5 rounded border hover:bg-muted transition-colors", getStatusColor(subtask.status))}
+                  data-testid={`status-trigger-${subtask.id}`}
+                >
+                  {subtask.status}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 p-1" align="start">
+                <div className="space-y-0.5">
+                  {statusLabels.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => { handleUpdate({ status }); setStatusOpen(false); }}
+                      className={cn(
+                        "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted",
+                        subtask.status === status && "bg-muted"
+                      )}
+                      data-testid={`status-option-${status}`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Popover open={priorityOpen} onOpenChange={setPriorityOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className={cn("text-xs flex items-center gap-1 px-1.5 py-0.5 rounded border hover:bg-muted transition-colors", getPriorityColor(subtask.priority))}
+                  data-testid={`priority-trigger-${subtask.id}`}
+                >
+                  <Flag className="h-3 w-3" />
+                  {subtask.priority || "None"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-32 p-1" align="start">
+                <div className="space-y-0.5">
+                  {["High", "Medium", "Low"].map((priority) => (
+                    <button
+                      key={priority}
+                      onClick={() => { handleUpdate({ priority }); setPriorityOpen(false); }}
+                      className={cn(
+                        "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted",
+                        subtask.priority === priority && "bg-muted"
+                      )}
+                    >
+                      {priority}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Popover open={deadlineOpen} onOpenChange={setDeadlineOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className={cn(
+                    "text-xs flex items-center gap-1 px-1.5 py-0.5 rounded border hover:bg-muted transition-colors",
+                    deadline?.isOverdue && !isComplete ? "text-red-500 border-red-200" : "text-muted-foreground"
+                  )}
+                  data-testid={`deadline-trigger-${subtask.id}`}
+                >
+                  <Calendar className="h-3 w-3" />
+                  {deadline?.text || "No date"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2" align="start">
+                <Input
+                  type="date"
+                  value={formatDateForInput(subtask.deadline)}
+                  onChange={(e) => { handleUpdate({ deadline: e.target.value || null }); setDeadlineOpen(false); }}
+                  className="h-8 text-xs"
+                  data-testid={`deadline-input-${subtask.id}`}
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <Popover open={effortOpen} onOpenChange={setEffortOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className="text-xs flex items-center gap-1 px-1.5 py-0.5 rounded border hover:bg-muted transition-colors text-muted-foreground"
+                  data-testid={`effort-trigger-${subtask.id}`}
+                >
+                  <Gauge className="h-3 w-3" />
+                  {subtask.effort || "-"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-32 p-1" align="start">
+                <div className="space-y-0.5">
+                  {EFFORT_VALUES.map((effort) => (
+                    <button
+                      key={effort}
+                      onClick={() => { handleUpdate({ effort }); setEffortOpen(false); }}
+                      className={cn(
+                        "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted",
+                        subtask.effort === effort && "bg-muted"
+                      )}
+                    >
+                      {effort}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className="flex items-center gap-1 ml-auto px-1.5 py-0.5 rounded border hover:bg-muted transition-colors"
+                  data-testid={`assignee-trigger-${subtask.id}`}
+                >
+                  {assignee ? (
+                    <Avatar className="h-4 w-4">
+                      <AvatarFallback className="text-[8px] bg-primary/10">
+                        {(assignee.name || assignee.email || '?').charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <User className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-1" align="end">
+                <ScrollArea className="h-48">
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => { handleUpdate({ assigneeId: null }); setAssigneeOpen(false); }}
+                      className={cn(
+                        "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2",
+                        !subtask.assigneeId && "bg-muted"
+                      )}
+                    >
+                      <User className="h-3 w-3" />
+                      Unassigned
+                    </button>
+                    {users.map((user: any) => (
+                      <button
+                        key={user.id}
+                        onClick={() => { handleUpdate({ assigneeId: user.id }); setAssigneeOpen(false); }}
+                        className={cn(
+                          "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2",
+                          subtask.assigneeId === user.id && "bg-muted"
+                        )}
+                      >
+                        <Avatar className="h-4 w-4">
+                          <AvatarFallback className="text-[8px] bg-primary/10">
+                            {(user.name || user.email || '?').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{user.name || user.email}</span>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SubtasksSection({
   task,
   projectId,
@@ -176,8 +476,6 @@ function SubtasksSection({
   const [isAdding, setIsAdding] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const getUser = (userId?: string | null) => users.find((u: any) => u.id === userId);
-
   const handleCreateSubtask = () => {
     if (!newSubtaskTitle.trim() || !createSubtask) return;
     createSubtask({
@@ -193,48 +491,10 @@ function SubtasksSection({
     setIsAdding(false);
   };
 
-  const handleToggleComplete = (subtask: any, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!updateTask) return;
-    const newStatus = isCompletedStatus(subtask.status) ? "BACKLOGGED" : "DONE";
-    updateTask({ id: subtask.id, updates: { status: newStatus } });
-  };
-
-  const handleUpdateSubtask = (subtaskId: string, updates: any) => {
-    if (!updateTask) return;
-    updateTask({ id: subtaskId, updates });
-  };
-
   const handleDeleteSubtask = () => {
     if (!deleteConfirmId || !deleteTask) return;
     deleteTask(deleteConfirmId);
     setDeleteConfirmId(null);
-  };
-
-  const getPriorityColor = (priority?: string) => {
-    switch (priority?.toLowerCase()) {
-      case 'high': return 'text-red-500';
-      case 'medium': return 'text-amber-500';
-      case 'low': return 'text-slate-400';
-      default: return 'text-muted-foreground/30';
-    }
-  };
-
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    const now = new Date();
-    const isOverdue = date < now;
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const day = date.getDate();
-    return { text: `${month} ${day}`, isOverdue };
-  };
-
-  const formatDateForInput = (dateStr?: string | null) => {
-    if (!dateStr) return "";
-    const date = new Date(dateStr);
-    return date.toISOString().split('T')[0];
   };
 
   if (isLoadingSubtasks) {
@@ -258,242 +518,19 @@ function SubtasksSection({
       )}
 
       <div className="space-y-2">
-        {subtasks.map((subtask: any) => {
-          const isComplete = isCompletedStatus(subtask.status);
-          const assignee = getUser(subtask.assigneeId);
-          const deadline = formatDate(subtask.deadline);
-          
-          return (
-            <div
-              key={subtask.id}
-              className={cn(
-                "group p-3 rounded-lg border bg-card hover:bg-muted/50 transition-all hover:shadow-sm",
-                isComplete && "opacity-60 bg-muted/20"
-              )}
-              data-testid={`sidebar-subtask-${subtask.id}`}
-            >
-              <div className="flex items-start gap-2">
-                <button
-                  onClick={(e) => handleToggleComplete(subtask, e)}
-                  className={cn(
-                    "flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center transition-colors",
-                    isComplete 
-                      ? "bg-green-500 border-green-500 text-white" 
-                      : "border-muted-foreground/40 hover:border-green-500"
-                  )}
-                  data-testid={`checkbox-subtask-${subtask.id}`}
-                >
-                  {isComplete && <Check className="h-3 w-3" />}
-                </button>
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <Link
-                      href={`/projects/${projectId}/tasks/${subtask.id}`}
-                      className="block flex-1"
-                    >
-                      <span className={cn(
-                        "text-sm font-medium hover:text-primary",
-                        isComplete && "line-through text-muted-foreground"
-                      )}>
-                        {subtask.title}
-                      </span>
-                    </Link>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          data-testid={`subtask-menu-${subtask.id}`}
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/projects/${projectId}/tasks/${subtask.id}`}>
-                            Open Task
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteConfirmId(subtask.id)}
-                          data-testid={`delete-subtask-${subtask.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Subtask
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button 
-                          className={cn("text-[10px] px-1.5 py-0.5 rounded border hover:bg-muted transition-colors", getStatusColor(subtask.status))}
-                          data-testid={`status-trigger-${subtask.id}`}
-                        >
-                          {subtask.status}
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-40 p-1" align="start">
-                        <div className="space-y-0.5">
-                          {statusLabels.map((status) => (
-                            <button
-                              key={status}
-                              onClick={() => handleUpdateSubtask(subtask.id, { status })}
-                              className={cn(
-                                "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted",
-                                subtask.status === status && "bg-muted"
-                              )}
-                              data-testid={`status-option-${status}`}
-                            >
-                              {status}
-                            </button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button 
-                          className={cn("text-xs flex items-center gap-1 px-1.5 py-0.5 rounded border hover:bg-muted transition-colors", getPriorityColor(subtask.priority))}
-                          data-testid={`priority-trigger-${subtask.id}`}
-                        >
-                          <Flag className="h-3 w-3" />
-                          {subtask.priority || "None"}
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-32 p-1" align="start">
-                        <div className="space-y-0.5">
-                          {["High", "Medium", "Low"].map((priority) => (
-                            <button
-                              key={priority}
-                              onClick={() => handleUpdateSubtask(subtask.id, { priority })}
-                              className={cn(
-                                "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted",
-                                subtask.priority === priority && "bg-muted"
-                              )}
-                            >
-                              {priority}
-                            </button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button 
-                          className={cn(
-                            "text-xs flex items-center gap-1 px-1.5 py-0.5 rounded border hover:bg-muted transition-colors",
-                            deadline?.isOverdue && !isComplete ? "text-red-500 border-red-200" : "text-muted-foreground"
-                          )}
-                          data-testid={`deadline-trigger-${subtask.id}`}
-                        >
-                          <Calendar className="h-3 w-3" />
-                          {deadline?.text || "No date"}
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-2" align="start">
-                        <Input
-                          type="date"
-                          value={formatDateForInput(subtask.deadline)}
-                          onChange={(e) => handleUpdateSubtask(subtask.id, { deadline: e.target.value || null })}
-                          className="h-8 text-xs"
-                          data-testid={`deadline-input-${subtask.id}`}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button 
-                          className="text-xs flex items-center gap-1 px-1.5 py-0.5 rounded border hover:bg-muted transition-colors text-muted-foreground"
-                          data-testid={`effort-trigger-${subtask.id}`}
-                        >
-                          <Gauge className="h-3 w-3" />
-                          {subtask.effort || "-"}
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-32 p-1" align="start">
-                        <div className="space-y-0.5">
-                          {EFFORT_VALUES.map((effort) => (
-                            <button
-                              key={effort}
-                              onClick={() => handleUpdateSubtask(subtask.id, { effort })}
-                              className={cn(
-                                "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted",
-                                subtask.effort === effort && "bg-muted"
-                              )}
-                            >
-                              {effort}
-                            </button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button 
-                          className="flex items-center gap-1 ml-auto px-1.5 py-0.5 rounded border hover:bg-muted transition-colors"
-                          data-testid={`assignee-trigger-${subtask.id}`}
-                        >
-                          {assignee ? (
-                            <Avatar className="h-4 w-4">
-                              <AvatarFallback className="text-[8px] bg-primary/10">
-                                {(assignee.name || assignee.email || '?').charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          ) : (
-                            <User className="h-3 w-3 text-muted-foreground" />
-                          )}
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-48 p-1" align="end">
-                        <ScrollArea className="h-48">
-                          <div className="space-y-0.5">
-                            <button
-                              onClick={() => handleUpdateSubtask(subtask.id, { assigneeId: null })}
-                              className={cn(
-                                "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2",
-                                !subtask.assigneeId && "bg-muted"
-                              )}
-                            >
-                              <User className="h-3 w-3" />
-                              Unassigned
-                            </button>
-                            {users.map((user: any) => (
-                              <button
-                                key={user.id}
-                                onClick={() => handleUpdateSubtask(subtask.id, { assigneeId: user.id })}
-                                className={cn(
-                                  "w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2",
-                                  subtask.assigneeId === user.id && "bg-muted"
-                                )}
-                              >
-                                <Avatar className="h-4 w-4">
-                                  <AvatarFallback className="text-[8px] bg-primary/10">
-                                    {(user.name || user.email || '?').charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="truncate">{user.name || user.email}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {subtasks.map((subtask: any) => (
+          <SubtaskCard
+            key={subtask.id}
+            subtask={subtask}
+            projectId={projectId}
+            users={users}
+            isCompletedStatus={isCompletedStatus}
+            getStatusColor={getStatusColor}
+            statusLabels={statusLabels}
+            updateTask={updateTask}
+            onDeleteClick={() => setDeleteConfirmId(subtask.id)}
+          />
+        ))}
       </div>
 
       {isAdding ? (
