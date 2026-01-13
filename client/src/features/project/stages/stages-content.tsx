@@ -32,7 +32,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useProject, useSprints } from "@/hooks/use-nexus-data";
+import { useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useProject, useSprints, useMilestones, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -65,6 +65,8 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
+  const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
+  const { data: resolvedTaskTypes = [], isLoading: isTaskTypesLoading } = useResolvedTaskTypes(projectId);
   const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
@@ -77,6 +79,16 @@ export function StagesContent({ projectId }: { projectId: string }) {
     (allSprints || []).filter((s: any) => s.projectId === projectId),
     [allSprints, projectId]
   );
+
+  const projectMilestones = useMemo(() => 
+    (allMilestones || []).filter((m: any) => m.projectId === projectId),
+    [allMilestones, projectId]
+  );
+
+  const getMilestone = (milestoneId?: string) => {
+    if (!milestoneId) return null;
+    return (allMilestones || []).find((m: any) => m.id === milestoneId);
+  };
 
   // Get stages for this project, sorted by order
   const stages = useMemo(() => {
@@ -91,6 +103,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const [dialogStageId, setDialogStageId] = useState<string | null>(null);
   const [dialogMode, setDialogMode] = useState<"search" | "create">("create");
   const [selectedEpicId, setSelectedEpicId] = useState<string>("");
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>("");
   const [isCreating, setIsCreating] = useState(false);
 
   // Add Stage Dialog state
@@ -285,6 +298,15 @@ export function StagesContent({ projectId }: { projectId: string }) {
     }
   };
 
+  const handleTaskMilestoneChange = async (taskId: string, milestoneId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { milestoneId: milestoneId || null } });
+      toast({ title: "Milestone updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleTaskDeadlineChange = async (taskId: string, date: Date | undefined) => {
     try {
       const deadline = date ? format(date, "yyyy-MM-dd") : null;
@@ -300,6 +322,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
     setDialogMode("create");
     setSearchQuery("");
     setSelectedEpicId("");
+    setSelectedMilestoneId("");
     setNewTaskTitle("");
     setNewTaskDescription("");
     setNewTaskPriority("Medium");
@@ -387,6 +410,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
       return;
     }
 
+    // Get the first available task type for this project
+    const taskTypeId = resolvedTaskTypes.length > 0 ? resolvedTaskTypes[0].id : null;
+
     setIsCreating(true);
     try {
       await createTaskAsync({
@@ -396,6 +422,8 @@ export function StagesContent({ projectId }: { projectId: string }) {
         projectId: projectId,
         epicId: selectedEpicId,
         stageId: dialogStageId,
+        milestoneId: selectedMilestoneId || null,
+        taskTypeId,
         status: "Todo",
         priority: newTaskPriority,
         effort: newTaskEffort,
@@ -446,7 +474,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
     }
   };
 
-  const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isProjectLoading || isSprintsLoading;
+  const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isProjectLoading || isSprintsLoading || isMilestonesLoading || isTaskTypesLoading;
 
   // Filter and sort stages
   const filteredAndSortedStages = useMemo(() => {
@@ -1013,13 +1041,14 @@ export function StagesContent({ projectId }: { projectId: string }) {
                               <Table>
                                 <TableHeader>
                                   <TableRow className="hover:bg-transparent">
-                                    <TableHead className="h-8 text-xs" style={{ width: "30%" }}>Task</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Status</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "24%" }}>Task</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "10%" }}>Status</TableHead>
                                     <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Epic</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "15%" }}>Sprint</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "15%" }}>Assignee</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "14%" }}>Due Date</TableHead>
-                                    <TableHead className="h-8 text-xs text-right" style={{ width: "2%" }}>Actions</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Milestone</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Sprint</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Assignee</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Due Date</TableHead>
+                                    <TableHead className="h-8 text-xs text-right" style={{ width: "6%" }}>Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1082,8 +1111,24 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                             </SelectContent>
                                           </Select>
                                         </TableCell>
-                                        <TableCell className="py-1.5 text-xs text-muted-foreground">
-                                          {epic?.title || "—"}
+                                        <TableCell className="py-1.5 text-xs">
+                                          {epic ? (
+                                            <Link href={`/projects/${projectId}/epics/${epic.id}`} className="text-muted-foreground hover:text-primary">
+                                              {epic.title}
+                                            </Link>
+                                          ) : "—"}
+                                        </TableCell>
+                                        <TableCell className="py-1.5">
+                                          <SearchableSelect
+                                            value={task.milestoneId || ""}
+                                            onValueChange={(v) => handleTaskMilestoneChange(task.id, v || null)}
+                                            className="h-6 text-xs w-[110px]"
+                                            placeholder="No milestone"
+                                            options={[
+                                              { value: "", label: "No milestone" },
+                                              ...projectMilestones.map((m: any) => ({ value: m.id, label: m.name }))
+                                            ]}
+                                          />
                                         </TableCell>
                                         <TableCell className="py-1.5">
                                           <SearchableSelect
@@ -1299,15 +1344,31 @@ export function StagesContent({ projectId }: { projectId: string }) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="task-epic">Epic *</Label>
-              <SearchableSelect 
-                value={selectedEpicId} 
-                onValueChange={setSelectedEpicId}
-                data-testid="select-task-epic"
-                placeholder="Select an epic"
-                options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-epic">Epic *</Label>
+                <SearchableSelect 
+                  value={selectedEpicId} 
+                  onValueChange={setSelectedEpicId}
+                  data-testid="select-task-epic"
+                  placeholder="Select an epic"
+                  options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="task-milestone">Milestone</Label>
+                <SearchableSelect 
+                  value={selectedMilestoneId} 
+                  onValueChange={setSelectedMilestoneId}
+                  data-testid="select-task-milestone"
+                  placeholder="Select a milestone"
+                  options={[
+                    { value: "", label: "No milestone" },
+                    ...projectMilestones.map((m: any) => ({ value: m.id, label: m.name }))
+                  ]}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
