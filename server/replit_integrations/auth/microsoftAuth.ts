@@ -151,8 +151,24 @@ export async function setupMicrosoftAuth(app: Express) {
     
     const registeredStrategies = new Set<string>();
     
-    const ensureMicrosoftStrategy = (domain: string) => {
-      const strategyName = `microsoft:${domain}`;
+    // Helper to get the full host from request (handles Replit proxy headers)
+    const getFullHost = (req: any): string => {
+      // Prefer x-forwarded-host for proxied requests (Replit)
+      const forwardedHost = req.headers['x-forwarded-host'];
+      if (forwardedHost) {
+        return Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost;
+      }
+      // Fall back to host header
+      const host = req.headers.host;
+      if (host) {
+        return host;
+      }
+      // Last resort: hostname
+      return req.hostname;
+    };
+
+    const ensureMicrosoftStrategy = (host: string) => {
+      const strategyName = `microsoft:${host}`;
       if (!registeredStrategies.has(strategyName)) {
         const verify: VerifyFunction = async (
           tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
@@ -181,7 +197,7 @@ export async function setupMicrosoftAuth(app: Express) {
             name: strategyName,
             config,
             scope: "openid email profile offline_access",
-            callbackURL: `https://${domain}/api/auth/microsoft/callback`,
+            callbackURL: `https://${host}/api/auth/microsoft/callback`,
           },
           verify
         );
@@ -196,8 +212,10 @@ export async function setupMicrosoftAuth(app: Express) {
         return res.status(403).json({ message: "Microsoft sign-in is not enabled" });
       }
       
-      ensureMicrosoftStrategy(req.hostname);
-      passport.authenticate(`microsoft:${req.hostname}`, {
+      const host = getFullHost(req);
+      console.log(`Microsoft auth initiated - using callback host: ${host}`);
+      ensureMicrosoftStrategy(host);
+      passport.authenticate(`microsoft:${host}`, {
         prompt: "select_account",
         scope: ["openid", "email", "profile", "offline_access"],
       })(req, res, next);
@@ -209,8 +227,10 @@ export async function setupMicrosoftAuth(app: Express) {
         return res.redirect("/?error=microsoft_disabled");
       }
       
-      ensureMicrosoftStrategy(req.hostname);
-      passport.authenticate(`microsoft:${req.hostname}`, {
+      const host = getFullHost(req);
+      console.log(`Microsoft auth callback received - host: ${host}`);
+      ensureMicrosoftStrategy(host);
+      passport.authenticate(`microsoft:${host}`, {
         successReturnToOrRedirect: "/",
         failureRedirect: "/?error=microsoft_auth_failed",
       })(req, res, next);
