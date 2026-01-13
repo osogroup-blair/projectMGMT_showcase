@@ -3,6 +3,9 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const highLevelRoleEnum = z.enum(['owner', 'manager', 'stakeholder', 'member']);
+export type HighLevelRoleType = z.infer<typeof highLevelRoleEnum>;
+
 // Re-export auth schema (users and sessions tables)
 export * from "./models/auth";
 

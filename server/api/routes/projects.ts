@@ -609,6 +609,15 @@ export function registerProjectRoutes(
       // Add high-level roles
       if (highLevelRoles && Array.isArray(highLevelRoles)) {
         for (const roleType of highLevelRoles) {
+          // If assigning owner role, make it exclusive and sync project.ownerId
+          if (roleType === 'owner') {
+            const allHighLevelRoles = await storage.getHighLevelRolesByProject(projectId);
+            const existingOwnerRoles = allHighLevelRoles.filter(r => r.roleType === 'owner');
+            for (const ownerRole of existingOwnerRoles) {
+              await storage.deleteHighLevelRole(ownerRole.id);
+            }
+            await storage.updateProject(projectId, { ownerId: userId });
+          }
           await storage.createHighLevelRole({
             teamMemberId: member.id,
             roleType,
@@ -636,7 +645,7 @@ export function registerProjectRoutes(
   // Update team member's roles
   app.patch("/api/projects/:projectId/team-members/:id", async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id, projectId } = req.params;
       const { allocationPercent, highLevelRoles, executionRoleIds } = req.body;
 
       // Update allocation if provided
@@ -651,12 +660,30 @@ export function registerProjectRoutes(
 
       // Update high-level roles if provided
       if (highLevelRoles !== undefined && Array.isArray(highLevelRoles)) {
+        const hadOwnerRole = (await storage.getHighLevelRoles(id)).some(r => r.roleType === 'owner');
+        const willHaveOwnerRole = highLevelRoles.includes('owner');
+        
         await storage.deleteHighLevelRolesByTeamMember(id);
+        
         for (const roleType of highLevelRoles) {
+          // If assigning owner role, make it exclusive
+          if (roleType === 'owner') {
+            const allHighLevelRoles = await storage.getHighLevelRolesByProject(projectId);
+            const existingOwnerRoles = allHighLevelRoles.filter(r => r.roleType === 'owner' && r.teamMemberId !== id);
+            for (const ownerRole of existingOwnerRoles) {
+              await storage.deleteHighLevelRole(ownerRole.id);
+            }
+            await storage.updateProject(projectId, { ownerId: member.userId });
+          }
           await storage.createHighLevelRole({
             teamMemberId: id,
             roleType,
           });
+        }
+        
+        // If owner role was removed, clear project.ownerId
+        if (hadOwnerRole && !willHaveOwnerRole) {
+          await storage.updateProject(projectId, { ownerId: null });
         }
       }
 
@@ -681,8 +708,18 @@ export function registerProjectRoutes(
   // Remove team member
   app.delete("/api/projects/:projectId/team-members/:id", async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id, projectId } = req.params;
+      
+      // Check if this member is the owner and clear project.ownerId if so
+      const highLevelRoles = await storage.getHighLevelRoles(id);
+      const isOwner = highLevelRoles.some(r => r.roleType === 'owner');
+      
       await storage.deleteProjectTeamMember(id);
+      
+      if (isOwner) {
+        await storage.updateProject(projectId, { ownerId: null });
+      }
+      
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -697,6 +734,20 @@ export function registerProjectRoutes(
 
       if (!Array.isArray(members)) {
         return res.status(400).json({ error: "members must be an array" });
+      }
+
+      // Find the first member with owner role (only one allowed)
+      const ownerMember = members.find(m => 
+        m.highLevelRoles && Array.isArray(m.highLevelRoles) && m.highLevelRoles.includes('owner')
+      );
+
+      // Remove existing owner roles in the project
+      if (ownerMember) {
+        const allHighLevelRoles = await storage.getHighLevelRolesByProject(projectId);
+        const existingOwnerRoles = allHighLevelRoles.filter(r => r.roleType === 'owner');
+        for (const ownerRole of existingOwnerRoles) {
+          await storage.deleteHighLevelRole(ownerRole.id);
+        }
       }
 
       const results = [];
@@ -717,6 +768,10 @@ export function registerProjectRoutes(
         if (m.highLevelRoles && Array.isArray(m.highLevelRoles)) {
           await storage.deleteHighLevelRolesByTeamMember(member.id);
           for (const roleType of m.highLevelRoles) {
+            // Skip owner role if this isn't the designated owner member
+            if (roleType === 'owner' && ownerMember && m.userId !== ownerMember.userId) {
+              continue;
+            }
             await storage.createHighLevelRole({
               teamMemberId: member.id,
               roleType,
@@ -724,8 +779,24 @@ export function registerProjectRoutes(
           }
         }
 
-        // Clear and set execution roles
-        if (m.executionRoleIds && Array.isArray(m.executionRoleIds)) {
+        results.push(member);
+      }
+
+      // Sync project.ownerId with the actual owner role in the database
+      // This handles both full and incremental updates correctly
+      const finalHighLevelRoles = await storage.getHighLevelRolesByProject(projectId);
+      const finalOwnerRole = finalHighLevelRoles.find(r => r.roleType === 'owner');
+      if (finalOwnerRole) {
+        const ownerTeamMember = await storage.getProjectTeamMemberById(finalOwnerRole.teamMemberId);
+        await storage.updateProject(projectId, { ownerId: ownerTeamMember?.userId || null });
+      } else {
+        await storage.updateProject(projectId, { ownerId: null });
+      }
+
+      // Handle execution roles in a second pass (after high-level roles are set)
+      for (const m of members) {
+        const member = await storage.getProjectTeamMemberByUserAndProject(projectId, m.userId);
+        if (member && m.executionRoleIds && Array.isArray(m.executionRoleIds)) {
           await storage.deleteExecutionRoleAssignmentsByTeamMember(member.id);
           for (const roleId of m.executionRoleIds) {
             await storage.createExecutionRoleAssignment({
@@ -735,13 +806,122 @@ export function registerProjectRoutes(
             });
           }
         }
-
-        results.push(member);
       }
 
       res.status(201).json(results);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Add a high-level role to a team member
+  app.post("/api/projects/:projectId/team-members/:id/high-level-roles", async (req, res) => {
+    try {
+      const { id, projectId } = req.params;
+      const { roleType } = req.body;
+
+      const member = await storage.getProjectTeamMemberById(id);
+      if (!member) {
+        return res.status(404).json({ error: "Team member not found" });
+      }
+
+      // Check if role already exists
+      const existingRoles = await storage.getHighLevelRoles(id);
+      if (existingRoles.some(r => r.roleType === roleType)) {
+        return res.status(400).json({ error: "Role already assigned" });
+      }
+
+      // If assigning owner role, make it exclusive and sync project.ownerId
+      if (roleType === 'owner') {
+        const allHighLevelRoles = await storage.getHighLevelRolesByProject(projectId);
+        const existingOwnerRoles = allHighLevelRoles.filter(r => r.roleType === 'owner');
+        for (const ownerRole of existingOwnerRoles) {
+          await storage.deleteHighLevelRole(ownerRole.id);
+        }
+        await storage.updateProject(projectId, { ownerId: member.userId });
+      }
+
+      const role = await storage.createHighLevelRole({
+        teamMemberId: id,
+        roleType,
+      });
+
+      res.status(201).json(role);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Remove a high-level role from a team member
+  app.delete("/api/projects/:projectId/team-members/:id/high-level-roles/:roleType", async (req, res) => {
+    try {
+      const { id, roleType, projectId } = req.params;
+
+      const existingRoles = await storage.getHighLevelRoles(id);
+      const roleToDelete = existingRoles.find(r => r.roleType === roleType);
+
+      if (!roleToDelete) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+
+      await storage.deleteHighLevelRole(roleToDelete.id);
+
+      // If removing owner role, clear project.ownerId
+      if (roleType === 'owner') {
+        await storage.updateProject(projectId, { ownerId: null });
+      }
+
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add an execution role to a team member
+  app.post("/api/projects/:projectId/team-members/:id/execution-roles", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { roleId } = req.body;
+
+      const member = await storage.getProjectTeamMemberById(id);
+      if (!member) {
+        return res.status(404).json({ error: "Team member not found" });
+      }
+
+      // Check if role already exists
+      const existingRoles = await storage.getExecutionRoleAssignments(id);
+      if (existingRoles.some(r => r.roleId === roleId)) {
+        return res.status(400).json({ error: "Execution role already assigned" });
+      }
+
+      const assignment = await storage.createExecutionRoleAssignment({
+        teamMemberId: id,
+        roleId,
+        isPrimary: false,
+      });
+
+      res.status(201).json(assignment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Remove an execution role from a team member
+  app.delete("/api/projects/:projectId/team-members/:id/execution-roles/:roleId", async (req, res) => {
+    try {
+      const { id, roleId } = req.params;
+
+      const existingRoles = await storage.getExecutionRoleAssignments(id);
+      const roleToDelete = existingRoles.find(r => r.roleId === roleId);
+
+      if (!roleToDelete) {
+        return res.status(404).json({ error: "Execution role assignment not found" });
+      }
+
+      await storage.deleteExecutionRoleAssignment(roleToDelete.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 }
