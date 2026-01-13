@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { Loader2, Flag, Target } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -103,6 +104,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { data: resolvedTaskTypes = [] } = useResolvedTaskTypes(projectId);
   const { statuses: taskStatuses, statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor, defaultStatus } = useTaskStatuses();
   const { updateAsync: updateEpicAsync } = useEpics();
+  const { isTaskComplete } = useCompletedStatuses();
 
   const projectSprints = useMemo(() => 
     (allSprints || []).filter((s: any) => s.projectId === projectId),
@@ -221,13 +223,13 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const getEpicProgress = (epicId: string) => {
     const epicTasks = getTasksForEpic(epicId);
     if (epicTasks.length === 0) return 0;
-    const doneTasks = epicTasks.filter((t: any) => t.status === "Done").length;
+    const doneTasks = epicTasks.filter((t: any) => isTaskComplete(t.status)).length;
     return Math.round((doneTasks / epicTasks.length) * 100);
   };
 
   const getEpicTaskCounts = (epicId: string) => {
     const epicTasks = getTasksForEpic(epicId);
-    const doneTasks = epicTasks.filter((t: any) => t.status === "Done").length;
+    const doneTasks = epicTasks.filter((t: any) => isTaskComplete(t.status)).length;
     return { done: doneTasks, total: epicTasks.length };
   };
 

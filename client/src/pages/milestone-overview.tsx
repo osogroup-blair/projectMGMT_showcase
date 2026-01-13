@@ -48,6 +48,7 @@ import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
@@ -100,6 +101,7 @@ export default function MilestoneOverview() {
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
   const { data: allStages, isLoading: isStagesLoading } = useProjectStages();
+  const { isTaskComplete } = useCompletedStatuses();
 
   const milestone = useMemo(() => 
     (allMilestones || []).find((m: any) => m.id === milestoneId),
@@ -159,9 +161,9 @@ export default function MilestoneOverview() {
 
   const progress = useMemo(() => {
     if (linkedTasks.length === 0) return { done: 0, total: 0, percent: 0 };
-    const done = linkedTasks.filter((t: any) => t.status === "Done").length;
+    const done = linkedTasks.filter((t: any) => isTaskComplete(t.status)).length;
     return { done, total: linkedTasks.length, percent: Math.round((done / linkedTasks.length) * 100) };
-  }, [linkedTasks]);
+  }, [linkedTasks, isTaskComplete]);
 
   // Date conflict detection - tasks with target date after milestone target date
   const dateConflicts = useMemo(() => {

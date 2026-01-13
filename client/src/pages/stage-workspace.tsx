@@ -86,6 +86,7 @@ import {
   useResolvedTaskTypes
 } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
 import { EFFORT_VALUES } from "@shared/schema";
 import { PortableKanban } from "@/components/kanban";
@@ -111,6 +112,7 @@ export default function StageWorkspace() {
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { currentUser } = useCurrentUser();
   const { statusLabels, getStatusBgColor, defaultStatus } = useTaskStatuses();
+  const { isTaskComplete } = useCompletedStatuses();
 
   // Memoized filtered data - stages filtered by current project
   const projectStages = useMemo(() => 
@@ -684,7 +686,7 @@ export default function StageWorkspace() {
                 <CardContent>
                   <div className="text-3xl font-bold">{tasks.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {tasks.filter((t: any) => t.status === "Done").length} completed
+                    {tasks.filter((t: any) => isTaskComplete(t.status)).length} completed
                   </p>
                 </CardContent>
               </Card>
@@ -770,6 +772,7 @@ export default function StageWorkspace() {
               projectId={projectId}
               getAssignee={getAssignee}
               openMilestoneModal={openMilestoneModal}
+              isTaskComplete={isTaskComplete}
             />
           </TabsContent>
 
@@ -1216,7 +1219,8 @@ function MilestonesTabContent({
   allMilestoneLinks,
   projectId,
   getAssignee,
-  openMilestoneModal
+  openMilestoneModal,
+  isTaskComplete
 }: {
   milestones: any[];
   allTasks: any[];
@@ -1224,6 +1228,7 @@ function MilestonesTabContent({
   projectId: string;
   getAssignee: (id?: string) => any;
   openMilestoneModal: (mode: "link" | "create") => void;
+  isTaskComplete: (status: string | undefined | null) => boolean;
 }) {
   return (
     <div className="space-y-4">
@@ -1242,7 +1247,7 @@ function MilestonesTabContent({
               .filter((link: any) => link.milestoneId === m.id)
               .map((link: any) => link.taskId);
             const milestoneTasks = allTasks.filter((t: any) => linkedTaskIds.includes(t.id));
-            const completedTasks = milestoneTasks.filter((t: any) => t.status === "Done").length;
+            const completedTasks = milestoneTasks.filter((t: any) => isTaskComplete(t.status)).length;
             const progressPercent = milestoneTasks.length > 0 ? Math.round((completedTasks / milestoneTasks.length) * 100) : 0;
             
             return (
