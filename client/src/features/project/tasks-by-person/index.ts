@@ -1,6 +1,8 @@
 export { TasksByPerson } from "./tasks-by-person";
 export type { NewTaskData } from "./tasks-by-person";
 export { PersonWorkloadCard } from "./person-workload-card";
+export { TeamWorkloadSummary } from "./team-workload-summary";
+export { DemandTimeline } from "./demand-timeline";
 export { TaskListItem } from "./task-list-item";
 export { ScopeFilter } from "./scope-filter";
 export { QuickFilters } from "./quick-filters";

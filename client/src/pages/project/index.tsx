@@ -1126,10 +1126,10 @@ export default function ProjectOverview() {
                             ? "bg-primary text-primary-foreground" 
                             : "hover:bg-muted text-muted-foreground hover:text-foreground"
                         )}
-                        data-testid="nav-assigned-work"
+                        data-testid="nav-workload"
                       >
                         <ClipboardList className="h-4 w-4" />
-                        Assigned Work
+                        Workload
                       </button>
                       <button
                         onClick={() => setDashboardSection("upcoming-work")}

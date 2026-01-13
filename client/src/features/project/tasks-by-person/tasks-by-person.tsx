@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Users, Search, User, ClipboardList, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PersonWorkloadCard } from "./person-workload-card";
+import { TeamWorkloadSummary } from "./team-workload-summary";
+import { DemandTimeline } from "./demand-timeline";
 import { usePersonWorkload } from "./use-person-workload";
 import type { TasksByPersonConfig } from "./types";
 
@@ -139,8 +141,17 @@ export function TasksByPerson({
     );
   }
 
+  const projectTasks = tasks.filter((t: any) => t.projectId === config.projectId);
+
   return (
     <div className="space-y-4" data-testid="tasks-by-person">
+      {!justMyTasks && workloads.length > 0 && (
+        <>
+          <TeamWorkloadSummary workloads={workloads} tasks={projectTasks} />
+          <DemandTimeline tasks={projectTasks} users={users} />
+        </>
+      )}
+      
       <div className="flex flex-wrap items-center gap-3">
         {config.showJustMyTasksToggle && (
           <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
