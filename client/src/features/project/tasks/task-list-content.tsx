@@ -1174,6 +1174,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             onBlockerRequested={(taskId) => {
               updateTask({ id: taskId, updates: { status: "Blocked", blocked: true } });
             }}
+            onUpdateTask={(taskId, updates) => {
+              updateTask({ id: taskId, updates });
+            }}
           />
         </div>
       ) : (

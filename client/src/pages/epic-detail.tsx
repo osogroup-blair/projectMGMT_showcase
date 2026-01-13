@@ -865,6 +865,9 @@ export default function EpicDetail() {
                   updateTask({ id: taskId, updates: { status: newStatus } });
                   toast({ title: "Task Updated", description: `Status changed to "${newStatus}"` });
                 }}
+                onUpdateTask={(taskId, updates) => {
+                  updateTask({ id: taskId, updates });
+                }}
                 className="h-full"
               />
             </div>

@@ -806,6 +806,9 @@ export default function StageWorkspace() {
                       updateTask({ id: taskId, updates: { status: newStatus } });
                       toast({ title: "Task Updated", description: `Task moved to ${newStatus}` });
                     }}
+                    onUpdateTask={(taskId, updates) => {
+                      updateTask({ id: taskId, updates });
+                    }}
                   />
                 </div>
               ) : (

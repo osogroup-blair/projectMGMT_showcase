@@ -22,6 +22,7 @@ interface RunTabProps {
   isReadOnly: boolean;
   currentUser: any;
   onTaskMove: (taskId: string, newStatus: string, blockerReason?: string) => void;
+  onUpdateTask?: (taskId: string, updates: any) => void;
   onStartSprint: () => void;
   onCloseSprint: () => void;
   onPostPulse: (data: { didText: string; nextText: string; blockersText: string; referencedTaskIds: string[] }) => void;
@@ -38,6 +39,7 @@ export function RunTab({
   isReadOnly,
   currentUser,
   onTaskMove,
+  onUpdateTask,
   onStartSprint,
   onCloseSprint,
   onPostPulse,
@@ -108,6 +110,7 @@ export function RunTab({
             }) : sprintTasks}
             projectId={projectId}
             onTaskMove={onTaskMove}
+            onUpdateTask={onUpdateTask}
             onBlockerRequested={handleBlockerRequested}
             isReadOnly={isReadOnly}
             signalFilter={signalFilter}

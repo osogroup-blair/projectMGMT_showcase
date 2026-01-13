@@ -127,6 +127,9 @@ export default function SprintDetailPage() {
               isReadOnly={sprintData.isReadOnly}
               currentUser={currentUser}
               onTaskMove={sprintActions.handleTaskMove}
+              onUpdateTask={(taskId, updates) => {
+                sprintData.updateTask({ id: taskId, updates });
+              }}
               onStartSprint={sprintActions.handleStartSprint}
               onCloseSprint={sprintActions.handleCloseSprint}
               onPostPulse={(data) => sprintActions.postPulseMutation.mutate(data)}
