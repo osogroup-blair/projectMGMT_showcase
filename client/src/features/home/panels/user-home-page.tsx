@@ -355,24 +355,24 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
               <h2 className="text-lg font-semibold mb-4">Upcoming Milestones</h2>
               <p className="text-muted-foreground text-sm">Key milestones and upcoming deadlines across your projects.</p>
               <div className="mt-6 space-y-6">
-                 {homeState.upcomingMilestones.map(milestone => (
-                   <div key={milestone.id} className="flex items-start gap-4 p-4 border rounded-lg bg-background hover:border-primary/50 transition-colors">
-                     <div className="mt-1">
-                        <Target className="w-5 h-5 text-primary" />
-                     </div>
-                     <div className="flex-1 space-y-2">
-                       <div className="flex justify-between">
-                         <h3 className="font-medium">{milestone.name}</h3>
-                         <Badge variant="outline">{milestone.status}</Badge>
+                   <Link key={milestone.id} href={`/projects/${milestone.projectId}/milestones/${milestone.id}`} className="block">
+                     <div className="flex items-start gap-4 p-4 border rounded-lg bg-background hover:border-primary/50 transition-colors">
+                       <div className="mt-1">
+                          <Target className="w-5 h-5 text-primary" />
                        </div>
-                       <p className="text-sm text-muted-foreground">{milestone.projectName}</p>
-                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                         <span>Due: {milestone.targetDate ? new Date(milestone.targetDate).toLocaleDateString() : 'No date'}</span>
-                         <span>{milestone.percentComplete}% Complete</span>
+                       <div className="flex-1 space-y-2">
+                         <div className="flex justify-between">
+                           <h3 className="font-medium">{milestone.name}</h3>
+                           <Badge variant="outline">{milestone.status}</Badge>
+                         </div>
+                         <p className="text-sm text-muted-foreground">{milestone.projectName}</p>
+                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                           <span>Due: {milestone.targetDate ? new Date(milestone.targetDate).toLocaleDateString() : 'No date'}</span>
+                           <span>{milestone.percentComplete}% Complete</span>
+                         </div>
                        </div>
                      </div>
-                   </div>
-                 ))}
+                   </Link>
                  {homeState.upcomingMilestones.length === 0 && (
                    <div className="text-center py-8">
                      <p className="text-muted-foreground">No upcoming milestones found.</p>
