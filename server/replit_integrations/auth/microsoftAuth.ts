@@ -33,7 +33,7 @@ export async function isMicrosoftAuthEnabled(): Promise<boolean> {
   const [setting] = await db
     .select()
     .from(appSettings)
-    .where(eq(appSettings.key, "microsoft_sso_enabled"));
+    .where(eq(appSettings.id, "microsoft_sso_enabled"));
   
   return setting?.value === true;
 }
@@ -50,12 +50,12 @@ export async function getMicrosoftAuthConfig(): Promise<{
   const [enabledSetting] = await db
     .select()
     .from(appSettings)
-    .where(eq(appSettings.key, "microsoft_sso_enabled"));
+    .where(eq(appSettings.id, "microsoft_sso_enabled"));
   
   const [domainsSetting] = await db
     .select()
     .from(appSettings)
-    .where(eq(appSettings.key, "microsoft_allowed_domains"));
+    .where(eq(appSettings.id, "microsoft_allowed_domains"));
   
   return {
     enabled: enabledSetting?.value === true && configured,
@@ -226,13 +226,14 @@ export async function setMicrosoftAuthEnabled(enabled: boolean, userId?: string)
   await db
     .insert(appSettings)
     .values({
+      id: "microsoft_sso_enabled",
       key: "microsoft_sso_enabled",
       value: enabled,
       description: "Enable Microsoft SSO for user authentication",
       updatedBy: userId,
     })
     .onConflictDoUpdate({
-      target: appSettings.key,
+      target: appSettings.id,
       set: {
         value: enabled,
         updatedBy: userId,
@@ -245,13 +246,14 @@ export async function setMicrosoftAllowedDomains(domains: string[], userId?: str
   await db
     .insert(appSettings)
     .values({
+      id: "microsoft_allowed_domains",
       key: "microsoft_allowed_domains",
       value: domains,
       description: "Allowed email domains for Microsoft SSO",
       updatedBy: userId,
     })
     .onConflictDoUpdate({
-      target: appSettings.key,
+      target: appSettings.id,
       set: {
         value: domains,
         updatedBy: userId,
