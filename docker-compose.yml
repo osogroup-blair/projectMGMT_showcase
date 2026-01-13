@@ -1,0 +1,67 @@
+# Nymbl Workspace - Docker Compose Configuration
+# Run with: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: nymbl-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nymbl}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nymbl_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-nymbl}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nymbl}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nymbl Workspace Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nymbl-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database connection (uses Docker internal network)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nymbl}:${POSTGRES_PASSWORD:-nymbl_secret}@db:5432/${POSTGRES_DB:-nymbl}
+      
+      # Session security (CHANGE THIS IN PRODUCTION!)
+      SESSION_SECRET: ${SESSION_SECRET:-change-this-to-a-random-secret-in-production}
+      
+      # Server configuration
+      PORT: 5000
+      NODE_ENV: production
+      
+      # Microsoft SSO (optional)
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-common}
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+
+# Optional: Add these networks if you need to connect to other services
+# networks:
+#   default:
+#     name: nymbl-network
