@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   Layers, 
   CheckCircle2, 
@@ -18,7 +19,8 @@ import {
   AlertTriangle,
   TrendingUp,
   Shuffle,
-  Settings2
+  Settings2,
+  XCircle
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -27,6 +29,7 @@ export default function LandingPage() {
   const [demoAvailable, setDemoAvailable] = useState(false);
   const [demoChecked, setDemoChecked] = useState(false);
   const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
+  const [authError, setAuthError] = useState<{ type: string; details?: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/demo-status")
@@ -45,6 +48,16 @@ export default function LandingPage() {
         setMicrosoftEnabled(data.enabled === true);
       })
       .catch(() => {});
+
+    // Check for auth errors in URL
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    const details = params.get("details");
+    if (error) {
+      setAuthError({ type: error, details: details || undefined });
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   const handleDemoLogin = async () => {
@@ -66,8 +79,31 @@ export default function LandingPage() {
     }
   };
 
+  const getErrorMessage = (type: string, details?: string) => {
+    const messages: Record<string, string> = {
+      microsoft_disabled: "Microsoft sign-in is currently disabled.",
+      microsoft_auth_failed: "Microsoft authentication failed. Please try again.",
+      microsoft_oauth_error: "OAuth error from Microsoft.",
+      microsoft_auth_error: "Authentication error occurred.",
+      microsoft_login_error: "Failed to complete login.",
+      microsoft_unexpected_error: "An unexpected error occurred.",
+    };
+    return details || messages[type] || "Authentication failed. Please try again.";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {authError && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4">
+          <Alert variant="destructive" className="bg-red-900/90 border-red-700 text-white">
+            <XCircle className="h-4 w-4" />
+            <AlertTitle>Sign-in Failed</AlertTitle>
+            <AlertDescription className="text-red-100">
+              {getErrorMessage(authError.type, authError.details)}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

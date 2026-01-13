@@ -222,18 +222,55 @@ export async function setupMicrosoftAuth(app: Express) {
     });
     
     app.get("/api/auth/microsoft/callback", async (req, res, next) => {
-      const enabled = await isMicrosoftAuthEnabled();
-      if (!enabled) {
-        return res.redirect("/?error=microsoft_disabled");
+      try {
+        console.log(`[Microsoft Auth] Callback received`);
+        console.log(`[Microsoft Auth] Query params: ${JSON.stringify(req.query)}`);
+        
+        const enabled = await isMicrosoftAuthEnabled();
+        console.log(`[Microsoft Auth] SSO enabled: ${enabled}`);
+        
+        if (!enabled) {
+          console.log(`[Microsoft Auth] SSO disabled - redirecting`);
+          return res.redirect("/?error=microsoft_disabled");
+        }
+        
+        const host = getFullHost(req);
+        console.log(`[Microsoft Auth] Using host: ${host}`);
+        
+        // Check for OAuth errors in the query
+        if (req.query.error) {
+          console.error(`[Microsoft Auth] OAuth error: ${req.query.error} - ${req.query.error_description}`);
+          return res.redirect(`/?error=microsoft_oauth_error&details=${encodeURIComponent(String(req.query.error_description || req.query.error))}`);
+        }
+        
+        ensureMicrosoftStrategy(host);
+        
+        passport.authenticate(`microsoft:${host}`, (err: any, user: any, info: any) => {
+          console.log(`[Microsoft Auth] Passport callback - err: ${err}, user: ${!!user}, info: ${JSON.stringify(info)}`);
+          
+          if (err) {
+            console.error(`[Microsoft Auth] Authentication error:`, err);
+            return res.redirect(`/?error=microsoft_auth_error&details=${encodeURIComponent(err.message || 'Unknown error')}`);
+          }
+          
+          if (!user) {
+            console.log(`[Microsoft Auth] No user returned - info:`, info);
+            return res.redirect("/?error=microsoft_auth_failed");
+          }
+          
+          req.logIn(user, (loginErr) => {
+            if (loginErr) {
+              console.error(`[Microsoft Auth] Login error:`, loginErr);
+              return res.redirect(`/?error=microsoft_login_error&details=${encodeURIComponent(loginErr.message)}`);
+            }
+            console.log(`[Microsoft Auth] Login successful for user: ${user.email}`);
+            return res.redirect("/");
+          });
+        })(req, res, next);
+      } catch (error: any) {
+        console.error(`[Microsoft Auth] Unexpected error in callback:`, error);
+        return res.redirect(`/?error=microsoft_unexpected_error&details=${encodeURIComponent(error.message || 'Unknown error')}`);
       }
-      
-      const host = getFullHost(req);
-      console.log(`Microsoft auth callback received - host: ${host}`);
-      ensureMicrosoftStrategy(host);
-      passport.authenticate(`microsoft:${host}`, {
-        successReturnToOrRedirect: "/",
-        failureRedirect: "/?error=microsoft_auth_failed",
-      })(req, res, next);
     });
     
     console.log("Microsoft SSO configured successfully");
