@@ -1657,21 +1657,15 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               <TabsContent value="link" className="mt-4 space-y-4">
                 <div className="space-y-2">
                   <Label>System</Label>
-                  <Select
+                  <SearchableSelect
                     value={linkForm.systemId}
                     onValueChange={(value) => setLinkForm({ ...linkForm, systemId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a system" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {systems.map((system) => (
-                        <SelectItem key={system.id} value={system.id}>
-                          {getSystemIcon(system.id)} {system.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select a system"
+                    options={systems.map((system) => ({
+                      value: system.id,
+                      label: system.name,
+                    }))}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>External User ID</Label>
@@ -1736,18 +1730,15 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               </div>
               <div className="space-y-2">
                 <Label>Merge into user</Label>
-                <Select value={mergeTargetId} onValueChange={setMergeTargetId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select target user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.filter(u => u.id !== mergeSource?.id).map(u => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.name || u.email} ({u.email})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={mergeTargetId}
+                  onValueChange={setMergeTargetId}
+                  placeholder="Select target user"
+                  options={users.filter(u => u.id !== mergeSource?.id).map(u => ({
+                    value: u.id,
+                    label: `${u.name || u.email} (${u.email})`,
+                  }))}
+                />
               </div>
             </div>
             <DialogFooter>
@@ -1957,18 +1948,17 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       <div className="mt-4 pt-4 border-t">
                         <Label className="text-sm font-medium">Transfer all ownership to:</Label>
                         <div className="flex gap-2 mt-2">
-                          <Select value={transferTargetId} onValueChange={setTransferTargetId}>
-                            <SelectTrigger className="flex-1" data-testid="select-transfer-target">
-                              <SelectValue placeholder="Select a user..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {users.filter(u => u.id !== preflightUser?.id && u.status === "Active").map(u => (
-                                <SelectItem key={u.id} value={u.id}>
-                                  {u.name || u.email}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="flex-1">
+                            <SearchableSelect
+                              value={transferTargetId}
+                              onValueChange={setTransferTargetId}
+                              placeholder="Select a user..."
+                              options={users.filter(u => u.id !== preflightUser?.id && u.status === "Active").map(u => ({
+                                value: u.id,
+                                label: u.name || u.email || u.id,
+                              }))}
+                            />
+                          </div>
                           <Button 
                             onClick={handleTransferAll}
                             disabled={!transferTargetId || transferOwnership.isPending}
