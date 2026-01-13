@@ -63,6 +63,8 @@ type SortDirection = "asc" | "desc";
 
 export function StagesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
+  const { data: project, isLoading: isProjectLoading } = useProject(projectId);
+  const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
   const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
@@ -70,6 +72,11 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const { data: allProjectStages, isLoading: isStagesLoading, update: updateStage, createAsync: createStageAsync, removeAsync: removeStageAsync } = useProjectStages();
   const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
   const { isTaskComplete } = useCompletedStatuses();
+
+  const projectSprints = useMemo(() => 
+    (allSprints || []).filter((s: any) => s.projectId === projectId),
+    [allSprints, projectId]
+  );
 
   // Get stages for this project, sorted by order
   const stages = useMemo(() => {
@@ -269,6 +276,15 @@ export function StagesContent({ projectId }: { projectId: string }) {
     }
   };
 
+  const handleTaskSprintChange = async (taskId: string, sprintId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { sprintId: sprintId || null } });
+      toast({ title: "Sprint updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleTaskDeadlineChange = async (taskId: string, date: Date | undefined) => {
     try {
       const deadline = date ? format(date, "yyyy-MM-dd") : null;
@@ -430,7 +446,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
     }
   };
 
-  const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading;
+  const isLoading = isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isProjectLoading || isSprintsLoading;
 
   // Filter and sort stages
   const filteredAndSortedStages = useMemo(() => {
@@ -998,11 +1014,12 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                 <TableHeader>
                                   <TableRow className="hover:bg-transparent">
                                     <TableHead className="h-8 text-xs" style={{ width: "30%" }}>Task</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "15%" }}>Status</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "15%" }}>Epic</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "18%" }}>Assignee</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Status</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Epic</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "15%" }}>Sprint</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "15%" }}>Assignee</TableHead>
                                     <TableHead className="h-8 text-xs" style={{ width: "14%" }}>Due Date</TableHead>
-                                    <TableHead className="h-8 text-xs text-right" style={{ width: "8%" }}>Actions</TableHead>
+                                    <TableHead className="h-8 text-xs text-right" style={{ width: "2%" }}>Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1070,9 +1087,21 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                         </TableCell>
                                         <TableCell className="py-1.5">
                                           <SearchableSelect
+                                            value={task.sprintId || ""}
+                                            onValueChange={(v) => handleTaskSprintChange(task.id, v || null)}
+                                            className="h-6 text-xs w-[110px]"
+                                            placeholder="No sprint"
+                                            options={[
+                                              { value: "", label: "No sprint" },
+                                              ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                                            ]}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="py-1.5">
+                                          <SearchableSelect
                                             value={task.assigneeId || ""}
                                             onValueChange={(v) => handleTaskAssigneeChange(task.id, v || null)}
-                                            className="h-6 text-xs w-[120px]"
+                                            className="h-6 text-xs w-[110px]"
                                             placeholder="Assign"
                                             options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
                                           />
