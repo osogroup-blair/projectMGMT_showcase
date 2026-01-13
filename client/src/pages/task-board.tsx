@@ -66,6 +66,7 @@ import { useCurrentUser } from "@/context/current-user-context";
 import { useUnifiedTeamMembers } from "@/hooks/use-unified-team-members";
 import { EFFORT_VALUES } from "@shared/schema";
 import { PortableKanban } from "@/components/kanban";
+import { useTaskInspector } from "@/context/task-inspector-context";
 
 // Stage color mapping based on stage type/order
 const STAGE_COLORS: Record<string, string> = {
@@ -92,6 +93,7 @@ export default function TaskBoard() {
   const [, setLocation] = useLocation();
   const projectId = params?.projectId || "1";
   const { toast } = useToast();
+  const { openTaskInspector } = useTaskInspector();
 
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask, remove: deleteTask } = useTasks();
@@ -860,6 +862,7 @@ const GROUP_BY_CONFIG: Record<GroupByType, { label: string; icon: any; color: st
 export function TaskBoardContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { openTaskInspector } = useTaskInspector();
 
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { data: allTasks, isLoading: isTasksLoading, create: createTask, update: updateTask, remove: deleteTask } = useTasks();
@@ -1235,7 +1238,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                   stages={stages.map((s: any) => ({ id: s.id, name: s.name }))}
                   layoutVariant={layoutVariant}
                   onUpdateTask={(id, updates) => updateTask({ id, updates })}
-                  onOpenTask={(id) => setLocation(`/projects/${projectId}/tasks/${id}`)}
+                  onOpenTask={(id) => openTaskInspector(id, projectId)}
                   onOpenEpic={(epicId) => {
                     const epicData = getEpic(epicId);
                     if (epicData?.deliverableId) {
@@ -1243,8 +1246,6 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                     }
                   }}
                   onOpenMilestone={(milestoneId) => setLocation(`/projects/${projectId}?tab=milestones&milestone=${milestoneId}`)}
-                  teamMemberUserIds={teamMemberUserIds}
-                  onAddToTeam={handleAddToTeam}
                 />
               );
             })}

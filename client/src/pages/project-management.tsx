@@ -24,6 +24,7 @@ import { useRoute, Link, useLocation } from "wouter";
 import { useProject, useTasks, useUsers, useMilestones, useEpics, useProjectStages, useDeliverables } from "@/hooks/use-nexus-data";
 import { TaskCard, LayoutVariant } from "@/features/tasks/task-card";
 import { cn } from "@/lib/utils";
+import { useTaskInspector } from "@/context/task-inspector-context";
 
 export default function ProjectManagement() {
   const [match, params] = useRoute("/projects/:projectId/management");
@@ -32,6 +33,7 @@ export default function ProjectManagement() {
   const [, setLocation] = useLocation();
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("three-column");
   const [searchQuery, setSearchQuery] = useState("");
+  const { openTaskInspector } = useTaskInspector();
 
   const { data: project, isLoading } = useProject(projectId);
   const { data: allTasks, update: updateTask } = useTasks();
@@ -242,7 +244,7 @@ export default function ProjectManagement() {
                     stages={(projectStages || []).map((s: any) => ({ id: s.id, name: s.name }))}
                     layoutVariant={layoutVariant}
                     onUpdateTask={(id, updates) => updateTask({ id, updates })}
-                    onOpenTask={(id) => setLocation(`/projects/${projectId}/tasks/${id}`)}
+                    onOpenTask={(id) => openTaskInspector(id, projectId)}
                     onOpenEpic={(epicId) => {
                       const epicData = getEpic(epicId);
                       if (epicData?.deliverableId) {
