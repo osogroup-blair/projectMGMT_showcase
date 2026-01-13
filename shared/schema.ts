@@ -312,6 +312,7 @@ export const tasks = pgTable("tasks", {
   overrideAt: timestamp("override_at"),
   overrideBy: varchar("override_by").references(() => users.id),
   inheritedFromStage: boolean("inherited_from_stage").default(false),
+  assignedRoleId: varchar("assigned_role_id").references(() => projectRoles.id),
   createdBy: varchar("created_by").references(() => users.id),
   updatedBy: varchar("updated_by").references(() => users.id),
 });
@@ -384,21 +385,28 @@ export const history = pgTable("history", {
 // Project Roles
 export const projectRoles = pgTable("project_roles", {
   id: varchar("id").primaryKey(),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  description: text("description").notNull(),
+  description: text("description"),
   roleType: text("role_type").notNull(),
   isRequired: boolean("is_required").notNull().default(false),
   maxAssignees: integer("max_assignees"),
   permissions: text("permissions").array().notNull().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Role Assignments
+// Role Assignments (links users to roles within a project)
 export const roleAssignments = pgTable("role_assignments", {
   id: varchar("id").primaryKey(),
-  roleId: varchar("role_id").notNull().references(() => projectRoles.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  roleId: varchar("role_id").references(() => projectRoles.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  memberType: text("member_type").notNull().default("member"), // owner, stakeholder, member
   isPrimary: boolean("is_primary").notNull().default(false),
   allocationPercent: integer("allocation_percent").notNull().default(100),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Role Templates

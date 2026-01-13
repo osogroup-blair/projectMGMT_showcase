@@ -158,14 +158,17 @@ export interface IStorage {
   // Project Roles
   getProjectRoles(): Promise<ProjectRole[]>;
   getProjectRoleById(id: string): Promise<ProjectRole | undefined>;
+  getProjectRolesByProjectId(projectId: string): Promise<ProjectRole[]>;
   createProjectRole(role: InsertProjectRole): Promise<ProjectRole>;
   updateProjectRole(id: string, role: Partial<ProjectRole>): Promise<ProjectRole>;
   deleteProjectRole(id: string): Promise<void>;
 
-  // Role Assignments
+  // Role Assignments (Team Members)
   getRoleAssignments(): Promise<RoleAssignment[]>;
   getRoleAssignmentById(id: string): Promise<RoleAssignment | undefined>;
   getRoleAssignmentsByRoleId(roleId: string): Promise<RoleAssignment[]>;
+  getRoleAssignmentsByProjectId(projectId: string): Promise<RoleAssignment[]>;
+  getRoleAssignmentsByMemberType(projectId: string, memberType: string): Promise<RoleAssignment[]>;
   createRoleAssignment(assignment: InsertRoleAssignment): Promise<RoleAssignment>;
   updateRoleAssignment(id: string, assignment: Partial<RoleAssignment>): Promise<RoleAssignment>;
   deleteRoleAssignment(id: string): Promise<void>;
@@ -819,20 +822,23 @@ export class DatabaseStorage implements IStorage {
     const [role] = await db.select().from(schema.projectRoles).where(eq(schema.projectRoles.id, id));
     return role;
   }
+  async getProjectRolesByProjectId(projectId: string): Promise<ProjectRole[]> {
+    return await db.select().from(schema.projectRoles).where(eq(schema.projectRoles.projectId, projectId));
+  }
   async createProjectRole(role: InsertProjectRole): Promise<ProjectRole> {
     const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.projectRoles).values({ ...role, id }).returning();
     return created;
   }
   async updateProjectRole(id: string, role: Partial<ProjectRole>): Promise<ProjectRole> {
-    const [updated] = await db.update(schema.projectRoles).set(role).where(eq(schema.projectRoles.id, id)).returning();
+    const [updated] = await db.update(schema.projectRoles).set({ ...role, updatedAt: new Date() }).where(eq(schema.projectRoles.id, id)).returning();
     return updated;
   }
   async deleteProjectRole(id: string): Promise<void> {
     await db.delete(schema.projectRoles).where(eq(schema.projectRoles.id, id));
   }
 
-  // Role Assignments
+  // Role Assignments (Team Members)
   async getRoleAssignments(): Promise<RoleAssignment[]> {
     return await db.select().from(schema.roleAssignments);
   }
@@ -843,13 +849,20 @@ export class DatabaseStorage implements IStorage {
   async getRoleAssignmentsByRoleId(roleId: string): Promise<RoleAssignment[]> {
     return await db.select().from(schema.roleAssignments).where(eq(schema.roleAssignments.roleId, roleId));
   }
+  async getRoleAssignmentsByProjectId(projectId: string): Promise<RoleAssignment[]> {
+    return await db.select().from(schema.roleAssignments).where(eq(schema.roleAssignments.projectId, projectId));
+  }
+  async getRoleAssignmentsByMemberType(projectId: string, memberType: string): Promise<RoleAssignment[]> {
+    return await db.select().from(schema.roleAssignments)
+      .where(and(eq(schema.roleAssignments.projectId, projectId), eq(schema.roleAssignments.memberType, memberType)));
+  }
   async createRoleAssignment(assignment: InsertRoleAssignment): Promise<RoleAssignment> {
     const id = (arguments[0] as any).id || crypto.randomUUID();
     const [created] = await db.insert(schema.roleAssignments).values({ ...assignment, id }).returning();
     return created;
   }
   async updateRoleAssignment(id: string, assignment: Partial<RoleAssignment>): Promise<RoleAssignment> {
-    const [updated] = await db.update(schema.roleAssignments).set(assignment).where(eq(schema.roleAssignments.id, id)).returning();
+    const [updated] = await db.update(schema.roleAssignments).set({ ...assignment, updatedAt: new Date() }).where(eq(schema.roleAssignments.id, id)).returning();
     return updated;
   }
   async deleteRoleAssignment(id: string): Promise<void> {

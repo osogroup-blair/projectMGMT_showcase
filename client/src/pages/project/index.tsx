@@ -76,6 +76,7 @@ import { DeliverablesContent } from "@/pages/deliverables";
 import { TaskListContent } from "@/features/project/tasks/task-list-content";
 import { MilestonesContent } from "@/features/project/milestones/milestones-content";
 import { StagesContent } from "@/features/project/stages/stages-content";
+import { TeamContent } from "@/features/project/team/team-content";
 import { SprintsContent } from "@/features/project/sprints/sprints-content";
 import { PortableKanban } from "@/components/kanban";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
@@ -1070,6 +1071,13 @@ export default function ProjectOverview() {
                 >
                   Stages
                 </TabsTrigger>
+
+                <TabsTrigger 
+                  value="team" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
+                >
+                  Team
+                </TabsTrigger>
               </TabsList>
             </div>
           </div>
@@ -1754,6 +1762,10 @@ export default function ProjectOverview() {
 
             <TabsContent value="stages" className="mt-0 outline-none">
               <StagesContent projectId={projectId} />
+            </TabsContent>
+
+            <TabsContent value="team" className="mt-0 outline-none">
+              <TeamContent projectId={projectId} />
             </TabsContent>
           </div>
         </Tabs>

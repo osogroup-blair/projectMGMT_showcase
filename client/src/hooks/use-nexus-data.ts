@@ -557,3 +557,145 @@ export function useProjectPulseUpdates(projectId: string) {
     isPosting: postUpdate.isPending,
   };
 }
+
+// Project Team Hook - manages project team members with full CRUD
+export function useProjectTeam(projectId: string) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["projectTeam", projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const response = await fetch(`/api/projects/${projectId}/team`);
+      if (!response.ok) throw new Error("Failed to fetch project team");
+      return response.json();
+    },
+    enabled: !!projectId,
+  });
+
+  const addMember = useMutation({
+    mutationFn: async (data: { userId: string; memberType: string; roleId?: string; allocationPercent?: number; isPrimary?: boolean }) => {
+      const response = await fetch(`/api/projects/${projectId}/team`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to add team member");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectTeam", projectId] });
+    },
+  });
+
+  const updateMember = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; memberType?: string; roleId?: string; allocationPercent?: number; isPrimary?: boolean }) => {
+      const response = await fetch(`/api/projects/${projectId}/team/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to update team member");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectTeam", projectId] });
+    },
+  });
+
+  const removeMember = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/projects/${projectId}/team/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to remove team member");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectTeam", projectId] });
+    },
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+    addMember: addMember.mutateAsync,
+    updateMember: updateMember.mutateAsync,
+    removeMember: removeMember.mutateAsync,
+    isAdding: addMember.isPending,
+    isUpdating: updateMember.isPending,
+    isRemoving: removeMember.isPending,
+  };
+}
+
+// Project Roles Hook - manages project-specific roles with full CRUD
+export function useProjectTeamRoles(projectId: string) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["projectRoles", projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const response = await fetch(`/api/projects/${projectId}/roles`);
+      if (!response.ok) throw new Error("Failed to fetch project roles");
+      return response.json();
+    },
+    enabled: !!projectId,
+  });
+
+  const createRole = useMutation({
+    mutationFn: async (data: { name: string; roleType: string; description?: string; isRequired?: boolean; maxAssignees?: number }) => {
+      const response = await fetch(`/api/projects/${projectId}/roles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to create project role");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectRoles", projectId] });
+    },
+  });
+
+  const updateRole = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; name?: string; roleType?: string; description?: string; isRequired?: boolean; maxAssignees?: number }) => {
+      const response = await fetch(`/api/projects/${projectId}/roles/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to update project role");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectRoles", projectId] });
+    },
+  });
+
+  const deleteRole = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/projects/${projectId}/roles/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete project role");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectRoles", projectId] });
+    },
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+    createRole: createRole.mutateAsync,
+    updateRole: updateRole.mutateAsync,
+    deleteRole: deleteRole.mutateAsync,
+    isCreating: createRole.isPending,
+    isUpdating: updateRole.isPending,
+    isDeleting: deleteRole.isPending,
+  };
+}

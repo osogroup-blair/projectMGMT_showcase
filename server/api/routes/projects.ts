@@ -4,6 +4,8 @@ import {
   insertProjectSchema,
   insertDeliverableSchema,
   insertEpicSchema,
+  insertProjectRoleSchema,
+  insertRoleAssignmentSchema,
 } from "@shared/schema";
 
 export function registerProjectRoutes(
@@ -415,6 +417,134 @@ export function registerProjectRoutes(
         });
         res.status(201).json(created);
       }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // Project Team Management
+  // ============================================
+
+  // Get project team (all role assignments for this project)
+  app.get("/api/projects/:projectId/team", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const project = await storage.getProjectById(projectId);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+
+      const teamMembers = await storage.getRoleAssignmentsByProjectId(projectId);
+      const users = await storage.getUsers();
+      const roles = await storage.getProjectRolesByProjectId(projectId);
+
+      const enrichedTeam = teamMembers.map(member => ({
+        ...member,
+        user: users.find(u => u.id === member.userId),
+        role: roles.find(r => r.id === member.roleId),
+      }));
+
+      res.json(enrichedTeam);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add team member
+  app.post("/api/projects/:projectId/team", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const validated = insertRoleAssignmentSchema.parse({
+        ...req.body,
+        projectId,
+      });
+      const assignment = await storage.createRoleAssignment(validated);
+      res.status(201).json(assignment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update team member
+  app.patch("/api/projects/:projectId/team/:id", async (req, res) => {
+    try {
+      const assignment = await storage.updateRoleAssignment(req.params.id, req.body);
+      res.json(assignment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Remove team member
+  app.delete("/api/projects/:projectId/team/:id", async (req, res) => {
+    try {
+      await storage.deleteRoleAssignment(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // Project Roles
+  // ============================================
+
+  // Get project roles
+  app.get("/api/projects/:projectId/roles", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const roles = await storage.getProjectRolesByProjectId(projectId);
+      res.json(roles);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create project role
+  app.post("/api/projects/:projectId/roles", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const validated = insertProjectRoleSchema.parse({
+        ...req.body,
+        projectId,
+      });
+      const role = await storage.createProjectRole(validated);
+      res.status(201).json(role);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update project role
+  app.patch("/api/projects/:projectId/roles/:id", async (req, res) => {
+    try {
+      const role = await storage.updateProjectRole(req.params.id, req.body);
+      res.json(role);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete project role
+  app.delete("/api/projects/:projectId/roles/:id", async (req, res) => {
+    try {
+      await storage.deleteProjectRole(req.params.id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Set/update project owner
+  app.patch("/api/projects/:projectId/owner", async (req, res) => {
+    try {
+      const userId = getAuthUserId(req);
+      const { ownerId } = req.body;
+      const project = await storage.updateProject(req.params.projectId, {
+        ownerId,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      });
+      res.json(project);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
