@@ -1119,10 +1119,14 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       <Button variant="outline" size="sm">Change Role</Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => handleBulkRoleChange("admin")}>Set as Admin</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleBulkRoleChange("manager")}>Set as Manager</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleBulkRoleChange("member")}>Set as Member</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleBulkRoleChange("viewer")}>Set as Viewer</DropdownMenuItem>
+                      {systemRoles.map(role => (
+                        <DropdownMenuItem 
+                          key={role.id} 
+                          onClick={() => handleBulkRoleChange(role.name)}
+                        >
+                          Set as {role.displayName}
+                        </DropdownMenuItem>
+                      ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <DropdownMenu>
@@ -1435,15 +1439,21 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="systemRole">System Role</Label>
-                <SearchableSelect
-                  value={formData.systemRole}
+                <Select
+                  value={formData.systemRole || ""}
                   onValueChange={(v) => setFormData({ ...formData, systemRole: v as any })}
-                  placeholder="Select role"
-                  options={systemRoles.map(role => ({
-                    value: role.name,
-                    label: role.displayName,
-                  }))}
-                />
+                >
+                  <SelectTrigger data-testid="select-user-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {systemRoles.map(role => (
+                      <SelectItem key={role.id} value={role.name}>
+                        {role.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <Label>Additional Permissions</Label>
