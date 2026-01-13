@@ -1217,6 +1217,25 @@ export default function ProjectOverview() {
                       milestones={milestones}
                       deliverables={projectDeliverables}
                       isLoading={isTasksLoading || isUsersLoading}
+                      onCreateTask={async (taskData) => {
+                        const epic = projectEpics.find((e: any) => e.id === taskData.epicId);
+                        await createTaskAsync({
+                          id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                          title: taskData.title,
+                          description: taskData.description,
+                          project: project?.name || "",
+                          projectId,
+                          assigneeId: taskData.assigneeId || null,
+                          epicId: taskData.epicId || null,
+                          sprintId: taskData.sprintId || null,
+                          milestoneId: taskData.milestoneId || null,
+                          priority: taskData.priority,
+                          status: taskData.status,
+                          deadline: format(new Date(), "yyyy-MM-dd"),
+                          createdBy: currentUser?.id,
+                        });
+                        toast({ title: "Task created", description: `"${taskData.title}" has been created successfully.` });
+                      }}
                     />
                   )}
 
