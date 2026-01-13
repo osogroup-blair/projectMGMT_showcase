@@ -2,7 +2,7 @@ import { HomeTask } from "../types";
 import { useProjects, useTasks, useEpics, useProjectStages, useSprints, useMilestones, useUsers } from "@/hooks/use-nexus-data";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { invalidateTaskQueries } from "@/lib/query-invalidation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,30 @@ export function CurrentProjectsPanel() {
   const { data: allUsers = [], isLoading: usersLoading } = useUsers();
   const { currentUserId } = useCurrentUser();
   const { isTaskComplete } = useCompletedStatuses();
+  
+  // User's project memberships (owner, manager, stakeholder, team member)
+  const { data: userMemberships = [], isLoading: membershipsLoading } = useQuery<{ projectId: string; highLevelRoles: string[] }[]>({
+    queryKey: ['userProjectMemberships', currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return [];
+      const res = await fetch(`/api/users/${currentUserId}/project-memberships`);
+      if (!res.ok) throw new Error('Failed to fetch memberships');
+      return res.json();
+    },
+    enabled: !!currentUserId,
+  });
+
+  // Set of project IDs where user is a team member
+  const userTeamProjectIds = useMemo(() => new Set(userMemberships.map(m => m.projectId)), [userMemberships]);
+
+  // Map of project ID to user's high-level roles
+  const userProjectRoles = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    userMemberships.forEach(m => {
+      map[m.projectId] = m.highLevelRoles || [];
+    });
+    return map;
+  }, [userMemberships]);
   
   // Inactive task statuses to exclude
   const INACTIVE_STATUSES = ["done", "deferred", "archived", "complete", "completed"];
@@ -117,14 +141,15 @@ export function CurrentProjectsPanel() {
     return ids;
   }, [tasks, projects]);
 
-  // Filter Projects - only show projects where user has active tasks
+  // Filter Projects - show projects where user is a team member (owner, manager, stakeholder, team member) OR has assigned tasks
   const filteredProjects = useMemo(() => {
     return projects.filter((project: any) => {
       const hasActiveTasks = projectIdsWithActiveTasks.has(project.id);
+      const isTeamMember = userTeamProjectIds.has(project.id);
       const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return hasActiveTasks && matchesSearch;
+      return (hasActiveTasks || isTeamMember) && matchesSearch;
     });
-  }, [projects, projectIdsWithActiveTasks, searchQuery]);
+  }, [projects, projectIdsWithActiveTasks, userTeamProjectIds, searchQuery]);
 
   // Group Tasks by Project
   const getProjectTasks = (projectId: string, projectName: string) => {
@@ -180,7 +205,7 @@ export function CurrentProjectsPanel() {
     );
   };
 
-  if (projectsLoading || tasksLoading || epicsLoading || stagesLoading || sprintsLoading || milestonesLoading || usersLoading) {
+  if (projectsLoading || tasksLoading || epicsLoading || stagesLoading || sprintsLoading || milestonesLoading || usersLoading || membershipsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -325,6 +350,26 @@ export function CurrentProjectsPanel() {
                orderedTasksByStage["No Stage"] = projectTasks;
              }
              
+             const myRoles = userProjectRoles[project.id] || [];
+             const getRoleBadgeStyle = (role: string) => {
+               switch (role) {
+                 case 'owner': return 'bg-amber-50 text-amber-700 border-amber-200';
+                 case 'manager': return 'bg-blue-50 text-blue-700 border-blue-200';
+                 case 'stakeholder': return 'bg-purple-50 text-purple-700 border-purple-200';
+                 case 'member': return 'bg-green-50 text-green-700 border-green-200';
+                 default: return 'bg-gray-50 text-gray-700 border-gray-200';
+               }
+             };
+             const formatRoleName = (role: string) => {
+               switch (role) {
+                 case 'owner': return 'Owner';
+                 case 'manager': return 'Manager';
+                 case 'stakeholder': return 'Stakeholder';
+                 case 'member': return 'Team Member';
+                 default: return role;
+               }
+             };
+             
              return (
                <Card key={project.id} className="overflow-hidden">
                  <Accordion type="single" collapsible>
@@ -345,7 +390,7 @@ export function CurrentProjectsPanel() {
                               <Link href={`/projects/${project.id}`} className="font-semibold text-base truncate hover:underline hover:text-primary transition-colors">
                                 {project.name}
                               </Link>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
                                 <Badge variant="outline" className={cn(
                                   "font-normal",
                                   project.status === "In Progress" && "bg-blue-50 text-blue-700 border-blue-200",
@@ -353,6 +398,16 @@ export function CurrentProjectsPanel() {
                                 )}>
                                   {project.status}
                                 </Badge>
+                                {myRoles.length > 0 && (
+                                  <>
+                                    <span>•</span>
+                                    {myRoles.map((role: string) => (
+                                      <Badge key={role} variant="outline" className={cn("font-normal", getRoleBadgeStyle(role))}>
+                                        {formatRoleName(role)}
+                                      </Badge>
+                                    ))}
+                                  </>
+                                )}
                                 <span>•</span>
                                 <span>Due {project.deadline}</span>
                               </div>
@@ -477,6 +532,25 @@ export function CurrentProjectsPanel() {
            {filteredProjects.map((project: any) => {
              const projectTasks = getProjectTasks(project.id, project.name);
              const progress = project.progress || 0;
+             const myRoles = userProjectRoles[project.id] || [];
+             const getRoleBadgeStyle = (role: string) => {
+               switch (role) {
+                 case 'owner': return 'bg-amber-50 text-amber-700 border-amber-200';
+                 case 'manager': return 'bg-blue-50 text-blue-700 border-blue-200';
+                 case 'stakeholder': return 'bg-purple-50 text-purple-700 border-purple-200';
+                 case 'member': return 'bg-green-50 text-green-700 border-green-200';
+                 default: return 'bg-gray-50 text-gray-700 border-gray-200';
+               }
+             };
+             const formatRoleName = (role: string) => {
+               switch (role) {
+                 case 'owner': return 'Owner';
+                 case 'manager': return 'Manager';
+                 case 'stakeholder': return 'Stakeholder';
+                 case 'member': return 'Team Member';
+                 default: return role;
+               }
+             };
              
              return (
                <Card key={project.id} className="flex flex-col h-full hover:shadow-md transition-shadow">
@@ -509,10 +583,15 @@ export function CurrentProjectsPanel() {
                     <Link href={`/projects/${project.id}`}>
                      <CardTitle className="text-lg leading-tight hover:underline hover:text-primary transition-colors">{project.name}</CardTitle>
                    </Link>
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <Badge variant="secondary" className="font-normal text-xs">
                         {project.status}
                       </Badge>
+                      {myRoles.map((role: string) => (
+                        <Badge key={role} variant="outline" className={cn("font-normal text-xs", getRoleBadgeStyle(role))}>
+                          {formatRoleName(role)}
+                        </Badge>
+                      ))}
                       <span className="text-xs text-muted-foreground">Due {project.deadline}</span>
                     </div>
                  </CardHeader>
