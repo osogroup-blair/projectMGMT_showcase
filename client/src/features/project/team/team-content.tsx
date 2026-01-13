@@ -31,6 +31,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useUsers, useProject, useTasks, useRoleTemplates } from "@/hooks/use-nexus-data";
 import { useUnifiedTeamMembers } from "@/hooks/use-unified-team-members";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import type { HighLevelRoleType } from "@shared/schema";
 
@@ -45,6 +46,7 @@ type TabType = 'owner' | 'manager' | 'stakeholder' | 'member' | 'roles';
 
 export function TeamContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: project, isLoading: isProjectLoading, refetch: refetchProject } = useProject(projectId);
   const { data: allUsers = [], isLoading: isUsersLoading } = useUsers();
   const { data: allTasks = [], isLoading: isTasksLoading } = useTasks();
@@ -60,6 +62,54 @@ export function TeamContent({ projectId }: { projectId: string }) {
     addExecutionRole,
     removeExecutionRole,
   } = useUnifiedTeamMembers(projectId);
+
+  // Project-specific execution roles
+  const { data: projectRoles = [], isLoading: isProjectRolesLoading } = useQuery<any[]>({
+    queryKey: ['projectRoles', projectId],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/roles`);
+      if (!res.ok) throw new Error('Failed to fetch project roles');
+      return res.json();
+    },
+    enabled: !!projectId,
+  });
+
+  const addProjectRoleMutation = useMutation({
+    mutationFn: async (roleTemplateId: string) => {
+      const template = roleTemplates.find((r: any) => r.id === roleTemplateId);
+      if (!template) throw new Error('Template not found');
+      const res = await fetch(`/api/projects/${projectId}/roles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: template.name,
+          description: template.description,
+          roleType: template.defaultRoleType,
+          permissions: template.defaultPermissions || [],
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to add role');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projectRoles', projectId] });
+      toast({ title: 'Role added', description: 'Execution role added to project.' });
+    },
+  });
+
+  const removeProjectRoleMutation = useMutation({
+    mutationFn: async (roleId: string) => {
+      const res = await fetch(`/api/projects/${projectId}/roles/${roleId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to remove role');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projectRoles', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-team-members', projectId] });
+      toast({ title: 'Role removed', description: 'Execution role removed from project.' });
+    },
+  });
 
   const [activeTab, setActiveTab] = useState<TabType>('owner');
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
@@ -182,7 +232,7 @@ export function TeamContent({ projectId }: { projectId: string }) {
     }
   };
 
-  const isLoading = isProjectLoading || isUsersLoading || isTasksLoading || isRoleTemplatesLoading || isUnifiedLoading;
+  const isLoading = isProjectLoading || isUsersLoading || isTasksLoading || isRoleTemplatesLoading || isUnifiedLoading || isProjectRolesLoading;
 
   if (isLoading) {
     return (
@@ -210,8 +260,13 @@ export function TeamContent({ projectId }: { projectId: string }) {
     { id: 'manager', label: 'Managers', icon: Briefcase, count: managers.length, color: 'text-purple-600' },
     { id: 'stakeholder', label: 'Stakeholders', icon: Eye, count: stakeholders.length, color: 'text-blue-600' },
     { id: 'member', label: 'Team Members', icon: Users, count: members.length, color: 'text-green-600' },
-    { id: 'roles', label: 'Execution Roles', icon: Settings2, count: roleTemplates.length, color: 'text-gray-600' },
+    { id: 'roles', label: 'Execution Roles', icon: Settings2, count: projectRoles.length, color: 'text-gray-600' },
   ];
+
+  // Get available role templates that haven't been added to the project yet
+  const availableRoleTemplates = roleTemplates.filter((template: any) => 
+    !projectRoles.some((pr: any) => pr.name === template.name)
+  );
 
   const renderMemberCard = (m: any, showRoleControls: boolean = true) => {
     const user = allUsers.find((u: any) => u.id === m.userId);
@@ -293,7 +348,7 @@ export function TeamContent({ projectId }: { projectId: string }) {
                   <Label className="text-xs text-muted-foreground mb-1 block">Execution Roles</Label>
                   <div className="flex flex-wrap gap-1">
                     {(m.executionRoles || []).map((role: any) => {
-                      const template = roleTemplates.find((rt: any) => rt.id === role.roleId);
+                      const projectRole = projectRoles.find((pr: any) => pr.id === role.roleId);
                       return (
                         <Badge 
                           key={role.id} 
@@ -301,12 +356,12 @@ export function TeamContent({ projectId }: { projectId: string }) {
                           className="text-xs cursor-pointer"
                           onClick={() => handleToggleExecutionRole(m.id, role.roleId, true)}
                         >
-                          {template?.name || role.roleId}
+                          {projectRole?.name || role.roleId}
                           <X className="h-3 w-3 ml-1" />
                         </Badge>
                       );
                     })}
-                    {roleTemplates.length > 0 && (
+                    {projectRoles.length > 0 && (
                       <Select
                         value=""
                         onValueChange={(roleId) => handleToggleExecutionRole(m.id, roleId, false)}
@@ -315,7 +370,7 @@ export function TeamContent({ projectId }: { projectId: string }) {
                           <Plus className="h-3 w-3" />
                         </SelectTrigger>
                         <SelectContent>
-                          {roleTemplates
+                          {projectRoles
                             .filter((r: any) => !m.executionRoles?.some((er: any) => er.roleId === r.id))
                             .map((role: any) => (
                               <SelectItem key={role.id} value={role.id}>
@@ -439,13 +494,28 @@ export function TeamContent({ projectId }: { projectId: string }) {
                 <Settings2 className="h-5 w-5 text-gray-600" />
                 Execution Roles
               </h3>
-              <p className="text-sm text-muted-foreground">
-                Roles are managed in Admin &gt; Templates
-              </p>
+              {availableRoleTemplates.length > 0 && (
+                <Select
+                  value=""
+                  onValueChange={(templateId) => addProjectRoleMutation.mutate(templateId)}
+                >
+                  <SelectTrigger className="w-[180px]" data-testid="select-add-project-role">
+                    <Plus className="h-4 w-4 mr-2" />
+                    <span>Add Role</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableRoleTemplates.map((template: any) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-            {roleTemplates.length > 0 ? (
+            {projectRoles.length > 0 ? (
               <div className="grid gap-3">
-                {roleTemplates.map((role: any) => {
+                {projectRoles.map((role: any) => {
                   const membersWithRole = unifiedMembers.filter((m: any) => 
                     m.executionRoles?.some((er: any) => er.roleId === role.id)
                   );
@@ -457,7 +527,7 @@ export function TeamContent({ projectId }: { projectId: string }) {
                             <p className="font-medium">{role.name}</p>
                             <p className="text-sm text-muted-foreground">{role.description}</p>
                             <Badge variant="outline" className="mt-2 text-xs capitalize">
-                              {role.defaultRoleType}
+                              {role.roleType}
                             </Badge>
                           </div>
                           <div className="flex items-center gap-2">
@@ -482,6 +552,17 @@ export function TeamContent({ projectId }: { projectId: string }) {
                             ) : (
                               <span className="text-sm text-muted-foreground">Unassigned</span>
                             )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => removeProjectRoleMutation.mutate(role.id)}
+                              disabled={membersWithRole.length > 0}
+                              title={membersWithRole.length > 0 ? "Remove all assignments first" : "Remove role from project"}
+                              data-testid={`button-remove-role-${role.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                       </CardContent>
@@ -493,9 +574,9 @@ export function TeamContent({ projectId }: { projectId: string }) {
               <Card className="border-dashed">
                 <CardContent className="p-8 text-center">
                   <Settings2 className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">No execution roles defined</p>
+                  <p className="text-muted-foreground">No execution roles added to this project</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Go to Admin &gt; Templates to create role templates
+                    Use the "Add Role" dropdown above to add roles from templates
                   </p>
                 </CardContent>
               </Card>
@@ -668,11 +749,11 @@ export function TeamContent({ projectId }: { projectId: string }) {
                 })}
               </div>
             </div>
-            {newMember.highLevelRoles.includes('member') && roleTemplates.length > 0 && (
+            {newMember.highLevelRoles.includes('member') && projectRoles.length > 0 && (
               <div className="space-y-2">
                 <Label>Execution Roles</Label>
                 <div className="flex flex-wrap gap-2">
-                  {roleTemplates.map((role: any) => {
+                  {projectRoles.map((role: any) => {
                     const isSelected = newMember.executionRoleIds.includes(role.id);
                     return (
                       <Badge

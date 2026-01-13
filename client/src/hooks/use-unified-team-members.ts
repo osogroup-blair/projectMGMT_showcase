@@ -200,14 +200,10 @@ export function useUnifiedTeamMembers(projectId: string | undefined) {
     updateMember: updateMemberMutation.mutateAsync,
     removeMember: removeMemberMutation.mutateAsync,
     bulkAdd: bulkAddMutation.mutateAsync,
-    addHighLevelRole: (memberId: string, roleType: HighLevelRoleType) => 
-      addHighLevelRoleMutation.mutateAsync({ memberId, roleType }),
-    removeHighLevelRole: (memberId: string, roleType: HighLevelRoleType) => 
-      removeHighLevelRoleMutation.mutateAsync({ memberId, roleType }),
-    addExecutionRole: (memberId: string, roleId: string) => 
-      addExecutionRoleMutation.mutateAsync({ memberId, roleId }),
-    removeExecutionRole: (memberId: string, roleId: string) => 
-      removeExecutionRoleMutation.mutateAsync({ memberId, roleId }),
+    addHighLevelRole: addHighLevelRoleMutation.mutateAsync,
+    removeHighLevelRole: removeHighLevelRoleMutation.mutateAsync,
+    addExecutionRole: addExecutionRoleMutation.mutateAsync,
+    removeExecutionRole: removeExecutionRoleMutation.mutateAsync,
     isAdding: addMemberMutation.isPending,
     isUpdating: updateMemberMutation.isPending,
     isRemoving: removeMemberMutation.isPending,
