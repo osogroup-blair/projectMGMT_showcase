@@ -324,10 +324,13 @@ function SortableTaskCard({
                     {task.effort} pts
                   </Badge>
                 )}
-                {isOverdue && (
-                  <Badge variant="destructive" className="text-[10px] px-1">
-                    Overdue
-                  </Badge>
+                {task.deadline && (
+                  <span className={cn(
+                    "text-[10px] flex items-center gap-0.5",
+                    isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"
+                  )}>
+                    {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
                 )}
                 {isStale && !isOverdue && (
                   <Badge variant="secondary" className="text-[10px] px-1 bg-orange-100 text-orange-700">
@@ -536,6 +539,14 @@ function TaskCard({
               <Badge variant="outline" className="text-xs px-1.5">
                 {task.effort} pts
               </Badge>
+            )}
+            {task.deadline && (
+              <span className={cn(
+                "text-[10px] flex items-center gap-0.5",
+                isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"
+              )}>
+                {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
             )}
           </div>
           {user && (
