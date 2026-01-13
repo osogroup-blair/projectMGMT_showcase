@@ -940,12 +940,6 @@ export default function ProjectOverview() {
                     </Button>
                   </CollapsibleTrigger>
                 </Collapsible>
-                <Link href={`/projects/${projectId}/edit`}>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Settings className="h-4 w-4" />
-                    Project Settings
-                  </Button>
-                </Link>
               </div>
             </div>
 
