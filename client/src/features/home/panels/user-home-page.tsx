@@ -69,14 +69,6 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
       }, {});
   }, [allTasks, currentUser?.id, isTaskComplete]);
 
-  // Filter milestones to only show ones where user has tasks assigned
-  const myUpcomingMilestones = useMemo(() => {
-    return homeState.upcomingMilestones.filter((m: any) => {
-      const tasks = myTasksByMilestone[m.id];
-      return tasks && tasks.length > 0;
-    });
-  }, [homeState.upcomingMilestones, myTasksByMilestone]);
-
   // Calculate workload metrics
   const workloadMetrics = useMemo(() => {
     if (!allTasks || !allProjects) return null;

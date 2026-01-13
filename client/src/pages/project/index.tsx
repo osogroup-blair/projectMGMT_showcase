@@ -1410,9 +1410,6 @@ export default function ProjectOverview() {
                             }}
                             onTaskMove={handleTaskMove}
                             onBlockerRequested={handleBlockerRequested}
-                            onUpdateTask={(taskId, updates) => {
-                              updateTask({ id: taskId, updates });
-                            }}
                           />
 
                           <BlockerReasonDialog

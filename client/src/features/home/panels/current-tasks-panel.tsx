@@ -144,10 +144,6 @@ export function CurrentTasksPanel() {
     addCommentMutation.mutate({ taskId, comment });
   }, [addCommentMutation]);
 
-  const handleUpdateTask = useCallback((taskId: string, updates: any) => {
-    updateTaskMutation.mutate({ taskId, updates });
-  }, [updateTaskMutation]);
-
   const handleAssigneeChange = useCallback((taskId: string, assigneeId: string | null) => {
     updateTaskMutation.mutate({ taskId, updates: { assigneeId: assigneeId ?? undefined } });
   }, [updateTaskMutation]);
@@ -225,7 +221,6 @@ export function CurrentTasksPanel() {
           onDueDateChange: handleDueDateChange,
         }}
         onTaskMove={handleTaskMove}
-        onUpdateTask={handleUpdateTask}
       />
     </div>
   );
