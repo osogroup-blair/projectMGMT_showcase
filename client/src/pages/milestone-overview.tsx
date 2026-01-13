@@ -52,6 +52,9 @@ import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
@@ -825,8 +828,54 @@ function TasksTab({
   const { createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { currentUser } = useCurrentUser();
+  const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
+  const { data: users } = useUsers();
+  const { data: allSprints } = useSprints();
   const [isCreating, setIsCreating] = useState(false);
   
+  const projectSprints = useMemo(() => 
+    (allSprints || []).filter((s: any) => s.projectId === projectId),
+    [allSprints, projectId]
+  );
+
+  // Task update handlers
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      await updateTask({ id: taskId, updates: { status: newStatus } });
+      toast({ title: "Status updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskSprintChange = async (taskId: string, sprintId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { sprintId: sprintId || null } });
+      toast({ title: "Sprint updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskAssigneeChange = async (taskId: string, assigneeId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { assigneeId: assigneeId || null } });
+      toast({ title: "Assignee updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskDeadlineChange = async (taskId: string, date: Date | undefined) => {
+    try {
+      const deadline = date ? format(date, "yyyy-MM-dd") : null;
+      await updateTask({ id: taskId, updates: { deadline } });
+      toast({ title: "Due date updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
   // ListHeader state for filtering linked tasks
   const [listSearchQuery, setListSearchQuery] = useState("");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("one-column");
@@ -978,10 +1027,6 @@ function TasksTab({
     { value: "Blocked", label: "Blocked" }
   ];
 
-  const handleTaskStatusChange = (taskId: string, newStatus: string) => {
-    updateTask({ id: taskId, updates: { status: newStatus } });
-  };
-
   return (
     <>
     <div className="space-y-4">
@@ -1036,7 +1081,7 @@ function TasksTab({
                           <span className="text-sm font-medium hover:text-primary cursor-pointer truncate">{task.title}</span>
                         </Link>
                         {hasConflict && (
-                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" title="Task due date is after milestone target date" />
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" aria-label="Task due date is after milestone target date" />
                         )}
                       </div>
                     </TableCell>
