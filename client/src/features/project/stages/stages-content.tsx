@@ -376,7 +376,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
       await createTaskAsync({
         title: newTaskTitle,
         description: newTaskDescription || "",
-        project: projectId,
+        project: project?.name || "Project",
         projectId: projectId,
         epicId: selectedEpicId,
         stageId: dialogStageId,
