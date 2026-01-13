@@ -193,10 +193,11 @@ export async function registerRoutes(
       // Get the configured completed status IDs, or default to statuses containing "Done" or "Complete"
       let completedIds = settings?.completedTaskStatusIds || [];
       
-      // If no configured IDs, provide a fallback based on status labels
+      // If no configured IDs, provide a fallback based on status labels (case-insensitive)
       if (completedIds.length === 0) {
+        const defaultLabels = ['done', 'complete', 'completed', 'closed'];
         completedIds = taskStatuses
-          .filter(s => ['Done', 'Complete', 'Completed', 'Closed'].includes(s.label))
+          .filter(s => defaultLabels.includes(s.label.toLowerCase()))
           .map(s => s.id);
       }
       

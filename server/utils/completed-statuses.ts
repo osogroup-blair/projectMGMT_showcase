@@ -17,9 +17,11 @@ export async function getCompletedStatusLabels(): Promise<Set<string>> {
     
     let completedIds = settings?.completedTaskStatusIds || [];
     
+    // Case-insensitive fallback for default completed labels
     if (completedIds.length === 0) {
+      const defaultLabels = ['done', 'complete', 'completed', 'closed'];
       completedIds = taskStatuses
-        .filter(s => ['Done', 'Complete', 'Completed', 'Closed'].includes(s.label))
+        .filter(s => defaultLabels.includes(s.label.toLowerCase()))
         .map(s => s.id);
     }
     
