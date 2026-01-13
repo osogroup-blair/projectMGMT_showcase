@@ -46,6 +46,7 @@ import ImportWizard from "@/pages/import-wizard";
 import ImportUpload from "@/pages/import-upload";
 import ImportSummary from "@/pages/import-summary";
 import ProfilePage from "@/pages/profile";
+import HelpPage from "@/pages/help";
 
 function ProtectedRoutes() {
   return (
@@ -81,6 +82,7 @@ function ProtectedRoutes() {
       <Route path="/projects/:projectId/views" component={SavedViewsGallery} />
       <Route path="/project-tools" component={ProjectTools} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/help" component={HelpPage} />
       <Route path="/admin" component={AdminHub} />
       <Route path="/admin/data-viewer" component={DataViewerPage} />
       <Route path="/admin/:section" component={AdminHub} />

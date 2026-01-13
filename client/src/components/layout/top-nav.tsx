@@ -1,4 +1,4 @@
-import { Search, LogOut, User, Settings } from "lucide-react";
+import { Search, LogOut, User, Settings, HelpCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -60,6 +60,15 @@ export function TopNav() {
         <div className="text-right hidden sm:block">
           <p className="text-sm text-sidebar-foreground/70 mr-2">{getTimeGreeting()}, <span className="font-medium text-sidebar-foreground">{firstName}!</span></p>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          onClick={() => setLocation("/help")}
+          data-testid="button-help"
+        >
+          <HelpCircle className="h-5 w-5" />
+        </Button>
         <div className="flex items-center gap-2 pl-4 border-l border-sidebar-border">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
