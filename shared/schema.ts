@@ -575,7 +575,19 @@ export const taskDependencies = pgTable("task_dependencies", {
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   dependsOnTaskId: varchar("depends_on_task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   dependencyType: text("dependency_type").notNull().default("finish_to_start"), // only finish_to_start for v1
+  source: text("source").notNull().default("manual_add"), // "manual_add" | "rule:ruleId1,ruleId2" | "matrix_add"
+  locked: boolean("locked").notNull().default(false), // Prevent automatic removal by rule changes
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Task Dependency Scope Rules (stored as JSONB for flexibility)
+export const taskDependencyScopeRules = pgTable("task_dependency_scope_rules", {
+  id: varchar("id").primaryKey(),
+  taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  rules: jsonb("rules").notNull(), // Array of rule objects: { id, label, active, stage, epicType, taskTemplateKey }
+  lastEvaluatedAt: timestamp("last_evaluated_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Status Options (global defaults)
@@ -751,6 +763,9 @@ export const insertProjectTaskTypeSchema = createInsertSchema(projectTaskTypes).
 export const insertEpicTypeSchema = createInsertSchema(epicTypes).omit({ id: true, createdAt: true });
 export const insertDeliverableTypeSchema = createInsertSchema(deliverableTypes).omit({ id: true, createdAt: true });
 export const insertTaskDependencySchema = createInsertSchema(taskDependencies).omit({ id: true, createdAt: true });
+export const insertTaskDependencyScopeRuleSchema = createInsertSchema(taskDependencyScopeRules).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  lastEvaluatedAt: z.coerce.date().optional(),
+});
 export const insertRoleTypeSchema = createInsertSchema(roleTypes).omit({ id: true });
 export const insertSystemRoleSchema = createInsertSchema(systemRoles).omit({ id: true, createdAt: true });
 export const insertSystemPermissionSchema = createInsertSchema(systemPermissions).omit({ id: true, createdAt: true });
@@ -920,6 +935,9 @@ export type InsertDeliverableType = z.infer<typeof insertDeliverableTypeSchema>;
 
 export type TaskDependency = typeof taskDependencies.$inferSelect;
 export type InsertTaskDependency = z.infer<typeof insertTaskDependencySchema>;
+
+export type TaskDependencyScopeRule = typeof taskDependencyScopeRules.$inferSelect;
+export type InsertTaskDependencyScopeRule = z.infer<typeof insertTaskDependencyScopeRuleSchema>;
 
 export type AppSettings = typeof appSettings.$inferSelect;
 export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;

@@ -26,8 +26,9 @@ interface TaskSidebarTabsProps {
   allEpics?: any[];
   milestones?: any[];
   users?: any[];
-  addDependency?: (taskId: string) => void;
+  addDependency?: (taskId: string, source?: string) => void;
   removeDependency?: (depId: string) => void;
+  updateDependency?: (depId: string, updates: { source?: string; locked?: boolean }) => void;
   createSubtask?: (data: any) => void;
   updateTask?: (data: { id: string; updates: any }) => void;
 }
@@ -47,6 +48,7 @@ export function TaskSidebarTabs({
   users = [],
   addDependency,
   removeDependency,
+  updateDependency,
   createSubtask,
   updateTask
 }: TaskSidebarTabsProps) {

@@ -112,7 +112,8 @@ export default function TaskDetail() {
     dependents, 
     isLoading: isDepsLoading,
     addDependency,
-    removeDependency
+    removeDependency,
+    updateDependency
   } = useTaskDependencies(taskId);
   const { 
     data: subtasks, 
@@ -500,6 +501,7 @@ export default function TaskDetail() {
                 users={users || []}
                 addDependency={addDependency}
                 removeDependency={removeDependency}
+                updateDependency={updateDependency}
                 createSubtask={createSubtask}
                 updateTask={updateTask}
               />

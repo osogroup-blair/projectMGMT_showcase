@@ -338,8 +338,51 @@ export function registerImportExportRoutes(
     }
   });
 
+  app.patch("/api/tasks/:taskId/dependencies/:id", async (req, res) => {
+    try {
+      const dependency = await storage.updateTaskDependency(req.params.id, req.body);
+      res.json(dependency);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/tasks/:taskId/dependencies/:id", async (req, res) => {
     await storage.deleteTaskDependency(req.params.id);
+    res.status(204).send();
+  });
+
+  // Task Dependency Scope Rules
+  app.get("/api/taskDependencyScopeRules", async (req, res) => {
+    const rules = await storage.getTaskDependencyScopeRules();
+    res.json(rules);
+  });
+
+  app.get("/api/tasks/:taskId/dependencyScopeRules", async (req, res) => {
+    const rules = await storage.getTaskDependencyScopeRulesByTaskId(req.params.taskId);
+    res.json(rules);
+  });
+
+  app.post("/api/taskDependencyScopeRules", async (req, res) => {
+    try {
+      const rule = await storage.createTaskDependencyScopeRule(req.body);
+      res.status(201).json(rule);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/taskDependencyScopeRules/:id", async (req, res) => {
+    try {
+      const rule = await storage.updateTaskDependencyScopeRule(req.params.id, req.body);
+      res.json(rule);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/taskDependencyScopeRules/:id", async (req, res) => {
+    await storage.deleteTaskDependencyScopeRule(req.params.id);
     res.status(204).send();
   });
 

@@ -103,6 +103,7 @@ export const useMappingTemplates = () => useCollection("mappingTemplates");
 export const useStatusOptions = () => useCollection("statusOptions");
 export const useMilestoneScopeRules = () => useCollection("milestoneScopeRules");
 export const useMilestoneTaskLinks = () => useCollection("milestoneTaskLinks");
+export const useTaskDependencyScopeRules = () => useCollection("taskDependencyScopeRules");
 export const useRoleTypes = () => useCollection("roleTypes");
 export const useSprints = () => useCollection("sprints");
 export const useSprintMembers = () => useCollection("sprintMembers");
@@ -239,13 +240,28 @@ export function useTaskDependencies(taskId: string) {
   });
 
   const addDependency = useMutation({
-    mutationFn: async (dependsOnTaskId: string) => {
+    mutationFn: async ({ dependsOnTaskId, source }: { dependsOnTaskId: string; source?: string }) => {
       const response = await fetch(`/api/tasks/${taskId}/dependencies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dependsOnTaskId }),
+        body: JSON.stringify({ dependsOnTaskId, source }),
       });
       if (!response.ok) throw new Error("Failed to add dependency");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["taskDependencies", taskId] });
+    },
+  });
+
+  const updateDependency = useMutation({
+    mutationFn: async ({ dependencyId, updates }: { dependencyId: string; updates: { source?: string; locked?: boolean } }) => {
+      const response = await fetch(`/api/tasks/${taskId}/dependencies/${dependencyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!response.ok) throw new Error("Failed to update dependency");
       return response.json();
     },
     onSuccess: () => {
@@ -269,8 +285,10 @@ export function useTaskDependencies(taskId: string) {
     dependsOn: dependsOn.data || [],
     dependents: dependents.data || [],
     isLoading: dependsOn.isLoading || dependents.isLoading,
-    addDependency: addDependency.mutate,
-    addDependencyAsync: addDependency.mutateAsync,
+    addDependency: (taskId: string, source?: string) => addDependency.mutate({ dependsOnTaskId: taskId, source }),
+    addDependencyAsync: (taskId: string, source?: string) => addDependency.mutateAsync({ dependsOnTaskId: taskId, source }),
+    updateDependency: (depId: string, updates: { source?: string; locked?: boolean }) => updateDependency.mutate({ dependencyId: depId, updates }),
+    updateDependencyAsync: (depId: string, updates: { source?: string; locked?: boolean }) => updateDependency.mutateAsync({ dependencyId: depId, updates }),
     removeDependency: removeDependency.mutate,
     removeDependencyAsync: removeDependency.mutateAsync,
     refetch: () => {

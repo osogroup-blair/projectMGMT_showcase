@@ -5,6 +5,7 @@ import * as userRepository from "./repositories/user-repository";
 import * as taskRepository from "./repositories/task-repository";
 import * as milestoneRepository from "./repositories/milestone-repository";
 import * as sprintRepository from "./repositories/sprint-repository";
+import * as taskDependencyRepository from "./repositories/task-dependency-repository";
 import type {
   User, InsertUser,
   Project, InsertProject,
@@ -49,6 +50,7 @@ import type {
   TaskType, InsertTaskType,
   ProjectTaskType, InsertProjectTaskType,
   TaskDependency, InsertTaskDependency,
+  TaskDependencyScopeRule, InsertTaskDependencyScopeRule,
   EpicType, InsertEpicType,
   DeliverableType, InsertDeliverableType,
   UserIdentity, InsertUserIdentity,
@@ -402,8 +404,17 @@ export interface IStorage {
   getTaskDependenciesByTaskId(taskId: string): Promise<TaskDependency[]>;
   getDependentTasksByTaskId(taskId: string): Promise<TaskDependency[]>;
   createTaskDependency(dependency: InsertTaskDependency): Promise<TaskDependency>;
+  updateTaskDependency(id: string, dependency: Partial<TaskDependency>): Promise<TaskDependency>;
   deleteTaskDependency(id: string): Promise<void>;
   deleteTaskDependenciesByTaskId(taskId: string): Promise<void>;
+
+  // Task Dependency Scope Rules
+  getTaskDependencyScopeRules(): Promise<TaskDependencyScopeRule[]>;
+  getTaskDependencyScopeRuleById(id: string): Promise<TaskDependencyScopeRule | undefined>;
+  getTaskDependencyScopeRulesByTaskId(taskId: string): Promise<TaskDependencyScopeRule[]>;
+  createTaskDependencyScopeRule(rule: InsertTaskDependencyScopeRule): Promise<TaskDependencyScopeRule>;
+  updateTaskDependencyScopeRule(id: string, rule: Partial<TaskDependencyScopeRule>): Promise<TaskDependencyScopeRule>;
+  deleteTaskDependencyScopeRule(id: string): Promise<void>;
 
   // Epic Types (global)
   getEpicTypes(): Promise<EpicType[]>;
@@ -1661,11 +1672,34 @@ export class DatabaseStorage implements IStorage {
   async createTaskDependency(dependency: InsertTaskDependency): Promise<TaskDependency> {
     return taskRepository.createTaskDependency(dependency);
   }
+  async updateTaskDependency(id: string, dependency: Partial<TaskDependency>): Promise<TaskDependency> {
+    return taskDependencyRepository.updateTaskDependency(id, dependency);
+  }
   async deleteTaskDependency(id: string): Promise<void> {
     return taskRepository.deleteTaskDependency(id);
   }
   async deleteTaskDependenciesByTaskId(taskId: string): Promise<void> {
     return taskRepository.deleteTaskDependenciesByTaskId(taskId);
+  }
+
+  // Task Dependency Scope Rules (delegated to task-dependency-repository)
+  async getTaskDependencyScopeRules(): Promise<TaskDependencyScopeRule[]> {
+    return taskDependencyRepository.getTaskDependencyScopeRules();
+  }
+  async getTaskDependencyScopeRuleById(id: string): Promise<TaskDependencyScopeRule | undefined> {
+    return taskDependencyRepository.getTaskDependencyScopeRuleById(id);
+  }
+  async getTaskDependencyScopeRulesByTaskId(taskId: string): Promise<TaskDependencyScopeRule[]> {
+    return taskDependencyRepository.getTaskDependencyScopeRulesByTaskId(taskId);
+  }
+  async createTaskDependencyScopeRule(rule: InsertTaskDependencyScopeRule): Promise<TaskDependencyScopeRule> {
+    return taskDependencyRepository.createTaskDependencyScopeRule(rule);
+  }
+  async updateTaskDependencyScopeRule(id: string, rule: Partial<TaskDependencyScopeRule>): Promise<TaskDependencyScopeRule> {
+    return taskDependencyRepository.updateTaskDependencyScopeRule(id, rule);
+  }
+  async deleteTaskDependencyScopeRule(id: string): Promise<void> {
+    return taskDependencyRepository.deleteTaskDependencyScopeRule(id);
   }
 
   // Epic Types (global)
