@@ -1,8 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
-// Session storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// Session storage table for authentication sessions.
 export const sessions = pgTable(
   "sessions",
   {
@@ -14,7 +13,6 @@ export const sessions = pgTable(
 );
 
 // User storage table - combines auth fields with app-specific fields
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
   // Core identity (from SSO providers)
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -24,8 +22,9 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   
   // Authentication provider tracking
-  authProvider: varchar("auth_provider").default("replit"), // "replit", "microsoft"
+  authProvider: varchar("auth_provider").default("microsoft"), // "microsoft", "google"
   microsoftId: varchar("microsoft_id"), // Microsoft user object ID for linking
+  googleId: varchar("google_id"), // Google user object ID for linking
   
   // App-specific fields (migrated from existing schema)
   name: text("name"), // Display name (can be set by user)

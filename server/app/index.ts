@@ -4,7 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { connectWithRetry, isDatabaseConnected, setDatabaseReady } from "../db";
 import { isApplicationReady } from "./readiness";
-import { setupAuth, registerAuthRoutes, setupMicrosoftAuth } from "../replit_integrations/auth";
+import { setupSessionAuth, registerAuthRoutes, setupMicrosoftAuth, setupGoogleAuth } from "../replit_integrations/auth";
 import { generateDemoData } from "../services/demo-data-generator";
 import { storage } from "../data/storage";
 
@@ -199,8 +199,9 @@ app.use((req, res, next) => {
       }
 
       // Setup auth BEFORE registering other routes
-      await setupAuth(app);
+      await setupSessionAuth(app);
       await setupMicrosoftAuth(app);
+      await setupGoogleAuth(app);
       registerAuthRoutes(app);
       log('Auth routes configured');
 

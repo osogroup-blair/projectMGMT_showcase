@@ -1,7 +1,9 @@
 import type { Express } from "express";
 import { authStorage } from "./storage";
-import { isAuthenticated } from "./replitAuth";
+import { isAuthenticated } from "./sessionAuth";
 import { storage } from "../../data/storage";
+import { getMicrosoftAuthConfig } from "./microsoftAuth";
+import { getGoogleAuthConfig } from "./googleAuth";
 
 // Roles that can use impersonation feature
 const IMPERSONATION_ROLES = ["admin", "demo"];
@@ -15,7 +17,8 @@ export function registerAuthRoutes(app: Express): void {
   // Get current authenticated user (includes impersonation state)
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
-      const realUserId = req.user.claims.sub;
+      // Use the database user ID stored in session, fallback to claims.sub for backwards compatibility
+      const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
       
       // Check if admin/demo is impersonating another user
@@ -53,7 +56,7 @@ export function registerAuthRoutes(app: Express): void {
   // Start impersonation (admin and demo roles)
   app.post("/api/admin/impersonate/:userId", isAuthenticated, async (req: any, res) => {
     try {
-      const realUserId = req.user.claims.sub;
+      const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
       
       if (!canImpersonate(realUser?.systemRole)) {
@@ -98,7 +101,7 @@ export function registerAuthRoutes(app: Express): void {
   // Stop impersonation
   app.post("/api/admin/stop-impersonate", isAuthenticated, async (req: any, res) => {
     try {
-      const realUserId = req.user.claims.sub;
+      const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
       
       if (!canImpersonate(realUser?.systemRole)) {
@@ -139,8 +142,10 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(404).json({ error: "Configured demo user not found. Please regenerate demo data." });
       }
       
-      // Create a mock user object that matches what Passport OIDC provides
+      // Create a mock user object that matches what SSO auth provides
       const mockUser = {
+        id: demoUser.id,
+        email: demoUser.email,
         claims: {
           sub: demoUser.id,
           email: demoUser.email,
@@ -150,6 +155,7 @@ export function registerAuthRoutes(app: Express): void {
         access_token: "demo-token",
         refresh_token: null,
         expires_at: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days from now
+        authProvider: "demo",
       };
       
       // Use Passport's login method to properly set up the session
@@ -175,7 +181,7 @@ export function registerAuthRoutes(app: Express): void {
   // Get impersonation status (admin and demo roles)
   app.get("/api/admin/impersonation-status", isAuthenticated, async (req: any, res) => {
     try {
-      const realUserId = req.user.claims.sub;
+      const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
       
       const canUserImpersonate = canImpersonate(realUser?.systemRole);

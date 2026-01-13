@@ -6,7 +6,8 @@ This guide covers two deployment options: Local Setup and Docker deployment.
 
 - **PostgreSQL 14+** (local setup) or Docker (containerized)
 - **Node.js 18+** (local setup only)
-- **Microsoft Azure account** (optional, for SSO)
+- **Microsoft Azure account** (optional, for Microsoft SSO)
+- **Google Cloud account** (optional, for Google SSO)
 
 ---
 
@@ -133,6 +134,13 @@ docker-compose up -d
 | `MICROSOFT_CLIENT_SECRET` | Azure Client Secret **Value** | `your-secret-value` |
 | `MICROSOFT_TENANT_ID` | Azure Tenant ID or "common" | `common` |
 
+### Optional (Google SSO)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | `xxxxxxxx.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret | `GOCSPX-your-secret` |
+
 ### Server Configuration
 
 | Variable | Description | Default |
@@ -157,6 +165,22 @@ docker-compose up -d
 9. Copy the **Value** (not the Secret ID!) → `MICROSOFT_CLIENT_SECRET`
 
 **Important:** The secret value is only shown once. If you lose it, create a new one.
+
+---
+
+## Setting Up Google SSO
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) > **APIs & Services** > **Credentials**
+2. Click **Create Credentials** > **OAuth client ID**
+3. Select **Web application** as the application type
+4. Enter a name (e.g., "Nymbl Workspace")
+5. Add **Authorized redirect URI**:
+   - `https://your-domain.com/api/auth/google/callback`
+6. Click **Create**
+7. Copy the **Client ID** → `GOOGLE_CLIENT_ID`
+8. Copy the **Client Secret** → `GOOGLE_CLIENT_SECRET`
+
+**Note:** You may need to configure the OAuth consent screen first if you haven't already.
 
 ---
 
@@ -198,6 +222,11 @@ curl http://localhost:5000/health
 ### Microsoft SSO not working
 - Verify the redirect URI in Azure Portal matches exactly
 - Ensure you're using the secret **Value**, not the secret **ID**
+- Check that SSO is enabled in Admin > Authentication
+
+### Google SSO not working
+- Verify the redirect URI in Google Cloud Console matches exactly
+- Ensure your OAuth consent screen is properly configured
 - Check that SSO is enabled in Admin > Authentication
 
 ### Port already in use

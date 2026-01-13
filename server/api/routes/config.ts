@@ -12,7 +12,9 @@ import {
 import { 
   getMicrosoftAuthConfig, 
   setMicrosoftAuthEnabled, 
-  setMicrosoftAllowedDomains 
+  setMicrosoftAllowedDomains,
+  getGoogleAuthConfig,
+  setGoogleAuthEnabled
 } from "../../replit_integrations/auth";
 
 export function registerConfigRoutes(
@@ -389,7 +391,30 @@ export function registerConfigRoutes(
   // Authentication Settings (Admin only)
   app.get("/api/auth/config", async (req, res) => {
     try {
-      const config = await getMicrosoftAuthConfig();
+      const [microsoftConfig, googleConfig] = await Promise.all([
+        getMicrosoftAuthConfig(),
+        getGoogleAuthConfig()
+      ]);
+      res.json({
+        microsoft: microsoftConfig,
+        google: googleConfig
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/auth/google/toggle", async (req, res) => {
+    try {
+      const userId = getAuthUserId(req);
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ error: "enabled must be a boolean" });
+      }
+      
+      await setGoogleAuthEnabled(enabled, userId || undefined);
+      const config = await getGoogleAuthConfig();
       res.json(config);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

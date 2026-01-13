@@ -1,4 +1,4 @@
-export { setupAuth, isAuthenticated, getSession } from "./replitAuth";
+export { setupSessionAuth, isAuthenticated, getSession } from "./sessionAuth";
 export { authStorage, type IAuthStorage } from "./storage";
 export { registerAuthRoutes } from "./routes";
 export { 
@@ -8,3 +8,9 @@ export {
   setMicrosoftAuthEnabled,
   setMicrosoftAllowedDomains 
 } from "./microsoftAuth";
+export {
+  setupGoogleAuth,
+  isGoogleAuthEnabled,
+  getGoogleAuthConfig,
+  setGoogleAuthEnabled
+} from "./googleAuth";

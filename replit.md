@@ -24,7 +24,18 @@ The core data model is hierarchical, comprising Projects, Deliverables, Epics, T
 
 ### Authentication and Authorization
 
-The platform uses Replit Auth with OpenID Connect for authentication (supporting Google, GitHub, Apple, email). Role-Based Access Control (RBAC) is implemented with database-driven roles and permissions:
+The platform uses OpenID Connect for authentication with two optional SSO providers:
+-   **Microsoft SSO** (Azure AD / Entra ID): Configured via `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` environment variables
+-   **Google OAuth**: Configured via `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` environment variables
+-   **Demo Login**: Users can log in without credentials when demo data is generated
+
+Authentication modules are located in `server/replit_integrations/auth/`:
+-   `sessionAuth.ts`: Session management with PostgreSQL session store
+-   `microsoftAuth.ts`: Microsoft SSO using openid-client
+-   `googleAuth.ts`: Google OAuth using openid-client
+-   `routes.ts`: Auth routes including demo login and impersonation
+
+Role-Based Access Control (RBAC) is implemented with database-driven roles and permissions:
 
 -   **System Roles**: 5 built-in roles (admin, manager, member, viewer, demo) stored in `system_roles` table
 -   **Permissions**: 13 permissions across 4 categories (User Management, Admin Access, Projects, Data Management) stored in `system_permissions` table
@@ -33,6 +44,12 @@ The platform uses Replit Auth with OpenID Connect for authentication (supporting
 -   **Enforcement**: `AuthGuard` components on frontend, `requirePermission` middleware on backend reads from database
 
 Admins and demo users can impersonate other users. Core entities track `createdBy`, `updatedBy`, `createdAt`, and `updatedAt` for audit logging.
+
+### Deployment
+
+Two deployment options are documented in `DEPLOYMENT.md`:
+-   **Local Setup**: Using `setup.sh` script with local PostgreSQL
+-   **Docker Compose**: Containerized deployment with included PostgreSQL
 
 ### API Structure
 
