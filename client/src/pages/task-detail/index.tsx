@@ -504,6 +504,7 @@ export default function TaskDetail() {
                 updateDependency={updateDependency}
                 createSubtask={createSubtask}
                 updateTask={updateTask}
+                deleteTask={deleteTask}
               />
 
               <Card className="bg-muted/10 border-dashed">
