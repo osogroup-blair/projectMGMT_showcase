@@ -26,6 +26,9 @@ import type {
   History, InsertHistory,
   ProjectRole, InsertProjectRole,
   RoleAssignment, InsertRoleAssignment,
+  ProjectTeamMember, InsertProjectTeamMember,
+  ProjectHighLevelRole, InsertProjectHighLevelRole,
+  ExecutionRoleAssignment, InsertExecutionRoleAssignment,
   RoleTemplate, InsertRoleTemplate,
   SavedView, InsertSavedView,
   GuidanceItem, InsertGuidanceItem,
@@ -163,7 +166,7 @@ export interface IStorage {
   updateProjectRole(id: string, role: Partial<ProjectRole>): Promise<ProjectRole>;
   deleteProjectRole(id: string): Promise<void>;
 
-  // Role Assignments (Team Members)
+  // Role Assignments (Team Members) - LEGACY
   getRoleAssignments(): Promise<RoleAssignment[]>;
   getRoleAssignmentById(id: string): Promise<RoleAssignment | undefined>;
   getRoleAssignmentsByRoleId(roleId: string): Promise<RoleAssignment[]>;
@@ -172,6 +175,28 @@ export interface IStorage {
   createRoleAssignment(assignment: InsertRoleAssignment): Promise<RoleAssignment>;
   updateRoleAssignment(id: string, assignment: Partial<RoleAssignment>): Promise<RoleAssignment>;
   deleteRoleAssignment(id: string): Promise<void>;
+
+  // Project Team Members (unified membership)
+  getProjectTeamMembers(projectId: string): Promise<ProjectTeamMember[]>;
+  getProjectTeamMemberById(id: string): Promise<ProjectTeamMember | undefined>;
+  getProjectTeamMemberByUserAndProject(projectId: string, userId: string): Promise<ProjectTeamMember | undefined>;
+  createProjectTeamMember(member: InsertProjectTeamMember): Promise<ProjectTeamMember>;
+  updateProjectTeamMember(id: string, member: Partial<ProjectTeamMember>): Promise<ProjectTeamMember>;
+  deleteProjectTeamMember(id: string): Promise<void>;
+
+  // High-Level Project Roles
+  getHighLevelRoles(teamMemberId: string): Promise<ProjectHighLevelRole[]>;
+  getHighLevelRolesByProject(projectId: string): Promise<ProjectHighLevelRole[]>;
+  createHighLevelRole(role: InsertProjectHighLevelRole): Promise<ProjectHighLevelRole>;
+  deleteHighLevelRole(id: string): Promise<void>;
+  deleteHighLevelRolesByTeamMember(teamMemberId: string): Promise<void>;
+
+  // Execution Role Assignments
+  getExecutionRoleAssignments(teamMemberId: string): Promise<ExecutionRoleAssignment[]>;
+  getExecutionRoleAssignmentsByProject(projectId: string): Promise<ExecutionRoleAssignment[]>;
+  createExecutionRoleAssignment(assignment: InsertExecutionRoleAssignment): Promise<ExecutionRoleAssignment>;
+  deleteExecutionRoleAssignment(id: string): Promise<void>;
+  deleteExecutionRoleAssignmentsByTeamMember(teamMemberId: string): Promise<void>;
 
   // Role Templates
   getRoleTemplates(): Promise<RoleTemplate[]>;
@@ -867,6 +892,78 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteRoleAssignment(id: string): Promise<void> {
     await db.delete(schema.roleAssignments).where(eq(schema.roleAssignments.id, id));
+  }
+
+  // Project Team Members (unified membership)
+  async getProjectTeamMembers(projectId: string): Promise<ProjectTeamMember[]> {
+    return await db.select().from(schema.projectTeamMembers).where(eq(schema.projectTeamMembers.projectId, projectId));
+  }
+  async getProjectTeamMemberById(id: string): Promise<ProjectTeamMember | undefined> {
+    const [member] = await db.select().from(schema.projectTeamMembers).where(eq(schema.projectTeamMembers.id, id));
+    return member;
+  }
+  async getProjectTeamMemberByUserAndProject(projectId: string, userId: string): Promise<ProjectTeamMember | undefined> {
+    const [member] = await db.select().from(schema.projectTeamMembers)
+      .where(and(eq(schema.projectTeamMembers.projectId, projectId), eq(schema.projectTeamMembers.userId, userId)));
+    return member;
+  }
+  async createProjectTeamMember(member: InsertProjectTeamMember): Promise<ProjectTeamMember> {
+    const id = (arguments[0] as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectTeamMembers).values({ ...member, id }).returning();
+    return created;
+  }
+  async updateProjectTeamMember(id: string, member: Partial<ProjectTeamMember>): Promise<ProjectTeamMember> {
+    const [updated] = await db.update(schema.projectTeamMembers).set({ ...member, updatedAt: new Date() }).where(eq(schema.projectTeamMembers.id, id)).returning();
+    return updated;
+  }
+  async deleteProjectTeamMember(id: string): Promise<void> {
+    await db.delete(schema.projectTeamMembers).where(eq(schema.projectTeamMembers.id, id));
+  }
+
+  // High-Level Project Roles
+  async getHighLevelRoles(teamMemberId: string): Promise<ProjectHighLevelRole[]> {
+    return await db.select().from(schema.projectHighLevelRoles).where(eq(schema.projectHighLevelRoles.teamMemberId, teamMemberId));
+  }
+  async getHighLevelRolesByProject(projectId: string): Promise<ProjectHighLevelRole[]> {
+    const teamMembers = await this.getProjectTeamMembers(projectId);
+    const teamMemberIds = teamMembers.map(tm => tm.id);
+    if (teamMemberIds.length === 0) return [];
+    return await db.select().from(schema.projectHighLevelRoles)
+      .where(sql`${schema.projectHighLevelRoles.teamMemberId} = ANY(${teamMemberIds})`);
+  }
+  async createHighLevelRole(role: InsertProjectHighLevelRole): Promise<ProjectHighLevelRole> {
+    const id = (arguments[0] as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectHighLevelRoles).values({ ...role, id }).returning();
+    return created;
+  }
+  async deleteHighLevelRole(id: string): Promise<void> {
+    await db.delete(schema.projectHighLevelRoles).where(eq(schema.projectHighLevelRoles.id, id));
+  }
+  async deleteHighLevelRolesByTeamMember(teamMemberId: string): Promise<void> {
+    await db.delete(schema.projectHighLevelRoles).where(eq(schema.projectHighLevelRoles.teamMemberId, teamMemberId));
+  }
+
+  // Execution Role Assignments
+  async getExecutionRoleAssignments(teamMemberId: string): Promise<ExecutionRoleAssignment[]> {
+    return await db.select().from(schema.executionRoleAssignments).where(eq(schema.executionRoleAssignments.teamMemberId, teamMemberId));
+  }
+  async getExecutionRoleAssignmentsByProject(projectId: string): Promise<ExecutionRoleAssignment[]> {
+    const teamMembers = await this.getProjectTeamMembers(projectId);
+    const teamMemberIds = teamMembers.map(tm => tm.id);
+    if (teamMemberIds.length === 0) return [];
+    return await db.select().from(schema.executionRoleAssignments)
+      .where(sql`${schema.executionRoleAssignments.teamMemberId} = ANY(${teamMemberIds})`);
+  }
+  async createExecutionRoleAssignment(assignment: InsertExecutionRoleAssignment): Promise<ExecutionRoleAssignment> {
+    const id = (arguments[0] as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.executionRoleAssignments).values({ ...assignment, id }).returning();
+    return created;
+  }
+  async deleteExecutionRoleAssignment(id: string): Promise<void> {
+    await db.delete(schema.executionRoleAssignments).where(eq(schema.executionRoleAssignments.id, id));
+  }
+  async deleteExecutionRoleAssignmentsByTeamMember(teamMemberId: string): Promise<void> {
+    await db.delete(schema.executionRoleAssignments).where(eq(schema.executionRoleAssignments.teamMemberId, teamMemberId));
   }
 
   // Role Templates
