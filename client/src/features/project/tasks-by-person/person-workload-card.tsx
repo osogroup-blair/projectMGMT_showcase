@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   ChevronDown, 
@@ -219,9 +218,9 @@ export function PersonWorkloadCard({
                 onFiltersChange={updateFilters}
               />
 
-              <ScrollArea className="h-[300px]">
+              <div>
                 {filteredTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center py-8">
+                  <div className="flex flex-col items-center justify-center text-center py-8">
                     <Search className="h-10 w-10 text-muted-foreground/50 mb-3" />
                     <p className="text-sm text-muted-foreground">No tasks match your filters</p>
                     <Button 
@@ -240,7 +239,7 @@ export function PersonWorkloadCard({
                     </Button>
                   </div>
                 ) : groupedTasks ? (
-                  <div className="space-y-4 pr-4">
+                  <div className="space-y-4">
                     {groupedTasks.map(group => (
                       <div key={group.id}>
                         <div className="flex items-center gap-2 mb-2">
@@ -266,7 +265,7 @@ export function PersonWorkloadCard({
                     ))}
                   </div>
                 ) : (
-                  <div className="space-y-2 pr-4">
+                  <div className="space-y-2">
                     {filteredTasks.map(task => (
                       <TaskListItem
                         key={task.id}
@@ -277,7 +276,7 @@ export function PersonWorkloadCard({
                     ))}
                   </div>
                 )}
-              </ScrollArea>
+              </div>
             </div>
           </CardContent>
         </CollapsibleContent>

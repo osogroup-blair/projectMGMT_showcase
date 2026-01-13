@@ -4,9 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Users, Search, User, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PersonWorkloadCard } from "./person-workload-card";
@@ -140,8 +137,7 @@ export function TasksByPerson({
         </div>
       )}
 
-      <ScrollArea className="h-[calc(100vh-400px)] min-h-[400px]">
-        <div className="space-y-3 pr-4">
+      <div className="space-y-3">
           {filteredWorkloads.length === 0 ? (
             <Card className="p-8 text-center">
               <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -180,8 +176,7 @@ export function TasksByPerson({
               />
             ))
           )}
-        </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
