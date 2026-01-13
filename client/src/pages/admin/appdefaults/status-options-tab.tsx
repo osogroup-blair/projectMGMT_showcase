@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2, GripVertical, AlertTriangle, ArrowRight, Loader2, Map } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, AlertTriangle, ArrowRight, Loader2, Map, CheckCircle2 } from "lucide-react";
 import { useStatusOptions } from "@/hooks/use-nexus-data";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
@@ -318,6 +319,141 @@ interface StatusUsageMapDialogProps {
   statuses: StatusOption[];
   type: "project" | "task";
   usageCountsMap: Record<string, StatusUsageCounts>;
+}
+
+interface CompletedStatusesCardProps {
+  taskStatuses: StatusOption[];
+}
+
+function CompletedStatusesCard({ taskStatuses }: CompletedStatusesCardProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const { data: completedConfig, isLoading } = useQuery({
+    queryKey: ["completedStatuses"],
+    queryFn: async () => {
+      const res = await fetch("/api/completed-statuses");
+      if (!res.ok) throw new Error("Failed to fetch completed statuses");
+      return res.json();
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (completedTaskStatusIds: string[]) => {
+      const res = await fetch("/api/admin/app-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completedTaskStatusIds }),
+      });
+      if (!res.ok) throw new Error("Failed to update settings");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["completedStatuses"] });
+      toast({
+        title: "Settings Saved",
+        description: "Completed status configuration has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const selectedIds = completedConfig?.completedStatusIds || [];
+
+  const handleToggle = (statusId: string, checked: boolean) => {
+    const newIds = checked
+      ? [...selectedIds, statusId]
+      : selectedIds.filter((id: string) => id !== statusId);
+    updateMutation.mutate(newIds);
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            Completed Status Configuration
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center p-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          Completed Status Configuration
+        </CardTitle>
+        <CardDescription>
+          Select which task statuses should be considered "done" for progress calculations. 
+          This affects progress bars, completion metrics, and dashboards across the entire application.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border divide-y">
+          {taskStatuses.map((status) => {
+            const isSelected = selectedIds.includes(status.id);
+            return (
+              <div
+                key={status.id}
+                className="flex items-center justify-between p-4 hover:bg-muted/50"
+                data-testid={`completed-status-row-${status.id}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id={`completed-${status.id}`}
+                    checked={isSelected}
+                    onCheckedChange={(checked) => handleToggle(status.id, !!checked)}
+                    disabled={updateMutation.isPending}
+                    data-testid={`checkbox-completed-status-${status.id}`}
+                  />
+                  <label
+                    htmlFor={`completed-${status.id}`}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Badge variant="outline" className={cn("font-normal border-0", status.color)}>
+                      {status.label}
+                    </Badge>
+                  </label>
+                </div>
+                {isSelected && (
+                  <Badge variant="secondary" className="text-xs">
+                    Counts as done
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
+        {selectedIds.length === 0 && (
+          <p className="text-sm text-muted-foreground mt-3">
+            No statuses selected. The system will default to statuses labeled "Done", "Complete", "Completed", or "Closed".
+          </p>
+        )}
+        
+        {selectedIds.length > 0 && (
+          <p className="text-sm text-muted-foreground mt-3">
+            {selectedIds.length} status{selectedIds.length !== 1 ? "es" : ""} will be counted as "completed" in progress calculations.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function StatusUsageMapDialog({
@@ -750,6 +886,8 @@ export function StatusOptionsTab() {
             </div>
           </CardContent>
         </Card>
+
+        <CompletedStatusesCard taskStatuses={taskStatuses} />
       </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
