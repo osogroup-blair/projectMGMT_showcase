@@ -12,6 +12,7 @@ const DEMO_FRAMEWORK_ID = "demo-framework-delivery";
 
 // Demo user IDs  
 const DEMO_USER_IDS = {
+  ADMIN: "demo-admin",
   SOLUTION_CONSULTANT: "demo-solution-consultant",
   PRODUCT_DESIGNER: "demo-product-designer",
   DEVELOPER_LEAD: "demo-developer-lead",
@@ -52,6 +53,16 @@ export interface DemoDataResult {
 
 // Demo users with role-based names
 const DEMO_USERS = [
+  {
+    id: DEMO_USER_IDS.ADMIN,
+    email: "demo.admin@nymbl.demo",
+    firstName: "Demo",
+    lastName: "Admin",
+    name: "Demo Admin",
+    jobTitle: "Administrator",
+    systemRole: "admin",
+    stage: null,
+  },
   {
     id: DEMO_USER_IDS.SOLUTION_CONSULTANT,
     email: "demo.solution.consultant@nymbl.demo",
@@ -201,6 +212,12 @@ export async function clearDemoData(): Promise<{ success: boolean; deleted: Reco
         // User might not exist
       }
     }
+
+    // Reset app settings
+    await storage.updateAppSettings({
+      demoDataReady: false,
+      demoLoginUserId: null,
+    });
     
     return { success: true, deleted };
   } catch (error: any) {
@@ -278,6 +295,12 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
 
     // 5. Create Time Entry System (~10% complete, in Requirements)
     await createTimeEntryProject(result, demoUsers, frameworkId, now);
+
+    // 6. Update app settings to enable demo login
+    await storage.updateAppSettings({
+      demoDataReady: true,
+      demoLoginUserId: DEMO_USER_IDS.ADMIN,
+    });
 
     return result;
   } catch (error: any) {
