@@ -63,6 +63,7 @@ import { Task } from "@/lib/mock-data";
 import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
+import { useUnifiedTeamMembers } from "@/hooks/use-unified-team-members";
 import { EFFORT_VALUES } from "@shared/schema";
 import { PortableKanban } from "@/components/kanban";
 
@@ -103,6 +104,7 @@ export default function TaskBoard() {
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { currentUser } = useCurrentUser();
   const { statusLabels, defaultStatus } = useTaskStatuses();
+  const { members: teamMembers, addMember: addToTeam } = useUnifiedTeamMembers(projectId);
   
   const projectSprints = useMemo(() => {
     if (!allSprints || !project) return [];
@@ -157,6 +159,23 @@ export default function TaskBoard() {
         color: getStageColor(stage.id, stage.order)
       }));
   }, [projectStages, projectStageIds]);
+
+  // Team member user IDs for checking if assignee is on the team
+  const teamMemberUserIds = useMemo(() => {
+    if (!teamMembers) return [];
+    return teamMembers.map((m: any) => m.userId);
+  }, [teamMembers]);
+
+  // Callback to add a user to the team as a team member
+  const handleAddToTeam = async (userId: string) => {
+    await addToTeam({
+      userId,
+      allocationPercent: 100,
+      highLevelRoles: ['member'],
+      executionRoleIds: [],
+    });
+    toast({ title: "Team member added", description: "User has been added to the project team." });
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState<"board" | "list">("board");
@@ -1224,6 +1243,8 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
                     }
                   }}
                   onOpenMilestone={(milestoneId) => setLocation(`/projects/${projectId}?tab=milestones&milestone=${milestoneId}`)}
+                  teamMemberUserIds={teamMemberUserIds}
+                  onAddToTeam={handleAddToTeam}
                 />
               );
             })}

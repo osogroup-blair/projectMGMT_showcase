@@ -217,12 +217,18 @@ export function TeamContent({ projectId }: { projectId: string }) {
   };
 
   const handleChangeOwner = async (newOwnerId: string) => {
-    const currentOwner = unifiedMembers.find((m: any) => m.highLevelRoles?.includes('owner'));
     const newOwnerMember = unifiedMembers.find((m: any) => m.userId === newOwnerId);
     
     try {
       if (newOwnerMember) {
         await addHighLevelRole({ memberId: newOwnerMember.id, roleType: 'owner' });
+      } else {
+        await addMember({
+          userId: newOwnerId,
+          allocationPercent: 100,
+          highLevelRoles: ['owner'],
+          executionRoleIds: [],
+        });
       }
       await refetchProject();
       toast({ title: "Owner changed", description: "Project owner has been updated." });

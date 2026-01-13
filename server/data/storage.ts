@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { eq, and, gte, lte, or, isNull, sql } from "drizzle-orm";
+import { eq, and, gte, lte, or, isNull, sql, inArray } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import * as userRepository from "./repositories/user-repository";
 import * as taskRepository from "./repositories/task-repository";
@@ -934,7 +934,7 @@ export class DatabaseStorage implements IStorage {
     const teamMemberIds = teamMembers.map(tm => tm.id);
     if (teamMemberIds.length === 0) return [];
     return await db.select().from(schema.projectHighLevelRoles)
-      .where(sql`${schema.projectHighLevelRoles.teamMemberId} = ANY(${teamMemberIds})`);
+      .where(inArray(schema.projectHighLevelRoles.teamMemberId, teamMemberIds));
   }
   async createHighLevelRole(role: InsertProjectHighLevelRole): Promise<ProjectHighLevelRole> {
     const id = (arguments[0] as any).id || crypto.randomUUID();
@@ -957,7 +957,7 @@ export class DatabaseStorage implements IStorage {
     const teamMemberIds = teamMembers.map(tm => tm.id);
     if (teamMemberIds.length === 0) return [];
     return await db.select().from(schema.executionRoleAssignments)
-      .where(sql`${schema.executionRoleAssignments.teamMemberId} = ANY(${teamMemberIds})`);
+      .where(inArray(schema.executionRoleAssignments.teamMemberId, teamMemberIds));
   }
   async createExecutionRoleAssignment(assignment: InsertExecutionRoleAssignment): Promise<ExecutionRoleAssignment> {
     const id = (arguments[0] as any).id || crypto.randomUUID();

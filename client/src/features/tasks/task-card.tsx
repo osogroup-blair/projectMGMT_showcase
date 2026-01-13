@@ -7,6 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { UserPlus } from "lucide-react";
 import { 
   Clock, 
   Flag, 
@@ -73,6 +84,8 @@ export interface TaskCardProps {
   onOpenEpic?: (epicId: string) => void;
   onOpenMilestone?: (milestoneId: string) => void;
   onOpenTask?: (taskId: string) => void;
+  teamMemberUserIds?: string[];
+  onAddToTeam?: (userId: string) => Promise<void>;
 }
 
 export function TaskCard({
@@ -87,12 +100,16 @@ export function TaskCard({
   onUpdateTask,
   onOpenEpic,
   onOpenMilestone,
-  onOpenTask
+  onOpenTask,
+  teamMemberUserIds,
+  onAddToTeam
 }: TaskCardProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
+  const [addToTeamConfirmOpen, setAddToTeamConfirmOpen] = useState(false);
+  const [pendingAssigneeId, setPendingAssigneeId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const { statusLabels, getStatusColor, isCompletedStatus } = useTaskStatuses();
   
@@ -129,8 +146,40 @@ export function TaskCard({
   };
 
   const handleAssigneeChange = (userId: string) => {
-    onUpdateTask(task.id, { assigneeId: userId === "unassigned" ? undefined : userId });
-    setAssigneePopoverOpen(false);
+    if (userId === "unassigned") {
+      onUpdateTask(task.id, { assigneeId: undefined });
+      setAssigneePopoverOpen(false);
+      return;
+    }
+    
+    const isTeamMember = !teamMemberUserIds || teamMemberUserIds.includes(userId);
+    
+    if (!isTeamMember) {
+      if (onAddToTeam) {
+        setPendingAssigneeId(userId);
+        setAddToTeamConfirmOpen(true);
+        setAssigneePopoverOpen(false);
+      } else {
+        onUpdateTask(task.id, { assigneeId: userId });
+        setAssigneePopoverOpen(false);
+      }
+    } else {
+      onUpdateTask(task.id, { assigneeId: userId });
+      setAssigneePopoverOpen(false);
+    }
+  };
+
+  const handleConfirmAddToTeam = async () => {
+    if (pendingAssigneeId && onAddToTeam) {
+      try {
+        await onAddToTeam(pendingAssigneeId);
+        onUpdateTask(task.id, { assigneeId: pendingAssigneeId });
+      } catch (error) {
+        console.error("Failed to add user to team:", error);
+      }
+    }
+    setAddToTeamConfirmOpen(false);
+    setPendingAssigneeId(null);
   };
 
   const handleDateChange = (date: Date | undefined) => {
@@ -494,6 +543,27 @@ export function TaskCard({
           </>
         )}
       </CardContent>
+
+      <AlertDialog open={addToTeamConfirmOpen} onOpenChange={setAddToTeamConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add User to Project Team</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAssigneeId && (() => {
+                const user = users.find(u => u.id === pendingAssigneeId);
+                return `"${user?.name || 'This user'}" is not currently a member of this project's team. Would you like to add them as a team member and assign this task to them?`;
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingAssigneeId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAddToTeam}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add to Team & Assign
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
