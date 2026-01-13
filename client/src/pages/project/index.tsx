@@ -80,6 +80,7 @@ import { PortableKanban } from "@/components/kanban";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
 import { NextSprintBacklog } from "@/features/project/sprints/next-sprint-backlog";
+import { TasksByPerson } from "@/features/project/tasks-by-person";
 import { Activity, PanelLeft, Send, BarChart3, ChevronLeftIcon, ChevronRightIcon, Search, Filter, MessageSquare } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1199,71 +1200,24 @@ export default function ProjectOverview() {
 
                 <div className={cn("flex-1 min-w-0", dashboardSidebarOpen ? "pl-6" : "pl-4")}>
                   {dashboardSection === "assigned-work" && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <ClipboardList className="h-5 w-5" />
-                            My Assigned Work
-                          </h2>
-                          <p className="text-sm text-muted-foreground">Tasks assigned to you in this project</p>
-                        </div>
-                        <Badge variant="outline" className="text-sm">
-                          {myAssignedTasks.length} task{myAssignedTasks.length !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-
-                      {myAssignedTasks.length > 0 ? (
-                        <div className="space-y-2">
-                          {myAssignedTasks.map((task: any) => {
-                            const epic = projectEpics.find((e: any) => e.id === task.epicId);
-                            return (
-                              <Link key={task.id} href={`/projects/${projectId}/tasks/${task.id}`}>
-                                <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-                                  <CardContent className="py-3 px-4">
-                                    <div className="flex items-center justify-between gap-4">
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium truncate">{task.title}</div>
-                                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                                          {epic && <span className="truncate">Epic: {epic.title}</span>}
-                                          {task.deadline && (
-                                            <span className={cn(
-                                              "shrink-0",
-                                              differenceInDays(parseISO(task.deadline), new Date()) < 0 && "text-red-600 font-medium"
-                                            )}>
-                                              Due: {format(parseISO(task.deadline), "MMM d")}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        <Badge variant="outline" className="capitalize text-xs">
-                                          {task.status}
-                                        </Badge>
-                                        {task.priority && (
-                                          <Badge 
-                                            variant={task.priority === "High" || task.priority === "Critical" ? "destructive" : "secondary"} 
-                                            className="text-xs"
-                                          >
-                                            {task.priority}
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <Card className="p-8 text-center">
-                          <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                          <h3 className="text-lg font-semibold mb-2">No Assigned Tasks</h3>
-                          <p className="text-muted-foreground">You don't have any tasks assigned to you in this project.</p>
-                        </Card>
-                      )}
-                    </div>
+                    <TasksByPerson
+                      config={{
+                        projectId,
+                        showJustMyTasksToggle: true,
+                        defaultJustMyTasks: false,
+                        allowedScopes: ["all", "sprint", "milestone", "deliverable", "unscoped"],
+                        allowInlineEditing: false,
+                        defaultExpanded: false,
+                        currentUserId: currentUser?.id,
+                      }}
+                      tasks={allTasks}
+                      users={users || []}
+                      epics={projectEpics}
+                      sprints={projectSprints}
+                      milestones={milestones}
+                      deliverables={projectDeliverables}
+                      isLoading={isTasksLoading || isUsersLoading}
+                    />
                   )}
 
                   {dashboardSection === "current-sprint" && (
