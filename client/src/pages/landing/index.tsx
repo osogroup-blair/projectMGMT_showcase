@@ -79,27 +79,50 @@ export default function LandingPage() {
     }
   };
 
-  const getErrorMessage = (type: string, details?: string) => {
-    const messages: Record<string, string> = {
-      microsoft_disabled: "Microsoft sign-in is currently disabled.",
-      microsoft_auth_failed: "Microsoft authentication failed. Please try again.",
-      microsoft_oauth_error: "OAuth error from Microsoft.",
-      microsoft_auth_error: "Authentication error occurred.",
-      microsoft_login_error: "Failed to complete login.",
-      microsoft_unexpected_error: "An unexpected error occurred.",
+  const getErrorTitle = (type: string) => {
+    const titles: Record<string, string> = {
+      microsoft_disabled: "Microsoft Sign-in Disabled",
+      microsoft_auth_failed: "Authentication Failed",
+      microsoft_oauth_error: "OAuth Error",
+      microsoft_auth_error: "Authentication Error",
+      microsoft_login_error: "Login Error",
+      microsoft_unexpected_error: "Unexpected Error",
     };
-    return details || messages[type] || "Authentication failed. Please try again.";
+    return titles[type] || "Sign-in Failed";
+  };
+
+  const getErrorDescription = (type: string) => {
+    const descriptions: Record<string, string> = {
+      microsoft_disabled: "Microsoft sign-in has been disabled by an administrator.",
+      microsoft_auth_failed: "Microsoft authentication did not complete successfully.",
+      microsoft_oauth_error: "Microsoft returned an error during the OAuth flow.",
+      microsoft_auth_error: "An error occurred during authentication.",
+      microsoft_login_error: "Failed to complete the login process.",
+      microsoft_unexpected_error: "An unexpected error occurred during sign-in.",
+    };
+    return descriptions[type] || "Authentication failed. Please try again.";
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {authError && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4">
-          <Alert variant="destructive" className="bg-red-900/90 border-red-700 text-white">
-            <XCircle className="h-4 w-4" />
-            <AlertTitle>Sign-in Failed</AlertTitle>
-            <AlertDescription className="text-red-100">
-              {getErrorMessage(authError.type, authError.details)}
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-2xl px-4">
+          <Alert variant="destructive" className="bg-red-900/95 border-red-700 text-white shadow-2xl">
+            <XCircle className="h-5 w-5" />
+            <AlertTitle className="text-lg font-semibold">{getErrorTitle(authError.type)}</AlertTitle>
+            <AlertDescription className="mt-2 space-y-3">
+              <p className="text-red-100">{getErrorDescription(authError.type)}</p>
+              {authError.details && (
+                <div className="mt-3 p-3 bg-red-950/50 rounded border border-red-800">
+                  <p className="text-xs font-medium text-red-300 mb-1">Error Details:</p>
+                  <p className="text-sm text-red-100 font-mono break-all">{authError.details}</p>
+                </div>
+              )}
+              <div className="mt-3 pt-3 border-t border-red-800">
+                <p className="text-xs text-red-300">
+                  If this is a redirect URI mismatch, go to Admin → Authentication to see the correct callback URL to register in Azure Portal.
+                </p>
+              </div>
             </AlertDescription>
           </Alert>
         </div>

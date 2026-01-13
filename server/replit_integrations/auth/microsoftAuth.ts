@@ -246,16 +246,41 @@ export async function setupMicrosoftAuth(app: Express) {
         ensureMicrosoftStrategy(host);
         
         passport.authenticate(`microsoft:${host}`, (err: any, user: any, info: any) => {
-          console.log(`[Microsoft Auth] Passport callback - err: ${err}, user: ${!!user}, info: ${JSON.stringify(info)}`);
+          console.log(`[Microsoft Auth] Passport callback`);
+          console.log(`[Microsoft Auth] Error:`, err);
+          console.log(`[Microsoft Auth] User:`, user ? `${user.email} (id: ${user.id})` : 'null');
+          console.log(`[Microsoft Auth] Info:`, JSON.stringify(info, null, 2));
           
           if (err) {
-            console.error(`[Microsoft Auth] Authentication error:`, err);
-            return res.redirect(`/?error=microsoft_auth_error&details=${encodeURIComponent(err.message || 'Unknown error')}`);
+            console.error(`[Microsoft Auth] Full error object:`, JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+            
+            // Build detailed error message
+            let errorDetails = err.message || 'Unknown error';
+            if (err.cause) {
+              errorDetails += ` | Cause: ${err.cause.message || JSON.stringify(err.cause)}`;
+            }
+            if (err.code) {
+              errorDetails += ` | Code: ${err.code}`;
+            }
+            if (err.error) {
+              errorDetails += ` | Error: ${err.error}`;
+            }
+            if (err.error_description) {
+              errorDetails += ` | Description: ${err.error_description}`;
+            }
+            
+            // Check for common issues
+            if (errorDetails.includes('redirect_uri') || errorDetails.includes('AADSTS50011')) {
+              errorDetails = `REDIRECT URI MISMATCH: The callback URL registered in Azure Portal doesn't match. Expected: https://${host}/api/auth/microsoft/callback`;
+            }
+            
+            return res.redirect(`/?error=microsoft_auth_error&details=${encodeURIComponent(errorDetails)}&host=${encodeURIComponent(host)}`);
           }
           
           if (!user) {
+            const infoDetails = info ? JSON.stringify(info) : 'No additional info';
             console.log(`[Microsoft Auth] No user returned - info:`, info);
-            return res.redirect("/?error=microsoft_auth_failed");
+            return res.redirect(`/?error=microsoft_auth_failed&details=${encodeURIComponent(`Authentication completed but no user was returned. Info: ${infoDetails}`)}`);
           }
           
           req.logIn(user, (loginErr) => {
