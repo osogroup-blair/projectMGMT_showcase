@@ -30,7 +30,8 @@ function addDays(date: Date, days: number): Date {
 }
 
 function toDateString(date: Date): string {
-  return date.toISOString();
+  // Return date-only format (YYYY-MM-DD) without time
+  return date.toISOString().split('T')[0];
 }
 
 export interface DemoDataResult {
