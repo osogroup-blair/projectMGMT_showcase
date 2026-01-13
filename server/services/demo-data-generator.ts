@@ -6,9 +6,11 @@ const DEMO_PROJECT_IDS = {
   CRM: "demo-crm-system",
   TASK_MGMT: "demo-task-management",
   TIME_ENTRY: "demo-time-entry",
+  ALLIANCE: "demo-partner-alliance",
 };
 
 const DEMO_FRAMEWORK_ID = "demo-framework-delivery";
+const ALLIANCE_FRAMEWORK_ID = "demo-framework-alliance";
 
 // Demo user IDs  
 const DEMO_USER_IDS = {
@@ -18,6 +20,7 @@ const DEMO_USER_IDS = {
   DEVELOPER_LEAD: "demo-developer-lead",
   QA_ENGINEER: "demo-qa-engineer",
   DOC_MANAGER: "demo-documentation-manager",
+  STAKEHOLDER: "demo-stakeholder",
 };
 
 function generateId(prefix: string): string {
@@ -48,6 +51,8 @@ export interface DemoDataResult {
     milestones?: number;
     sprints?: number;
     pulseUpdates?: number;
+    teamMembers?: number;
+    projectRoles?: number;
   };
   errors?: string[];
 }
@@ -114,6 +119,16 @@ const DEMO_USERS = [
     systemRole: "member",
     stage: "Documentation",
   },
+  {
+    id: DEMO_USER_IDS.STAKEHOLDER,
+    email: "demo.stakeholder@nymbl.demo",
+    firstName: "DEMO-STAKEHOLDER",
+    lastName: "User",
+    name: "DEMO-STAKEHOLDER User",
+    jobTitle: "Business Stakeholder",
+    systemRole: "viewer",
+    stage: null,
+  },
 ];
 
 // Stage definitions for Delivery Framework
@@ -125,6 +140,15 @@ const DELIVERY_STAGES = [
   { name: "Documentation", description: "User guides and technical documentation", order: 5, type: "documentation" },
 ];
 
+// Stage definitions for Alliance/Partnership Framework
+const ALLIANCE_STAGES = [
+  { name: "Discovery", description: "Partner research and initial outreach", order: 1, type: "planning" },
+  { name: "Evaluation", description: "Technical and business alignment assessment", order: 2, type: "design" },
+  { name: "Negotiation", description: "Terms, contracts, and partnership agreements", order: 3, type: "development" },
+  { name: "Integration", description: "Technical integration and joint solution development", order: 4, type: "development" },
+  { name: "Launch", description: "Go-to-market and partnership announcement", order: 5, type: "documentation" },
+];
+
 // Get user by stage role
 function getUserForStage(stage: string, demoUsers: User[]): User | undefined {
   const stageUserMap: Record<string, string> = {
@@ -133,6 +157,11 @@ function getUserForStage(stage: string, demoUsers: User[]): User | undefined {
     "Development": DEMO_USER_IDS.DEVELOPER_LEAD,
     "QA": DEMO_USER_IDS.QA_ENGINEER,
     "Documentation": DEMO_USER_IDS.DOC_MANAGER,
+    "Discovery": DEMO_USER_IDS.SOLUTION_CONSULTANT,
+    "Evaluation": DEMO_USER_IDS.SOLUTION_CONSULTANT,
+    "Negotiation": DEMO_USER_IDS.ADMIN,
+    "Integration": DEMO_USER_IDS.DEVELOPER_LEAD,
+    "Launch": DEMO_USER_IDS.DOC_MANAGER,
   };
   return demoUsers.find(u => u.id === stageUserMap[stage]);
 }
@@ -197,6 +226,20 @@ export async function clearDemoData(): Promise<{ success: boolean; deleted: Reco
         for (const stage of projectStages) {
           await storage.deleteProjectStage(stage.id);
           deleted.stages = (deleted.stages || 0) + 1;
+        }
+
+        // Delete team members (cascade will handle high-level roles and execution role assignments)
+        const teamMembers = await storage.getProjectTeamMembers(projectId);
+        for (const member of teamMembers) {
+          await storage.deleteProjectTeamMember(member.id);
+          deleted.teamMembers = (deleted.teamMembers || 0) + 1;
+        }
+
+        // Delete project roles
+        const projectRoles = await storage.getProjectRolesByProjectId(projectId);
+        for (const role of projectRoles) {
+          await storage.deleteProjectRole(role.id);
+          deleted.projectRoles = (deleted.projectRoles || 0) + 1;
         }
 
         await storage.deleteProject(projectId);
@@ -283,7 +326,22 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
         stageNames: DELIVERY_STAGES.map(s => s.name),
       };
       await storage.createFrameworkTemplate(framework as any);
-      result.created.frameworks = 1;
+      result.created.frameworks = (result.created.frameworks || 0) + 1;
+    }
+
+    // 2b. Create Alliance/Partnership Framework
+    let allianceFrameworkId = ALLIANCE_FRAMEWORK_ID;
+    const existingAllianceFramework = existingFrameworks.find(f => f.id === ALLIANCE_FRAMEWORK_ID);
+    
+    if (!existingAllianceFramework) {
+      const allianceFramework = {
+        id: ALLIANCE_FRAMEWORK_ID,
+        name: "Alliance Partnership Framework",
+        description: "A framework for forming technology partnerships: Discovery, Evaluation, Negotiation, Integration, Launch",
+        stageNames: ALLIANCE_STAGES.map(s => s.name),
+      };
+      await storage.createFrameworkTemplate(allianceFramework as any);
+      result.created.frameworks = (result.created.frameworks || 0) + 1;
     }
 
     const now = new Date();
@@ -297,7 +355,10 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
     // 5. Create Time Entry System (~10% complete, in Requirements)
     await createTimeEntryProject(result, demoUsers, frameworkId, now);
 
-    // 6. Update app settings to enable demo login
+    // 6. Create Technology Partner Alliance Project (~25% complete, in Evaluation)
+    await createAllianceProject(result, demoUsers, allianceFrameworkId, now);
+
+    // 7. Update app settings to enable demo login
     await storage.updateAppSettings({
       demoDataReady: true,
       demoLoginUserId: DEMO_USER_IDS.ADMIN,
@@ -340,10 +401,12 @@ async function createProjectWithStages(
   projectData: any,
   frameworkId: string,
   startDate: Date,
-  result: DemoDataResult
+  result: DemoDataResult,
+  customStages?: typeof DELIVERY_STAGES
 ): Promise<{ stageIds: Record<string, string>; stages: StageData[] }> {
   const stageIds: Record<string, string> = {};
   const stages: StageData[] = [];
+  const stageDefinitions = customStages || DELIVERY_STAGES;
 
   // Create project
   await storage.createProject({
@@ -355,10 +418,10 @@ async function createProjectWithStages(
 
   // Create stages with appropriate status based on project progress
   const projectDuration = 90; // days
-  const stageDuration = projectDuration / DELIVERY_STAGES.length;
+  const stageDuration = projectDuration / stageDefinitions.length;
 
-  for (let i = 0; i < DELIVERY_STAGES.length; i++) {
-    const stageDef = DELIVERY_STAGES[i];
+  for (let i = 0; i < stageDefinitions.length; i++) {
+    const stageDef = stageDefinitions[i];
     const stageId = generateId("stage");
     stageIds[stageDef.name] = stageId;
 
@@ -399,6 +462,74 @@ async function createProjectWithStages(
   }
 
   return { stageIds, stages };
+}
+
+// Team member configuration type
+interface TeamMemberConfig {
+  userId: string;
+  highLevelRole: 'owner' | 'manager' | 'stakeholder' | 'member';
+  executionRole?: string; // role template ID like "rt_dev_lead"
+  allocationPercent?: number;
+}
+
+async function createTeamMembersForProject(
+  projectId: string,
+  teamConfigs: TeamMemberConfig[],
+  result: DemoDataResult
+): Promise<void> {
+  // First, ensure project has execution roles defined
+  const existingRoles = await storage.getProjectRolesByProjectId(projectId);
+  const roleMap: Record<string, string> = {};
+  
+  // Create project roles if they don't exist
+  const roleTemplates = await storage.getRoleTemplates();
+  for (const config of teamConfigs) {
+    if (config.executionRole && !existingRoles.find(r => r.name === config.executionRole)) {
+      const template = roleTemplates.find(t => t.id === config.executionRole);
+      if (template && !roleMap[config.executionRole]) {
+        const role = await storage.createProjectRole({
+          projectId,
+          name: template.name,
+          description: template.description || "",
+          type: template.defaultRoleType || "Development",
+          templateId: template.id,
+        } as any);
+        roleMap[config.executionRole] = role.id;
+        result.created.projectRoles = (result.created.projectRoles || 0) + 1;
+      }
+    }
+  }
+
+  // Create team members with their roles
+  for (const config of teamConfigs) {
+    // Create team member
+    const teamMember = await storage.createProjectTeamMember({
+      projectId,
+      userId: config.userId,
+      allocationPercent: config.allocationPercent || 100,
+    } as any);
+    result.created.teamMembers = (result.created.teamMembers || 0) + 1;
+
+    // Create high-level role assignment
+    await storage.createHighLevelRole({
+      teamMemberId: teamMember.id,
+      roleType: config.highLevelRole,
+    } as any);
+
+    // Create execution role assignment if specified
+    if (config.executionRole) {
+      const template = roleTemplates.find(t => t.id === config.executionRole);
+      const existingRole = existingRoles.find(r => r.name === template?.name);
+      const roleId = existingRole?.id || roleMap[config.executionRole];
+      if (roleId) {
+        await storage.createExecutionRoleAssignment({
+          teamMemberId: teamMember.id,
+          roleId,
+          isPrimary: true,
+        } as any);
+      }
+    }
+  }
 }
 
 async function createSprintsForProject(
@@ -680,6 +811,18 @@ async function createCRMProject(
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
+
+  // Add team members with varied roles
+  const crmTeam: TeamMemberConfig[] = [
+    { userId: DEMO_USER_IDS.ADMIN, highLevelRole: 'owner' },
+    { userId: DEMO_USER_IDS.SOLUTION_CONSULTANT, highLevelRole: 'manager', executionRole: 'rt_solution_consultant' },
+    { userId: DEMO_USER_IDS.PRODUCT_DESIGNER, highLevelRole: 'member', executionRole: 'rt_product_designer' },
+    { userId: DEMO_USER_IDS.DEVELOPER_LEAD, highLevelRole: 'member', executionRole: 'rt_dev_lead' },
+    { userId: DEMO_USER_IDS.QA_ENGINEER, highLevelRole: 'member', executionRole: 'rt_qa_engineer' },
+    { userId: DEMO_USER_IDS.DOC_MANAGER, highLevelRole: 'member', executionRole: 'rt_documentation_manager' },
+    { userId: DEMO_USER_IDS.STAKEHOLDER, highLevelRole: 'stakeholder' },
+  ];
+  await createTeamMembersForProject(projectId, crmTeam, result);
 }
 
 async function createTaskManagementProject(
@@ -770,6 +913,16 @@ async function createTaskManagementProject(
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
+
+  // Add team members
+  const taskMgmtTeam: TeamMemberConfig[] = [
+    { userId: DEMO_USER_IDS.SOLUTION_CONSULTANT, highLevelRole: 'owner', executionRole: 'rt_solution_consultant' },
+    { userId: DEMO_USER_IDS.ADMIN, highLevelRole: 'manager' },
+    { userId: DEMO_USER_IDS.PRODUCT_DESIGNER, highLevelRole: 'member', executionRole: 'rt_product_designer' },
+    { userId: DEMO_USER_IDS.DEVELOPER_LEAD, highLevelRole: 'member', executionRole: 'rt_dev_lead' },
+    { userId: DEMO_USER_IDS.STAKEHOLDER, highLevelRole: 'stakeholder' },
+  ];
+  await createTeamMembersForProject(projectId, taskMgmtTeam, result);
 }
 
 async function createTimeEntryProject(
@@ -858,6 +1011,129 @@ async function createTimeEntryProject(
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
+
+  // Add team members
+  const timeEntryTeam: TeamMemberConfig[] = [
+    { userId: DEMO_USER_IDS.ADMIN, highLevelRole: 'owner' },
+    { userId: DEMO_USER_IDS.SOLUTION_CONSULTANT, highLevelRole: 'manager', executionRole: 'rt_solution_consultant' },
+    { userId: DEMO_USER_IDS.PRODUCT_DESIGNER, highLevelRole: 'member', executionRole: 'rt_product_designer' },
+    { userId: DEMO_USER_IDS.DEVELOPER_LEAD, highLevelRole: 'member', executionRole: 'rt_dev_lead' },
+    { userId: DEMO_USER_IDS.STAKEHOLDER, highLevelRole: 'stakeholder' },
+  ];
+  await createTeamMembersForProject(projectId, timeEntryTeam, result);
+}
+
+async function createAllianceProject(
+  result: DemoDataResult,
+  demoUsers: User[],
+  frameworkId: string,
+  now: Date
+): Promise<void> {
+  const projectId = DEMO_PROJECT_IDS.ALLIANCE;
+  const startDate = addDays(now, -21);
+  const deadline = addDays(now, 69);
+
+  const { stageIds, stages } = await createProjectWithStages(
+    projectId,
+    {
+      name: "Technology Partner Alliance",
+      description: "Strategic initiative to form a technology partnership with an AI platform provider, enabling joint solution offerings and market expansion.",
+      status: "active",
+      startDate: toDateString(startDate),
+      deadline: toDateString(deadline),
+      progress: 25,
+      ownerId: demoUsers[0]?.id,
+      client: "External Partnership",
+      riskLevel: "medium",
+      sprintDurationWeeks: 2,
+      currentStageIndex: 1, // Evaluation (0-indexed)
+    },
+    frameworkId,
+    startDate,
+    result,
+    ALLIANCE_STAGES
+  );
+
+  // Create sprints
+  const sprintConfigs = [
+    { name: "Sprint 1", goal: "Partner discovery and research", startOffset: 0, endOffset: 14, status: "completed" },
+    { name: "Sprint 2", goal: "Technical evaluation", startOffset: 14, endOffset: 28, status: "active" },
+    { name: "Sprint 3", goal: "Partnership terms", startOffset: 28, endOffset: 42, status: "planned" },
+  ];
+  const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
+  
+  // Create pulse updates
+  for (const sprint of sprints) {
+    await createPulseUpdatesForSprint(sprint.id, sprint.status, sprint.startDate, sprint.endDate, demoUsers, result);
+  }
+
+  // Create milestones
+  const milestoneConfigs = [
+    { name: "Partner Shortlist", description: "Final list of potential partners", phase: "Discovery", targetOffset: 14, status: "completed", ownerIndex: 0 },
+    { name: "Technical Assessment", description: "Complete technical fit evaluation", phase: "Evaluation", targetOffset: 28, status: "on-track", ownerIndex: 1 },
+    { name: "Term Sheet Agreement", description: "Agreement on partnership terms", phase: "Negotiation", targetOffset: 45, status: "pending", ownerIndex: 0 },
+    { name: "Partnership Launch", description: "Public announcement of partnership", phase: "Launch", targetOffset: 80, status: "pending", ownerIndex: 5 },
+  ];
+  const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
+
+  const deliverables = [
+    {
+      title: "Partner Discovery",
+      description: "Identify and research potential technology partners",
+      status: "completed",
+      progress: 100,
+      epics: [
+        { title: "Market Research", description: "Research AI platform landscape", status: "completed", progress: 100, stage: "Discovery" },
+        { title: "Partner Criteria", description: "Define partner evaluation criteria", status: "completed", progress: 100, stage: "Discovery" },
+        { title: "Initial Outreach", description: "Contact potential partners", status: "completed", progress: 100, stage: "Discovery" },
+      ],
+    },
+    {
+      title: "Technical Evaluation",
+      description: "Assess technical compatibility and integration potential",
+      status: "in-progress",
+      progress: 40,
+      epics: [
+        { title: "API Assessment", description: "Evaluate partner APIs", status: "in-progress", progress: 60, stage: "Evaluation" },
+        { title: "Integration POC", description: "Build proof of concept integration", status: "in-progress", progress: 30, stage: "Evaluation" },
+        { title: "Security Review", description: "Security and compliance assessment", status: "not-started", progress: 0, stage: "Evaluation" },
+      ],
+    },
+    {
+      title: "Partnership Agreement",
+      description: "Negotiate and finalize partnership terms",
+      status: "not-started",
+      progress: 0,
+      epics: [
+        { title: "Term Sheet", description: "Draft partnership term sheet", status: "not-started", progress: 0, stage: "Negotiation" },
+        { title: "Legal Review", description: "Legal contract review", status: "not-started", progress: 0, stage: "Negotiation" },
+        { title: "Executive Approval", description: "Get leadership sign-off", status: "not-started", progress: 0, stage: "Negotiation" },
+      ],
+    },
+    {
+      title: "Go-to-Market",
+      description: "Plan and execute partnership launch",
+      status: "not-started",
+      progress: 0,
+      epics: [
+        { title: "Joint Solution", description: "Define joint solution offering", status: "not-started", progress: 0, stage: "Integration" },
+        { title: "Launch Plan", description: "Create go-to-market plan", status: "not-started", progress: 0, stage: "Launch" },
+        { title: "Press Release", description: "Partnership announcement", status: "not-started", progress: 0, stage: "Launch" },
+      ],
+    },
+  ];
+
+  await createDeliverablesWithEpicsAndTasks(projectId, deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
+
+  // Add team members with strategic focus
+  const allianceTeam: TeamMemberConfig[] = [
+    { userId: DEMO_USER_IDS.ADMIN, highLevelRole: 'owner' },
+    { userId: DEMO_USER_IDS.SOLUTION_CONSULTANT, highLevelRole: 'manager', executionRole: 'rt_solution_consultant' },
+    { userId: DEMO_USER_IDS.DEVELOPER_LEAD, highLevelRole: 'member', executionRole: 'rt_dev_lead' },
+    { userId: DEMO_USER_IDS.STAKEHOLDER, highLevelRole: 'stakeholder' },
+    { userId: DEMO_USER_IDS.DOC_MANAGER, highLevelRole: 'member', executionRole: 'rt_documentation_manager' },
+  ];
+  await createTeamMembersForProject(projectId, allianceTeam, result);
 }
 
 async function createDeliverablesWithEpicsAndTasks(
@@ -1003,6 +1279,7 @@ async function createDeliverablesWithEpicsAndTasks(
           description: `${template.title} for ${epicConfig.title}`,
           project: projectId === DEMO_PROJECT_IDS.CRM ? "CRM System" 
             : projectId === DEMO_PROJECT_IDS.TASK_MGMT ? "Task Management App" 
+            : projectId === DEMO_PROJECT_IDS.ALLIANCE ? "Technology Partner Alliance"
             : "Time Entry System",
           projectId,
           epicId,
