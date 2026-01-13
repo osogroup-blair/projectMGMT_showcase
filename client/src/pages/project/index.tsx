@@ -80,7 +80,7 @@ import { SprintsContent } from "@/features/project/sprints/sprints-content";
 import { PortableKanban } from "@/components/kanban";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
-import { NextSprintBacklog } from "@/features/project/sprints/next-sprint-backlog";
+import { SprintPlannerPanel } from "@/features/project/sprints/sprint-planner-panel";
 import { TasksByPerson } from "@/features/project/tasks-by-person";
 import { Activity, PanelLeft, Send, BarChart3, ChevronLeftIcon, ChevronRightIcon, Search, Filter, MessageSquare } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -1441,12 +1441,9 @@ export default function ProjectOverview() {
                   )}
 
                   {dashboardSection === "upcoming-work" && (
-                    <NextSprintBacklog
+                    <SprintPlannerPanel
                       projectId={projectId}
                       sprints={projectSprints}
-                      allTasks={projectTasks}
-                      users={users || []}
-                      epics={projectEpics || []}
                     />
                   )}
 
