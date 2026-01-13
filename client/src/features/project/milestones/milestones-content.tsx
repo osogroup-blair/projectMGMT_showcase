@@ -37,6 +37,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useMilestoneScopeRules, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useCurrentUser } from "@/context/current-user-context";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
@@ -95,6 +96,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const { data: allStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { currentUser } = useCurrentUser();
+  const { isTaskComplete } = useCompletedStatuses();
 
   // Inline editing state
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
@@ -193,8 +195,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
           const tasksB = (allTaskLinks || []).filter((l: any) => l.milestoneId === b.id)
             .map((l: any) => allTasks?.find((t: any) => t.id === l.taskId))
             .filter(Boolean);
-          aVal = tasksA.length > 0 ? tasksA.filter((t: any) => t.status === "Done").length / tasksA.length : 0;
-          bVal = tasksB.length > 0 ? tasksB.filter((t: any) => t.status === "Done").length / tasksB.length : 0;
+          aVal = tasksA.length > 0 ? tasksA.filter((t: any) => isTaskComplete(t.status)).length / tasksA.length : 0;
+          bVal = tasksB.length > 0 ? tasksB.filter((t: any) => isTaskComplete(t.status)).length / tasksB.length : 0;
           break;
         default:
           aVal = "";
@@ -281,7 +283,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const getMilestoneProgress = (milestoneId: string) => {
     const tasks = getTasksForMilestone(milestoneId);
     if (tasks.length === 0) return { done: 0, total: 0, percent: 0 };
-    const done = tasks.filter((t: any) => t.status === "Done").length;
+    const done = tasks.filter((t: any) => isTaskComplete(t.status)).length;
     return { done, total: tasks.length, percent: Math.round((done / tasks.length) * 100) };
   };
 
@@ -852,7 +854,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                                   {taskEpic && <span>{taskEpic.title}</span>}
                                                   <Badge variant="outline" className={cn(
                                                     "text-[10px] px-1.5 py-0",
-                                                    task.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
+                                                    isTaskComplete(task.status) ? "bg-green-50 text-green-700 border-green-200" :
                                                     task.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
                                                     "bg-slate-50 text-slate-700 border-slate-200"
                                                   )}>

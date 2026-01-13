@@ -26,6 +26,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useDeliverables, useEpics, useUsers, useTasks, useProjectStages, useDeliverableTypes, useEpicTypes, useProject } from "@/hooks/use-nexus-data";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ export default function DeliverableDetail() {
   const { data: epicTypes = [] } = useEpicTypes();
   const { data: project } = useProject(projectId);
   const { toast } = useToast();
+  const { isTaskComplete } = useCompletedStatuses();
 
   // Edit dates state
   const [editingDates, setEditingDates] = useState({
@@ -238,13 +240,13 @@ export default function DeliverableDetail() {
   const getEpicProgress = (epicId: string) => {
     const epicTasks = getTasksForEpic(epicId);
     if (epicTasks.length === 0) return 0;
-    const doneTasks = epicTasks.filter((t: any) => t.status === "Done").length;
+    const doneTasks = epicTasks.filter((t: any) => isTaskComplete(t.status)).length;
     return Math.round((doneTasks / epicTasks.length) * 100);
   };
 
   const getEpicTaskCounts = (epicId: string) => {
     const epicTasks = getTasksForEpic(epicId);
-    const doneTasks = epicTasks.filter((t: any) => t.status === "Done").length;
+    const doneTasks = epicTasks.filter((t: any) => isTaskComplete(t.status)).length;
     return { done: doneTasks, total: epicTasks.length };
   };
 

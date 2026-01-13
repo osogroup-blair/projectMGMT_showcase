@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 
 interface TaskSubtasksTabProps {
   task: any;
@@ -25,8 +26,9 @@ export function TaskSubtasksTab({
   updateTask,
 }: TaskSubtasksTabProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const { isTaskComplete } = useCompletedStatuses();
 
-  const completedCount = subtasks?.filter((s: any) => s.status === "Done").length || 0;
+  const completedCount = subtasks?.filter((s: any) => isTaskComplete(s.status)).length || 0;
   const totalCount = subtasks?.length || 0;
   const subtaskProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -74,7 +76,7 @@ export function TaskSubtasksTab({
                 data-testid={`subtask-${subtask.id}`}
               >
                 <Checkbox
-                  checked={subtask.status === "Done"}
+                  checked={isTaskComplete(subtask.status)}
                   onCheckedChange={(checked) => {
                     updateTask({
                       id: subtask.id,
@@ -86,7 +88,7 @@ export function TaskSubtasksTab({
                 <span
                   className={cn(
                     "flex-1 text-sm",
-                    subtask.status === "Done" && "line-through text-muted-foreground"
+                    isTaskComplete(subtask.status) && "line-through text-muted-foreground"
                   )}
                 >
                   {subtask.title}

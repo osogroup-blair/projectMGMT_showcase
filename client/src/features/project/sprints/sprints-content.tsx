@@ -31,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useSprints, useTasks, useProject } from "@/hooks/use-nexus-data";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { addDays, addWeeks, format, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -52,6 +53,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   const { data: allSprints, isLoading: isSprintsLoading, create: createSprint, update: updateSprint, remove: removeSprint } = useSprints();
   const { data: allTasks, update: updateTask } = useTasks();
   const { data: project } = useProject(projectId);
+  const { isTaskComplete } = useCompletedStatuses();
 
   const sprints = useMemo(() => 
     (allSprints || []).filter((s: any) => s.projectId === projectId),
@@ -141,7 +143,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   const getSprintStats = (sprintId: string) => {
     const tasks = getSprintTasks(sprintId);
     const total = tasks.length;
-    const done = tasks.filter((t: any) => t.status === "Done" || t.status === "Completed").length;
+    const done = tasks.filter((t: any) => isTaskComplete(t.status)).length;
     const inProgress = tasks.filter((t: any) => t.status === "In Progress").length;
     const percent = total > 0 ? Math.round((done / total) * 100) : 0;
     return { total, done, inProgress, percent };

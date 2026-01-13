@@ -28,6 +28,7 @@ import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
 import { useSprints, useTasks, useProject } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -42,6 +43,7 @@ export default function SprintList() {
   const [, params] = useRoute("/projects/:projectId/sprints");
   const projectId = params?.projectId || "";
   const { toast } = useToast();
+  const { isTaskComplete } = useCompletedStatuses();
 
   const { data: project } = useProject(projectId);
   const { data: allSprints, isLoading: isSprintsLoading, create: createSprint, update: updateSprint, remove: removeSprint } = useSprints();
@@ -126,7 +128,7 @@ export default function SprintList() {
   const getSprintStats = (sprintId: string) => {
     const tasks = (allTasks || []).filter((t: any) => t.sprintId === sprintId);
     const total = tasks.length;
-    const done = tasks.filter((t: any) => t.status === "Done" || t.status === "Completed").length;
+    const done = tasks.filter((t: any) => isTaskComplete(t.status)).length;
     const inProgress = tasks.filter((t: any) => t.status === "In Progress").length;
     const percent = total > 0 ? Math.round((done / total) * 100) : 0;
     return { total, done, inProgress, percent };

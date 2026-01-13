@@ -49,6 +49,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
 import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes, useStatusOptions } from "@/hooks/use-nexus-data";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useCurrentUser } from "@/context/current-user-context";
@@ -136,6 +137,7 @@ export default function ProjectOverview() {
   const { toast } = useToast();
   const { data: statusOptions = [] } = useStatusOptions();
   const { currentUser } = useCurrentUser();
+  const { isTaskComplete } = useCompletedStatuses();
 
   const addCommentMutation = useMutation({
     mutationFn: async ({ taskId, comment, authorId, authorName }: { taskId: string; comment: string; authorId: string; authorName: string }) => {
@@ -331,9 +333,9 @@ export default function ProjectOverview() {
     
     const stats = {
       total: projectTasks.length,
-      completed: projectTasks.filter((t: any) => t.status === "Done").length,
+      completed: projectTasks.filter((t: any) => isTaskComplete(t.status)).length,
       inProgress: projectTasks.filter((t: any) => t.status === "In Progress").length,
-      atRisk: projectTasks.filter((t: any) => t.priority === "High" && t.status !== "Done").length
+      atRisk: projectTasks.filter((t: any) => t.priority === "High" && !isTaskComplete(t.status)).length
     };
 
     const percentComplete = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
@@ -345,7 +347,7 @@ export default function ProjectOverview() {
     };
 
     const upcomingItems = projectTasks
-      .filter((t: any) => t.deadline && t.status !== "Done")
+      .filter((t: any) => t.deadline && !isTaskComplete(t.status))
       .sort((a: any, b: any) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
       .slice(0, 5)
       .map((t: any) => ({
@@ -357,7 +359,7 @@ export default function ProjectOverview() {
         status: (t.status === "In Progress" ? "in_progress" : "not_started") as "in_progress" | "not_started" | "blocked" | "complete",
         owner: getAssigneeName(t.assigneeId),
         priority: t.priority?.toLowerCase() || "medium",
-        progress: t.status === "Done" ? 100 : t.status === "In Progress" ? 50 : 0
+        progress: isTaskComplete(t.status) ? 100 : t.status === "In Progress" ? 50 : 0
       }));
 
     const milestoneItems = projectMilestones
@@ -375,7 +377,7 @@ export default function ProjectOverview() {
       }));
 
     const recentActivityItems = projectTasks
-      .filter((t: any) => t.status === "Done")
+      .filter((t: any) => isTaskComplete(t.status))
       .slice(0, 5)
       .map((t: any) => ({
         id: t.id,
@@ -430,7 +432,7 @@ export default function ProjectOverview() {
         trend: "stable" as const,
         risks: [],
         issues: projectTasks
-          .filter((t: any) => t.priority === "High" && t.status !== "Done")
+          .filter((t: any) => t.priority === "High" && !isTaskComplete(t.status))
           .slice(0, 3)
           .map((t: any) => ({
             id: t.id,
@@ -552,7 +554,7 @@ export default function ProjectOverview() {
     return allTasks.filter((t: any) => 
       t.projectId === projectId && 
       t.assigneeId === currentUser.id &&
-      t.status !== "Done"
+      !isTaskComplete(t.status)
     );
   }, [allTasks, projectId, currentUser?.id]);
 
@@ -561,7 +563,7 @@ export default function ProjectOverview() {
     if (!selectedSprint || !sprintTasks) return null;
     
     const totalTasks = sprintTasks.length;
-    const completedTasks = sprintTasks.filter((t: any) => t.status === "Done").length;
+    const completedTasks = sprintTasks.filter((t: any) => isTaskComplete(t.status)).length;
     const inProgressTasks = sprintTasks.filter((t: any) => t.status === "In Progress").length;
     const blockedTasks = sprintTasks.filter((t: any) => t.status === "Blocked" || t.blocked).length;
     const todoTasks = sprintTasks.filter((t: any) => t.status === "Todo" || t.status === "BACKLOGGED").length;
@@ -576,14 +578,14 @@ export default function ProjectOverview() {
         workloadByUser[userId] = { name: userName, total: 0, completed: 0, inProgress: 0, blocked: 0 };
       }
       workloadByUser[userId].total++;
-      if (task.status === "Done") workloadByUser[userId].completed++;
+      if (isTaskComplete(task.status)) workloadByUser[userId].completed++;
       if (task.status === "In Progress") workloadByUser[userId].inProgress++;
       if (task.status === "Blocked" || task.blocked) workloadByUser[userId].blocked++;
     });
     
     // Calculate total effort/story points
     const totalEffort = sprintTasks.reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
-    const completedEffort = sprintTasks.filter((t: any) => t.status === "Done").reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
+    const completedEffort = sprintTasks.filter((t: any) => isTaskComplete(t.status)).reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
     
     const percentComplete = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
     
@@ -1444,9 +1446,9 @@ export default function ProjectOverview() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
-                          {tasks.filter((t: any) => t.status === "Done").length > 0 ? (
+                          {tasks.filter((t: any) => isTaskComplete(t.status)).length > 0 ? (
                             tasks
-                              .filter((t: any) => t.status === "Done")
+                              .filter((t: any) => isTaskComplete(t.status))
                               .slice(0, 10)
                               .map((task: any) => (
                                 <div key={task.id} className="flex items-start gap-3 pb-3 border-b last:border-0">

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp, Plus, Sparkles, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 
 interface Task {
   id: string;
@@ -44,8 +45,9 @@ export function PulseComposer({
   const [blockersText, setBlockersText] = useState("");
   const [referencedTaskIds, setReferencedTaskIds] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const { isTaskComplete } = useCompletedStatuses();
 
-  const doneTasks = tasks.filter(t => t.status === "Done" || t.status === "Completed");
+  const doneTasks = tasks.filter(t => isTaskComplete(t.status));
   const inProgressTasks = tasks.filter(t => t.status === "In Progress");
   const blockedTasks = tasks.filter(t => t.blocked);
 

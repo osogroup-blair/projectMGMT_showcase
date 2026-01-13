@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useSprints, useTasks, useProject, useUsers, useEpics, useMilestones, useDeliverables, useSprintScopeTargets, useSuggestedTasks, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useQuery } from "@tanstack/react-query";
 import type { SprintStats } from "../types";
 
@@ -18,6 +19,7 @@ export function useSprintData(projectId: string, sprintId: string) {
   const { data: suggestedTasks = [], isLoading: loadingSuggested } = useSuggestedTasks(sprintId);
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { statuses: taskStatuses, statusLabels, getStatusColor, defaultStatus, isNotStartedStatus, isInProgressStatus, isCompletedStatus } = useTaskStatuses();
+  const { isTaskComplete } = useCompletedStatuses();
 
   const { data: pulseUpdates = [] } = useQuery({
     queryKey: ["sprint-pulse", sprintId],
@@ -89,12 +91,12 @@ export function useSprintData(projectId: string, sprintId: string) {
 
   const stats: SprintStats = useMemo(() => {
     const total = sprintTasks.length;
-    const done = sprintTasks.filter((t: any) => t.status === "Done" || t.status === "Completed").length;
+    const done = sprintTasks.filter((t: any) => isTaskComplete(t.status)).length;
     const inProgress = sprintTasks.filter((t: any) => t.status === "In Progress").length;
     const toDo = sprintTasks.filter((t: any) => t.status === "To Do" || t.status === "Pending").length;
     const percent = total > 0 ? Math.round((done / total) * 100) : 0;
     const totalEffort = sprintTasks.reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
-    const doneEffort = sprintTasks.filter((t: any) => t.status === "Done" || t.status === "Completed")
+    const doneEffort = sprintTasks.filter((t: any) => isTaskComplete(t.status))
       .reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
     return { total, done, inProgress, toDo, percent, totalEffort, doneEffort };
   }, [sprintTasks]);

@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useTasks, useProjects, useSprints } from "@/hooks/use-nexus-data";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useMemo } from "react";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, isWithinInterval, parseISO, isValid } from "date-fns";
 import { useCurrentUser } from "@/context/current-user-context";
@@ -46,6 +47,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
   const { currentUser } = useCurrentUser();
   const [tasks, setTasks] = useState(homeState.todayTasks);
   const [dayPlans, setDayPlans] = useState(homeState.dayPlans);
+  const { isTaskComplete } = useCompletedStatuses();
 
   // Fetch data for metrics
   const { data: allTasks } = useTasks();
@@ -81,9 +83,9 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
     const tasksThisQuarter = myTasks.filter((t: any) => isInRange(t, quarterStart, quarterEnd));
 
     // Completed vs assigned
-    const completedThisWeek = tasksThisWeek.filter((t: any) => t.status === "DONE" || t.status === "Done");
-    const completedThisMonth = tasksThisMonth.filter((t: any) => t.status === "DONE" || t.status === "Done");
-    const completedThisQuarter = tasksThisQuarter.filter((t: any) => t.status === "DONE" || t.status === "Done");
+    const completedThisWeek = tasksThisWeek.filter((t: any) => isTaskComplete(t.status));
+    const completedThisMonth = tasksThisMonth.filter((t: any) => isTaskComplete(t.status));
+    const completedThisQuarter = tasksThisQuarter.filter((t: any) => isTaskComplete(t.status));
 
     // Story points (effort)
     const effortThisWeek = tasksThisWeek.reduce((sum: number, t: any) => sum + (t.effort || 0), 0);

@@ -5,6 +5,7 @@ import {
   insertSprintMemberSchema,
   insertSprintPulseUpdateSchema,
 } from "@shared/schema";
+import { getCompletedStatusLabels } from "../../utils/completed-statuses";
 
 export function registerSprintRoutes(
   app: Express,
@@ -363,8 +364,9 @@ export function registerSprintRoutes(
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split("T")[0];
 
+      const completedLabels = await getCompletedStatusLabels();
       const doneTasks = userTasks.filter(t => 
-        t.status === "Done" || t.status === "Completed"
+        t.status ? completedLabels.has(t.status) : false
       );
       const inProgressTasks = userTasks.filter(t => 
         t.status === "In Progress" || t.status === "Review"

@@ -46,6 +46,7 @@ import {
   Task
 } from "@/lib/mock-data";
 import { useTasks, useUsers, useMilestones } from "@/hooks/use-nexus-data";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { 
   Tabs, 
   TabsContent, 
@@ -62,6 +63,7 @@ interface StageTabContentProps {
 export function StageTabContent({ stage, projectId }: StageTabContentProps) {
   // Fetch data from database
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { isTaskComplete } = useCompletedStatuses();
   const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   
@@ -125,7 +127,7 @@ export function StageTabContent({ stage, projectId }: StageTabContentProps) {
     // Filter by both milestoneId AND projectId to avoid cross-project contamination
     const assignedTasks = allTasks.filter((t: any) => t.milestoneId === milestoneId && t.projectId === projectId);
     if (assignedTasks.length === 0) return 0;
-    const doneTasks = assignedTasks.filter((t: any) => t.status === 'Done');
+    const doneTasks = assignedTasks.filter((t: any) => isTaskComplete(t.status));
     return Math.round((doneTasks.length / assignedTasks.length) * 100);
   };
   

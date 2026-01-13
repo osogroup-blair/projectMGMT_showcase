@@ -1,5 +1,6 @@
 import { HomeTask } from "../types";
 import { useProjects, useTasks, useEpics, useProjectStages, useSprints, useMilestones, useUsers } from "@/hooks/use-nexus-data";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateTaskQueries } from "@/lib/query-invalidation";
@@ -38,6 +39,7 @@ export function CurrentProjectsPanel() {
   const { data: milestones = [], isLoading: milestonesLoading } = useMilestones();
   const { data: allUsers = [], isLoading: usersLoading } = useUsers();
   const { currentUserId } = useCurrentUser();
+  const { isTaskComplete } = useCompletedStatuses();
   
   // Inactive task statuses to exclude
   const INACTIVE_STATUSES = ["done", "deferred", "archived", "complete", "completed"];
@@ -84,7 +86,7 @@ export function CurrentProjectsPanel() {
       epicName: epic?.title,
       title: task.title,
       description: task.description,
-      status: task.status === "Done" ? "complete" : task.status === "Todo" ? "not_started" : "in_progress",
+      status: isTaskComplete(task.status) ? "complete" : task.status === "Todo" ? "not_started" : "in_progress",
       assignedToUserId: task.assigneeId || "currentUser",
       dueDateTime: task.deadline,
       priority: task.priority?.toLowerCase() || "medium",

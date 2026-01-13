@@ -33,6 +33,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useTasks, useUsers, useEpics, useDeliverables, useProjectStages } from "@/hooks/use-nexus-data";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allProjectStages, isLoading: isStagesLoading, update: updateStage, createAsync: createStageAsync, removeAsync: removeStageAsync } = useProjectStages();
   const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
+  const { isTaskComplete } = useCompletedStatuses();
 
   // Get stages for this project, sorted by order
   const stages = useMemo(() => {
@@ -152,7 +154,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const getStageProgress = (stageId: string) => {
     const tasks = getTasksForStage(stageId);
     if (tasks.length === 0) return { done: 0, total: 0, percent: 0 };
-    const done = tasks.filter((t: any) => t.status === "Done").length;
+    const done = tasks.filter((t: any) => isTaskComplete(t.status)).length;
     return { done, total: tasks.length, percent: Math.round((done / tasks.length) * 100) };
   };
 

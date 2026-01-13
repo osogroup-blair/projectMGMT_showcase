@@ -42,6 +42,7 @@ import {
   useMilestones, useTasks, useEpics, useUsers, useProject,
   useMilestoneScopeRules, useMilestoneTaskLinks
 } from "@/hooks/use-nexus-data";
+import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 
 // Types for local use
 interface Milestone {
@@ -1143,6 +1144,7 @@ export default function MilestonesManagementPage() {
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
   const { data: allTaskLinks, create: createTaskLink, createAsync: createTaskLinkAsync, remove: deleteTaskLink } = useMilestoneTaskLinks();
+  const { isTaskComplete } = useCompletedStatuses();
 
   // Filter data by project
   const milestones = useMemo(() => 
@@ -1194,7 +1196,7 @@ export default function MilestonesManagementPage() {
       const links = (allTaskLinks || []).filter((l: any) => l.milestoneId === m.id);
       const linkedTasks = links.map((l: any) => tasks.find(t => t.id === l.taskId)).filter(Boolean);
       const totalTasks = linkedTasks.length;
-      const completedTasks = linkedTasks.filter((t: any) => t?.status === "Done").length;
+      const completedTasks = linkedTasks.filter((t: any) => isTaskComplete(t?.status)).length;
       const percentComplete = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
       
       return {
@@ -1301,7 +1303,7 @@ export default function MilestonesManagementPage() {
       const total = updatedLinks.length;
       const completed = updatedLinks.filter(l => {
          const t = tasks.find(task => task.id === l.taskId);
-         return t?.status === "Done";
+         return isTaskComplete(t?.status);
       }).length;
       
       const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
