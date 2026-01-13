@@ -312,12 +312,11 @@ export function UnifiedTimeline({
 
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-x-auto"
-            style={{ overflowY: 'visible' }}
+            className="flex-1 overflow-x-auto overflow-y-hidden"
             onScroll={handleScroll}
             data-testid="timeline-scroll-container"
           >
-            <div style={{ width: totalWidth + 200, minHeight: totalHeight }}>
+            <div style={{ width: totalWidth + 200, height: totalHeight + 50 }}>
               <div className="sticky top-0 z-30">
                 <TimelineAxis
                   viewMode={viewMode}
