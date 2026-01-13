@@ -31,7 +31,8 @@ import {
   User
 } from "lucide-react";
 import { StepProps, WizardRole, WizardStage, WizardTaskDraft, CORE_PROJECT_ROLES } from "./types";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { useImportOptional } from "@/context/import-context";
 
 interface TaskAssignmentStats {
   totalTasks: number;
@@ -65,6 +66,9 @@ export function StepTeamRoles({
   const [managerUserId, setManagerUserIdState] = useState<string>("");
   const [stakeholderUserIds, setStakeholderUserIdsState] = useState<string[]>([]);
   const [teamMembers, setTeamMembersState] = useState<{ userId: string; executionRoleId?: string }[]>([]);
+  
+  const importContext = useImportOptional();
+  const importInitializedRef = useRef(false);
 
   const buildRolesArray = useCallback((
     owner: string,
@@ -138,6 +142,51 @@ export function StepTeamRoles({
     setTeamMembersState(members);
     setRoles(buildRolesArray(ownerUserId, managerUserId, stakeholderUserIds, members));
   };
+
+  useEffect(() => {
+    if (importInitializedRef.current) return;
+    if (!importContext?.state?.isImportMode) return;
+    
+    const userMappings = importContext.state.userMappings || [];
+    const mappedUsers = userMappings.filter(m => m.mappedToId && m.action === 'map');
+    
+    if (mappedUsers.length === 0) return;
+    
+    console.log('[TEAM-ROLES] Initializing from import with', mappedUsers.length, 'mapped users');
+    
+    const importedTeamMembers: { userId: string; executionRoleId?: string }[] = [];
+    
+    mappedUsers.forEach(mapping => {
+      if (!mapping.mappedToId) return;
+      
+      const userTaskRoleIds: string[] = [];
+      stages.forEach(stage => {
+        stage.tasks?.forEach(task => {
+          const taskAny = task as any;
+          if (taskAny.sourceAssigneeId === mapping.sourceId && task.assigneeRoleTypeId) {
+            if (!userTaskRoleIds.includes(task.assigneeRoleTypeId)) {
+              userTaskRoleIds.push(task.assigneeRoleTypeId);
+            }
+          }
+        });
+      });
+      
+      const executionRoleId = userTaskRoleIds.length > 0 ? userTaskRoleIds[0] : undefined;
+      
+      importedTeamMembers.push({
+        userId: mapping.mappedToId,
+        executionRoleId
+      });
+    });
+    
+    if (importedTeamMembers.length > 0) {
+      setTeamMembersState(importedTeamMembers);
+      setRoles(buildRolesArray(ownerUserId, managerUserId, stakeholderUserIds, importedTeamMembers));
+      console.log('[TEAM-ROLES] Added', importedTeamMembers.length, 'team members from import');
+    }
+    
+    importInitializedRef.current = true;
+  }, [importContext?.state?.isImportMode, importContext?.state?.userMappings, stages, buildRolesArray, ownerUserId, managerUserId, stakeholderUserIds, setRoles]);
 
   const taskAssignmentStats = useMemo<TaskAssignmentStats>(() => {
     let totalTasks = 0;
