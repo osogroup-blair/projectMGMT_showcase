@@ -145,16 +145,16 @@ export async function generateSampleData(
       await generateCoreData(result, users, projectStartDate, projectEndDate);
     }
 
-    if (section === "tasks" || section === "all") {
-      await generateTaskData(result, users, projectStartDate);
-    }
-
     if (section === "milestones" || section === "all") {
       await generateMilestoneData(result, users, projectStartDate);
     }
 
     if (section === "sprints" || section === "all") {
-      await generateSprintData(result, users, now);
+      await generateSprintData(result, users, projectStartDate);
+    }
+
+    if (section === "tasks" || section === "all") {
+      await generateTaskData(result, users, projectStartDate);
     }
 
     if (section === "comments" || section === "all") {
@@ -354,13 +354,63 @@ async function generateTaskData(
 
   const sampleEpics = epics.filter(e => sampleEpicIds.has(e.id));
   
-  // Fetch project stages and create epic-to-stage mapping based on date overlap
+  // Fetch project stages
   const allStages = await storage.getProjectStages();
   const projectStages = allStages.filter(s => s.projectId === SAMPLE_PROJECT_ID && s.startDate && s.endDate);
   
+  // Fetch sprints for this project
+  const allSprints = await storage.getSprints();
+  const projectSprints = allSprints.filter(s => s.projectId === SAMPLE_PROJECT_ID);
+  
+  // Fetch milestones for this project
+  const allMilestones = await storage.getMilestones();
+  const projectMilestones = allMilestones.filter(m => m.projectId === SAMPLE_PROJECT_ID);
+  
+  // Map stage name to milestone (milestones have a 'phase' field that matches stage names)
+  function findMilestoneForStage(stageName: string | undefined): string | undefined {
+    if (!stageName) return undefined;
+    const milestone = projectMilestones.find(m => m.phase === stageName);
+    return milestone?.id;
+  }
+  
+  // Find sprint for a task based on date overlap
+  function findSprintForTask(taskStartDate: Date, taskDeadline: Date): { sprintId: string | undefined; sprintStatus: string | undefined } {
+    if (projectSprints.length === 0) return { sprintId: undefined, sprintStatus: undefined };
+    
+    const taskMidpoint = (taskStartDate.getTime() + taskDeadline.getTime()) / 2;
+    
+    // Find sprint whose date range contains the task's midpoint
+    for (const sprint of projectSprints) {
+      if (!sprint.startDate || !sprint.endDate) continue;
+      const sprintStart = new Date(sprint.startDate).getTime();
+      const sprintEnd = new Date(sprint.endDate).getTime();
+      
+      if (taskMidpoint >= sprintStart && taskMidpoint <= sprintEnd) {
+        return { sprintId: sprint.id, sprintStatus: sprint.status };
+      }
+    }
+    
+    // Fallback: find closest sprint by date
+    let closestSprint = projectSprints[0];
+    if (!closestSprint?.startDate) return { sprintId: projectSprints[0]?.id, sprintStatus: projectSprints[0]?.status };
+    
+    let closestDistance = Math.abs(taskMidpoint - new Date(closestSprint.startDate).getTime());
+    
+    for (const sprint of projectSprints) {
+      if (!sprint.startDate) continue;
+      const distance = Math.abs(taskMidpoint - new Date(sprint.startDate).getTime());
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestSprint = sprint;
+      }
+    }
+    
+    return { sprintId: closestSprint?.id, sprintStatus: closestSprint?.status };
+  }
+  
   // Map each epic to the most appropriate stage based on date overlap
-  function findStageForEpic(epic: typeof sampleEpics[0]): string | undefined {
-    if (projectStages.length === 0) return undefined;
+  function findStageForEpic(epic: typeof sampleEpics[0]): { stageId: string | undefined; stageName: string | undefined } {
+    if (projectStages.length === 0) return { stageId: undefined, stageName: undefined };
     
     const epicStart = new Date(epic.startDate).getTime();
     const epicEnd = new Date(epic.endDate).getTime();
@@ -373,13 +423,13 @@ async function generateTaskData(
       const stageEnd = new Date(stage.endDate).getTime();
       
       if (epicMidpoint >= stageStart && epicMidpoint <= stageEnd) {
-        return stage.id;
+        return { stageId: stage.id, stageName: stage.name };
       }
     }
     
     // Fallback: find closest stage by start date
     let closestStage = projectStages[0];
-    if (!closestStage?.startDate) return projectStages[0]?.id;
+    if (!closestStage?.startDate) return { stageId: projectStages[0]?.id, stageName: projectStages[0]?.name };
     
     let closestDistance = Math.abs(epicStart - new Date(closestStage.startDate).getTime());
     
@@ -392,7 +442,7 @@ async function generateTaskData(
       }
     }
     
-    return closestStage?.id;
+    return { stageId: closestStage?.id, stageName: closestStage?.name };
   }
   
   const taskTemplates = [
@@ -408,13 +458,13 @@ async function generateTaskData(
     { title: "Bug Fixes", description: "Fix reported issues", priority: "high", effort: 2, estimateHours: 8 },
   ];
 
-  const statuses = ["todo", "in-progress", "review", "done"];
   const createdTaskIds: string[] = [];
 
   for (const epic of sampleEpics) {
     const numTasks = 3 + Math.floor(Math.random() * 4);
     const epicProgress = epic.progress || 0;
-    const stageId = findStageForEpic(epic);
+    const { stageId, stageName } = findStageForEpic(epic);
+    const milestoneId = findMilestoneForStage(stageName);
     
     // Calculate task date range within the epic's date range
     const epicStartDate = new Date(epic.startDate);
@@ -423,17 +473,34 @@ async function generateTaskData(
     
     for (let i = 0; i < numTasks; i++) {
       const template = randomElement(taskTemplates);
-      const status = epicProgress >= 100 
-        ? "done" 
-        : epicProgress > 50 
-          ? randomElement(["in-progress", "review", "done"])
-          : randomElement(statuses);
       
       // Calculate task dates within the epic's date range
       const taskStartOffset = Math.floor((i / numTasks) * epicDurationDays);
       const taskEndOffset = Math.floor(((i + 1) / numTasks) * epicDurationDays);
       const taskStartDate = addDays(epicStartDate, taskStartOffset);
       const taskDeadline = addDays(epicStartDate, Math.min(taskEndOffset, epicDurationDays));
+      
+      // Find sprint for this task based on dates
+      const { sprintId, sprintStatus } = findSprintForTask(taskStartDate, taskDeadline);
+      
+      // Determine task status based on sprint status and epic progress
+      let status: string;
+      if (sprintStatus === "completed") {
+        // Tasks in completed sprints should all be done
+        status = "done";
+      } else if (epicProgress >= 100) {
+        status = "done";
+      } else if (sprintStatus === "active") {
+        // Tasks in active sprint have mixed statuses
+        status = randomElement(["todo", "in-progress", "review", "done"]);
+      } else if (sprintStatus === "planned") {
+        // Tasks in planned sprints are not started yet
+        status = "todo";
+      } else if (epicProgress > 50) {
+        status = randomElement(["in-progress", "review", "done"]);
+      } else {
+        status = randomElement(["todo", "in-progress", "review", "done"]);
+      }
       
       const taskId = generateId("task");
       const task = {
@@ -444,6 +511,8 @@ async function generateTaskData(
         projectId: SAMPLE_PROJECT_ID,
         epicId: epic.id,
         stageId,
+        sprintId,
+        milestoneId,
         status,
         assigneeId: randomElement(users).id,
         startDate: toDateString(taskStartDate),
@@ -452,8 +521,8 @@ async function generateTaskData(
         estimateHours: template.estimateHours,
         effort: template.effort,
         tags: randomElement([["frontend"], ["backend"], ["design"], ["testing"], ["documentation"], []]),
-        blocked: Math.random() < 0.1,
-        blockerReason: Math.random() < 0.1 ? "Waiting for design approval" : undefined,
+        blocked: sprintStatus === "completed" ? false : Math.random() < 0.1,
+        blockerReason: sprintStatus === "completed" ? undefined : (Math.random() < 0.1 ? "Waiting for design approval" : undefined),
       };
       
       await storage.createTask(task as any);
@@ -523,7 +592,7 @@ async function generateMilestoneData(
 async function generateSprintData(
   result: SampleDataResult,
   users: User[],
-  now: Date
+  projectStartDate: Date
 ): Promise<void> {
   const existingSprints = await storage.getSprints();
   if (existingSprints.some(s => s.projectId === SAMPLE_PROJECT_ID)) {
@@ -531,10 +600,16 @@ async function generateSprintData(
     return;
   }
 
+  // Sprints aligned with project phases (relative to project start date which is 30 days ago)
+  // Sprint 1: Days 0-14 (Discovery phase - completed)
+  // Sprint 2: Days 14-28 (Design phase - completed) 
+  // Sprint 3: Days 28-42 (Design/Development overlap - active, ends in 12 days)
+  // Sprint 4: Days 42-56 (Development phase - planned)
   const sprintConfigs = [
-    { name: "Sprint 1 - Discovery", goal: "Complete research and initial wireframes", startOffset: -28, endOffset: -14, status: "completed", capacityHours: 80, notes: "Focused on user research and competitive analysis" },
-    { name: "Sprint 2 - Design", goal: "Complete design system components", startOffset: -14, endOffset: 0, status: "active", capacityHours: 80, notes: "Building core UI components and patterns" },
-    { name: "Sprint 3 - Development Kickoff", goal: "Start frontend implementation", startOffset: 0, endOffset: 14, status: "planned", capacityHours: 100, notes: "Begin React implementation with design system" },
+    { name: "Sprint 1 - Discovery", goal: "Complete research and initial wireframes", startOffset: 0, endOffset: 14, status: "completed", capacityHours: 80, notes: "Focused on user research and competitive analysis" },
+    { name: "Sprint 2 - Design Foundation", goal: "Complete brand guidelines and start components", startOffset: 14, endOffset: 28, status: "completed", capacityHours: 80, notes: "Building core UI components and patterns" },
+    { name: "Sprint 3 - Component Library", goal: "Complete design system components", startOffset: 28, endOffset: 42, status: "active", capacityHours: 80, notes: "Finishing component library and documentation" },
+    { name: "Sprint 4 - Development Kickoff", goal: "Start frontend implementation", startOffset: 42, endOffset: 56, status: "planned", capacityHours: 100, notes: "Begin React implementation with design system" },
   ];
 
   for (const config of sprintConfigs) {
@@ -545,8 +620,8 @@ async function generateSprintData(
       ownerUserId: users[0].id,
       name: config.name,
       goal: config.goal,
-      startDate: toDateString(addDays(now, config.startOffset)),
-      endDate: toDateString(addDays(now, config.endOffset)),
+      startDate: toDateString(addDays(projectStartDate, config.startOffset)),
+      endDate: toDateString(addDays(projectStartDate, config.endOffset)),
       status: config.status,
       capacityHours: config.capacityHours,
       notes: config.notes,
