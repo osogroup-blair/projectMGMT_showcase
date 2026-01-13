@@ -501,22 +501,17 @@ export function TeamContent({ projectId }: { projectId: string }) {
                 Execution Roles
               </h3>
               {availableRoleTemplates.length > 0 && (
-                <Select
+                <SearchableSelect
+                  options={availableRoleTemplates.map((template: any) => ({ 
+                    value: template.id, 
+                    label: template.name 
+                  }))}
                   value=""
                   onValueChange={(templateId) => addProjectRoleMutation.mutate(templateId)}
-                >
-                  <SelectTrigger className="w-[180px]" data-testid="select-add-project-role">
-                    <Plus className="h-4 w-4 mr-2" />
-                    <span>Add Role</span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableRoleTemplates.map((template: any) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Add Role..."
+                  className="w-[180px]"
+                  data-testid="select-add-project-role"
+                />
               )}
             </div>
             {projectRoles.length > 0 ? (
@@ -616,6 +611,22 @@ export function TeamContent({ projectId }: { projectId: string }) {
                       <Pencil className="h-3 w-3" />
                     </Button>
                   </div>
+                </div>
+              </div>
+
+              <div className="h-8 w-px bg-border" />
+
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-purple-100">
+                  <Briefcase className="h-4 w-4 text-purple-700" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Project Manager</p>
+                  <p className="font-medium text-sm">
+                    {managers.length > 0 
+                      ? allUsers.find((u: any) => u.id === managers[0]?.userId)?.name || 'Unknown'
+                      : 'Not assigned'}
+                  </p>
                 </div>
               </div>
 
