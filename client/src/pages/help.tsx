@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Shell } from "@/components/layout/shell";
 import { 
   FolderKanban, 
   Package, 
@@ -22,7 +23,8 @@ import {
 
 export default function HelpPage() {
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
+    <Shell>
+      <div className="container max-w-4xl mx-auto py-8 px-4">
       <div className="space-y-2 mb-8">
         <h1 className="text-3xl font-bold tracking-tight" data-testid="help-title">Help & User Guide</h1>
         <p className="text-muted-foreground text-lg">
@@ -189,11 +191,10 @@ export default function HelpPage() {
                       1
                     </div>
                     <div className="pt-1">
-                      <h4 className="font-semibold">Choose or Create a Framework</h4>
+                      <h4 className="font-semibold">Create Your Project</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Start by selecting a delivery framework that matches your methodology. Use "Standard Delivery" 
-                        for typical projects, "Agile Scrum" for sprint-based work, or create your own custom framework 
-                        with stages that match your process.
+                        Use the project wizard to set up your project. Define the project name, description, 
+                        and set key dates. The wizard guides you through each step of the setup process.
                       </p>
                     </div>
                   </div>
@@ -203,10 +204,11 @@ export default function HelpPage() {
                       2
                     </div>
                     <div className="pt-1">
-                      <h4 className="font-semibold">Create Your Project</h4>
+                      <h4 className="font-semibold">Build Your Work Breakdown Structure</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Use the project wizard to set up your project. Define the project name, description, 
-                        select your framework, and set key dates. The wizard guides you through each step.
+                        Add deliverables and epics to organize your scope. This hierarchical structure helps 
+                        everyone understand what needs to be built. You can import tasks from spreadsheets or 
+                        add them manually.
                       </p>
                     </div>
                   </div>
@@ -216,11 +218,11 @@ export default function HelpPage() {
                       3
                     </div>
                     <div className="pt-1">
-                      <h4 className="font-semibold">Build Your Work Breakdown Structure</h4>
+                      <h4 className="font-semibold">Configure Your Workflow Stages</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Add deliverables and epics to organize your scope. This hierarchical structure helps 
-                        everyone understand what needs to be built. You can import tasks from spreadsheets or 
-                        add them manually.
+                        Select a delivery framework that matches your methodology (like "Standard Delivery" or 
+                        "Agile Scrum"), or create custom stages that fit your team's process. Stages define how 
+                        tasks move through your workflow.
                       </p>
                     </div>
                   </div>
@@ -562,6 +564,7 @@ export default function HelpPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </Shell>
   );
 }
