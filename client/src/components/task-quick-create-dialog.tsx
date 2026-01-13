@@ -27,10 +27,11 @@ interface TaskQuickCreateDialogProps {
   onOpenChange: (open: boolean) => void;
   defaultProjectId?: string;
   defaultProjectName?: string;
+  defaultMilestoneId?: string;
   onSuccess?: () => void;
 }
 
-export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, defaultProjectName, onSuccess }: TaskQuickCreateDialogProps) {
+export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, defaultProjectName, defaultMilestoneId, onSuccess }: TaskQuickCreateDialogProps) {
   const queryClient = useQueryClient();
   const { currentUserId } = useCurrentUser();
   
@@ -38,6 +39,7 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
   const [projectId, setProjectId] = useState(defaultProjectId || "");
   const [epicId, setEpicId] = useState("");
   const [stageId, setStageId] = useState("");
+  const [milestoneId, setMilestoneId] = useState(defaultMilestoneId || "");
   const [deadline, setDeadline] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
   const [priority, setPriority] = useState("Medium");
   const [error, setError] = useState("");
@@ -47,6 +49,12 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
       setProjectId(defaultProjectId);
     }
   }, [defaultProjectId]);
+
+  useEffect(() => {
+    if (defaultMilestoneId) {
+      setMilestoneId(defaultMilestoneId);
+    }
+  }, [defaultMilestoneId]);
 
   const { data: projects = [] } = useQuery({
     queryKey: ["/api/projects"],
@@ -111,6 +119,7 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
     setProjectId(defaultProjectId || "");
     setEpicId("");
     setStageId("");
+    setMilestoneId(defaultMilestoneId || "");
     setDeadline(format(addDays(new Date(), 7), "yyyy-MM-dd"));
     setPriority("Medium");
     setError("");
@@ -153,6 +162,7 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
       project: projectName,
       epicId,
       stageId,
+      milestoneId: milestoneId || undefined,
       deadline,
       priority,
       assigneeId: currentUserId,

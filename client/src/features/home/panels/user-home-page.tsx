@@ -132,6 +132,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
   
   // Task creation dialog state
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [createTaskMilestone, setCreateTaskMilestone] = useState<{ id: string; projectId: string } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -368,12 +369,14 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
           <TabsContent value="upcoming" className="mt-0">
             <div className="bg-card rounded-xl border shadow-sm p-6">
               <h2 className="text-lg font-semibold mb-4">Upcoming Milestones</h2>
-              <p className="text-muted-foreground text-sm">Key milestones and your tasks to complete within them.</p>
+              <p className="text-muted-foreground text-sm">Milestones with tasks assigned to you.</p>
               <div className="mt-6 space-y-4">
-                 {homeState.upcomingMilestones.map((milestone: any) => {
+                 {homeState.upcomingMilestones
+                   .filter((milestone: any) => (myTasksByMilestone[milestone.id] || []).length > 0)
+                   .map((milestone: any) => {
                    const milestoneTasks = myTasksByMilestone[milestone.id] || [];
                    return (
-                     <Collapsible key={milestone.id} defaultOpen={milestoneTasks.length > 0}>
+                     <Collapsible key={milestone.id} defaultOpen={true}>
                        <div className="border rounded-lg bg-background overflow-hidden">
                          <div className="flex items-center gap-3 p-4">
                            <CollapsibleTrigger asChild>
@@ -388,11 +391,9 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                                  {milestone.name}
                                </Link>
                                <div className="flex items-center gap-2 shrink-0">
-                                 {milestoneTasks.length > 0 && (
-                                   <Badge variant="secondary" className="text-xs">
-                                     {milestoneTasks.length} task{milestoneTasks.length !== 1 ? 's' : ''} for you
-                                   </Badge>
-                                 )}
+                                 <Badge variant="secondary" className="text-xs">
+                                   {milestoneTasks.length} task{milestoneTasks.length !== 1 ? 's' : ''} for you
+                                 </Badge>
                                  <Badge variant="outline">{milestone.status}</Badge>
                                </div>
                              </div>
@@ -404,45 +405,53 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                            </div>
                          </div>
                          <CollapsibleContent>
-                           {milestoneTasks.length > 0 ? (
-                             <div className="border-t bg-muted/30 px-4 py-3 space-y-2">
-                               <p className="text-xs font-medium text-muted-foreground mb-2">Your tasks in this milestone:</p>
-                               {milestoneTasks.map((task: any) => (
-                                 <Link 
-                                   key={task.id} 
-                                   href={`/projects/${task.projectId}/tasks/${task.id}`}
-                                   className="flex items-center gap-3 p-2 rounded-md hover:bg-background transition-colors group"
-                                 >
-                                   <Circle className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
-                                   <span className="flex-1 text-sm truncate group-hover:text-primary">{task.title}</span>
-                                   <div className="flex items-center gap-2 shrink-0">
-                                     {task.priority && (
-                                       <Badge variant="outline" className="text-[10px] px-1.5">
-                                         {task.priority}
-                                       </Badge>
-                                     )}
-                                     {task.deadline && (
-                                       <span className="text-[10px] text-muted-foreground">
-                                         {new Date(task.deadline).toLocaleDateString()}
-                                       </span>
-                                     )}
-                                   </div>
-                                 </Link>
-                               ))}
+                           <div className="border-t bg-muted/30 px-4 py-3 space-y-2">
+                             <div className="flex items-center justify-between mb-2">
+                               <p className="text-xs font-medium text-muted-foreground">Your tasks in this milestone:</p>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 className="h-6 text-xs gap-1"
+                                 onClick={() => {
+                                   setCreateTaskMilestone({ id: milestone.id, projectId: milestone.projectId });
+                                   setIsCreateTaskOpen(true);
+                                 }}
+                               >
+                                 <Plus className="h-3 w-3" />
+                                 Add Task
+                               </Button>
                              </div>
-                           ) : (
-                             <div className="border-t bg-muted/30 px-4 py-3">
-                               <p className="text-xs text-muted-foreground text-center">No tasks assigned to you in this milestone</p>
-                             </div>
-                           )}
+                             {milestoneTasks.map((task: any) => (
+                               <Link 
+                                 key={task.id} 
+                                 href={`/projects/${task.projectId}/tasks/${task.id}`}
+                                 className="flex items-center gap-3 p-2 rounded-md hover:bg-background transition-colors group"
+                               >
+                                 <Circle className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
+                                 <span className="flex-1 text-sm truncate group-hover:text-primary">{task.title}</span>
+                                 <div className="flex items-center gap-2 shrink-0">
+                                   {task.priority && (
+                                     <Badge variant="outline" className="text-[10px] px-1.5">
+                                       {task.priority}
+                                     </Badge>
+                                   )}
+                                   {task.deadline && (
+                                     <span className="text-[10px] text-muted-foreground">
+                                       {new Date(task.deadline).toLocaleDateString()}
+                                     </span>
+                                   )}
+                                 </div>
+                               </Link>
+                             ))}
+                           </div>
                          </CollapsibleContent>
                        </div>
                      </Collapsible>
                    );
                  })}
-                 {homeState.upcomingMilestones.length === 0 && (
+                 {homeState.upcomingMilestones.filter((m: any) => (myTasksByMilestone[m.id] || []).length > 0).length === 0 && (
                    <div className="text-center py-8">
-                     <p className="text-muted-foreground">No upcoming milestones found.</p>
+                     <p className="text-muted-foreground">No milestones with tasks assigned to you.</p>
                    </div>
                  )}
               </div>
@@ -461,7 +470,12 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
 
       <TaskQuickCreateDialog 
         open={isCreateTaskOpen} 
-        onOpenChange={setIsCreateTaskOpen} 
+        onOpenChange={(open) => {
+          setIsCreateTaskOpen(open);
+          if (!open) setCreateTaskMilestone(null);
+        }}
+        defaultProjectId={createTaskMilestone?.projectId}
+        defaultMilestoneId={createTaskMilestone?.id}
       />
     </Shell>
   );
