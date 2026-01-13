@@ -9,7 +9,7 @@ import { TaskCard } from "./task-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, Target, Briefcase, ClipboardList, BarChart3, ChevronDown, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+import { Bell, Search, Plus, SlidersHorizontal, CalendarDays, LayoutDashboard, Target, Briefcase, ClipboardList, BarChart3, ChevronDown, ChevronRight, CheckCircle2, Clock, TrendingUp, Circle, CheckCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -54,6 +54,20 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
   const { data: allTasks } = useTasks();
   const { data: allProjects } = useProjects();
   const { data: allSprints } = useSprints();
+
+  // Get my tasks for each milestone (non-completed tasks assigned to me)
+  const myTasksByMilestone = useMemo(() => {
+    if (!allTasks || !currentUser?.id) return {};
+    return allTasks
+      .filter((t: any) => t.assigneeId === currentUser.id && !isTaskComplete(t.status) && t.milestoneId)
+      .reduce((acc: Record<string, any[]>, task: any) => {
+        if (!acc[task.milestoneId]) {
+          acc[task.milestoneId] = [];
+        }
+        acc[task.milestoneId].push(task);
+        return acc;
+      }, {});
+  }, [allTasks, currentUser?.id, isTaskComplete]);
 
   // Calculate workload metrics
   const workloadMetrics = useMemo(() => {
@@ -354,28 +368,78 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
           <TabsContent value="upcoming" className="mt-0">
             <div className="bg-card rounded-xl border shadow-sm p-6">
               <h2 className="text-lg font-semibold mb-4">Upcoming Milestones</h2>
-              <p className="text-muted-foreground text-sm">Key milestones and upcoming deadlines across your projects.</p>
-              <div className="mt-6 space-y-6">
-                 {homeState.upcomingMilestones.map((milestone: any) => (
-                   <Link key={milestone.id} href={`/projects/${milestone.projectId}/milestones/${milestone.id}`} className="block">
-                     <div className="flex items-start gap-4 p-4 border rounded-lg bg-background hover:border-primary/50 transition-colors">
-                       <div className="mt-1">
-                          <Target className="w-5 h-5 text-primary" />
-                       </div>
-                       <div className="flex-1 space-y-2">
-                         <div className="flex justify-between">
-                           <h3 className="font-medium">{milestone.name}</h3>
-                           <Badge variant="outline">{milestone.status}</Badge>
+              <p className="text-muted-foreground text-sm">Key milestones and your tasks to complete within them.</p>
+              <div className="mt-6 space-y-4">
+                 {homeState.upcomingMilestones.map((milestone: any) => {
+                   const milestoneTasks = myTasksByMilestone[milestone.id] || [];
+                   return (
+                     <Collapsible key={milestone.id} defaultOpen={milestoneTasks.length > 0}>
+                       <div className="border rounded-lg bg-background overflow-hidden">
+                         <div className="flex items-center gap-3 p-4">
+                           <CollapsibleTrigger asChild>
+                             <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                               <ChevronRight className="h-4 w-4 transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
+                             </Button>
+                           </CollapsibleTrigger>
+                           <Target className="w-5 h-5 text-primary shrink-0" />
+                           <div className="flex-1 min-w-0">
+                             <div className="flex items-center justify-between gap-2">
+                               <Link href={`/projects/${milestone.projectId}/milestones/${milestone.id}`} className="font-medium hover:text-primary transition-colors truncate">
+                                 {milestone.name}
+                               </Link>
+                               <div className="flex items-center gap-2 shrink-0">
+                                 {milestoneTasks.length > 0 && (
+                                   <Badge variant="secondary" className="text-xs">
+                                     {milestoneTasks.length} task{milestoneTasks.length !== 1 ? 's' : ''} for you
+                                   </Badge>
+                                 )}
+                                 <Badge variant="outline">{milestone.status}</Badge>
+                               </div>
+                             </div>
+                             <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                               <span>{milestone.projectName}</span>
+                               <span>Due: {milestone.targetDate ? new Date(milestone.targetDate).toLocaleDateString() : 'No date'}</span>
+                               <span>{milestone.percentComplete}% Complete</span>
+                             </div>
+                           </div>
                          </div>
-                         <p className="text-sm text-muted-foreground">{milestone.projectName}</p>
-                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                           <span>Due: {milestone.targetDate ? new Date(milestone.targetDate).toLocaleDateString() : 'No date'}</span>
-                           <span>{milestone.percentComplete}% Complete</span>
-                         </div>
+                         <CollapsibleContent>
+                           {milestoneTasks.length > 0 ? (
+                             <div className="border-t bg-muted/30 px-4 py-3 space-y-2">
+                               <p className="text-xs font-medium text-muted-foreground mb-2">Your tasks in this milestone:</p>
+                               {milestoneTasks.map((task: any) => (
+                                 <Link 
+                                   key={task.id} 
+                                   href={`/projects/${task.projectId}/tasks/${task.id}`}
+                                   className="flex items-center gap-3 p-2 rounded-md hover:bg-background transition-colors group"
+                                 >
+                                   <Circle className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
+                                   <span className="flex-1 text-sm truncate group-hover:text-primary">{task.title}</span>
+                                   <div className="flex items-center gap-2 shrink-0">
+                                     {task.priority && (
+                                       <Badge variant="outline" className="text-[10px] px-1.5">
+                                         {task.priority}
+                                       </Badge>
+                                     )}
+                                     {task.deadline && (
+                                       <span className="text-[10px] text-muted-foreground">
+                                         {new Date(task.deadline).toLocaleDateString()}
+                                       </span>
+                                     )}
+                                   </div>
+                                 </Link>
+                               ))}
+                             </div>
+                           ) : (
+                             <div className="border-t bg-muted/30 px-4 py-3">
+                               <p className="text-xs text-muted-foreground text-center">No tasks assigned to you in this milestone</p>
+                             </div>
+                           )}
+                         </CollapsibleContent>
                        </div>
-                     </div>
-                   </Link>
-                 ))}
+                     </Collapsible>
+                   );
+                 })}
                  {homeState.upcomingMilestones.length === 0 && (
                    <div className="text-center py-8">
                      <p className="text-muted-foreground">No upcoming milestones found.</p>
