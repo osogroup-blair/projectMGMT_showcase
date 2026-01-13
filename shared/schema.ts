@@ -396,7 +396,7 @@ export const projectRoles = pgTable("project_roles", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Role Assignments (links users to roles within a project)
+// Role Assignments (links users to roles within a project) - LEGACY, use projectTeamMembers instead
 export const roleAssignments = pgTable("role_assignments", {
   id: varchar("id").primaryKey(),
   projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
@@ -407,6 +407,34 @@ export const roleAssignments = pgTable("role_assignments", {
   allocationPercent: integer("allocation_percent").notNull().default(100),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Project Team Members - unified source of truth for project membership
+export const projectTeamMembers = pgTable("project_team_members", {
+  id: varchar("id").primaryKey(),
+  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  allocationPercent: integer("allocation_percent").notNull().default(100),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// High-Level Project Roles - enum-driven project-level roles (owner, manager, stakeholder, member)
+export const projectHighLevelRoles = pgTable("project_high_level_roles", {
+  id: varchar("id").primaryKey(),
+  teamMemberId: varchar("team_member_id").notNull().references(() => projectTeamMembers.id, { onDelete: "cascade" }),
+  roleType: text("role_type").notNull(), // 'owner', 'manager', 'stakeholder', 'member'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Execution Role Assignments - links team members to execution roles (designer, developer, QA)
+export const executionRoleAssignments = pgTable("execution_role_assignments", {
+  id: varchar("id").primaryKey(),
+  teamMemberId: varchar("team_member_id").notNull().references(() => projectTeamMembers.id, { onDelete: "cascade" }),
+  roleId: varchar("role_id").notNull().references(() => projectRoles.id, { onDelete: "cascade" }),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Role Templates
@@ -749,6 +777,9 @@ export const insertAttachmentSchema = createInsertSchema(attachments).omit({ id:
 export const insertHistorySchema = createInsertSchema(history).omit({ id: true });
 export const insertProjectRoleSchema = createInsertSchema(projectRoles).omit({ id: true });
 export const insertRoleAssignmentSchema = createInsertSchema(roleAssignments).omit({ id: true });
+export const insertProjectTeamMemberSchema = createInsertSchema(projectTeamMembers).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProjectHighLevelRoleSchema = createInsertSchema(projectHighLevelRoles).omit({ id: true, createdAt: true });
+export const insertExecutionRoleAssignmentSchema = createInsertSchema(executionRoleAssignments).omit({ id: true, createdAt: true });
 export const insertRoleTemplateSchema = createInsertSchema(roleTemplates).omit({ id: true });
 export const insertSavedViewSchema = createInsertSchema(savedViews).omit({ id: true });
 export const insertGuidanceItemSchema = createInsertSchema(guidanceItems).omit({ id: true });
@@ -856,6 +887,15 @@ export type InsertProjectRole = z.infer<typeof insertProjectRoleSchema>;
 
 export type RoleAssignment = typeof roleAssignments.$inferSelect;
 export type InsertRoleAssignment = z.infer<typeof insertRoleAssignmentSchema>;
+
+export type ProjectTeamMember = typeof projectTeamMembers.$inferSelect;
+export type InsertProjectTeamMember = z.infer<typeof insertProjectTeamMemberSchema>;
+
+export type ProjectHighLevelRole = typeof projectHighLevelRoles.$inferSelect;
+export type InsertProjectHighLevelRole = z.infer<typeof insertProjectHighLevelRoleSchema>;
+
+export type ExecutionRoleAssignment = typeof executionRoleAssignments.$inferSelect;
+export type InsertExecutionRoleAssignment = z.infer<typeof insertExecutionRoleAssignmentSchema>;
 
 export type RoleTemplate = typeof roleTemplates.$inferSelect;
 export type InsertRoleTemplate = z.infer<typeof insertRoleTemplateSchema>;
