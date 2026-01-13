@@ -156,18 +156,60 @@ export async function registerRoutes(
   // Update app settings (admin only)
   app.patch("/api/admin/app-settings", async (req, res) => {
     try {
-      const { demoLoginUserId } = req.body;
+      const { demoLoginUserId, completedTaskStatusIds } = req.body;
+      
+      const updateData: any = {};
       
       // Validate the user exists if provided
-      if (demoLoginUserId) {
-        const user = await storage.getUser(demoLoginUserId);
-        if (!user) {
-          return res.status(400).json({ error: "Selected user not found" });
+      if (demoLoginUserId !== undefined) {
+        if (demoLoginUserId) {
+          const user = await storage.getUser(demoLoginUserId);
+          if (!user) {
+            return res.status(400).json({ error: "Selected user not found" });
+          }
         }
+        updateData.demoLoginUserId = demoLoginUserId;
       }
       
-      const updated = await storage.updateAppSettings({ demoLoginUserId });
+      // Handle completedTaskStatusIds update
+      if (completedTaskStatusIds !== undefined) {
+        updateData.completedTaskStatusIds = completedTaskStatusIds;
+      }
+      
+      const updated = await storage.updateAppSettings(updateData);
       res.json({ success: true, settings: updated });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Public endpoint to get completed task status configuration (for progress calculations)
+  app.get("/api/completed-statuses", async (req, res) => {
+    try {
+      const settings = await storage.getAppSettings();
+      const statusOptions = await storage.getStatusOptions();
+      const taskStatuses = statusOptions.filter(s => s.type === "task");
+      
+      // Get the configured completed status IDs, or default to statuses containing "Done" or "Complete"
+      let completedIds = settings?.completedTaskStatusIds || [];
+      
+      // If no configured IDs, provide a fallback based on status labels
+      if (completedIds.length === 0) {
+        completedIds = taskStatuses
+          .filter(s => ['Done', 'Complete', 'Completed', 'Closed'].includes(s.label))
+          .map(s => s.id);
+      }
+      
+      // Get the actual labels for these IDs
+      const completedLabels = taskStatuses
+        .filter(s => completedIds.includes(s.id))
+        .map(s => s.label);
+      
+      res.json({
+        completedStatusIds: completedIds,
+        completedStatusLabels: completedLabels,
+        allTaskStatuses: taskStatuses.map(s => ({ id: s.id, label: s.label })),
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -690,6 +690,7 @@ export const appSettings = pgTable("app_settings", {
   id: varchar("id").primaryKey().default("default"),
   demoDataReady: boolean("demo_data_ready").default(false),
   demoLoginUserId: varchar("demo_login_user_id"),
+  completedTaskStatusIds: text("completed_task_status_ids").array().default([]),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
