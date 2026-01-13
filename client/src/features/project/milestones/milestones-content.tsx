@@ -35,7 +35,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useMilestoneScopeRules, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useMilestoneScopeRules, useResolvedTaskTypes, useSprints } from "@/hooks/use-nexus-data";
 import { useCurrentUser } from "@/context/current-user-context";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { Switch } from "@/components/ui/switch";
@@ -45,6 +45,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,6 +54,7 @@ import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { MilestoneScopeInline } from "./milestone-scope-inline";
+import { format, parseISO } from "date-fns";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -89,14 +92,16 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const [, navigate] = useLocation();
   const { data: allMilestones, isLoading: isMilestonesLoading, createAsync: createMilestoneAsync, update: updateMilestone, remove: removeMilestone } = useMilestones();
   const { data: allTaskLinks, isLoading: isLinksLoading, create: createLink } = useMilestoneTaskLinks();
-  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allStages, isLoading: isStagesLoading } = useProjectStages();
+  const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { currentUser } = useCurrentUser();
   const { isTaskComplete } = useCompletedStatuses();
+  const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
 
   // Inline editing state
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
@@ -140,6 +145,50 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
   // Scope rules for expanded milestone
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
+
+  // Project-specific sprints
+  const projectSprints = useMemo(() => 
+    (allSprints || []).filter((s: any) => s.projectId === projectId),
+    [allSprints, projectId]
+  );
+
+  // Task update handlers for inline editing
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      await updateTask({ id: taskId, updates: { status: newStatus } });
+      toast({ title: "Status updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskSprintChange = async (taskId: string, sprintId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { sprintId: sprintId || null } });
+      toast({ title: "Sprint updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskAssigneeChange = async (taskId: string, assigneeId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { assigneeId: assigneeId || null } });
+      toast({ title: "Assignee updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskDeadlineChange = async (taskId: string, date: Date | undefined) => {
+    try {
+      const deadline = date ? format(date, "yyyy-MM-dd") : null;
+      await updateTask({ id: taskId, updates: { deadline } });
+      toast({ title: "Due date updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
 
   const milestones = useMemo(() => 
     (allMilestones || []).filter((m: any) => m.projectId === projectId),
@@ -840,38 +889,124 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                           Add Task
                                         </Button>
                                       </div>
-                                      <div className="border rounded-md divide-y max-h-[300px] overflow-y-auto">
-                                        {milestoneTasks.map((task: any) => {
-                                          const taskEpic = getEpic(task.epicId);
-                                          const assignee = getAssignee(task.assigneeId);
-                                          return (
-                                            <div key={task.id} className="p-3 hover:bg-muted/30 flex items-center justify-between">
-                                              <div className="flex-1 min-w-0">
-                                                <Link href={`/tasks/${task.id}`}>
-                                                  <span className="font-medium text-sm hover:text-primary cursor-pointer">{task.title}</span>
-                                                </Link>
-                                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                                  {taskEpic && <span>{taskEpic.title}</span>}
-                                                  <Badge variant="outline" className={cn(
-                                                    "text-[10px] px-1.5 py-0",
-                                                    isTaskComplete(task.status) ? "bg-green-50 text-green-700 border-green-200" :
-                                                    task.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                                    "bg-slate-50 text-slate-700 border-slate-200"
-                                                  )}>
-                                                    {task.status}
-                                                  </Badge>
-                                                </div>
-                                              </div>
-                                              {assignee && (
-                                                <Avatar className="h-6 w-6">
-                                                  <AvatarFallback className="text-[10px]">
-                                                    {assignee.name?.substring(0, 2).toUpperCase()}
-                                                  </AvatarFallback>
-                                                </Avatar>
-                                              )}
-                                            </div>
-                                          );
-                                        })}
+                                      <div className="border rounded-md overflow-hidden max-h-[400px] overflow-y-auto">
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow className="hover:bg-transparent bg-muted/30">
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "30%" }}>Task</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "15%" }}>Status</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "15%" }}>Sprint</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "20%" }}>Assignee</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "15%" }}>Due Date</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "5%" }}></TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {milestoneTasks.map((task: any) => {
+                                              const taskEpic = getEpic(task.epicId);
+                                              const assignee = getAssignee(task.assigneeId);
+                                              return (
+                                                <TableRow key={task.id} className="hover:bg-muted/30" data-testid={`row-task-${task.id}`}>
+                                                  <TableCell className="py-2">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                      <div 
+                                                        className="w-2 h-2 rounded-full shrink-0"
+                                                        style={{ backgroundColor: getStatusAccentColor(task.status) }}
+                                                      />
+                                                      <Link href={`/projects/${projectId}/tasks/${task.id}`} className="truncate">
+                                                        <span className="text-sm font-medium hover:text-primary cursor-pointer truncate">{task.title}</span>
+                                                      </Link>
+                                                    </div>
+                                                    {taskEpic && (
+                                                      <div className="text-xs text-muted-foreground mt-0.5 ml-4">{taskEpic.title}</div>
+                                                    )}
+                                                  </TableCell>
+                                                  <TableCell className="py-2">
+                                                    <Select 
+                                                      value={task.status} 
+                                                      onValueChange={(v) => handleTaskStatusChange(task.id, v)}
+                                                    >
+                                                      <SelectTrigger className={cn("h-6 text-[10px] border px-2 w-auto rounded-full", getStatusBgColor(task.status), getStatusTextColor(task.status))}>
+                                                        <SelectValue placeholder="Status" />
+                                                      </SelectTrigger>
+                                                      <SelectContent>
+                                                        {statusLabels.map((status) => (
+                                                          <SelectItem key={status} value={status}>
+                                                            <span className={cn("px-2 py-0.5 rounded-full text-[10px]", getStatusBgColor(status), getStatusTextColor(status))}>
+                                                              {status}
+                                                            </span>
+                                                          </SelectItem>
+                                                        ))}
+                                                      </SelectContent>
+                                                    </Select>
+                                                  </TableCell>
+                                                  <TableCell className="py-2">
+                                                    <SearchableSelect
+                                                      value={task.sprintId || ""}
+                                                      onValueChange={(v) => handleTaskSprintChange(task.id, v || null)}
+                                                      className="h-6 text-xs w-[100px]"
+                                                      placeholder="No sprint"
+                                                      options={[
+                                                        { value: "", label: "No sprint" },
+                                                        ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                                                      ]}
+                                                    />
+                                                  </TableCell>
+                                                  <TableCell className="py-2">
+                                                    <SearchableSelect
+                                                      value={task.assigneeId || ""}
+                                                      onValueChange={(v) => handleTaskAssigneeChange(task.id, v || null)}
+                                                      className="h-6 text-xs w-[110px]"
+                                                      placeholder="Assign"
+                                                      options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
+                                                    />
+                                                  </TableCell>
+                                                  <TableCell className="py-2">
+                                                    <Popover>
+                                                      <PopoverTrigger asChild>
+                                                        <Button 
+                                                          variant="ghost" 
+                                                          size="sm" 
+                                                          className="h-6 px-2 text-xs justify-start font-normal"
+                                                        >
+                                                          <CalendarIcon className="h-3 w-3 mr-1 text-muted-foreground" />
+                                                          {task.deadline ? format(parseISO(task.deadline), "MMM d") : "Set date"}
+                                                        </Button>
+                                                      </PopoverTrigger>
+                                                      <PopoverContent className="w-auto p-0" align="start">
+                                                        <div className="p-2">
+                                                          <Calendar
+                                                            mode="single"
+                                                            selected={task.deadline ? parseISO(task.deadline) : undefined}
+                                                            onSelect={(date) => handleTaskDeadlineChange(task.id, date)}
+                                                            initialFocus
+                                                          />
+                                                          {task.deadline && (
+                                                            <Button 
+                                                              variant="ghost" 
+                                                              size="sm" 
+                                                              className="w-full mt-2 text-xs text-muted-foreground"
+                                                              onClick={() => handleTaskDeadlineChange(task.id, undefined)}
+                                                            >
+                                                              <X className="h-3 w-3 mr-1" /> Clear date
+                                                            </Button>
+                                                          )}
+                                                        </div>
+                                                      </PopoverContent>
+                                                    </Popover>
+                                                  </TableCell>
+                                                  <TableCell className="py-2 text-right">
+                                                    <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                                        <ExternalLink className="h-3.5 w-3.5" />
+                                                      </Button>
+                                                    </Link>
+                                                  </TableCell>
+                                                </TableRow>
+                                              );
+                                            })}
+                                          </TableBody>
+                                        </Table>
                                       </div>
                                     </div>
                                   )}
