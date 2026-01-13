@@ -1245,18 +1245,18 @@ export default function ProjectOverview() {
                         <div className="space-y-4">
                           {/* Sprint Metrics Accordion */}
                           {sprintMetrics && (
-                            <Collapsible defaultOpen={true}>
-                              <Card>
+                            <Collapsible defaultOpen={false}>
+                              <Card className="bg-muted/30 border-primary/20 shadow-sm overflow-hidden">
                                 <CollapsibleTrigger asChild>
-                                  <button type="button" className="group w-full py-3 px-4 cursor-pointer hover:bg-muted/50 transition-colors text-left flex items-center justify-between border-b">
+                                  <button type="button" className="group w-full py-3 px-4 cursor-pointer hover:bg-muted/50 transition-colors text-left flex items-center justify-between border-b border-primary/10">
                                     <div className="flex items-center gap-2">
-                                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                                      <span className="font-medium text-sm">Sprint Metrics</span>
-                                      <Badge variant="outline" className="text-xs">
+                                      <BarChart3 className="h-4 w-4 text-primary" />
+                                      <span className="font-semibold text-sm text-primary">Sprint Metrics</span>
+                                      <Badge variant="outline" className="text-xs border-primary/20 bg-primary/5 text-primary">
                                         {sprintMetrics.percentComplete}% Complete
                                       </Badge>
                                     </div>
-                                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                    <ChevronDown className="h-4 w-4 text-primary transition-transform duration-200 group-data-[state=open]:rotate-180" />
                                   </button>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
