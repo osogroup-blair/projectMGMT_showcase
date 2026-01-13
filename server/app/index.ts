@@ -73,6 +73,10 @@ app.use((req, res, next) => {
   });
 
   app.use('/api', (req, res, next) => {
+    // Exempt auth routes from database check - they need to work during OAuth callbacks
+    if (req.path.startsWith('/auth/')) {
+      return next();
+    }
     if (!isDatabaseConnected()) {
       return res.status(503).json({ 
         message: 'Service temporarily unavailable - database connecting',
