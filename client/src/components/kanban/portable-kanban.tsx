@@ -116,6 +116,7 @@ interface PortableKanbanProps {
   showAddTask?: boolean; // Show add task button in header
   hoverCard?: HoverCardConfig; // Enable hover cards with enriched task details
   onTaskMove?: (taskId: string, newStatus: string, blockerReason?: string) => void;
+  onUpdateTask?: (taskId: string, updates: any) => void;
   onBlockerRequested?: (taskId: string) => void;
   onAddTask?: () => void; // Callback when add task button is clicked
   className?: string;
@@ -616,6 +617,15 @@ export function PortableKanban({
       return acc;
     }, {} as Record<string, Task[]>);
   }, [filteredTasks, columns]);
+
+  // Handle column visibility based on tasks presence and defaults
+  const visibleColumns = useMemo(() => {
+    return columns.filter(col => {
+      const hasTasks = columnTasks[col.id]?.length > 0;
+      if (hasTasks) return true;
+      return !col.defaultCollapsed; // Show if not marked as collapsed by default even if empty
+    });
+  }, [columns, columnTasks]);
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
 
