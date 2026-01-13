@@ -46,11 +46,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useRoute } from "wouter";
 import { cn } from "@/lib/utils";
-import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useMilestones, useMilestoneTaskLinks, useTasks, useUsers, useEpics, useDeliverables, useProject, useMilestoneScopeRules, useProjectStages, useResolvedTaskTypes, useSprints } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
+import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { format, parseISO } from "date-fns";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -95,13 +97,20 @@ export default function MilestoneOverview() {
   const { data: project } = useProject(projectId);
   const { data: allMilestones, isLoading: isMilestonesLoading, update: updateMilestone } = useMilestones();
   const { data: allTaskLinks, isLoading: isLinksLoading, create: createLink, remove: removeLink, update: updateLink } = useMilestoneTaskLinks();
-  const { data: allTasks, isLoading: isTasksLoading } = useTasks();
+  const { data: allTasks, isLoading: isTasksLoading, update: updateTask } = useTasks();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
+  const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
   const { data: allStages, isLoading: isStagesLoading } = useProjectStages();
   const { isTaskComplete } = useCompletedStatuses();
+  const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
+
+  const projectSprints = useMemo(() => 
+    (allSprints || []).filter((s: any) => s.projectId === projectId),
+    [allSprints, projectId]
+  );
 
   const milestone = useMemo(() => 
     (allMilestones || []).find((m: any) => m.id === milestoneId),
@@ -327,6 +336,43 @@ export default function MilestoneOverview() {
     setIsEditingStatus(false);
   };
 
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      await updateTask({ id: taskId, updates: { status: newStatus } });
+      toast({ title: "Status updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskAssigneeChange = async (taskId: string, assigneeId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { assigneeId: assigneeId || null } });
+      toast({ title: "Assignee updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskSprintChange = async (taskId: string, sprintId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { sprintId: sprintId || null } });
+      toast({ title: "Sprint updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskDeadlineChange = async (taskId: string, date: Date | undefined) => {
+    try {
+      const deadline = date ? format(date, "yyyy-MM-dd") : null;
+      await updateTask({ id: taskId, updates: { deadline } });
+      toast({ title: "Due date updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleToggleBillingGate = () => {
     if (milestone) {
       updateMilestone({ id: milestone.id, updates: { isBillingGate: !milestone.isBillingGate } });
@@ -347,7 +393,7 @@ export default function MilestoneOverview() {
     return allStages.find((s: any) => s.id === milestone.stageId);
   }, [milestone?.stageId, allStages]);
 
-  const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isStagesLoading;
+  const isLoading = isMilestonesLoading || isLinksLoading || isTasksLoading || isUsersLoading || isEpicsLoading || isDeliverablesLoading || isStagesLoading || isSprintsLoading;
 
   if (isLoading) {
     return (
@@ -959,88 +1005,136 @@ function TasksTab({
       </div>
       
       {filteredLinkedTasks.length > 0 ? (
-        <div className={getGridClassName(layoutVariant)}>
-          {filteredLinkedTasks.map((task: any) => {
-              const epic = getEpic(task.epicId);
-              const assignee = getAssignee(task.assigneeId);
-              const priorityClass = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.Medium;
-              const hasConflict = hasTaskDateConflict(task);
-              
-              return (
-                <div 
-                  key={task.id}
-                  className={cn(
-                    "group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/50 hover:shadow-sm transition-all",
-                    hasConflict && "border-amber-300 bg-amber-50/30"
-                  )}
-                  data-testid={`milestone-task-${task.id}`}
-                >
-                  <Link href={`/projects/${projectId}/tasks/${task.id}`} className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
-                    <div className={cn(
-                      "w-2 h-2 rounded-full shrink-0",
-                      task.status === "Done" ? "bg-green-500" :
-                      task.status === "In Progress" ? "bg-blue-500" :
-                      task.status === "Review" ? "bg-amber-500" :
-                      "bg-slate-400"
-                    )} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium group-hover:text-primary transition-colors truncate">{task.title}</h4>
+        <div className="border rounded-md overflow-hidden bg-background">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent bg-muted/30">
+                <TableHead className="h-8 text-xs font-semibold" style={{ width: "35%" }}>Task</TableHead>
+                <TableHead className="h-8 text-xs font-semibold" style={{ width: "12%" }}>Status</TableHead>
+                <TableHead className="h-8 text-xs font-semibold" style={{ width: "12%" }}>Epic</TableHead>
+                <TableHead className="h-8 text-xs font-semibold" style={{ width: "12%" }}>Sprint</TableHead>
+                <TableHead className="h-8 text-xs font-semibold" style={{ width: "15%" }}>Assignee</TableHead>
+                <TableHead className="h-8 text-xs font-semibold" style={{ width: "12%" }}>Due Date</TableHead>
+                <TableHead className="h-8 text-xs font-semibold text-right" style={{ width: "2%" }}></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredLinkedTasks.map((task: any) => {
+                const epic = getEpic(task.epicId);
+                const assignee = getAssignee(task.assigneeId);
+                const hasConflict = hasTaskDateConflict(task);
+                
+                return (
+                  <TableRow key={task.id} className="hover:bg-muted/30" data-testid={`row-task-${task.id}`}>
+                    <TableCell className="py-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div 
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ backgroundColor: getStatusAccentColor(task.status) }}
+                        />
+                        <Link href={`/projects/${projectId}/tasks/${task.id}`} className="truncate">
+                          <span className="text-sm font-medium hover:text-primary cursor-pointer truncate">{task.title}</span>
+                        </Link>
                         {hasConflict && (
-                          <span className="flex items-center gap-1 text-amber-600 shrink-0" title="Task due date is after milestone target date">
-                            <AlertTriangle className="h-3.5 w-3.5" />
-                          </span>
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" title="Task due date is after milestone target date" />
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {epic && <span className="truncate">{epic.title}</span>}
-                        {(task.targetDate || task.dueDate) && (
-                          <span className={cn(
-                            "flex items-center gap-1 shrink-0",
-                            hasConflict && "text-amber-600 font-medium"
-                          )}>
-                            <CalendarIcon className="h-3 w-3" />
-                            {new Date(task.targetDate || task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                  <div className="flex items-center gap-3 shrink-0 ml-3">
-                    <Badge variant="outline" className={cn("font-normal text-xs", priorityClass)}>
-                      {task.priority}
-                    </Badge>
-                    <div onClick={(e) => e.stopPropagation()}>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <Select 
+                        value={task.status} 
+                        onValueChange={(v) => handleTaskStatusChange(task.id, v)}
+                      >
+                        <SelectTrigger className={cn("h-6 text-[10px] border px-2 w-auto rounded-full font-medium", getStatusBgColor(task.status), getStatusTextColor(task.status))}>
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusLabels.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              <span className={cn("px-2 py-0.5 rounded-full text-[10px]", getStatusBgColor(status), getStatusTextColor(status))}>
+                                {status}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="py-2 text-xs text-muted-foreground truncate">
+                      {epic?.title || "—"}
+                    </TableCell>
+                    <TableCell className="py-2">
                       <SearchableSelect
-                        value={task.status || "Pending"}
-                        onValueChange={(value) => handleTaskStatusChange(task.id, value)}
-                        options={TASK_STATUS_OPTIONS}
-                        className={cn(
-                          "h-7 text-xs min-w-[100px] border-0",
-                          task.status === "Done" ? "bg-green-100 text-green-700 hover:bg-green-200" :
-                          task.status === "In Progress" ? "bg-blue-100 text-blue-700 hover:bg-blue-200" :
-                          task.status === "Review" ? "bg-amber-100 text-amber-700 hover:bg-amber-200" :
-                          task.status === "Blocked" ? "bg-red-100 text-red-700 hover:bg-red-200" :
-                          "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        )}
-                        data-testid={`select-task-status-${task.id}`}
+                        value={task.sprintId || ""}
+                        onValueChange={(v) => handleTaskSprintChange(task.id, v || null)}
+                        className="h-7 text-xs w-[110px]"
+                        placeholder="No sprint"
+                        options={[
+                          { value: "", label: "No sprint" },
+                          ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                        ]}
                       />
-                    </div>
-                    {assignee && (
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-[9px]">
-                          {assignee.name?.split(' ').map((n: string) => n[0]).join('').substring(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <Link href={`/projects/${projectId}/tasks/${task.id}`}>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 hover:text-primary cursor-pointer" />
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <SearchableSelect
+                        value={task.assigneeId || ""}
+                        onValueChange={(v) => handleTaskAssigneeChange(task.id, v || null)}
+                        className="h-7 text-xs w-[110px]"
+                        placeholder="Assign"
+                        options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
+                      />
+                    </TableCell>
+                    <TableCell className="py-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className={cn(
+                              "h-7 px-2 text-xs justify-start font-normal",
+                              hasConflict && "text-amber-600 font-medium"
+                            )}
+                          >
+                            <CalendarIcon className="h-3 w-3 mr-1 text-muted-foreground" />
+                            {task.deadline || task.targetDate ? format(parseISO(task.deadline || task.targetDate), "MMM d") : "Set date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-2">
+                            <Calendar
+                              mode="single"
+                              selected={task.deadline || task.targetDate ? parseISO(task.deadline || task.targetDate) : undefined}
+                              onSelect={(date) => handleTaskDeadlineChange(task.id, date)}
+                              initialFocus
+                            />
+                            {(task.deadline || task.targetDate) && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="w-full mt-2 text-xs text-muted-foreground"
+                                onClick={() => handleTaskDeadlineChange(task.id, undefined)}
+                              >
+                                <X className="h-3 w-3 mr-1" /> Clear date
+                              </Button>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </TableCell>
+                    <TableCell className="py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Link href={`/projects/${projectId}/tasks/${task.id}`}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
         <Card>
           <CardContent className="p-8 text-center">
