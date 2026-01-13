@@ -351,17 +351,47 @@ export function registerImportExportRoutes(
 
   app.post("/api/tasks/:taskId/subtasks", async (req, res) => {
     try {
-      const validated = insertTaskSchema.parse({ ...req.body, parentTaskId: req.params.taskId });
+      const parentTaskId = req.params.taskId;
       
-      // Server-side validation: Epic, Stage, and TaskType are required for subtask creation
+      // Get parent task to inherit values
+      const parentTask = await storage.getTaskById(parentTaskId);
+      if (!parentTask) {
+        return res.status(404).json({ error: "Parent task not found" });
+      }
+      
+      const projectId = req.body.projectId || parentTask.projectId;
+      
+      // Determine task type - try to inherit, otherwise get project default
+      let taskTypeId = req.body.taskTypeId || parentTask.taskTypeId;
+      if (!taskTypeId && projectId) {
+        const taskTypes = await storage.getProjectTaskTypesByProjectId(projectId);
+        taskTypeId = taskTypes.length > 0 ? taskTypes[0].id : null;
+      }
+      
+      // Build subtask data, inheriting from parent where needed
+      const subtaskData = {
+        ...req.body,
+        parentTaskId,
+        // Inherit project from parent if not provided
+        project: req.body.project || parentTask.project,
+        projectId: projectId,
+        // Make deadline optional, inherit from parent if not provided
+        deadline: req.body.deadline || parentTask.deadline || null,
+        // Inherit epicId, stageId from parent if not provided
+        epicId: req.body.epicId || parentTask.epicId,
+        stageId: req.body.stageId || parentTask.stageId,
+        taskTypeId: taskTypeId,
+      };
+      
+      // Validate with schema
+      const validated = insertTaskSchema.parse(subtaskData);
+      
+      // Server-side validation: Epic and Stage are required, TaskType is optional
       if (!validated.epicId) {
         return res.status(400).json({ error: "Epic is required for subtask creation" });
       }
       if (!validated.stageId) {
         return res.status(400).json({ error: "Stage is required for subtask creation" });
-      }
-      if (!validated.taskTypeId) {
-        return res.status(400).json({ error: "Task type is required for subtask creation" });
       }
       
       const subtask = await storage.createTask(validated);

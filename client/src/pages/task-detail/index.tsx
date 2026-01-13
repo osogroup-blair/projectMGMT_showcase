@@ -178,6 +178,10 @@ export default function TaskDetail() {
   
   const epic = getEpic(task?.epicId);
   const deliverable = epic ? getDeliverable(epic.deliverableId) : null;
+  const parentTask = useMemo(() => 
+    task?.parentTaskId ? allTasks?.find((t: any) => t.id === task.parentTaskId) : null,
+    [allTasks, task?.parentTaskId]
+  );
 
   if (isLoading) {
     return (
@@ -211,7 +215,7 @@ export default function TaskDetail() {
             <div className="pr-4 space-y-6 h-full overflow-y-auto">
             <div className="space-y-4">
               {/* Project Breadcrumb */}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                 <Link 
                   href={`/projects/${projectId}`}
                   className="hover:text-foreground hover:underline transition-colors font-medium"
@@ -241,6 +245,20 @@ export default function TaskDetail() {
                     >
                       {epic.title}
                     </Link>
+                  </>
+                )}
+                {parentTask && (
+                  <>
+                    <span>/</span>
+                    <Link 
+                      href={`/projects/${projectId}/tasks/${parentTask.id}`}
+                      className="hover:text-foreground hover:underline transition-colors flex items-center gap-1"
+                      data-testid="link-parent-task"
+                    >
+                      <Layers className="h-3.5 w-3.5" />
+                      {parentTask.title}
+                    </Link>
+                    <span className="text-xs text-muted-foreground/60">(parent)</span>
                   </>
                 )}
               </div>
@@ -479,6 +497,7 @@ export default function TaskDetail() {
                 stages={stages}
                 allEpics={allEpics || []}
                 milestones={milestones}
+                users={users || []}
                 addDependency={addDependency}
                 removeDependency={removeDependency}
                 createSubtask={createSubtask}

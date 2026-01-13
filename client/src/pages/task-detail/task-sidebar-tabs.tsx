@@ -1,15 +1,13 @@
 import { useState, useMemo } from "react";
-import { MessageSquare, Layers, Loader2, GitBranch, ArrowRight, ArrowLeft, Search, Plus, X, Trash2, Check, CheckCircle2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MessageSquare, Layers, Loader2, GitBranch, ArrowRight, ArrowLeft, Search, Plus, X, Trash2, Check, CheckCircle2, Flag, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TaskCommentsPanel } from "./task-comments-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
@@ -27,6 +25,7 @@ interface TaskSidebarTabsProps {
   stages?: any[];
   allEpics?: any[];
   milestones?: any[];
+  users?: any[];
   addDependency?: (taskId: string) => void;
   removeDependency?: (depId: string) => void;
   createSubtask?: (data: any) => void;
@@ -45,6 +44,7 @@ export function TaskSidebarTabs({
   stages = [],
   allEpics = [],
   milestones = [],
+  users = [],
   addDependency,
   removeDependency,
   createSubtask,
@@ -107,6 +107,7 @@ export function TaskSidebarTabs({
           updateTask={updateTask}
           getStatusDotColor={getStatusDotColor}
           isCompletedStatus={isCompletedStatus}
+          users={users}
         />
       </TabsContent>
 
@@ -141,7 +142,8 @@ function SubtasksSection({
   createSubtask,
   updateTask,
   getStatusDotColor,
-  isCompletedStatus
+  isCompletedStatus,
+  users = []
 }: {
   task: any;
   projectId: string;
@@ -154,10 +156,14 @@ function SubtasksSection({
   updateTask?: (data: { id: string; updates: any }) => void;
   getStatusDotColor: (status: string) => string;
   isCompletedStatus: (status: string) => boolean;
+  users?: any[];
 }) {
   const { currentUserId } = useCurrentUser();
+  const { getStatusColor } = useTaskStatuses();
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+
+  const getUser = (userId?: string | null) => users.find((u: any) => u.id === userId);
 
   const handleCreateSubtask = () => {
     if (!newSubtaskTitle.trim() || !createSubtask) return;
@@ -178,8 +184,27 @@ function SubtasksSection({
     e.preventDefault();
     e.stopPropagation();
     if (!updateTask) return;
-    const newStatus = isCompletedStatus(subtask.status) ? "Todo" : "Done";
+    const newStatus = isCompletedStatus(subtask.status) ? "BACKLOGGED" : "DONE";
     updateTask({ id: subtask.id, updates: { status: newStatus } });
+  };
+
+  const getPriorityColor = (priority?: string) => {
+    switch (priority?.toLowerCase()) {
+      case 'high': return 'text-red-500';
+      case 'medium': return 'text-amber-500';
+      case 'low': return 'text-slate-400';
+      default: return 'text-muted-foreground/30';
+    }
+  };
+
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    const now = new Date();
+    const isOverdue = date < now;
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = date.getDate();
+    return { text: `${month} ${day}`, isOverdue };
   };
 
   if (isLoadingSubtasks) {
@@ -202,51 +227,85 @@ function SubtasksSection({
         </div>
       )}
 
-      <div className="space-y-1">
+      <div className="space-y-2">
         {subtasks.map((subtask: any) => {
           const isComplete = isCompletedStatus(subtask.status);
+          const assignee = getUser(subtask.assigneeId);
+          const deadline = formatDate(subtask.deadline);
+          
           return (
-            <div
+            <Link
               key={subtask.id}
-              className={cn(
-                "group flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors",
-                isComplete && "opacity-60"
-              )}
-              data-testid={`sidebar-subtask-${subtask.id}`}
+              href={`/projects/${projectId}/tasks/${subtask.id}`}
+              className="block"
             >
-              <button
-                onClick={(e) => handleToggleComplete(subtask, e)}
+              <div
                 className={cn(
-                  "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
-                  isComplete 
-                    ? "bg-green-500 border-green-500 text-white" 
-                    : "border-muted-foreground/40 hover:border-green-500"
+                  "group p-3 rounded-lg border bg-card hover:bg-muted/50 transition-all hover:shadow-sm",
+                  isComplete && "opacity-60 bg-muted/20"
                 )}
-                data-testid={`checkbox-subtask-${subtask.id}`}
+                data-testid={`sidebar-subtask-${subtask.id}`}
               >
-                {isComplete && <Check className="h-3 w-3" />}
-              </button>
-              <Link
-                href={`/projects/${projectId}/tasks/${subtask.id}`}
-                className="flex-1 min-w-0"
-              >
-                <span className={cn(
-                  "text-sm truncate block hover:underline",
-                  isComplete && "line-through text-muted-foreground"
-                )}>
-                  {subtask.title}
-                </span>
-              </Link>
-              <Badge 
-                variant="outline" 
-                className={cn(
-                  "text-[10px] shrink-0 opacity-0 group-hover:opacity-100 transition-opacity",
-                  isComplete && "opacity-100"
-                )}
-              >
-                {subtask.status}
-              </Badge>
-            </div>
+                <div className="flex items-start gap-2">
+                  <button
+                    onClick={(e) => handleToggleComplete(subtask, e)}
+                    className={cn(
+                      "flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center transition-colors",
+                      isComplete 
+                        ? "bg-green-500 border-green-500 text-white" 
+                        : "border-muted-foreground/40 hover:border-green-500"
+                    )}
+                    data-testid={`checkbox-subtask-${subtask.id}`}
+                  >
+                    {isComplete && <Check className="h-3 w-3" />}
+                  </button>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <span className={cn(
+                      "text-sm font-medium block",
+                      isComplete && "line-through text-muted-foreground"
+                    )}>
+                      {subtask.title}
+                    </span>
+                    
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge 
+                        variant="outline"
+                        className={cn("text-[10px] px-1.5 py-0", getStatusColor(subtask.status))}
+                      >
+                        {subtask.status}
+                      </Badge>
+                      
+                      {subtask.priority && (
+                        <span className={cn("text-xs flex items-center gap-1", getPriorityColor(subtask.priority))}>
+                          <Flag className="h-3 w-3" />
+                          {subtask.priority}
+                        </span>
+                      )}
+                      
+                      {deadline && (
+                        <span className={cn(
+                          "text-xs flex items-center gap-1",
+                          deadline.isOverdue && !isComplete ? "text-red-500" : "text-muted-foreground"
+                        )}>
+                          <Calendar className="h-3 w-3" />
+                          {deadline.text}
+                        </span>
+                      )}
+                      
+                      {assignee && (
+                        <div className="flex items-center gap-1 ml-auto">
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-[10px] bg-primary/10">
+                              {(assignee.name || assignee.email || '?').charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Link>
           );
         })}
       </div>
