@@ -11,10 +11,12 @@ export default function LandingPage() {
     fetch("/api/demo-status")
       .then(res => res.json())
       .then(data => {
+        console.log("[Landing] Demo status received:", data);
         setDemoAvailable(data.demoAvailable === true);
         setDemoChecked(true);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[Landing] Demo status fetch failed:", err);
         setDemoChecked(true);
       });
   }, []);
