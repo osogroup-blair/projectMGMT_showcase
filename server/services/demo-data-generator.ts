@@ -47,6 +47,7 @@ export interface DemoDataResult {
     tasks?: number;
     milestones?: number;
     sprints?: number;
+    pulseUpdates?: number;
   };
   errors?: string[];
 }
@@ -438,6 +439,110 @@ async function createSprintsForProject(
   return sprints;
 }
 
+// Sample pulse content for demo data
+const PULSE_DID_SAMPLES = [
+  "Completed the initial wireframes for the dashboard",
+  "Finished implementing the user authentication flow",
+  "Resolved the critical bug in the data sync module",
+  "Updated the API documentation with new endpoints",
+  "Conducted code review for the team's PRs",
+  "Set up CI/CD pipeline for automated testing",
+  "Completed unit tests for the core modules",
+  "Optimized database queries for better performance",
+  "Migrated legacy components to the new framework",
+  "Implemented error handling and logging",
+];
+
+const PULSE_NEXT_SAMPLES = [
+  "Starting work on the user profile feature",
+  "Will begin integration testing tomorrow",
+  "Planning to refactor the notification system",
+  "Need to review the design specs with the team",
+  "Going to implement the search functionality",
+  "Will focus on accessibility improvements",
+  "Starting the mobile responsive updates",
+  "Planning to set up monitoring dashboards",
+  "Will implement the export functionality",
+  "Starting the performance optimization phase",
+];
+
+const PULSE_BLOCKER_SAMPLES = [
+  "Waiting on API specs from the backend team",
+  "Blocked on design approval for the new UI",
+  "Need access to the staging environment",
+  "Pending security review before deployment",
+  "Waiting for third-party integration credentials",
+  null, // Some updates don't have blockers
+  null,
+  null,
+  null,
+  null,
+];
+
+async function createPulseUpdatesForSprint(
+  sprintId: string,
+  sprintStatus: string,
+  sprintStartDate: string,
+  sprintEndDate: string,
+  demoUsers: User[],
+  result: DemoDataResult
+): Promise<void> {
+  // Only create pulse updates for active or completed sprints
+  if (sprintStatus !== "active" && sprintStatus !== "completed") {
+    return;
+  }
+
+  const startDate = new Date(sprintStartDate);
+  const endDate = new Date(sprintEndDate);
+  const now = new Date();
+  
+  // Determine the date range for pulse updates
+  const effectiveEndDate = sprintStatus === "active" ? 
+    (now < endDate ? now : endDate) : endDate;
+  
+  // For active sprints, create updates for the past few days
+  // For completed sprints, create updates throughout the sprint
+  const totalDays = Math.floor((effectiveEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Create 1-2 updates per user spread across the sprint
+  const participatingUsers = demoUsers.slice(0, 4); // First 4 demo users
+  
+  for (const user of participatingUsers) {
+    // Each user posts 1-3 updates during the sprint
+    const updateCount = sprintStatus === "completed" ? 
+      Math.floor(Math.random() * 2) + 2 : // 2-3 for completed
+      Math.floor(Math.random() * 2) + 1;  // 1-2 for active
+    
+    for (let i = 0; i < updateCount; i++) {
+      // Calculate a random date within the sprint
+      const daysOffset = Math.floor(Math.random() * Math.max(1, totalDays - 1)) + 1;
+      const updateDate = addDays(startDate, daysOffset);
+      
+      // Don't create future updates
+      if (updateDate > now) continue;
+      
+      const didIdx = Math.floor(Math.random() * PULSE_DID_SAMPLES.length);
+      const nextIdx = Math.floor(Math.random() * PULSE_NEXT_SAMPLES.length);
+      const blockerIdx = Math.floor(Math.random() * PULSE_BLOCKER_SAMPLES.length);
+      
+      const pulseId = generateId("pulse");
+      
+      await storage.createSprintPulseUpdate({
+        id: pulseId,
+        sprintId,
+        userId: user.id,
+        date: toDateString(updateDate),
+        didText: PULSE_DID_SAMPLES[didIdx],
+        nextText: PULSE_NEXT_SAMPLES[nextIdx],
+        blockersText: PULSE_BLOCKER_SAMPLES[blockerIdx] || null,
+        referencedTaskIds: [],
+      } as any);
+      
+      result.created.pulseUpdates = (result.created.pulseUpdates || 0) + 1;
+    }
+  }
+}
+
 async function createMilestonesForProject(
   projectId: string,
   milestoneConfigs: Array<{ name: string; description: string; phase: string; targetOffset: number; status: string; ownerIndex: number }>,
@@ -522,6 +627,11 @@ async function createCRMProject(
     { name: "Sprint 5", goal: "QA and polish", startOffset: 56, endOffset: 70, status: "planned" },
   ];
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
+  
+  // Create pulse updates for active/completed sprints
+  for (const sprint of sprints) {
+    await createPulseUpdatesForSprint(sprint.id, sprint.status, sprint.startDate, sprint.endDate, demoUsers, result);
+  }
 
   // Create milestones FIRST (before tasks)
   const milestoneConfigs = [
@@ -609,6 +719,11 @@ async function createTaskManagementProject(
     { name: "Sprint 3", goal: "Development kickoff", startOffset: 28, endOffset: 42, status: "planned" },
   ];
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
+  
+  // Create pulse updates for active/completed sprints
+  for (const sprint of sprints) {
+    await createPulseUpdatesForSprint(sprint.id, sprint.status, sprint.startDate, sprint.endDate, demoUsers, result);
+  }
 
   // Create milestones FIRST
   const milestoneConfigs = [
@@ -693,6 +808,11 @@ async function createTimeEntryProject(
     { name: "Sprint 2", goal: "Requirements completion", startOffset: 14, endOffset: 28, status: "planned" },
   ];
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
+  
+  // Create pulse updates for active/completed sprints
+  for (const sprint of sprints) {
+    await createPulseUpdatesForSprint(sprint.id, sprint.status, sprint.startDate, sprint.endDate, demoUsers, result);
+  }
 
   // Create milestones FIRST
   const milestoneConfigs = [

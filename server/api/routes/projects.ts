@@ -352,4 +352,71 @@ export function registerProjectRoutes(
     await storage.deleteEpic(req.params.id);
     res.status(204).send();
   });
+
+  // Project-wide Pulse Updates (aggregates pulse updates from all sprints in project)
+  app.get("/api/projects/:projectId/pulse", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const project = await storage.getProjectById(projectId);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+
+      const sprints = await storage.getSprintsByProjectId(projectId);
+      const sprintIds = sprints.map(s => s.id);
+      
+      const allPulseUpdates = await storage.getSprintPulseUpdates();
+      const projectPulseUpdates = allPulseUpdates.filter(pu => sprintIds.includes(pu.sprintId));
+      
+      res.json(projectPulseUpdates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Post pulse update to the current active sprint for this project
+  app.post("/api/projects/:projectId/pulse", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const { userId, date, didText, nextText, blockersText, referencedTaskIds } = req.body;
+
+      if (!userId || !date) {
+        return res.status(400).json({ error: "userId and date are required" });
+      }
+
+      const sprints = await storage.getSprintsByProjectId(projectId);
+      const activeSprint = sprints.find(s => s.status === "Active" || s.status === "active" || s.status === "In Progress");
+      
+      if (!activeSprint) {
+        return res.status(400).json({ error: "No active sprint found for this project" });
+      }
+
+      const existingUpdate = await storage.getSprintPulseUpdateByUserAndDate(
+        activeSprint.id,
+        userId,
+        date
+      );
+
+      if (existingUpdate) {
+        const updated = await storage.updateSprintPulseUpdate(existingUpdate.id, {
+          didText: didText ?? existingUpdate.didText,
+          nextText: nextText ?? existingUpdate.nextText,
+          blockersText: blockersText ?? existingUpdate.blockersText,
+          referencedTaskIds: referencedTaskIds ?? existingUpdate.referencedTaskIds,
+        });
+        res.json(updated);
+      } else {
+        const created = await storage.createSprintPulseUpdate({
+          sprintId: activeSprint.id,
+          userId,
+          date,
+          didText: didText || null,
+          nextText: nextText || null,
+          blockersText: blockersText || null,
+          referencedTaskIds: referencedTaskIds || [],
+        });
+        res.status(201).json(created);
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
 }

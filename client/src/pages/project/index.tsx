@@ -48,7 +48,7 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
-import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes, useStatusOptions } from "@/hooks/use-nexus-data";
+import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes, useStatusOptions, useProjectPulseUpdates } from "@/hooks/use-nexus-data";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -138,6 +138,7 @@ export default function ProjectOverview() {
   const { data: statusOptions = [] } = useStatusOptions();
   const { currentUser } = useCurrentUser();
   const { isTaskComplete } = useCompletedStatuses();
+  const { data: rawPulseUpdates, postUpdate: postPulseUpdate, isLoading: isPulseLoading } = useProjectPulseUpdates(projectId);
 
   const addCommentMutation = useMutation({
     mutationFn: async ({ taskId, comment, authorId, authorName }: { taskId: string; comment: string; authorId: string; authorName: string }) => {
@@ -217,49 +218,63 @@ export default function ProjectOverview() {
   const [pulseTypeFilter, setPulseTypeFilter] = useState<"all" | "accomplishments" | "blockers" | "next-steps">("all");
   const [pulseUserFilter, setPulseUserFilter] = useState<string>("all");
   
-  // Mock pulse updates data (in a real app, this would come from an API)
-  const [pulseUpdates, setPulseUpdates] = useState<Array<{
-    id: string;
-    userId: string;
-    userName: string;
-    userAvatar?: string;
-    type: "accomplishment" | "blocker" | "next-step";
-    content: string;
-    timestamp: Date;
-  }>>([
-    {
-      id: "1",
-      userId: "user1",
-      userName: "Alex Chen",
-      type: "accomplishment",
-      content: "Completed the user authentication flow and integration tests",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    },
-    {
-      id: "2",
-      userId: "user2",
-      userName: "Sarah Miller",
-      type: "blocker",
-      content: "Waiting on API documentation from the backend team",
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    },
-    {
-      id: "3",
-      userId: "user1",
-      userName: "Alex Chen",
-      type: "next-step",
-      content: "Will start working on the dashboard analytics component",
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    },
-    {
-      id: "4",
-      userId: "user3",
-      userName: "Jordan Lee",
-      type: "accomplishment",
-      content: "Fixed critical bug in payment processing module",
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    },
-  ]);
+  // Transform raw pulse updates (composite format) to UI format (individual items by type)
+  const pulseUpdates = useMemo(() => {
+    if (!rawPulseUpdates || rawPulseUpdates.length === 0) return [];
+    
+    const items: Array<{
+      id: string;
+      userId: string;
+      userName: string;
+      userAvatar?: string;
+      type: "accomplishment" | "blocker" | "next-step";
+      content: string;
+      timestamp: Date;
+    }> = [];
+    
+    rawPulseUpdates.forEach((update: any) => {
+      const user = users?.find((u: any) => u.id === update.userId);
+      const userName = user?.name || user?.firstName || "Team Member";
+      const userAvatar = user?.avatar || user?.profileImageUrl;
+      const timestamp = new Date(update.createdAt || update.date);
+      
+      if (update.didText) {
+        items.push({
+          id: `${update.id}-did`,
+          userId: update.userId,
+          userName,
+          userAvatar,
+          type: "accomplishment",
+          content: update.didText,
+          timestamp,
+        });
+      }
+      if (update.nextText) {
+        items.push({
+          id: `${update.id}-next`,
+          userId: update.userId,
+          userName,
+          userAvatar,
+          type: "next-step",
+          content: update.nextText,
+          timestamp,
+        });
+      }
+      if (update.blockersText) {
+        items.push({
+          id: `${update.id}-blockers`,
+          userId: update.userId,
+          userName,
+          userAvatar,
+          type: "blocker",
+          content: update.blockersText,
+          timestamp,
+        });
+      }
+    });
+    
+    return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }, [rawPulseUpdates, users]);
   
   // Dashboard sidebar state
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(true);
@@ -1523,38 +1538,18 @@ export default function ProjectOverview() {
                                 data-testid="button-send-pulse"
                                 disabled={!pulseDid.trim() && !pulseNext.trim() && !pulseBlockers.trim()}
                                 onClick={() => {
-                                  const newUpdates: typeof pulseUpdates = [];
-                                  if (pulseDid.trim()) {
-                                    newUpdates.push({
-                                      id: `pulse-${Date.now()}-1`,
-                                      userId: currentUser?.id || "current",
-                                      userName: currentUser?.name || currentUser?.firstName || "You",
-                                      type: "accomplishment",
-                                      content: pulseDid.trim(),
-                                      timestamp: new Date(),
-                                    });
+                                  if (!currentUser?.id) {
+                                    toast({ title: "Error", description: "You must be logged in to post updates.", variant: "destructive" });
+                                    return;
                                   }
-                                  if (pulseNext.trim()) {
-                                    newUpdates.push({
-                                      id: `pulse-${Date.now()}-2`,
-                                      userId: currentUser?.id || "current",
-                                      userName: currentUser?.name || currentUser?.firstName || "You",
-                                      type: "next-step",
-                                      content: pulseNext.trim(),
-                                      timestamp: new Date(),
-                                    });
-                                  }
-                                  if (pulseBlockers.trim()) {
-                                    newUpdates.push({
-                                      id: `pulse-${Date.now()}-3`,
-                                      userId: currentUser?.id || "current",
-                                      userName: currentUser?.name || currentUser?.firstName || "You",
-                                      type: "blocker",
-                                      content: pulseBlockers.trim(),
-                                      timestamp: new Date(),
-                                    });
-                                  }
-                                  setPulseUpdates(prev => [...newUpdates, ...prev]);
+                                  const today = format(new Date(), "yyyy-MM-dd");
+                                  postPulseUpdate({
+                                    userId: currentUser.id,
+                                    date: today,
+                                    didText: pulseDid.trim() || undefined,
+                                    nextText: pulseNext.trim() || undefined,
+                                    blockersText: pulseBlockers.trim() || undefined,
+                                  });
                                   toast({ title: "Update sent", description: "Your pulse update has been shared with the team." });
                                   setPulseDid("");
                                   setPulseNext("");

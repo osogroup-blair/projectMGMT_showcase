@@ -485,3 +485,57 @@ export function useTaskAttachments(taskId: string) {
     isDeleting: deleteMutation.isPending,
   };
 }
+
+// Project Pulse Updates Hook (aggregates pulse updates across all sprints in a project)
+export function useProjectPulseUpdates(projectId: string) {
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
+    queryKey: ["projectPulse", projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const response = await fetch(`/api/projects/${projectId}/pulse`);
+      if (!response.ok) throw new Error("Failed to fetch project pulse updates");
+      return response.json();
+    },
+    enabled: !!projectId,
+    staleTime: 30000,
+  });
+
+  const postUpdate = useMutation({
+    mutationFn: async (data: { 
+      userId: string; 
+      date: string; 
+      didText?: string; 
+      nextText?: string; 
+      blockersText?: string; 
+      referencedTaskIds?: string[] 
+    }) => {
+      const response = await fetch(`/api/projects/${projectId}/pulse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to post pulse update");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectPulse", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["sprint-pulse"], exact: false });
+    },
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+    postUpdate: postUpdate.mutate,
+    postUpdateAsync: postUpdate.mutateAsync,
+    isPosting: postUpdate.isPending,
+  };
+}
