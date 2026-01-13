@@ -365,6 +365,26 @@ export function registerUserRoutes(
     }
   });
 
+  // Get user's project memberships with roles
+  app.get("/api/users/:userId/project-memberships", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const memberships = await storage.getProjectTeamMembersByUser(userId);
+      
+      const result = await Promise.all(memberships.map(async (m) => {
+        const highLevelRoles = await storage.getHighLevelRoles(m.id);
+        return {
+          ...m,
+          highLevelRoles: highLevelRoles.map(r => r.roleType),
+        };
+      }));
+      
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get user identities
   app.get("/api/users/:userId/identities", requireAuth(), requireSelfOrRole("userId", "admin", "manager"), async (req, res) => {
     try {

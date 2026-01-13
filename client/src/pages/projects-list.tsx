@@ -147,11 +147,35 @@ export default function ProjectsList() {
       addFavorite.mutate(projectId);
     }
   };
+
+  // User's project memberships
+  const { data: userMemberships = [] } = useQuery<{ projectId: string; highLevelRoles: string[] }[]>({
+    queryKey: ['userProjectMemberships', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return [];
+      const res = await fetch(`/api/users/${currentUser.id}/project-memberships`);
+      if (!res.ok) throw new Error('Failed to fetch memberships');
+      return res.json();
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  // Create lookup maps for user's roles per project
+  const userProjectRoles = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    userMemberships.forEach(m => {
+      map[m.projectId] = m.highLevelRoles || [];
+    });
+    return map;
+  }, [userMemberships]);
+
+  const userProjectIds = useMemo(() => new Set(userMemberships.map(m => m.projectId)), [userMemberships]);
   
   // Filters State
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterRisk, setFilterRisk] = useState<string>("all");
   const [filterFavorites, setFilterFavorites] = useState<boolean>(false);
+  const [filterRole, setFilterRole] = useState<string>("my"); // "my", "owner", "stakeholder", "member", "all"
   const [searchQuery, setSearchQuery] = useState("");
 
   // Sorting State
@@ -229,7 +253,24 @@ export default function ProjectsList() {
       const matchesRisk = filterRisk === "all" || project.riskLevel === filterRisk;
       const matchesFavorites = !filterFavorites || favoriteProjectIds.has(project.id);
       
-      return matchesSearch && matchesStatus && matchesRisk && matchesFavorites;
+      // Role-based filter
+      let matchesRole = true;
+      const projectRoles = userProjectRoles[project.id] || [];
+      const isOwnerByOwnerId = project.ownerId === currentUser?.id;
+      
+      if (filterRole === "my") {
+        // Show projects where user is owner, stakeholder, or member
+        matchesRole = userProjectIds.has(project.id) || isOwnerByOwnerId;
+      } else if (filterRole === "owner") {
+        matchesRole = projectRoles.includes('owner') || isOwnerByOwnerId;
+      } else if (filterRole === "stakeholder") {
+        matchesRole = projectRoles.includes('stakeholder');
+      } else if (filterRole === "member") {
+        matchesRole = projectRoles.includes('member');
+      }
+      // filterRole === "all" shows everything
+      
+      return matchesSearch && matchesStatus && matchesRisk && matchesFavorites && matchesRole;
     });
 
     // Apply sorting
@@ -275,7 +316,7 @@ export default function ProjectsList() {
     });
 
     return result;
-  }, [projects, searchQuery, filterStatus, filterRisk, filterFavorites, favoriteProjectIds, sortField, sortDirection]);
+  }, [projects, searchQuery, filterStatus, filterRisk, filterFavorites, filterRole, favoriteProjectIds, userProjectRoles, userProjectIds, currentUser?.id, sortField, sortDirection]);
 
   // Toggle sort for a column
   const toggleSort = (field: SortField) => {
@@ -519,6 +560,20 @@ export default function ProjectsList() {
                 { value: "Low", label: "Low Risk" },
                 { value: "Medium", label: "Medium Risk" },
                 { value: "High", label: "High Risk" }
+              ]}
+            />
+
+            <SearchableSelect 
+              value={filterRole} 
+              onValueChange={setFilterRole}
+              className="w-[150px]"
+              placeholder="My Role"
+              options={[
+                { value: "my", label: "My Projects" },
+                { value: "owner", label: "As Owner" },
+                { value: "stakeholder", label: "As Stakeholder" },
+                { value: "member", label: "As Member" },
+                { value: "all", label: "All Projects" }
               ]}
             />
 

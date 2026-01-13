@@ -180,6 +180,7 @@ export interface IStorage {
   getProjectTeamMembers(projectId: string): Promise<ProjectTeamMember[]>;
   getProjectTeamMemberById(id: string): Promise<ProjectTeamMember | undefined>;
   getProjectTeamMemberByUserAndProject(projectId: string, userId: string): Promise<ProjectTeamMember | undefined>;
+  getProjectTeamMembersByUser(userId: string): Promise<ProjectTeamMember[]>;
   createProjectTeamMember(member: InsertProjectTeamMember): Promise<ProjectTeamMember>;
   updateProjectTeamMember(id: string, member: Partial<ProjectTeamMember>): Promise<ProjectTeamMember>;
   deleteProjectTeamMember(id: string): Promise<void>;
@@ -906,6 +907,10 @@ export class DatabaseStorage implements IStorage {
     const [member] = await db.select().from(schema.projectTeamMembers)
       .where(and(eq(schema.projectTeamMembers.projectId, projectId), eq(schema.projectTeamMembers.userId, userId)));
     return member;
+  }
+  async getProjectTeamMembersByUser(userId: string): Promise<ProjectTeamMember[]> {
+    return await db.select().from(schema.projectTeamMembers)
+      .where(eq(schema.projectTeamMembers.userId, userId));
   }
   async createProjectTeamMember(member: InsertProjectTeamMember): Promise<ProjectTeamMember> {
     const id = (arguments[0] as any).id || crypto.randomUUID();
