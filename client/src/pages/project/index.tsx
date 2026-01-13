@@ -1472,31 +1472,19 @@ export default function ProjectOverview() {
                   )}
 
                   {dashboardSection === "team-pulse" && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <Send className="h-5 w-5" />
-                            Team Pulse
-                          </h2>
-                          <p className="text-sm text-muted-foreground">Stay connected with your team's progress</p>
-                        </div>
-                        <Badge variant="outline" className="text-sm">
-                          {pulseUpdates.length} update{pulseUpdates.length !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                      
-                      {/* Share Update Accordion */}
-                      <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value="share-update" className="border rounded-lg bg-muted/20">
-                          <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30 rounded-t-lg">
+                    <div className="space-y-3">
+                      {/* Share Update Panel */}
+                      <Collapsible defaultOpen={false}>
+                        <div className="border rounded-lg bg-muted/20">
+                          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/30 rounded-lg">
                             <div className="flex items-center gap-2">
                               <Plus className="h-4 w-4" />
-                              <span className="font-medium">Share an Update</span>
+                              <span className="font-medium text-sm">Share an Update</span>
                             </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-4 pb-4">
-                            <div className="space-y-4 pt-2">
+                            <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="px-4 pb-4 space-y-4">
                               <div className="space-y-2">
                                 <Label className="text-xs text-green-600 font-medium">What did you accomplish?</Label>
                                 <Textarea 
@@ -1575,163 +1563,168 @@ export default function ProjectOverview() {
                                 Send Update
                               </Button>
                             </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
 
-                      {/* Recent Updates Section */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between gap-4">
-                            <CardTitle className="text-base flex items-center gap-2">
+                      {/* Recent Updates Panel */}
+                      <Collapsible defaultOpen={true}>
+                        <div className="border rounded-lg">
+                          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/30 rounded-lg">
+                            <div className="flex items-center gap-2">
                               <MessageSquare className="h-4 w-4" />
-                              Recent Updates
-                            </CardTitle>
-                          </div>
-                          
-                          {/* Search and Filter Row */}
-                          <div className="flex flex-col sm:flex-row gap-3 pt-3">
-                            <div className="relative flex-1">
-                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                              <Input
-                                placeholder="Search updates..."
-                                className="pl-9 h-9"
-                                value={pulseSearch}
-                                onChange={(e) => setPulseSearch(e.target.value)}
-                                data-testid="input-pulse-search"
-                              />
+                              <span className="font-medium text-sm">Recent Updates</span>
+                              <Badge variant="secondary" className="text-xs ml-1">
+                                {pulseUpdates.length}
+                              </Badge>
                             </div>
-                            <div className="flex gap-2">
-                              <Select value={pulseTypeFilter} onValueChange={(v) => setPulseTypeFilter(v as typeof pulseTypeFilter)}>
-                                <SelectTrigger className="w-[140px] h-9" data-testid="select-pulse-type-filter">
-                                  <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                  <SelectValue placeholder="Type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All Types</SelectItem>
-                                  <SelectItem value="accomplishments">Accomplishments</SelectItem>
-                                  <SelectItem value="next-steps">Next Steps</SelectItem>
-                                  <SelectItem value="blockers">Blockers</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Select value={pulseUserFilter} onValueChange={setPulseUserFilter}>
-                                <SelectTrigger className="w-[140px] h-9" data-testid="select-pulse-user-filter">
-                                  <UsersIcon className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                                  <SelectValue placeholder="Team Member" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All Members</SelectItem>
-                                  {Array.from(new Set(pulseUpdates.map(u => u.userName))).map(name => (
-                                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <ScrollArea className="h-[400px]">
-                            <div className="space-y-3 pr-4">
-                              {(() => {
-                                const filtered = pulseUpdates.filter(update => {
-                                  const matchesSearch = !pulseSearch || 
-                                    update.content.toLowerCase().includes(pulseSearch.toLowerCase()) ||
-                                    update.userName.toLowerCase().includes(pulseSearch.toLowerCase());
-                                  
-                                  const matchesType = pulseTypeFilter === "all" || 
-                                    (pulseTypeFilter === "accomplishments" && update.type === "accomplishment") ||
-                                    (pulseTypeFilter === "next-steps" && update.type === "next-step") ||
-                                    (pulseTypeFilter === "blockers" && update.type === "blocker");
-                                  
-                                  const matchesUser = pulseUserFilter === "all" || update.userName === pulseUserFilter;
-                                  
-                                  return matchesSearch && matchesType && matchesUser;
-                                });
+                            <ChevronDown className="h-4 w-4 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="px-4 pb-4 space-y-3">
+                              {/* Search and Filter Row */}
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <div className="relative flex-1">
+                                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Search updates..."
+                                    className="pl-9 h-9"
+                                    value={pulseSearch}
+                                    onChange={(e) => setPulseSearch(e.target.value)}
+                                    data-testid="input-pulse-search"
+                                  />
+                                </div>
+                                <div className="flex gap-2">
+                                  <Select value={pulseTypeFilter} onValueChange={(v) => setPulseTypeFilter(v as typeof pulseTypeFilter)}>
+                                    <SelectTrigger className="w-[140px] h-9" data-testid="select-pulse-type-filter">
+                                      <Filter className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                      <SelectValue placeholder="Type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="all">All Types</SelectItem>
+                                      <SelectItem value="accomplishments">Accomplishments</SelectItem>
+                                      <SelectItem value="next-steps">Next Steps</SelectItem>
+                                      <SelectItem value="blockers">Blockers</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Select value={pulseUserFilter} onValueChange={setPulseUserFilter}>
+                                    <SelectTrigger className="w-[140px] h-9" data-testid="select-pulse-user-filter">
+                                      <UsersIcon className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                                      <SelectValue placeholder="Team Member" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="all">All Members</SelectItem>
+                                      {Array.from(new Set(pulseUpdates.map(u => u.userName))).map(name => (
+                                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
 
-                                if (filtered.length === 0) {
-                                  return (
-                                    <div className="text-center py-8 text-muted-foreground">
-                                      <Send className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                                      <p className="text-sm">No updates found</p>
-                                      <p className="text-xs mt-1">
-                                        {pulseSearch || pulseTypeFilter !== "all" || pulseUserFilter !== "all" 
-                                          ? "Try adjusting your filters" 
-                                          : "Be the first to share progress with your team!"}
-                                      </p>
-                                    </div>
-                                  );
-                                }
+                              {/* Updates List */}
+                              <div className="space-y-3">
+                                {(() => {
+                                  const filtered = pulseUpdates.filter(update => {
+                                    const matchesSearch = !pulseSearch || 
+                                      update.content.toLowerCase().includes(pulseSearch.toLowerCase()) ||
+                                      update.userName.toLowerCase().includes(pulseSearch.toLowerCase());
+                                    
+                                    const matchesType = pulseTypeFilter === "all" || 
+                                      (pulseTypeFilter === "accomplishments" && update.type === "accomplishment") ||
+                                      (pulseTypeFilter === "next-steps" && update.type === "next-step") ||
+                                      (pulseTypeFilter === "blockers" && update.type === "blocker");
+                                    
+                                    const matchesUser = pulseUserFilter === "all" || update.userName === pulseUserFilter;
+                                    
+                                    return matchesSearch && matchesType && matchesUser;
+                                  });
 
-                                return filtered.map(update => {
-                                  const typeConfig = {
-                                    accomplishment: { 
-                                      icon: CheckCircle2, 
-                                      color: "text-green-600", 
-                                      bg: "bg-green-50 dark:bg-green-900/20",
-                                      label: "Accomplishment"
-                                    },
-                                    blocker: { 
-                                      icon: AlertTriangle, 
-                                      color: "text-amber-600", 
-                                      bg: "bg-amber-50 dark:bg-amber-900/20",
-                                      label: "Blocker"
-                                    },
-                                    "next-step": { 
-                                      icon: ChevronRight, 
-                                      color: "text-blue-600", 
-                                      bg: "bg-blue-50 dark:bg-blue-900/20",
-                                      label: "Next Step"
-                                    },
-                                  }[update.type];
-                                  
-                                  const Icon = typeConfig.icon;
-                                  const timeAgo = (() => {
-                                    const diff = Date.now() - update.timestamp.getTime();
-                                    const hours = Math.floor(diff / (1000 * 60 * 60));
-                                    if (hours < 1) return "Just now";
-                                    if (hours < 24) return `${hours}h ago`;
-                                    const days = Math.floor(hours / 24);
-                                    return `${days}d ago`;
-                                  })();
+                                  if (filtered.length === 0) {
+                                    return (
+                                      <div className="text-center py-8 text-muted-foreground">
+                                        <Send className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                                        <p className="text-sm">No updates found</p>
+                                        <p className="text-xs mt-1">
+                                          {pulseSearch || pulseTypeFilter !== "all" || pulseUserFilter !== "all" 
+                                            ? "Try adjusting your filters" 
+                                            : "Be the first to share progress with your team!"}
+                                        </p>
+                                      </div>
+                                    );
+                                  }
 
-                                  return (
-                                    <div 
-                                      key={update.id} 
-                                      className={cn("p-3 rounded-lg border", typeConfig.bg)}
-                                      data-testid={`pulse-update-${update.id}`}
-                                    >
-                                      <div className="flex items-start gap-3">
-                                        <Avatar className="h-8 w-8">
-                                          {update.userAvatar && <AvatarImage src={update.userAvatar} />}
-                                          <AvatarFallback className="text-xs">
-                                            {update.userName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-2">
-                                              <span className="font-medium text-sm">{update.userName}</span>
-                                              <Badge 
-                                                variant="outline" 
-                                                className={cn("text-[10px] px-1.5 py-0", typeConfig.color)}
-                                              >
-                                                <Icon className="h-3 w-3 mr-1" />
-                                                {typeConfig.label}
-                                              </Badge>
+                                  return filtered.map(update => {
+                                    const typeConfig = {
+                                      accomplishment: { 
+                                        icon: CheckCircle2, 
+                                        color: "text-green-600", 
+                                        bg: "bg-green-50 dark:bg-green-900/20",
+                                        label: "Accomplishment"
+                                      },
+                                      blocker: { 
+                                        icon: AlertTriangle, 
+                                        color: "text-amber-600", 
+                                        bg: "bg-amber-50 dark:bg-amber-900/20",
+                                        label: "Blocker"
+                                      },
+                                      "next-step": { 
+                                        icon: ChevronRight, 
+                                        color: "text-blue-600", 
+                                        bg: "bg-blue-50 dark:bg-blue-900/20",
+                                        label: "Next Step"
+                                      },
+                                    }[update.type];
+                                    
+                                    const Icon = typeConfig.icon;
+                                    const timeAgo = (() => {
+                                      const diff = Date.now() - update.timestamp.getTime();
+                                      const hours = Math.floor(diff / (1000 * 60 * 60));
+                                      if (hours < 1) return "Just now";
+                                      if (hours < 24) return `${hours}h ago`;
+                                      const days = Math.floor(hours / 24);
+                                      return `${days}d ago`;
+                                    })();
+
+                                    return (
+                                      <div 
+                                        key={update.id} 
+                                        className={cn("p-3 rounded-lg border", typeConfig.bg)}
+                                        data-testid={`pulse-update-${update.id}`}
+                                      >
+                                        <div className="flex items-start gap-3">
+                                          <Avatar className="h-8 w-8">
+                                            {update.userAvatar && <AvatarImage src={update.userAvatar} />}
+                                            <AvatarFallback className="text-xs">
+                                              {update.userName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-2">
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-medium text-sm">{update.userName}</span>
+                                                <Badge 
+                                                  variant="outline" 
+                                                  className={cn("text-[10px] px-1.5 py-0", typeConfig.color)}
+                                                >
+                                                  <Icon className="h-3 w-3 mr-1" />
+                                                  {typeConfig.label}
+                                                </Badge>
+                                              </div>
+                                              <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo}</span>
                                             </div>
-                                            <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo}</span>
+                                            <p className="text-sm mt-1">{update.content}</p>
                                           </div>
-                                          <p className="text-sm mt-1">{update.content}</p>
                                         </div>
                                       </div>
-                                    </div>
-                                  );
-                                });
-                              })()}
+                                    );
+                                  });
+                                })()}
+                              </div>
                             </div>
-                          </ScrollArea>
-                        </CardContent>
-                      </Card>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
                     </div>
                   )}
                 </div>
