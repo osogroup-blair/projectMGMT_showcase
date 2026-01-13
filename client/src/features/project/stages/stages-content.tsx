@@ -32,7 +32,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useUsers, useEpics, useDeliverables, useProjectStages } from "@/hooks/use-nexus-data";
+import { useTasks, useUsers, useEpics, useDeliverables, useProjectStages, useProject, useSprints } from "@/hooks/use-nexus-data";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { STAGE_STATUS_OPTIONS } from "@/lib/mock-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
