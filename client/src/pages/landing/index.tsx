@@ -1,9 +1,23 @@
 import { Button } from "@/components/ui/button";
 import { Layers, CheckCircle2, Users, BarChart3, Play } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [demoAvailable, setDemoAvailable] = useState(false);
+  const [demoChecked, setDemoChecked] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/demo-status")
+      .then(res => res.json())
+      .then(data => {
+        setDemoAvailable(data.demoAvailable === true);
+        setDemoChecked(true);
+      })
+      .catch(() => {
+        setDemoChecked(true);
+      });
+  }, []);
 
   const handleDemoLogin = async () => {
     setIsLoading(true);
@@ -57,23 +71,27 @@ export default function LandingPage() {
             managing sprints, and coordinating your team—all in one place.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button 
-              size="lg" 
-              onClick={handleDemoLogin}
-              disabled={isLoading}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-6 text-lg"
-              data-testid="demo-first-button"
-            >
-              <Play className="w-5 h-5 mr-2" />
-              {isLoading ? "Loading..." : "Demo First"}
-            </Button>
+            {demoChecked && demoAvailable && (
+              <Button 
+                size="lg" 
+                onClick={handleDemoLogin}
+                disabled={isLoading}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-6 text-lg"
+                data-testid="demo-first-button"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                {isLoading ? "Loading..." : "Demo First"}
+              </Button>
+            )}
             <a href="/api/login" data-testid="get-started-button">
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg">
                 Get Started — It's Free
               </Button>
             </a>
           </div>
-          <p className="text-sm text-slate-500 mt-6">No credit card required • Try the demo to explore all features</p>
+          <p className="text-sm text-slate-500 mt-6">
+            No credit card required{demoAvailable ? " • Try the demo to explore all features" : ""}
+          </p>
         </div>
 
         <div className="max-w-6xl mx-auto mt-24">

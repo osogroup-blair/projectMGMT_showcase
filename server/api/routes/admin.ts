@@ -125,4 +125,58 @@ export function registerAdminRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Public endpoint to check if demo mode is available (for landing page)
+  app.get("/api/demo-status", async (req, res) => {
+    try {
+      const settings = await storage.getAppSettings();
+      res.json({ 
+        demoAvailable: settings?.demoDataReady === true,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get app settings (admin only - includes all settings)
+  app.get("/api/admin/app-settings", async (req, res) => {
+    try {
+      const settings = await storage.getAppSettings();
+      const users = await storage.getUsers();
+      
+      // Get list of demo users for the dropdown
+      const demoUsers = users.filter(u => 
+        u.systemRole === "admin" || 
+        u.systemRole === "demo" ||
+        u.id.startsWith("demo-")
+      );
+      
+      res.json({ 
+        settings: settings || { id: "default", demoDataReady: false, demoLoginUserId: null },
+        demoUsers: demoUsers.map(u => ({ id: u.id, name: u.name, systemRole: u.systemRole })),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update app settings (admin only)
+  app.patch("/api/admin/app-settings", async (req, res) => {
+    try {
+      const { demoLoginUserId } = req.body;
+      
+      // Validate the user exists if provided
+      if (demoLoginUserId) {
+        const user = await storage.getUser(demoLoginUserId);
+        if (!user) {
+          return res.status(400).json({ error: "Selected user not found" });
+        }
+      }
+      
+      const updated = await storage.updateAppSettings({ demoLoginUserId });
+      res.json({ success: true, settings: updated });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 }

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
+import { storage } from "../../data/storage";
 
 // Roles that can use impersonation feature
 const IMPERSONATION_ROLES = ["admin", "demo"];
@@ -119,42 +120,32 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  // Demo login - logs in as a predefined demo user without OIDC
+  // Demo login - logs in as the configured demo user without OIDC
   app.post("/api/demo-login", async (req: any, res) => {
     try {
-      const DEMO_USER_ID = "demo-test-user";
-      const DEMO_USER_EMAIL = "demo@nymbl.app";
+      // Check if demo mode is enabled via app settings
+      const appSettings = await storage.getAppSettings();
       
-      // Check if demo user exists, create if not
-      let demoUser = await authStorage.getUser(DEMO_USER_ID);
+      if (!appSettings?.demoDataReady) {
+        return res.status(403).json({ error: "Demo mode is not available. Please generate demo data first." });
+      }
+      
+      const demoUserId = appSettings.demoLoginUserId || "demo-admin";
+      
+      // Get the configured demo user
+      let demoUser = await authStorage.getUser(demoUserId);
       
       if (!demoUser) {
-        // Create the demo user
-        demoUser = await authStorage.upsertUser({
-          id: DEMO_USER_ID,
-          email: DEMO_USER_EMAIL,
-          firstName: "Demo",
-          lastName: "User",
-          name: "Demo User",
-          systemRole: "demo",
-        });
-      } else if (demoUser.systemRole !== "demo") {
-        // Ensure demo role is set
-        await authStorage.upsertUser({
-          ...demoUser,
-          systemRole: "demo",
-        });
-        demoUser.systemRole = "demo";
+        return res.status(404).json({ error: "Configured demo user not found. Please regenerate demo data." });
       }
       
       // Create a mock user object that matches what Passport OIDC provides
-      // The isAuthenticated middleware checks: req.isAuthenticated(), user.expires_at
       const mockUser = {
         claims: {
-          sub: DEMO_USER_ID,
-          email: DEMO_USER_EMAIL,
-          first_name: "Demo",
-          last_name: "User",
+          sub: demoUser.id,
+          email: demoUser.email,
+          first_name: demoUser.firstName,
+          last_name: demoUser.lastName,
         },
         access_token: "demo-token",
         refresh_token: null,
@@ -170,7 +161,7 @@ export function registerAuthRoutes(app: Express): void {
         
         res.json({ 
           success: true, 
-          message: "Logged in as Demo User",
+          message: `Logged in as ${demoUser!.name || 'Demo User'}`,
           user: demoUser,
           redirectTo: "/"
         });

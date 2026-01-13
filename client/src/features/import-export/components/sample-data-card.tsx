@@ -2,13 +2,21 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Wand2, Loader2, Trash2, Play, CheckCircle2, AlertCircle, Database, Users, Eye } from "lucide-react";
+import { Wand2, Loader2, Trash2, Play, CheckCircle2, AlertCircle, Database, Users, Eye, Settings } from "lucide-react";
 import type { SampleSection } from "../types";
 import { Link } from "wouter";
 
 interface SampleDataCardProps {
   className?: string;
+}
+
+interface DemoUser {
+  id: string;
+  name: string;
+  systemRole: string;
 }
 
 export function SampleDataCard({ className }: SampleDataCardProps) {
@@ -20,9 +28,13 @@ export function SampleDataCard({ className }: SampleDataCardProps) {
   const [isClearing, setIsClearing] = useState(false);
   const [lastResult, setLastResult] = useState<{ created: Record<string, number>; errors?: string[] } | null>(null);
   const [activeTab, setActiveTab] = useState<"sample" | "demo">("demo");
+  const [demoLoginUserId, setDemoLoginUserId] = useState<string | null>(null);
+  const [demoUsers, setDemoUsers] = useState<DemoUser[]>([]);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   useEffect(() => {
     checkDataStatus();
+    fetchAppSettings();
   }, []);
 
   const checkDataStatus = async () => {
@@ -39,6 +51,50 @@ export function SampleDataCard({ className }: SampleDataCardProps) {
       console.error("Failed to check data status:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAppSettings = async () => {
+    try {
+      const res = await fetch("/api/admin/app-settings");
+      const data = await res.json();
+      setDemoLoginUserId(data.settings?.demoLoginUserId || null);
+      setDemoUsers(data.demoUsers || []);
+    } catch (error) {
+      console.error("Failed to fetch app settings:", error);
+    }
+  };
+
+  const handleDemoUserChange = async (userId: string) => {
+    setIsSavingSettings(true);
+    try {
+      const res = await fetch("/api/admin/app-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ demoLoginUserId: userId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDemoLoginUserId(userId);
+        toast({
+          title: "Settings saved",
+          description: "Demo login user updated successfully",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to update settings",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -96,6 +152,7 @@ export function SampleDataCard({ className }: SampleDataCardProps) {
           description: `Created: ${Object.entries(result.created || {}).map(([k, v]) => `${v} ${k}`).join(", ")}`,
         });
         await checkDataStatus();
+        await fetchAppSettings();
       } else {
         toast({
           title: "Generation failed",
@@ -323,6 +380,34 @@ export function SampleDataCard({ className }: SampleDataCardProps) {
                   </Button>
                 )}
               </div>
+
+              {hasDemoData && demoUsers.length > 0 && (
+                <div className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Label className="text-xs font-medium">Demo Login Settings</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select which user visitors will log in as when clicking "Demo First" on the landing page.
+                  </p>
+                  <Select 
+                    value={demoLoginUserId || ""} 
+                    onValueChange={handleDemoUserChange}
+                    disabled={isSavingSettings}
+                  >
+                    <SelectTrigger className="w-full h-8 text-xs" data-testid="select-demo-login-user">
+                      <SelectValue placeholder="Select demo login user..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {demoUsers.map((user) => (
+                        <SelectItem key={user.id} value={user.id} className="text-xs">
+                          {user.name} ({user.systemRole})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <ResultDisplay />
             </TabsContent>
