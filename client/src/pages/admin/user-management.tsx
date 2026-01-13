@@ -288,7 +288,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const bulkDeletionPreflight = useBulkDeletionPreflight();
   const bulkDeleteWithPreflight = useBulkDeleteWithPreflight();
   const { data: systems = [] } = useAvailableSystems();
-  const { data: systemRoles = [] } = useQuery<{ id: string; name: string; displayName: string; description: string }[]>({
+  const { data: systemRoles = [] } = useQuery<{ id: string; name: string; label: string; description: string }[]>({
     queryKey: ["/api/roles-permissions/roles"],
     queryFn: async () => {
       const res = await fetch("/api/roles-permissions/roles", { credentials: "include" });
@@ -919,6 +919,23 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 externalValue={searchQuery}
               />
               
+              {embedded && (
+                <div className="flex gap-1.5 ml-auto">
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleImportClick} data-testid="button-import-users">
+                    <Upload className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Import</span>
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport} data-testid="button-export-users">
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Export</span>
+                  </Button>
+                  <Button size="sm" onClick={handleOpenAdd} className="gap-1.5" data-testid="button-add-user">
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Add User</span>
+                  </Button>
+                </div>
+              )}
+              
               <Select value={roleFilter || "all"} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
                 <SelectTrigger className="w-[130px] h-9">
                   <SelectValue placeholder="All roles" />
@@ -1124,7 +1141,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                           key={role.id} 
                           onClick={() => handleBulkRoleChange(role.name)}
                         >
-                          Set as {role.displayName}
+                          Set as {role.label}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
@@ -1449,7 +1466,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   <SelectContent>
                     {systemRoles.map(role => (
                       <SelectItem key={role.id} value={role.name}>
-                        {role.displayName}
+                        {role.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
