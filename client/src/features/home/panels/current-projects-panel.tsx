@@ -2,15 +2,16 @@ import { HomeTask } from "../types";
 import { useProjects, useTasks, useEpics, useProjectStages, useSprints, useMilestones, useUsers } from "@/hooks/use-nexus-data";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { invalidateTaskQueries } from "@/lib/query-invalidation";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Briefcase, ChevronDown, ChevronRight, MoreHorizontal, LayoutGrid, List, Layers, Workflow, Flag, Loader2, ExternalLink, Kanban } from "lucide-react";
 import { Link } from "wouter";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
 import { PortableKanban } from "@/components/kanban/portable-kanban";
@@ -68,6 +69,25 @@ export function CurrentProjectsPanel() {
     setSelectedProjectForTask({ id: projectId, name: projectName });
     setIsCreateTaskOpen(true);
   };
+
+  // Mutation for updating tasks (priority, effort, etc.)
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ taskId, updates }: { taskId: string; updates: any }) => {
+      const response = await apiRequest("PATCH", `/api/tasks/${taskId}`, updates);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to update task: ${errorText}`);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      invalidateTaskQueries(queryClient);
+    },
+  });
+
+  const handleUpdateTask = useCallback((taskId: string, updates: any) => {
+    updateTaskMutation.mutate({ taskId, updates });
+  }, [updateTaskMutation]);
   
   // Use active tasks or all user tasks based on toggle
   const tasks = showAllTasks ? userTasks : activeTasks;
@@ -422,6 +442,7 @@ export function CurrentProjectsPanel() {
                               showAssigneeFilter={true}
                               showAddTask={true}
                               onAddTask={() => handleAddTaskForProject(project.id, project.name)}
+                              onUpdateTask={handleUpdateTask}
                               isReadOnly={false}
                               className="min-h-[400px]"
                             />
