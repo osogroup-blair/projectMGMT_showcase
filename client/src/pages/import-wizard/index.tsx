@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,11 @@ import { UploadStep } from "./steps/upload-step";
 import { SchemaDetectionStep } from "./steps/schema-detection-step";
 import { UserMappingStep } from "./steps/user-mapping-step";
 import { StatusMappingStep } from "./steps/status-mapping-step";
+import { TeamRolesStep, TeamMemberRoleAssignment } from "./steps/team-roles-step";
 import { PreviewStep } from "./steps/preview-step";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-export type ImportStep = 'upload' | 'schema' | 'users' | 'status' | 'preview' | 'results';
+export type ImportStep = 'upload' | 'schema' | 'users' | 'teamRoles' | 'status' | 'preview' | 'results';
 
 export interface ImportResult {
   success: boolean;
@@ -33,6 +34,7 @@ const STEPS: { id: ImportStep; label: string }[] = [
   { id: 'upload', label: 'Upload File' },
   { id: 'schema', label: 'Entity Mapping' },
   { id: 'users', label: 'User Mapping' },
+  { id: 'teamRoles', label: 'Team Roles' },
   { id: 'status', label: 'Status Mapping' },
   { id: 'preview', label: 'Preview & Import' },
   { id: 'results', label: 'Results' }
@@ -45,6 +47,7 @@ export interface ImportWizardState {
   userMappings: Record<string, string>;
   statusMappings: Record<string, string>;
   userHandling: 'create' | 'unassigned' | 'skip';
+  teamRoleAssignments: TeamMemberRoleAssignment[];
   projectDefaults: {
     description: string;
     deadline: string;
@@ -189,6 +192,7 @@ export default function ImportWizard() {
     userMappings: {},
     statusMappings: {},
     userHandling: 'create',
+    teamRoleAssignments: [],
     projectDefaults: {
       description: '',
       deadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -348,6 +352,17 @@ export default function ImportWizard() {
             existingUsers={existingUsers || []}
           />
         );
+      case 'teamRoles':
+        const mappedUserIds = Object.values(state.userMappings).filter(id => id && id !== 'skip' && id !== 'create');
+        const mappedUsers = (existingUsers || []).filter(u => mappedUserIds.includes(u.id));
+        return (
+          <TeamRolesStep
+            mappedUsers={mappedUsers}
+            executionRoles={[]}
+            assignments={state.teamRoleAssignments}
+            onChange={(assignments) => updateState({ teamRoleAssignments: assignments })}
+          />
+        );
       case 'status':
         return (
           <StatusMappingStep
@@ -378,6 +393,8 @@ export default function ImportWizard() {
       case 'schema':
         return Object.keys(state.entityMappings).length > 0;
       case 'users':
+        return true;
+      case 'teamRoles':
         return true;
       case 'status':
         return true;
@@ -460,6 +477,7 @@ export default function ImportWizard() {
                   userMappings: {},
                   statusMappings: {},
                   userHandling: 'create',
+                  teamRoleAssignments: [],
                   projectDefaults: {
                     description: '',
                     deadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],

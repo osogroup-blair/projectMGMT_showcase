@@ -699,3 +699,111 @@ export function useProjectTeamRoles(projectId: string) {
     isDeleting: deleteRole.isPending,
   };
 }
+
+// Unified Team Management Hook
+export interface TeamMemberWithRoles {
+  id: string;
+  projectId: string;
+  userId: string;
+  allocationPercent: number;
+  joinedAt?: Date;
+  user?: { id: string; name: string; email: string; profileImage?: string };
+  highLevelRoles: string[]; // 'owner', 'manager', 'stakeholder', 'member'
+  executionRoles: { id: string; roleId: string; role?: { id: string; name: string; roleType: string } }[];
+}
+
+export function useUnifiedTeamMembers(projectId: string) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["unifiedTeamMembers", projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const response = await fetch(`/api/projects/${projectId}/team-members`);
+      if (!response.ok) throw new Error("Failed to fetch team members");
+      return response.json() as Promise<TeamMemberWithRoles[]>;
+    },
+    enabled: !!projectId,
+  });
+
+  const addMember = useMutation({
+    mutationFn: async (data: { userId: string; allocationPercent?: number; highLevelRoles?: string[]; executionRoleIds?: string[] }) => {
+      const response = await fetch(`/api/projects/${projectId}/team-members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to add team member");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unifiedTeamMembers", projectId] });
+    },
+  });
+
+  const updateMember = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string; allocationPercent?: number; highLevelRoles?: string[]; executionRoleIds?: string[] }) => {
+      const response = await fetch(`/api/projects/${projectId}/team-members/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to update team member");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unifiedTeamMembers", projectId] });
+    },
+  });
+
+  const removeMember = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/projects/${projectId}/team-members/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to remove team member");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unifiedTeamMembers", projectId] });
+    },
+  });
+
+  const bulkAddMembers = useMutation({
+    mutationFn: async (members: { userId: string; allocationPercent?: number; highLevelRoles?: string[]; executionRoleIds?: string[] }[]) => {
+      const response = await fetch(`/api/projects/${projectId}/team-members/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ members }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to add team members");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unifiedTeamMembers", projectId] });
+    },
+  });
+
+  return {
+    data: query.data || [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+    addMember: addMember.mutateAsync,
+    updateMember: updateMember.mutateAsync,
+    removeMember: removeMember.mutateAsync,
+    bulkAddMembers: bulkAddMembers.mutateAsync,
+    isAdding: addMember.isPending,
+    isUpdating: updateMember.isPending,
+    isRemoving: removeMember.isPending,
+    isBulkAdding: bulkAddMembers.isPending,
+  };
+}
