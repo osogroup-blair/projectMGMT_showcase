@@ -941,9 +941,9 @@ export default function ProjectWizard() {
         })),
         roles: roles.map(r => ({
           id: r.id,
-          roleTypeId: r.roleType || 'rt-1',
+          roleType: r.roleType || 'member',
+          roleTypeId: r.roleTypeId || null,
           userId: r.assigneeId || null,
-          rate: 0,
           allocation: 100
         })),
         importMetadata: isImportMode && importContext?.state?.sourceFileName ? {

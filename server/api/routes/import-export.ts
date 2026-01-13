@@ -2038,13 +2038,82 @@ export function registerImportExportRoutes(
         }
       }
       
-      // 7. Note: Roles from wizard are informational only
-      // The projectRoles table is for global role definitions, not project-specific roles
-      // Role assignment to projects would require a different data model (e.g., project_role_assignments table)
-      // For now, we log that roles were provided but don't create them to avoid data inconsistency
+      // 7. Create team members with high-level and execution roles
       const roles = payload.roles || [];
       if (roles.length > 0) {
-        console.log(`Full-create: ${roles.length} roles provided but skipped - projectRoles table is global, not project-specific`);
+        console.log(`[FULL-CREATE] Creating ${roles.length} team members with roles`);
+        
+        // Track users that have been added as team members
+        const addedUserIds = new Set<string>();
+        
+        for (const role of roles) {
+          if (!role.userId) continue;
+          
+          try {
+            let teamMemberId: string;
+            
+            // Check if user is already a team member
+            if (addedUserIds.has(role.userId)) {
+              // Find existing team member
+              const existingMembers = await storage.getProjectTeamMembers(projectId!);
+              const existing = existingMembers.find(m => m.userId === role.userId);
+              if (existing) {
+                teamMemberId = existing.id;
+              } else {
+                continue;
+              }
+            } else {
+              // Create new team member
+              const newTeamMember = await storage.createProjectTeamMember({
+                projectId: projectId!,
+                userId: role.userId,
+                allocationPercent: role.allocation || 100
+              });
+              teamMemberId = newTeamMember.id;
+              addedUserIds.add(role.userId);
+              
+              entityResults.push({
+                entityType: 'team_member',
+                id: teamMemberId,
+                name: `Team Member (${role.roleType || 'member'})`,
+                success: true,
+                parentId: projectId!
+              });
+            }
+            
+            // Add high-level role if it's a project role (owner, manager, stakeholder, member)
+            const highLevelRoleTypes = ['owner', 'manager', 'stakeholder', 'member'];
+            if (highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
+              await storage.createHighLevelRole({
+                teamMemberId,
+                roleType: role.roleType.toLowerCase()
+              });
+              
+              // If owner, also update project.ownerId
+              if (role.roleType.toLowerCase() === 'owner') {
+                await storage.updateProject(projectId!, { ownerId: role.userId });
+              }
+            }
+            
+            // Add execution role assignment if roleTypeId is provided
+            if (role.roleTypeId && !highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
+              await storage.createExecutionRoleAssignment({
+                teamMemberId,
+                roleId: role.roleTypeId
+              });
+            }
+          } catch (e: any) {
+            console.error(`[FULL-CREATE] Error creating team member for role:`, e.message);
+            entityResults.push({
+              entityType: 'team_member',
+              id: 'error',
+              name: `Team Member (${role.roleType || 'unknown'})`,
+              success: false,
+              error: e.message,
+              parentId: projectId!
+            });
+          }
+        }
       }
       
       // Build summary

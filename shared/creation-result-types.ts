@@ -91,9 +91,9 @@ export interface FullProjectCreatePayload {
   }>;
   roles: Array<{
     id: string;
-    roleTypeId: string;
+    roleType: string;
+    roleTypeId?: string | null;
     userId?: string | null;
-    rate?: number;
     allocation?: number;
   }>;
   importMetadata?: {

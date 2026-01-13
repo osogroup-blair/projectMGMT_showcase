@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -24,10 +24,14 @@ import {
   ChevronDown,
   ChevronUp,
   ListTodo,
-  UserPlus
+  UserPlus,
+  Crown,
+  Briefcase,
+  Eye,
+  User
 } from "lucide-react";
 import { StepProps, WizardRole, WizardStage, WizardTaskDraft, CORE_PROJECT_ROLES } from "./types";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useCallback } from "react";
 
 interface TaskAssignmentStats {
   totalTasks: number;
@@ -36,7 +40,13 @@ interface TaskAssignmentStats {
   fromImport: boolean;
 }
 
-type AssignmentMode = 'none' | 'all_to_one' | 'by_stage';
+type ProjectRoleType = 'owner' | 'manager' | 'stakeholder' | 'member';
+
+interface ProjectRoleAssignment {
+  projectRole: ProjectRoleType;
+  userId: string;
+  executionRoleId?: string;
+}
 
 export function StepTeamRoles({
   roles,
@@ -49,20 +59,85 @@ export function StepTeamRoles({
   setStages,
   deliverables,
 }: StepProps) {
-  const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set());
-  const [bulkAssigneeId, setBulkAssigneeId] = useState<string>("");
-  const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>('none');
-  const [stageAssignees, setStageAssignees] = useState<Record<string, string>>({});
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['owner', 'manager', 'stakeholder', 'member']));
+  
+  const [ownerUserId, setOwnerUserIdState] = useState<string>("");
+  const [managerUserId, setManagerUserIdState] = useState<string>("");
+  const [stakeholderUserIds, setStakeholderUserIdsState] = useState<string[]>([]);
+  const [teamMembers, setTeamMembersState] = useState<{ userId: string; executionRoleId?: string }[]>([]);
 
-  // Auto-expand all stages with unassigned tasks on mount
-  useEffect(() => {
-    const stagesWithUnassigned = stages
-      .filter(stage => (stage.tasks || []).some(task => !task.assigneeId))
-      .map(s => s.id);
-    if (stagesWithUnassigned.length > 0) {
-      setExpandedStages(new Set(stagesWithUnassigned));
+  const buildRolesArray = useCallback((
+    owner: string,
+    manager: string,
+    stakeholders: string[],
+    members: { userId: string; executionRoleId?: string }[]
+  ): WizardRole[] => {
+    const newRoles: WizardRole[] = [];
+
+    if (owner) {
+      newRoles.push({
+        id: `role-owner-${owner}`,
+        name: "Project Owner",
+        roleType: "owner",
+        isCore: true,
+        assigneeId: owner
+      });
     }
-  }, []);
+
+    if (manager) {
+      newRoles.push({
+        id: `role-manager-${manager}`,
+        name: "Project Manager",
+        roleType: "manager",
+        isCore: true,
+        assigneeId: manager
+      });
+    }
+
+    stakeholders.filter(id => id).forEach((userId, idx) => {
+      newRoles.push({
+        id: `role-stakeholder-${userId}-${idx}`,
+        name: "Stakeholder",
+        roleType: "stakeholder",
+        isCore: false,
+        assigneeId: userId
+      });
+    });
+
+    members.filter(m => m.userId).forEach((member, idx) => {
+      const executionRole = roleTypes.find(rt => rt.id === member.executionRoleId);
+      newRoles.push({
+        id: `role-member-${member.userId}-${idx}`,
+        name: executionRole ? executionRole.label : "Team Member",
+        roleType: executionRole?.label || "member",
+        roleTypeId: member.executionRoleId,
+        isCore: false,
+        assigneeId: member.userId
+      });
+    });
+
+    return newRoles;
+  }, [roleTypes]);
+
+  const setOwnerUserId = (userId: string) => {
+    setOwnerUserIdState(userId);
+    setRoles(buildRolesArray(userId, managerUserId, stakeholderUserIds, teamMembers));
+  };
+
+  const setManagerUserId = (userId: string) => {
+    setManagerUserIdState(userId);
+    setRoles(buildRolesArray(ownerUserId, userId, stakeholderUserIds, teamMembers));
+  };
+
+  const setStakeholderUserIds = (ids: string[]) => {
+    setStakeholderUserIdsState(ids);
+    setRoles(buildRolesArray(ownerUserId, managerUserId, ids, teamMembers));
+  };
+
+  const setTeamMembers = (members: { userId: string; executionRoleId?: string }[]) => {
+    setTeamMembersState(members);
+    setRoles(buildRolesArray(ownerUserId, managerUserId, stakeholderUserIds, members));
+  };
 
   const taskAssignmentStats = useMemo<TaskAssignmentStats>(() => {
     let totalTasks = 0;
@@ -105,328 +180,153 @@ export function StepTeamRoles({
     };
   }, [stages, deliverables]);
 
-  const addRole = () => {
-    const defaultRoleType = roleTypes[0];
-    const newRole: WizardRole = {
-      id: `r-${Date.now()}`,
-      name: "",
-      roleType: defaultRoleType?.label || "Development",
-      roleTypeId: defaultRoleType?.id,
-      isCore: false,
-      assigneeId: null
-    };
-    setRoles([...roles, newRole]);
-  };
-
-  const addRoleFromTemplate = (templateId: string) => {
-    const template = roleTemplates.find((rt: any) => rt.id === templateId);
-    if (!template) return;
-    
-    const alreadyExists = roles.some(r => r.templateId === templateId);
-    if (alreadyExists) return;
-    
-    const newRole: WizardRole = {
-      id: `r-${Date.now()}`,
-      templateId: template.id,
-      name: template.name,
-      description: template.description,
-      roleType: template.defaultRoleType,
-      isCore: false,
-      assigneeId: null
-    };
-    setRoles([...roles, newRole]);
-  };
-
-  const removeRole = (index: number) => {
-    const newRoles = [...roles];
-    newRoles.splice(index, 1);
-    setRoles(newRoles);
-  };
-
-  const getEligibleUsersForRole = (roleTypeId?: string): any[] => {
-    if (!roleTypeId) return users;
-    const eligible = eligibleUsers.get(roleTypeId);
-    return eligible && eligible.length > 0 ? eligible : users;
-  };
-
-  const unassignedTasksByStage = useMemo(() => {
-    const result: { stage: WizardStage; tasks: WizardTaskDraft[] }[] = [];
-    
-    stages.forEach(stage => {
-      const unassigned = (stage.tasks || []).filter(task => !task.assigneeId);
-      if (unassigned.length > 0) {
-        result.push({ stage, tasks: unassigned });
-      }
-    });
-    
-    return result;
-  }, [stages]);
-
-  const taskAssigneeOptions = useMemo(() => {
-    return users.map((user: any) => ({
-      value: user.id,
-      label: user.name || user.email || user.id
-    }));
-  }, [users]);
-
-  const assignTaskToUser = (stageId: string, taskId: string, userId: string | null) => {
-    setStages(prev => prev.map(stage => {
-      if (stage.id !== stageId) return stage;
-      return {
-        ...stage,
-        tasks: stage.tasks.map(task => {
-          if (task.id !== taskId) return task;
-          return { ...task, assigneeId: userId || undefined };
-        })
-      };
-    }));
-  };
-
-  const bulkAssignAllUnassigned = (userId: string) => {
-    if (!userId) return;
-    
-    setStages(prev => prev.map(stage => ({
-      ...stage,
-      tasks: stage.tasks.map(task => {
-        if (task.assigneeId) return task;
-        return { ...task, assigneeId: userId };
-      })
-    })));
-    setBulkAssigneeId("");
-  };
-
-  const assignAllTasksInStage = (stageId: string, userId: string) => {
-    if (!userId) return;
-    
-    setStageAssignees(prev => ({ ...prev, [stageId]: userId }));
-    setStages(prev => prev.map(stage => {
-      if (stage.id !== stageId) return stage;
-      return {
-        ...stage,
-        tasks: stage.tasks.map(task => ({ ...task, assigneeId: userId }))
-      };
-    }));
-  };
-
-  // Role-based task summary: which tasks would be assigned by role (show preview even without assignee)
   const roleTaskSummary = useMemo(() => {
-    const summary: Record<string, { roleName: string; tasks: { title: string; stageName: string }[] }> = {};
+    const summary: Record<string, { roleName: string; roleTypeId: string; tasks: { title: string; stageName: string }[] }> = {};
     
-    roles.forEach(role => {
-      if (!role.roleTypeId) return;
-      
+    roleTypes.forEach(roleType => {
       const tasksForRole: { title: string; stageName: string }[] = [];
       
       stages.forEach(stage => {
         stage.tasks.forEach(task => {
-          // Check if task's role type matches the role
-          if (task.assigneeRoleTypeId === role.roleTypeId) {
+          if (task.assigneeRoleTypeId === roleType.id) {
             tasksForRole.push({ title: task.title, stageName: stage.name });
           }
         });
       });
       
       if (tasksForRole.length > 0) {
-        summary[role.id] = {
-          roleName: role.name,
+        summary[roleType.id] = {
+          roleName: roleType.label,
+          roleTypeId: roleType.id,
           tasks: tasksForRole
         };
       }
     });
     
     return summary;
-  }, [roles, stages]);
+  }, [roleTypes, stages]);
 
-  const toggleStageExpanded = (stageId: string) => {
-    setExpandedStages(prev => {
+  const getTasksForExecutionRole = (executionRoleId: string) => {
+    return roleTaskSummary[executionRoleId] || null;
+  };
+
+  const userOptions = useMemo(() => {
+    return users.map((user: any) => ({
+      value: user.id,
+      label: user.name || user.email || user.id
+    }));
+  }, [users]);
+
+  const executionRoleOptions = useMemo(() => {
+    return roleTypes.map(rt => ({
+      value: rt.id,
+      label: rt.label
+    }));
+  }, [roleTypes]);
+
+  const getAvailableUsersForRole = (excludeUserIds: string[]) => {
+    return userOptions.filter(opt => !excludeUserIds.includes(opt.value));
+  };
+
+  const getAllAssignedUserIds = () => {
+    const ids: string[] = [];
+    if (ownerUserId) ids.push(ownerUserId);
+    if (managerUserId) ids.push(managerUserId);
+    ids.push(...stakeholderUserIds);
+    ids.push(...teamMembers.map(m => m.userId));
+    return ids;
+  };
+
+  const addStakeholder = () => {
+    setStakeholderUserIds([...stakeholderUserIds, ""]);
+  };
+
+  const removeStakeholder = (index: number) => {
+    const newStakeholders = [...stakeholderUserIds];
+    newStakeholders.splice(index, 1);
+    setStakeholderUserIds(newStakeholders);
+  };
+
+  const updateStakeholder = (index: number, userId: string) => {
+    const newStakeholders = [...stakeholderUserIds];
+    newStakeholders[index] = userId;
+    setStakeholderUserIds(newStakeholders);
+  };
+
+  const addTeamMember = () => {
+    setTeamMembers([...teamMembers, { userId: "", executionRoleId: undefined }]);
+  };
+
+  const removeTeamMember = (index: number) => {
+    const newMembers = [...teamMembers];
+    newMembers.splice(index, 1);
+    setTeamMembers(newMembers);
+  };
+
+  const updateTeamMemberInternal = (index: number, field: 'userId' | 'executionRoleId', value: string, callback?: (member: { userId: string; executionRoleId?: string }) => void) => {
+    const newMembers = [...teamMembers];
+    if (field === 'userId') {
+      newMembers[index].userId = value;
+    } else {
+      newMembers[index].executionRoleId = value || undefined;
+    }
+    setTeamMembers(newMembers);
+    if (callback) {
+      callback(newMembers[index]);
+    }
+  };
+
+  const updateTeamMember = (index: number, field: 'userId' | 'executionRoleId', value: string) => {
+    updateTeamMemberInternal(index, field, value);
+  };
+
+  const assignTasksByRole = useCallback((memberId: string, executionRoleId: string) => {
+    setStages(prev => prev.map(stage => ({
+      ...stage,
+      tasks: stage.tasks.map(task => {
+        if (task.assigneeRoleTypeId === executionRoleId && !task.assigneeId) {
+          return { ...task, assigneeId: memberId };
+        }
+        return task;
+      })
+    })));
+  }, [setStages]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
       const next = new Set(prev);
-      if (next.has(stageId)) {
-        next.delete(stageId);
+      if (next.has(section)) {
+        next.delete(section);
       } else {
-        next.add(stageId);
+        next.add(section);
       }
       return next;
     });
   };
 
-  const coreRoles = roles.filter(r => r.isCore);
-  const stageRoles = roles.filter(r => !r.isCore);
-  
-  const groupedStageRoles = stageRoles.reduce((acc, role) => {
-    const type = role.roleType || 'Other';
-    if (!acc[type]) acc[type] = [];
-    acc[type].push(role);
-    return acc;
-  }, {} as Record<string, WizardRole[]>);
-
-  const availableTemplates = roleTemplates.filter((rt: any) => 
-    !roles.some(r => r.templateId === rt.id) && 
-    !CORE_PROJECT_ROLES.some(c => c.templateId === rt.id)
-  );
-
-  const templateOptions = availableTemplates.map((rt: any) => ({
-    value: rt.id,
-    label: rt.name
-  }));
-
-  const renderRoleCard = (role: WizardRole, globalIndex: number) => {
-    const eligibleForRole = getEligibleUsersForRole(role.roleTypeId);
-    const hasEligibleUsers = eligibleForRole.length > 0;
-
-    const userOptions = (hasEligibleUsers ? eligibleForRole : users).map((member: any) => ({
-      value: member.id,
-      label: member.role ? `${member.name} (${member.role})` : member.name
-    }));
-
-    return (
-      <Card key={role.id} className={role.isCore ? "border-primary/30 bg-primary/5" : ""}>
-        <CardHeader className="p-4 pb-2">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-2 flex-1">
-              {role.isCore && <Shield className="h-4 w-4 text-primary shrink-0" />}
-              <Input 
-                value={role.name}
-                onChange={(e) => {
-                  const newRoles = [...roles];
-                  newRoles[globalIndex].name = e.target.value;
-                  setRoles(newRoles);
-                }}
-                className="h-8 font-medium border-transparent hover:border-input focus:border-input"
-                placeholder="Enter role name..."
-                data-testid={`input-role-name-${globalIndex}`}
-              />
-            </div>
-            {!role.isCore && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6 text-muted-foreground hover:text-destructive" 
-                onClick={() => removeRole(globalIndex)}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          {role.isCore && (
-            <Badge variant="secondary" className="text-[10px] w-fit mt-1">Core Role</Badge>
-          )}
-        </CardHeader>
-        <CardContent className="p-4 pt-0 space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Role Type</Label>
-            <div className="h-8 flex items-center text-sm px-3 border rounded-md bg-muted/30">
-              {role.roleType || 'Not specified'}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Assignee</Label>
-              <Badge variant="outline" className="text-[10px]">
-                {users.length} eligible
-              </Badge>
-            </div>
-            <SearchableSelect 
-              value={role.assigneeId || ""} 
-              onValueChange={(val) => {
-                const newRoles = [...roles];
-                newRoles[globalIndex].assigneeId = val || null;
-                setRoles(newRoles);
-              }}
-              placeholder="Unassigned"
-              options={userOptions}
-              data-testid={`select-role-assignee-${globalIndex}`}
-            />
-          </div>
-          
-          {/* Role-based task assignment summary - always show if there are matching tasks */}
-          {roleTaskSummary[role.id] && (
-            <div className={`space-y-1.5 pt-2 border-t ${role.assigneeId ? 'bg-green-50/50 dark:bg-green-950/20 -mx-4 px-4 pb-2' : ''}`}>
-              <Label className={`text-xs flex items-center gap-1 ${role.assigneeId ? 'text-green-700 dark:text-green-400' : 'text-muted-foreground'}`}>
-                <ListTodo className="h-3 w-3" />
-                {role.assigneeId ? (
-                  <span>Tasks assigned to this role ({roleTaskSummary[role.id].tasks.length})</span>
-                ) : (
-                  <span>Tasks that will be assigned ({roleTaskSummary[role.id].tasks.length})</span>
-                )}
-              </Label>
-              <div className="max-h-28 overflow-y-auto space-y-1">
-                {roleTaskSummary[role.id].tasks.slice(0, 6).map((task, idx) => (
-                  <div key={idx} className={`text-xs rounded px-2 py-1 ${role.assigneeId ? 'bg-green-100/50 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-muted/50 text-muted-foreground'}`}>
-                    <span className="font-medium">{task.title}</span>
-                    <span className="text-[10px] ml-1 opacity-75">({task.stageName})</span>
-                  </div>
-                ))}
-                {roleTaskSummary[role.id].tasks.length > 6 && (
-                  <div className="text-xs text-muted-foreground px-2 italic">
-                    +{roleTaskSummary[role.id].tasks.length - 6} more tasks
-                  </div>
-                )}
-              </div>
-              {!role.assigneeId && (
-                <p className="text-[10px] text-muted-foreground italic mt-1">
-                  Select an assignee above to assign these tasks
-                </p>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
+  const getUserName = (userId: string) => {
+    const user = users.find((u: any) => u.id === userId);
+    return user?.name || user?.email || userId;
   };
+
+  const assignedCount = getAllAssignedUserIds().filter(id => id).length;
+  const totalAssignable = 1 + 1 + stakeholderUserIds.length + teamMembers.length;
 
   return (
     <div className="space-y-6">
       {taskAssignmentStats.totalTasks > 0 && (
-        <div className="space-y-3">
-          {taskAssignmentStats.fromImport && taskAssignmentStats.assignedTasks > 0 ? (
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-800">Imported Tasks Have Assignees</AlertTitle>
-              <AlertDescription className="text-green-700">
-                <strong>{taskAssignmentStats.assignedTasks}</strong> of <strong>{taskAssignmentStats.totalTasks}</strong> tasks 
-                already have assignees from the import. 
-                {taskAssignmentStats.unassignedTasks > 0 && (
-                  <span className="block mt-1">
-                    <strong>{taskAssignmentStats.unassignedTasks}</strong> task{taskAssignmentStats.unassignedTasks !== 1 ? 's' : ''} still need assignment.
-                  </span>
-                )}
-              </AlertDescription>
-            </Alert>
-          ) : taskAssignmentStats.unassignedTasks > 0 ? (
-            <Alert className="border-amber-200 bg-amber-50">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-800">Unassigned Tasks</AlertTitle>
-              <AlertDescription className="text-amber-700">
-                <strong>{taskAssignmentStats.unassignedTasks}</strong> of <strong>{taskAssignmentStats.totalTasks}</strong> tasks 
-                do not have assignees. You can assign people to roles below, or assign tasks individually after project creation.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertTitle className="text-green-800">All Tasks Assigned</AlertTitle>
-              <AlertDescription className="text-green-700">
-                All <strong>{taskAssignmentStats.totalTasks}</strong> tasks have assignees.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-      )}
-
-      {taskAssignmentStats.totalTasks > 0 && (
-        <Card className="border-2 border-primary/30 bg-primary/5">
+        <Card className="border-2 border-primary/20">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-primary/10 rounded-lg">
-                  <ListTodo className="h-5 w-5 text-primary" />
+                  <Users className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Task Assignments</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Assign team members to tasks before creating the project
-                  </p>
+                  <CardTitle className="text-lg">Team Assignment</CardTitle>
+                  <CardDescription>
+                    Assign users to project roles. Team members with execution roles will automatically get tasks assigned.
+                  </CardDescription>
                 </div>
               </div>
               <div className="text-right">
@@ -437,274 +337,357 @@ export function StepTeamRoles({
               </div>
             </div>
             
-            <div className="mt-4 space-y-1">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Assignment Progress</span>
-                <span>{Math.round((taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100)}%</span>
+            {taskAssignmentStats.totalTasks > 0 && (
+              <div className="mt-4 space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Task Assignment Progress</span>
+                  <span>{Math.round((taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100)}%</span>
+                </div>
+                <Progress 
+                  value={(taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100} 
+                  className="h-2"
+                />
               </div>
-              <Progress 
-                value={(taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100} 
-                className="h-2"
-              />
-            </div>
+            )}
           </CardHeader>
-          
-          <CardContent className="space-y-4">
-            {unassignedTasksByStage.length > 0 && (
-              <>
-                {/* Assignment Mode Selector */}
-                <div className="p-4 bg-background rounded-lg border shadow-sm">
-                  <p className="font-medium mb-3">How would you like to assign tasks?</p>
-                  <div className="flex flex-wrap gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="assignment-mode"
-                        checked={assignmentMode === 'all_to_one'}
-                        onChange={() => setAssignmentMode('all_to_one')}
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">Assign all to one person</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="assignment-mode"
-                        checked={assignmentMode === 'by_stage'}
-                        onChange={() => setAssignmentMode('by_stage')}
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">Assign by stage</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* All to One Person Mode */}
-                {assignmentMode === 'all_to_one' && (
-                  <div className="flex items-center gap-4 p-4 bg-background rounded-lg border shadow-sm">
-                    <div className="flex-1">
-                      <p className="font-medium">Assign All Unassigned Tasks</p>
-                      <p className="text-sm text-muted-foreground">
-                        Assign all {taskAssignmentStats.unassignedTasks} remaining tasks to one person
-                      </p>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      <SearchableSelect
-                        value={bulkAssigneeId}
-                        onValueChange={setBulkAssigneeId}
-                        options={taskAssigneeOptions}
-                        placeholder="Select person..."
-                        className="w-[200px]"
-                        data-testid="bulk-assign-select"
-                      />
-                      <Button 
-                        onClick={() => bulkAssignAllUnassigned(bulkAssigneeId)}
-                        disabled={!bulkAssigneeId}
-                        data-testid="bulk-assign-btn"
-                      >
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Assign All
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* By Stage Mode */}
-                {assignmentMode === 'by_stage' && (
-                  <div className="space-y-3">
-                    <p className="font-medium">Assign one person per stage:</p>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      All tasks within a stage will be assigned to the selected person.
-                    </p>
-                    
-                    {unassignedTasksByStage.map(({ stage, tasks }) => (
-                      <div 
-                        key={stage.id} 
-                        className="flex items-center justify-between p-4 bg-background rounded-lg border shadow-sm gap-4"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Layers className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <span className="font-medium">{stage.name}</span>
-                            <p className="text-xs text-muted-foreground">
-                              {stage.tasks.length} tasks total, {tasks.length} unassigned
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 items-center">
-                          <SearchableSelect
-                            value={stageAssignees[stage.id] || ""}
-                            onValueChange={(val) => val && assignAllTasksInStage(stage.id, val)}
-                            options={taskAssigneeOptions}
-                            placeholder="Assign all tasks to..."
-                            className="w-[220px]"
-                            data-testid={`stage-assign-${stage.id}`}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    
-                    <Separator className="my-4" />
-                    
-                    <Collapsible>
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground">
-                          <ChevronDown className="h-4 w-4 mr-2" />
-                          View individual task details
-                        </Button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="mt-3 space-y-3">
-                        {unassignedTasksByStage.map(({ stage, tasks }) => (
-                          <Card key={stage.id} className="bg-background shadow-sm">
-                            <CardHeader className="py-2 px-4">
-                              <div className="flex items-center gap-2">
-                                <Layers className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium text-sm">{stage.name}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {tasks.length} tasks
-                                </Badge>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="pt-0 pb-3 px-4">
-                              <div className="space-y-2">
-                                {tasks.map(task => (
-                                  <div 
-                                    key={task.id}
-                                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg gap-3 border"
-                                    data-testid={`task-row-${task.id}`}
-                                  >
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium truncate">{task.title}</p>
-                                      {task.assignedEpicTitle && (
-                                        <p className="text-xs text-muted-foreground truncate">
-                                          Epic: {task.assignedEpicTitle}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <SearchableSelect
-                                      value={task.assigneeId || ""}
-                                      onValueChange={(val) => assignTaskToUser(stage.id, task.id, val || null)}
-                                      options={[
-                                        { value: "", label: "Unassigned" },
-                                        ...taskAssigneeOptions
-                                      ]}
-                                      placeholder="Assign to..."
-                                      className="w-[200px] shrink-0"
-                                      data-testid={`task-assign-${task.id}`}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </div>
-                )}
-              </>
-            )}
-            
-            {unassignedTasksByStage.length === 0 && (
-              <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="font-medium text-green-800 dark:text-green-200">All tasks are assigned!</p>
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    Every task has a team member assigned. You can proceed to review.
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
         </Card>
       )}
 
-      <Separator className="my-2" />
-
-      <div className="flex justify-end items-center">
-        <div className="flex gap-2">
-          {availableTemplates.length > 0 && (
-            <SearchableSelect
-              onValueChange={addRoleFromTemplate}
-              placeholder="Add from template..."
-              options={templateOptions}
-              triggerClassName="w-[180px] h-9"
-            />
-          )}
-          <Button size="sm" onClick={addRole} data-testid="button-add-role">
-            <Plus className="h-4 w-4 mr-2" /> Custom Role
-          </Button>
-        </div>
-      </div>
-
-      <div className="bg-muted/30 p-4 rounded-lg border mb-4">
-        <div className="flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-          <div className="text-sm text-muted-foreground">
-            <p className="font-medium mb-1">Role-Based Assignment</p>
-            <p>Core roles (Project Manager, Team Member) are included by default. Additional roles are automatically added based on your stage configuration and task assignments.</p>
-          </div>
-        </div>
-      </div>
-
-      {coreRoles.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-primary" />
-            <h4 className="font-medium text-sm">Core Project Roles</h4>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {coreRoles.map((role) => {
-              const globalIndex = roles.findIndex(r => r.id === role.id);
-              return renderRoleCard(role, globalIndex);
-            })}
-          </div>
-        </div>
-      )}
-
-      {Object.keys(groupedStageRoles).length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-muted-foreground" />
-            <h4 className="font-medium text-sm">Roles from Stages & Tasks</h4>
-          </div>
-          
-          {Object.entries(groupedStageRoles).map(([roleType, typeRoles]) => (
-            <div key={roleType} className="space-y-3">
-              <Badge variant="outline" className="text-xs">{roleType}</Badge>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {typeRoles.map((role) => {
-                  const globalIndex = roles.findIndex(r => r.id === role.id);
-                  return renderRoleCard(role, globalIndex);
-                })}
+      <Card>
+        <Collapsible open={expandedSections.has('owner')} onOpenChange={() => toggleSection('owner')}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                    <Crown className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Owner</CardTitle>
+                    <CardDescription>Single project owner with full control</CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {ownerUserId && (
+                    <Badge variant="secondary" className="text-xs">
+                      {getUserName(ownerUserId)}
+                    </Badge>
+                  )}
+                  {expandedSections.has('owner') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
               </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                <Label>Select Project Owner</Label>
+                <SearchableSelect
+                  value={ownerUserId}
+                  onValueChange={setOwnerUserId}
+                  options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== ownerUserId))}
+                  placeholder="Select owner..."
+                  data-testid="select-owner"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The owner has ultimate responsibility and approval authority for the project.
+                </p>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+
+      <Card>
+        <Collapsible open={expandedSections.has('manager')} onOpenChange={() => toggleSection('manager')}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <Briefcase className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Manager</CardTitle>
+                    <CardDescription>Day-to-day project management</CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {managerUserId && (
+                    <Badge variant="secondary" className="text-xs">
+                      {getUserName(managerUserId)}
+                    </Badge>
+                  )}
+                  {expandedSections.has('manager') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                <Label>Select Project Manager</Label>
+                <SearchableSelect
+                  value={managerUserId}
+                  onValueChange={setManagerUserId}
+                  options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== managerUserId))}
+                  placeholder="Select manager..."
+                  data-testid="select-manager"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The manager oversees execution, coordinates team activities, and reports to stakeholders.
+                </p>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+
+      <Card>
+        <Collapsible open={expandedSections.has('stakeholder')} onOpenChange={() => toggleSection('stakeholder')}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <Eye className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Stakeholders</CardTitle>
+                    <CardDescription>Interested parties with view access</CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {stakeholderUserIds.filter(id => id).length > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {stakeholderUserIds.filter(id => id).length} assigned
+                    </Badge>
+                  )}
+                  {expandedSections.has('stakeholder') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0 space-y-4">
+              {stakeholderUserIds.map((userId, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <SearchableSelect
+                    value={userId}
+                    onValueChange={(val) => updateStakeholder(idx, val)}
+                    options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== userId))}
+                    placeholder="Select stakeholder..."
+                    className="flex-1"
+                    data-testid={`select-stakeholder-${idx}`}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeStakeholder(idx)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addStakeholder}
+                className="w-full"
+                data-testid="button-add-stakeholder"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Stakeholder
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Stakeholders receive updates and can view progress but don't have edit access.
+              </p>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+
+      <Card>
+        <Collapsible open={expandedSections.has('member')} onOpenChange={() => toggleSection('member')}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <User className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Team Members</CardTitle>
+                    <CardDescription>Contributors with execution roles</CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {teamMembers.filter(m => m.userId).length > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {teamMembers.filter(m => m.userId).length} assigned
+                    </Badge>
+                  )}
+                  {expandedSections.has('member') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0 space-y-4">
+              {teamMembers.map((member, idx) => {
+                const taskSummary = member.executionRoleId ? getTasksForExecutionRole(member.executionRoleId) : null;
+                return (
+                  <Card key={idx} className="bg-muted/30">
+                    <CardContent className="pt-4 space-y-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 space-y-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Team Member</Label>
+                            <SearchableSelect
+                              value={member.userId}
+                              onValueChange={(val) => updateTeamMember(idx, 'userId', val)}
+                              options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== member.userId))}
+                              placeholder="Select team member..."
+                              data-testid={`select-member-${idx}`}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Execution Role (from templates)</Label>
+                            <SearchableSelect
+                              value={member.executionRoleId || ""}
+                              onValueChange={(val) => updateTeamMember(idx, 'executionRoleId', val)}
+                              options={[
+                                { value: "", label: "No specific role" },
+                                ...executionRoleOptions
+                              ]}
+                              placeholder="Select execution role..."
+                              data-testid={`select-execution-role-${idx}`}
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeTeamMember(idx)}
+                          className="text-destructive hover:text-destructive mt-6"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {taskSummary && member.userId && (
+                        <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-2 mb-2">
+                            <ListTodo className="h-4 w-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                              {taskSummary.tasks.length} tasks will be assigned
+                            </span>
+                          </div>
+                          <div className="max-h-24 overflow-y-auto space-y-1">
+                            {taskSummary.tasks.slice(0, 5).map((task, taskIdx) => (
+                              <div key={taskIdx} className="text-xs text-green-700 dark:text-green-300 bg-green-100/50 dark:bg-green-900/30 rounded px-2 py-1">
+                                <span className="font-medium">{task.title}</span>
+                                <span className="text-green-600 dark:text-green-400 ml-1">({task.stageName})</span>
+                              </div>
+                            ))}
+                            {taskSummary.tasks.length > 5 && (
+                              <div className="text-xs text-green-600 dark:text-green-400 italic px-2">
+                                +{taskSummary.tasks.length - 5} more tasks
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {taskSummary && !member.userId && (
+                        <div className="p-3 bg-muted/50 rounded-lg border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <ListTodo className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {taskSummary.tasks.length} tasks waiting for assignment
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Select a team member above to assign these tasks to the {taskSummary.roleName} role.
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addTeamMember}
+                className="w-full"
+                data-testid="button-add-team-member"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Team Member
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Team members are active contributors. Assign an execution role to automatically assign matching tasks.
+              </p>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+
+      <div className="p-4 bg-muted/20 rounded-lg border">
+        <h4 className="font-medium text-sm mb-3">Team Summary</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center p-3 bg-background rounded-lg border">
+            <Crown className="h-5 w-5 mx-auto mb-1 text-amber-600" />
+            <div className="text-lg font-bold">{ownerUserId ? 1 : 0}/1</div>
+            <p className="text-xs text-muted-foreground">Owner</p>
+          </div>
+          <div className="text-center p-3 bg-background rounded-lg border">
+            <Briefcase className="h-5 w-5 mx-auto mb-1 text-blue-600" />
+            <div className="text-lg font-bold">{managerUserId ? 1 : 0}/1</div>
+            <p className="text-xs text-muted-foreground">Manager</p>
+          </div>
+          <div className="text-center p-3 bg-background rounded-lg border">
+            <Eye className="h-5 w-5 mx-auto mb-1 text-purple-600" />
+            <div className="text-lg font-bold">{stakeholderUserIds.filter(id => id).length}</div>
+            <p className="text-xs text-muted-foreground">Stakeholders</p>
+          </div>
+          <div className="text-center p-3 bg-background rounded-lg border">
+            <User className="h-5 w-5 mx-auto mb-1 text-green-600" />
+            <div className="text-lg font-bold">{teamMembers.filter(m => m.userId).length}</div>
+            <p className="text-xs text-muted-foreground">Team Members</p>
+          </div>
+        </div>
+        
+        {taskAssignmentStats.totalTasks > 0 && (
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Tasks with assignees:</span>
+              <span className="font-medium">
+                {taskAssignmentStats.assignedTasks} of {taskAssignmentStats.totalTasks}
+                {taskAssignmentStats.unassignedTasks > 0 && (
+                  <span className="text-amber-600 ml-2">
+                    ({taskAssignmentStats.unassignedTasks} unassigned)
+                  </span>
+                )}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
-
-      {roles.length === 0 && (
-        <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
-          <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No roles defined yet.</p>
-          <Button variant="link" onClick={addRole}>Add your first role</Button>
-        </div>
-      )}
-
-      <div className="mt-6 p-4 bg-muted/20 rounded-lg">
-        <h4 className="font-medium text-sm mb-2">Assignment Summary</h4>
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <span>{coreRoles.length} core role{coreRoles.length !== 1 ? 's' : ''}</span>
-          <span>{stageRoles.length} stage role{stageRoles.length !== 1 ? 's' : ''}</span>
-          <span>{roles.filter(r => r.assigneeId).length} roles assigned</span>
-          {taskAssignmentStats.totalTasks > 0 && (
-            <>
-              <span className="border-l pl-4">{taskAssignmentStats.assignedTasks}/{taskAssignmentStats.totalTasks} tasks assigned</span>
-            </>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+
+      {Object.keys(roleTaskSummary).length > 0 && teamMembers.filter(m => m.executionRoleId).length === 0 && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800">Execution Roles Available</AlertTitle>
+          <AlertDescription className="text-amber-700">
+            There are {Object.values(roleTaskSummary).reduce((acc, r) => acc + r.tasks.length, 0)} tasks 
+            that can be automatically assigned based on execution roles. Add team members with execution roles 
+            to auto-assign these tasks.
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
