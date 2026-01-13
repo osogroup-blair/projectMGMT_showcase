@@ -6,6 +6,9 @@ import {
   insertEpicSchema,
   insertProjectRoleSchema,
   insertRoleAssignmentSchema,
+  insertProjectTeamMemberSchema,
+  insertProjectHighLevelRoleSchema,
+  insertExecutionRoleAssignmentSchema,
 } from "@shared/schema";
 
 export function registerProjectRoutes(
@@ -545,6 +548,198 @@ export function registerProjectRoutes(
         updatedAt: new Date(),
       });
       res.json(project);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // Unified Team Management (New System)
+  // ============================================
+
+  // Get all team members with their high-level roles and execution roles
+  app.get("/api/projects/:projectId/team-members", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const project = await storage.getProjectById(projectId);
+      if (!project) return res.status(404).json({ error: "Project not found" });
+
+      const teamMembers = await storage.getProjectTeamMembers(projectId);
+      const highLevelRoles = await storage.getHighLevelRolesByProject(projectId);
+      const executionRoles = await storage.getExecutionRoleAssignmentsByProject(projectId);
+      const users = await storage.getUsers();
+      const projectRoles = await storage.getProjectRolesByProjectId(projectId);
+
+      const enrichedMembers = teamMembers.map(member => ({
+        ...member,
+        user: users.find(u => u.id === member.userId),
+        highLevelRoles: highLevelRoles.filter(r => r.teamMemberId === member.id).map(r => r.roleType),
+        executionRoles: executionRoles.filter(r => r.teamMemberId === member.id).map(r => ({
+          ...r,
+          role: projectRoles.find(pr => pr.id === r.roleId),
+        })),
+      }));
+
+      res.json(enrichedMembers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add team member with roles
+  app.post("/api/projects/:projectId/team-members", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const { userId, allocationPercent, highLevelRoles, executionRoleIds } = req.body;
+
+      // Check if already a team member
+      const existing = await storage.getProjectTeamMemberByUserAndProject(projectId, userId);
+      if (existing) {
+        return res.status(400).json({ error: "User is already a team member" });
+      }
+
+      // Create team member
+      const validated = insertProjectTeamMemberSchema.parse({
+        projectId,
+        userId,
+        allocationPercent: allocationPercent || 100,
+      });
+      const member = await storage.createProjectTeamMember(validated);
+
+      // Add high-level roles
+      if (highLevelRoles && Array.isArray(highLevelRoles)) {
+        for (const roleType of highLevelRoles) {
+          await storage.createHighLevelRole({
+            teamMemberId: member.id,
+            roleType,
+          });
+        }
+      }
+
+      // Add execution roles
+      if (executionRoleIds && Array.isArray(executionRoleIds)) {
+        for (const roleId of executionRoleIds) {
+          await storage.createExecutionRoleAssignment({
+            teamMemberId: member.id,
+            roleId,
+            isPrimary: false,
+          });
+        }
+      }
+
+      res.status(201).json(member);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update team member's roles
+  app.patch("/api/projects/:projectId/team-members/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { allocationPercent, highLevelRoles, executionRoleIds } = req.body;
+
+      // Update allocation if provided
+      let member = await storage.getProjectTeamMemberById(id);
+      if (!member) {
+        return res.status(404).json({ error: "Team member not found" });
+      }
+
+      if (allocationPercent !== undefined) {
+        member = await storage.updateProjectTeamMember(id, { allocationPercent });
+      }
+
+      // Update high-level roles if provided
+      if (highLevelRoles !== undefined && Array.isArray(highLevelRoles)) {
+        await storage.deleteHighLevelRolesByTeamMember(id);
+        for (const roleType of highLevelRoles) {
+          await storage.createHighLevelRole({
+            teamMemberId: id,
+            roleType,
+          });
+        }
+      }
+
+      // Update execution roles if provided
+      if (executionRoleIds !== undefined && Array.isArray(executionRoleIds)) {
+        await storage.deleteExecutionRoleAssignmentsByTeamMember(id);
+        for (const roleId of executionRoleIds) {
+          await storage.createExecutionRoleAssignment({
+            teamMemberId: id,
+            roleId,
+            isPrimary: false,
+          });
+        }
+      }
+
+      res.json(member);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Remove team member
+  app.delete("/api/projects/:projectId/team-members/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteProjectTeamMember(id);
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulk add team members (for import wizard)
+  app.post("/api/projects/:projectId/team-members/bulk", async (req, res) => {
+    try {
+      const { projectId } = req.params;
+      const { members } = req.body;
+
+      if (!Array.isArray(members)) {
+        return res.status(400).json({ error: "members must be an array" });
+      }
+
+      const results = [];
+      for (const m of members) {
+        // Check if already a team member
+        let member = await storage.getProjectTeamMemberByUserAndProject(projectId, m.userId);
+        
+        if (!member) {
+          // Create team member
+          member = await storage.createProjectTeamMember({
+            projectId,
+            userId: m.userId,
+            allocationPercent: m.allocationPercent || 100,
+          });
+        }
+
+        // Clear and set high-level roles
+        if (m.highLevelRoles && Array.isArray(m.highLevelRoles)) {
+          await storage.deleteHighLevelRolesByTeamMember(member.id);
+          for (const roleType of m.highLevelRoles) {
+            await storage.createHighLevelRole({
+              teamMemberId: member.id,
+              roleType,
+            });
+          }
+        }
+
+        // Clear and set execution roles
+        if (m.executionRoleIds && Array.isArray(m.executionRoleIds)) {
+          await storage.deleteExecutionRoleAssignmentsByTeamMember(member.id);
+          for (const roleId of m.executionRoleIds) {
+            await storage.createExecutionRoleAssignment({
+              teamMemberId: member.id,
+              roleId,
+              isPrimary: false,
+            });
+          }
+        }
+
+        results.push(member);
+      }
+
+      res.status(201).json(results);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
