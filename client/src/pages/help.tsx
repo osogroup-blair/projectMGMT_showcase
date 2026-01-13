@@ -232,6 +232,19 @@ export default function HelpPage() {
                       4
                     </div>
                     <div className="pt-1">
+                      <h4 className="font-semibold">Create Tasks and Milestones</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Define specific tasks and important project milestones. Assign tasks to epics and set target 
+                        dates for milestones to create a clear roadmap for your project.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
+                      5
+                    </div>
+                    <div className="pt-1">
                       <h4 className="font-semibold">Assign Your Team</h4>
                       <p className="text-sm text-muted-foreground mt-1">
                         Add team members with appropriate project roles (Owner, Manager, Member) and execution 
@@ -242,20 +255,20 @@ export default function HelpPage() {
 
                   <div className="relative flex gap-4">
                     <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      5
+                      6
                     </div>
                     <div className="pt-1">
-                      <h4 className="font-semibold">Plan Sprints & Set Milestones</h4>
+                      <h4 className="font-semibold">Plan Sprints</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Create sprints for time-boxed planning and add milestones for key dates. Assign tasks 
-                        to sprints to plan what gets done when. Use milestones to track major deadlines.
+                        Create sprints for time-boxed planning. Assign tasks to sprints to plan what gets done when, 
+                        monitor team capacity, and track your project's velocity.
                       </p>
                     </div>
                   </div>
 
                   <div className="relative flex gap-4">
                     <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      6
+                      7
                     </div>
                     <div className="pt-1">
                       <h4 className="font-semibold">Execute & Track Progress</h4>
