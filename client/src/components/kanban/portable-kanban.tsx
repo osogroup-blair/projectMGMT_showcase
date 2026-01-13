@@ -29,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "wouter";
-import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight, Plus, ChevronsLeftRight, ChevronsRightLeft } from "lucide-react";
+import { GripVertical, ChevronLeft, ChevronRight, Search, X, Loader2, PanelLeftClose, PanelLeft, MoreVertical, MoveRight, Plus, ChevronsLeftRight, ChevronsRightLeft, Zap, Gauge, BarChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKanbanColumns, type KanbanColumn, getTargetStatusForColumn } from "@/hooks/use-kanban-columns";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
@@ -226,6 +226,7 @@ function SortableTaskCard({
   onMoveToColumn,
   isReadOnly,
   hoverCard,
+  onUpdateTask,
 }: {
   task: Task;
   user?: User;
@@ -242,6 +243,7 @@ function SortableTaskCard({
   onMoveToColumn?: (columnId: string) => void;
   isReadOnly?: boolean;
   hoverCard?: HoverCardConfig;
+  onUpdateTask?: (taskId: string, updates: any) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -385,28 +387,73 @@ function SortableTaskCard({
                           Move to column
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        {columns.map((col) => {
-                          const ColIcon = col.icon;
-                          const isCurrent = col.id === columnId;
-                          return (
-                            <DropdownMenuItem
-                              key={col.id}
-                              disabled={isCurrent}
-                              className={cn("gap-2 text-xs", isCurrent && "opacity-50")}
+
+                        {/* Priority Quick Action */}
+                        <DropdownMenuLabel className="text-xs flex items-center gap-1.5">
+                          <BarChart className="h-3 w-3" />
+                          Change Priority
+                        </DropdownMenuLabel>
+                        {["Low", "Medium", "High", "Urgent"].map((p) => (
+                          <DropdownMenuItem
+                            key={p}
+                            className="gap-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateTask?.(task.id, { priority: p });
+                            }}
+                          >
+                            <Badge variant="outline" className={cn(
+                              "h-2 w-2 rounded-full p-0",
+                              p === "Low" && "bg-slate-400",
+                              p === "Medium" && "bg-blue-400",
+                              p === "High" && "bg-orange-400",
+                              p === "Urgent" && "bg-red-500"
+                            )} />
+                            {p}
+                          </DropdownMenuItem>
+                        ))}
+
+                        <DropdownMenuSeparator />
+
+                        {/* Effort Quick Action */}
+                        <DropdownMenuLabel className="text-xs flex items-center gap-1.5">
+                          <Gauge className="h-3 w-3" />
+                          Change Effort (pts)
+                        </DropdownMenuLabel>
+                        <div className="grid grid-cols-4 gap-1 p-2">
+                          {[1, 2, 3, 5, 8, 13, 21].map((pts) => (
+                            <Button
+                              key={pts}
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-full text-[10px] px-0"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (!isCurrent) {
-                                  onMoveToColumn?.(col.id);
-                                }
+                                onUpdateTask?.(task.id, { effort: pts });
                               }}
-                              data-testid={`task-move-to-${col.id}-${task.id}`}
                             >
-                              <ColIcon className={cn("h-3 w-3", col.color)} />
-                              {col.title}
-                              {isCurrent && <span className="ml-auto text-muted-foreground">(current)</span>}
-                            </DropdownMenuItem>
-                          );
-                        })}
+                              {pts}
+                            </Button>
+                          ))}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 w-full text-[10px] px-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateTask?.(task.id, { effort: null });
+                            }}
+                          >
+                            None
+                          </Button>
+                        </div>
+
+                        <DropdownMenuSeparator />
+
+                        <DropdownMenuLabel className="text-xs flex items-center gap-1.5">
+                          <MoveRight className="h-3 w-3" />
+                          Move to column
+                        </DropdownMenuLabel>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -521,6 +568,7 @@ export function PortableKanban({
   showAddTask = false,
   hoverCard,
   onTaskMove,
+  onUpdateTask,
   onBlockerRequested,
   onAddTask,
   className,
@@ -974,6 +1022,7 @@ export function PortableKanban({
                               onMoveLeft={() => handleMoveTask(task.id, "left")}
                               onMoveRight={() => handleMoveTask(task.id, "right")}
                               onMoveToColumn={(targetColId) => handleMoveToColumn(task.id, targetColId)}
+                              onUpdateTask={onUpdateTask}
                               isReadOnly={isReadOnly}
                               hoverCard={hoverCard}
                             />
