@@ -156,9 +156,7 @@ export function UnifiedTimeline({
   }, [highlightItemId]);
 
   const handleScroll = useCallback(() => {
-    if (scrollContainerRef.current && sidebarRef.current) {
-      sidebarRef.current.scrollTop = scrollContainerRef.current.scrollTop;
-    }
+    // Horizontal scroll only - no vertical sync needed since content expands naturally
   }, []);
 
   const hasAnyLayers = layerHeights.milestones > 0 || layerHeights.sprints > 0 || 
@@ -192,7 +190,7 @@ export function UnifiedTimeline({
 
             <div 
               ref={sidebarRef}
-              className="overflow-x-hidden"
+              className="overflow-visible"
               data-testid="sidebar-scroll-container"
             >
               <div className="flex flex-col" style={{ paddingBottom: 100 }}>
@@ -315,7 +313,7 @@ export function UnifiedTimeline({
 
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-x-auto overflow-y-visible"
+            className="flex-1 overflow-x-auto overflow-y-visible min-h-0"
             onScroll={handleScroll}
             data-testid="timeline-scroll-container"
           >
