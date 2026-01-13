@@ -9,6 +9,7 @@ import {
   useSprintData,
   useSprintActions,
   SprintHeader,
+  SprintNavigator,
   AddTasksDialog,
   CreateTaskDialog,
   BulkEditDialog,
@@ -66,9 +67,20 @@ export default function SprintDetailPage() {
 
   const ownerUser = sprintData.getUser(sprintData.sprint.ownerUserId);
 
+  const handleSprintNavigate = (newSprintId: string) => {
+    setLocation(`/projects/${projectId}/sprints/${newSprintId}`);
+  };
+
   return (
     <Shell>
       <div className="space-y-6">
+        <SprintNavigator
+          currentSprintId={sprintId}
+          sprints={sprintData.projectSprints || []}
+          projectId={projectId}
+          onNavigate={handleSprintNavigate}
+        />
+
         <SprintHeader
           sprint={sprintData.sprint}
           stats={sprintData.stats}
