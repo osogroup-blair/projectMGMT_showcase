@@ -491,7 +491,7 @@ async function createTeamMembersForProject(
           projectId,
           name: template.name,
           description: template.description || "",
-          type: template.defaultRoleType || "Development",
+          roleType: template.defaultRoleType || "Development",
           templateId: template.id,
         } as any);
         roleMap[config.executionRole] = role.id;
