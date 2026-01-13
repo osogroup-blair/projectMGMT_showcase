@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CheckCircle2, XCircle, Shield, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Shield, AlertTriangle, Copy, ExternalLink, Info } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +17,64 @@ interface AuthConfig {
 
 interface AdminAuthenticationContentProps {
   embedded?: boolean;
+}
+
+function CallbackUrlSection() {
+  const { toast } = useToast();
+  const callbackUrl = `${window.location.origin}/api/auth/microsoft/callback`;
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(callbackUrl);
+      toast({
+        title: "Copied!",
+        description: "Callback URL copied to clipboard",
+      });
+    } catch (err) {
+      toast({
+        title: "Copy failed",
+        description: "Please copy the URL manually",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-3 p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20">
+      <div className="flex items-start gap-2">
+        <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm">Azure Portal Setup</h4>
+          <p className="text-sm text-muted-foreground">
+            Add this Redirect URI in your Azure App Registration under "Authentication" → "Platform configurations" → "Web":
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <code className="flex-1 text-xs bg-background border rounded px-3 py-2 font-mono break-all">
+          {callbackUrl}
+        </code>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={copyToClipboard}
+          className="flex-shrink-0"
+          data-testid="copy-callback-url"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+      </div>
+      <a
+        href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+      >
+        Open Azure Portal
+        <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+    </div>
+  );
 }
 
 export default function AdminAuthenticationContent({ embedded }: AdminAuthenticationContentProps) {
@@ -160,6 +218,8 @@ export default function AdminAuthenticationContent({ embedded }: AdminAuthentica
               </div>
             </>
           )}
+
+          <CallbackUrlSection />
         </CardContent>
       </Card>
 
