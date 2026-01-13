@@ -17,10 +17,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useTasks, useProjects, useSprints } from "@/hooks/use-nexus-data";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, isWithinInterval, parseISO, isValid } from "date-fns";
 import { useCurrentUser } from "@/context/current-user-context";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import {
   DndContext,
@@ -54,6 +54,30 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
   const { data: allTasks } = useTasks();
   const { data: allProjects } = useProjects();
   const { data: allSprints } = useSprints();
+
+  // User's project memberships (owner, manager, stakeholder, team member)
+  const { data: userMemberships = [] } = useQuery<{ projectId: string; highLevelRoles: string[] }[]>({
+    queryKey: ['userProjectMemberships', currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) return [];
+      const res = await fetch(`/api/users/${currentUser.id}/project-memberships`);
+      if (!res.ok) throw new Error('Failed to fetch memberships');
+      return res.json();
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  // Set of project IDs where user is a team member
+  const userTeamProjectIds = useMemo(() => new Set(userMemberships.map(m => m.projectId)), [userMemberships]);
+
+  // Map of project ID to user's high-level roles
+  const userProjectRoles = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    userMemberships.forEach(m => {
+      map[m.projectId] = m.highLevelRoles || [];
+    });
+    return map;
+  }, [userMemberships]);
 
   // Get my tasks for each milestone (non-completed tasks assigned to me)
   const myTasksByMilestone = useMemo(() => {
@@ -369,14 +393,37 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
           <TabsContent value="upcoming" className="mt-0">
             <div className="bg-card rounded-xl border shadow-sm p-6">
               <h2 className="text-lg font-semibold mb-4">Upcoming Milestones</h2>
-              <p className="text-muted-foreground text-sm">Milestones with tasks assigned to you.</p>
+              <p className="text-muted-foreground text-sm">Milestones from your projects or with tasks assigned to you.</p>
               <div className="mt-6 space-y-4">
                  {homeState.upcomingMilestones
-                   .filter((milestone: any) => (myTasksByMilestone[milestone.id] || []).length > 0)
+                   .filter((milestone: any) => {
+                     const hasTasks = (myTasksByMilestone[milestone.id] || []).length > 0;
+                     const isTeamMember = userTeamProjectIds.has(milestone.projectId);
+                     return hasTasks || isTeamMember;
+                   })
                    .map((milestone: any) => {
                    const milestoneTasks = myTasksByMilestone[milestone.id] || [];
+                   const myRoles = userProjectRoles[milestone.projectId] || [];
+                   const getRoleBadgeStyle = (role: string) => {
+                     switch (role) {
+                       case 'owner': return 'bg-amber-50 text-amber-700 border-amber-200';
+                       case 'manager': return 'bg-blue-50 text-blue-700 border-blue-200';
+                       case 'stakeholder': return 'bg-purple-50 text-purple-700 border-purple-200';
+                       case 'member': return 'bg-green-50 text-green-700 border-green-200';
+                       default: return 'bg-gray-50 text-gray-700 border-gray-200';
+                     }
+                   };
+                   const formatRoleName = (role: string) => {
+                     switch (role) {
+                       case 'owner': return 'Owner';
+                       case 'manager': return 'Manager';
+                       case 'stakeholder': return 'Stakeholder';
+                       case 'member': return 'Team Member';
+                       default: return role;
+                     }
+                   };
                    return (
-                     <Collapsible key={milestone.id} defaultOpen={true}>
+                     <Collapsible key={milestone.id} defaultOpen={milestoneTasks.length > 0}>
                        <div className="border rounded-lg bg-background overflow-hidden">
                          <div className="flex items-center gap-3 p-4">
                            <CollapsibleTrigger asChild>
@@ -390,10 +437,17 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                                <Link href={`/projects/${milestone.projectId}/milestones/${milestone.id}`} className="font-medium hover:text-primary transition-colors truncate">
                                  {milestone.name}
                                </Link>
-                               <div className="flex items-center gap-2 shrink-0">
-                                 <Badge variant="secondary" className="text-xs">
-                                   {milestoneTasks.length} task{milestoneTasks.length !== 1 ? 's' : ''} for you
-                                 </Badge>
+                               <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                                 {milestoneTasks.length > 0 && (
+                                   <Badge variant="secondary" className="text-xs">
+                                     {milestoneTasks.length} task{milestoneTasks.length !== 1 ? 's' : ''} for you
+                                   </Badge>
+                                 )}
+                                 {myRoles.map((role: string) => (
+                                   <Badge key={role} variant="outline" className={`text-xs ${getRoleBadgeStyle(role)}`}>
+                                     {formatRoleName(role)}
+                                   </Badge>
+                                 ))}
                                  <Badge variant="outline">{milestone.status}</Badge>
                                </div>
                              </div>
@@ -407,7 +461,9 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                          <CollapsibleContent>
                            <div className="border-t bg-muted/30 px-4 py-3 space-y-2">
                              <div className="flex items-center justify-between mb-2">
-                               <p className="text-xs font-medium text-muted-foreground">Your tasks in this milestone:</p>
+                               <p className="text-xs font-medium text-muted-foreground">
+                                 {milestoneTasks.length > 0 ? 'Your tasks in this milestone:' : 'No tasks assigned to you in this milestone'}
+                               </p>
                                <Button
                                  variant="ghost"
                                  size="sm"
@@ -449,9 +505,13 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
                      </Collapsible>
                    );
                  })}
-                 {homeState.upcomingMilestones.filter((m: any) => (myTasksByMilestone[m.id] || []).length > 0).length === 0 && (
+                 {homeState.upcomingMilestones.filter((m: any) => {
+                   const hasTasks = (myTasksByMilestone[m.id] || []).length > 0;
+                   const isTeamMember = userTeamProjectIds.has(m.projectId);
+                   return hasTasks || isTeamMember;
+                 }).length === 0 && (
                    <div className="text-center py-8">
-                     <p className="text-muted-foreground">No milestones with tasks assigned to you.</p>
+                     <p className="text-muted-foreground">No milestones from your projects.</p>
                    </div>
                  )}
               </div>
