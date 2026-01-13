@@ -5,6 +5,8 @@ import { createServer } from "http";
 import { connectWithRetry, isDatabaseConnected, setDatabaseReady } from "../db";
 import { isApplicationReady } from "./readiness";
 import { setupAuth, registerAuthRoutes, setupMicrosoftAuth } from "../replit_integrations/auth";
+import { generateDemoData } from "../services/demo-data-generator";
+import { storage } from "../data/storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -167,6 +169,29 @@ app.use((req, res, next) => {
           }
         };
         backgroundRetry();
+      }
+
+      // Auto-seed demo data if database is empty
+      if (dbConnected) {
+        try {
+          const projects = await storage.getProjects();
+          const users = await storage.getUsers();
+          const hasDemoData = users.some((u: any) => u.id?.startsWith('demo-'));
+          
+          if (projects.length === 0 || (users.length < 3 && !hasDemoData)) {
+            log('Empty database detected - generating demo data...');
+            const result = await generateDemoData(false);
+            if (result.success) {
+              log(`Demo data generated: ${result.created.projects || 0} projects, ${result.created.users || 0} users, ${result.created.tasks || 0} tasks`);
+            } else {
+              log(`Demo data generation had errors: ${result.errors?.join(', ')}`);
+            }
+          } else {
+            log('Existing data found - skipping demo data generation');
+          }
+        } catch (error: any) {
+          log(`Demo data check/generation failed: ${error.message}`);
+        }
       }
 
       // Setup auth BEFORE registering other routes
