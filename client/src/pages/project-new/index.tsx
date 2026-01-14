@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "@/components/layout/shell";
@@ -1068,18 +1068,30 @@ export default function ProjectWizard() {
 
   const templateSnippets: WizardTemplateSnippet[] = [];
   
-  const roleTypes: WizardRoleType[] = [
-    { id: "rt-1", label: "Development", description: "Software development roles" },
-    { id: "rt-2", label: "Design", description: "UI/UX design roles" },
-    { id: "rt-3", label: "Management", description: "Project management roles" },
-    { id: "rt-4", label: "QA", description: "Quality assurance roles" },
-    { id: "rt-5", label: "Analysis", description: "Business analysis roles" },
-  ];
+  const roleTypes: WizardRoleType[] = useMemo(() => {
+    if (roleTemplates && roleTemplates.length > 0) {
+      return roleTemplates.map((rt: any) => ({
+        id: rt.id,
+        label: rt.name || rt.title || rt.label,
+        description: rt.description || ''
+      }));
+    }
+    return [
+      { id: "rt-1", label: "Development", description: "Software development roles" },
+      { id: "rt-2", label: "Design", description: "UI/UX design roles" },
+      { id: "rt-3", label: "Management", description: "Project management roles" },
+      { id: "rt-4", label: "QA", description: "Quality assurance roles" },
+      { id: "rt-5", label: "Analysis", description: "Business analysis roles" },
+    ];
+  }, [roleTemplates]);
   
-  const eligibleUsers = new Map<string, any[]>();
-  roleTypes.forEach(rt => {
-    eligibleUsers.set(rt.id, users);
-  });
+  const eligibleUsers = useMemo(() => {
+    const map = new Map<string, any[]>();
+    roleTypes.forEach(rt => {
+      map.set(rt.id, users);
+    });
+    return map;
+  }, [roleTypes, users]);
 
   const handleSnippetApply = (snippetId: string) => {
     const snippet = templateSnippets.find(s => s.id === snippetId);
