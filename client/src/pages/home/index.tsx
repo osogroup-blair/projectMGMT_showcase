@@ -7,7 +7,7 @@ import { useCurrentUser } from "@/context/current-user-context";
 function mapApiTaskToHomeTask(apiTask: any): HomeTask {
   const today = startOfToday();
   const dueDate = apiTask.deadline ? parseISO(apiTask.deadline) : null;
-  const isOverdue = dueDate ? isBefore(dueDate, today) && apiTask.status !== "Done" : false;
+  const isOverdue = dueDate ? isBefore(dueDate, today) && !["DONE", "ACCEPTED", "COMPLETE"].includes(apiTask.status?.toUpperCase()) : false;
 
   const estimateMinutes = (apiTask.estimateHours || 1) * 60;
   let durationBucket: HomeTask["durationBucket"] = "medium";
@@ -17,12 +17,29 @@ function mapApiTaskToHomeTask(apiTask: any): HomeTask {
   else durationBucket = "deep_work";
 
   const mapStatus = (status: string): HomeTask["status"] => {
-    switch (status) {
-      case "Todo": return "not_started";
-      case "In Progress": return "in_progress";
-      case "Review": case "Blocked": return "blocked";
-      case "Done": return "complete";
-      default: return "not_started";
+    const normalizedStatus = status?.toUpperCase() || "";
+    switch (normalizedStatus) {
+      case "DONE":
+      case "ACCEPTED":
+      case "COMPLETE":
+        return "complete";
+      case "IN PROGRESS":
+      case "IN_PROGRESS":
+        return "in_progress";
+      case "BLOCKED":
+      case "IN REVIEW":
+      case "IN_REVIEW":
+      case "REVIEW":
+        return "blocked";
+      case "BACKLOGGED":
+      case "NEXT UP":
+      case "NEXT_UP":
+      case "TODO":
+      case "DEFERRED":
+      case "ARCHIVED":
+      case "ONGOING":
+      default:
+        return "not_started";
     }
   };
 
