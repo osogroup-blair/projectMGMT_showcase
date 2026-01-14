@@ -65,10 +65,10 @@ import {
   useEpicTypes
 } from "@/hooks/use-nexus-data";
 import { Switch } from "@/components/ui/switch";
-import type { FrameworkTemplate, StageTemplate, MilestoneTemplate, MilestoneScopeRule } from "@shared/schema";
+import type { FrameworkTemplate, StageTemplate, MilestoneTemplate, MilestoneTemplateScopeRule } from "@shared/schema";
 
 interface MilestoneWithRules extends Partial<MilestoneTemplate> {
-  defaultScopeRules?: MilestoneScopeRule[];
+  defaultScopeRules?: MilestoneTemplateScopeRule[];
 }
 
 export default function FrameworkTemplateDetail() {
@@ -1211,8 +1211,8 @@ export default function FrameworkTemplateDetail() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    const rules: MilestoneScopeRule[] = currentMilestone?.defaultScopeRules || [];
-                    const newRule: MilestoneScopeRule = {
+                    const rules: MilestoneTemplateScopeRule[] = currentMilestone?.defaultScopeRules || [];
+                    const newRule: MilestoneTemplateScopeRule = {
                       id: `rule-${Date.now()}`,
                       label: `Rule ${rules.length + 1}`,
                       stageFilter: "",
@@ -1245,7 +1245,7 @@ export default function FrameworkTemplateDetail() {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[250px] overflow-y-auto">
-                  {(currentMilestone?.defaultScopeRules || []).map((rule: MilestoneScopeRule, index: number) => (
+                  {(currentMilestone?.defaultScopeRules || []).map((rule: MilestoneTemplateScopeRule, index: number) => (
                     <div
                       key={rule.id || index}
                       className={cn(
@@ -1262,7 +1262,7 @@ export default function FrameworkTemplateDetail() {
                           <Input
                             value={rule.label || ""}
                             onChange={(e) => {
-                              const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                              const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
                               rules[index] = { ...rules[index], label: e.target.value };
                               setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
                             }}
@@ -1277,7 +1277,7 @@ export default function FrameworkTemplateDetail() {
                             <Switch
                               checked={rule.isActive ?? true}
                               onCheckedChange={(checked) => {
-                                const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                                const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
                                 rules[index] = { ...rules[index], isActive: checked };
                                 setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
                               }}
@@ -1307,7 +1307,7 @@ export default function FrameworkTemplateDetail() {
                           <SearchableSelect
                             value={rule.stageFilter || ""}
                             onValueChange={(v) => {
-                              const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                              const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
                               rules[index] = { ...rules[index], stageFilter: v };
                               setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
                             }}
@@ -1326,7 +1326,7 @@ export default function FrameworkTemplateDetail() {
                           <SearchableSelect
                             value={rule.epicTypeFilter || ""}
                             onValueChange={(v) => {
-                              const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                              const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
                               rules[index] = { ...rules[index], epicTypeFilter: v };
                               setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
                             }}
@@ -1345,7 +1345,7 @@ export default function FrameworkTemplateDetail() {
                           <SearchableSelect
                             value={rule.taskTemplateFilter || ""}
                             onValueChange={(v) => {
-                              const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                              const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
                               rules[index] = { ...rules[index], taskTemplateFilter: v };
                               setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
                             }}

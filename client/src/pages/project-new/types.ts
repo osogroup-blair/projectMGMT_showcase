@@ -126,6 +126,15 @@ export interface WizardMilestoneRule {
   completionTargetPercent?: number;
 }
 
+export interface WizardMilestoneScopeRule {
+  id: string;
+  label: string;
+  stageFilter: string;
+  epicTypeFilter: string;
+  taskTemplateFilter: string;
+  isActive: boolean;
+}
+
 export interface WizardMilestone {
   id: string;
   name: string;
@@ -135,6 +144,7 @@ export interface WizardMilestone {
   ownerId: string;
   isBillingGate: boolean;
   rule: WizardMilestoneRule;
+  scopeRules?: WizardMilestoneScopeRule[];
 }
 
 export interface WizardRole {

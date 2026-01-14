@@ -191,6 +191,7 @@ export const milestones = pgTable("milestones", {
   progressPercent: integer("progress_percent"),
   isBillingGate: boolean("is_billing_gate").default(false),
   requiredCompletionRatio: integer("required_completion_ratio"),
+  scopeRules: jsonb("scope_rules").$type<MilestoneTemplateScopeRule[]>().default([]),
   createdBy: varchar("created_by").references(() => users.id),
   updatedBy: varchar("updated_by").references(() => users.id),
 });
@@ -522,8 +523,8 @@ export const taskTemplates = pgTable("task_templates", {
   assigneeRoleTypeId: varchar("assignee_role_type_id").references(() => roleTypes.id),
 });
 
-// Milestone Scope Rule type for defaultScopeRules field
-export interface MilestoneScopeRule {
+// Milestone Template Scope Rule type for defaultScopeRules field on templates and scopeRules on milestones
+export interface MilestoneTemplateScopeRule {
   id: string;
   label: string;
   stageFilter: string;
@@ -545,7 +546,7 @@ export const milestoneTemplates = pgTable("milestone_templates", {
   offsetDays: integer("offset_days").default(0),
   stageTemplateId: varchar("stage_template_id").references(() => stageTemplates.id, { onDelete: "set null" }),
   order: integer("order").default(0),
-  defaultScopeRules: jsonb("default_scope_rules").$type<MilestoneScopeRule[]>().default([]),
+  defaultScopeRules: jsonb("default_scope_rules").$type<MilestoneTemplateScopeRule[]>().default([]),
 });
 
 // Template Snippets (bundles of stages/tasks/milestones that can be applied together)
