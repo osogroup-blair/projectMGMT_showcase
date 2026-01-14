@@ -509,7 +509,32 @@ export function registerTemplateRoutes(
         mapping: { created: 0, updated: 0, skipped: 0 }
       };
 
+      // ID mappings: imported ID -> persisted ID (for remapping references)
+      const idMappings = {
+        task: new Map<string, string>(),
+        role: new Map<string, string>(),
+        stage: new Map<string, string>(),
+        framework: new Map<string, string>(),
+        epic: new Map<string, string>(),
+        deliverable: new Map<string, string>(),
+        project: new Map<string, string>(),
+        mapping: new Map<string, string>(),
+      };
+
+      // Helper to remap an array of IDs using the mapping
+      const remapIds = (ids: string[] | undefined, mapping: Map<string, string>): string[] => {
+        if (!ids?.length) return [];
+        return ids.map(id => mapping.get(id) || id);
+      };
+
+      // Helper to remap a single ID
+      const remapId = (id: string | null | undefined, mapping: Map<string, string>): string | null => {
+        if (!id) return null;
+        return mapping.get(id) || id;
+      };
+
       // Sanitizers to add default values for missing required fields
+      // Note: sanitizeTask needs role mappings, so roles must be imported first
       const sanitizeTask = (item: any) => ({
         id: item.id,
         title: item.title || "Untitled Task",
@@ -517,7 +542,7 @@ export function registerTemplateRoutes(
         defaultPriority: item.defaultPriority || "Medium",
         defaultEstimateHours: item.defaultEstimateHours || 0,
         requiredRole: item.requiredRole || null,
-        assignedRoleId: item.assignedRoleId || null,
+        assignedRoleId: remapId(item.assignedRoleId, idMappings.role),
       });
 
       const sanitizeRole = (item: any) => ({
@@ -532,8 +557,8 @@ export function registerTemplateRoutes(
         id: item.id,
         name: item.name || "Untitled Stage",
         description: item.description || "",
-        defaultTasks: item.defaultTasks || [],
-        defaultRoles: item.defaultRoles || [],
+        defaultTasks: remapIds(item.defaultTasks, idMappings.task),
+        defaultRoles: remapIds(item.defaultRoles, idMappings.role),
         entryCriteria: item.entryCriteria || "",
         exitCriteria: item.exitCriteria || "",
         allowedTaskStatuses: item.allowedTaskStatuses || [],
@@ -543,124 +568,167 @@ export function registerTemplateRoutes(
         id: item.id,
         name: item.name || "Untitled Framework",
         description: item.description || "",
-        defaultStages: item.defaultStages || [],
+        defaultStages: remapIds(item.defaultStages, idMappings.stage),
       });
 
       const sanitizeProject = (item: any) => ({
         id: item.id,
         name: item.name || "Untitled Project Template",
         description: item.description || "",
-        defaultFrameworkId: item.defaultFrameworkId || null,
-        defaultDeliverables: item.defaultDeliverables || [],
-        defaultRoles: item.defaultRoles || [],
+        defaultFrameworkId: remapId(item.defaultFrameworkId, idMappings.framework),
+        defaultDeliverables: remapIds(item.defaultDeliverables, idMappings.deliverable),
+        defaultRoles: remapIds(item.defaultRoles, idMappings.role),
       });
 
       const sanitizeDeliverable = (item: any) => ({
         id: item.id,
         title: item.title || "Untitled Deliverable",
         description: item.description || "",
-        defaultEpics: item.defaultEpics || [],
+        defaultEpics: remapIds(item.defaultEpics, idMappings.epic),
       });
 
       const sanitizeEpic = (item: any) => ({
         id: item.id,
         title: item.title || "Untitled Epic",
         description: item.description || "",
-        defaultTasks: item.defaultTasks || [],
-        defaultStageIds: item.defaultStageIds || [],
+        defaultTasks: remapIds(item.defaultTasks, idMappings.task),
+        defaultStageIds: remapIds(item.defaultStageIds, idMappings.stage),
       });
 
-      // Helper to import a template type
+      // Helper to import a template type and build ID mappings
+      // matchField: 'name' for stage/framework/role/mapping, 'title' for task/deliverable/epic/project
       const importTemplates = async (
         items: any[],
         getAll: () => Promise<any[]>,
         create: (data: any) => Promise<any>,
         update: (id: string, data: any) => Promise<any>,
         key: keyof typeof results,
-        sanitize?: (item: any) => any
+        sanitize?: (item: any) => any,
+        matchField: 'name' | 'title' = 'name'
       ) => {
         if (!items?.length) return;
         const existing = await getAll();
-        const existingIds = new Set(existing.map((e: any) => e.id));
+        const existingById = new Map(existing.map((e: any) => [e.id, e]));
+        const existingByField = new Map(existing.map((e: any) => [e[matchField]?.toLowerCase?.(), e]));
 
         for (const item of items) {
           const sanitized = sanitize ? sanitize(item) : item;
-          if (existingIds.has(sanitized.id)) {
+          const fieldValue = sanitized[matchField]?.toLowerCase?.();
+          const importedId = item.id;
+          
+          // Check by ID first, then by name/title
+          let existingRecord = existingById.get(sanitized.id);
+          if (!existingRecord && fieldValue) {
+            existingRecord = existingByField.get(fieldValue);
+          }
+          
+          if (existingRecord) {
+            // Record the mapping from imported ID to existing ID
+            idMappings[key].set(importedId, existingRecord.id);
+            
             if (mode === "overwrite") {
-              await update(sanitized.id, sanitized);
+              // Update using the existing record's ID (not the imported ID)
+              await update(existingRecord.id, { ...sanitized, id: existingRecord.id });
               results[key].updated++;
             } else {
               results[key].skipped++;
             }
           } else {
+            // Create new record - the ID stays the same
             await create(sanitized);
+            idMappings[key].set(importedId, sanitized.id);
             results[key].created++;
           }
         }
       }
 
-      await importTemplates(
-        templates.framework,
-        () => storage.getFrameworkTemplates(),
-        (d) => storage.createFrameworkTemplate(d),
-        (id, d) => storage.updateFrameworkTemplate(id, d),
-        "framework",
-        sanitizeFramework
-      );
-      await importTemplates(
-        templates.stage,
-        () => storage.getStageTemplates(),
-        (d) => storage.createStageTemplate(d),
-        (id, d) => storage.updateStageTemplate(id, d),
-        "stage",
-        sanitizeStage
-      );
-      await importTemplates(
-        templates.project,
-        () => storage.getProjectTemplates(),
-        (d) => storage.createProjectTemplate(d),
-        (id, d) => storage.updateProjectTemplate(id, d),
-        "project",
-        sanitizeProject
-      );
-      await importTemplates(
-        templates.deliverable,
-        () => storage.getDeliverableTemplates(),
-        (d) => storage.createDeliverableTemplate(d),
-        (id, d) => storage.updateDeliverableTemplate(id, d),
-        "deliverable",
-        sanitizeDeliverable
-      );
-      await importTemplates(
-        templates.epic,
-        () => storage.getEpicTemplates(),
-        (d) => storage.createEpicTemplate(d),
-        (id, d) => storage.updateEpicTemplate(id, d),
-        "epic",
-        sanitizeEpic
-      );
-      await importTemplates(
-        templates.task,
-        () => storage.getTaskTemplates(),
-        (d) => storage.createTaskTemplate(d),
-        (id, d) => storage.updateTaskTemplate(id, d),
-        "task",
-        sanitizeTask
-      );
+      // Import in dependency order:
+      // 1. First: Roles (leaf template, no references)
       await importTemplates(
         templates.role,
         () => storage.getRoleTemplates(),
         (d) => storage.createRoleTemplate(d),
         (id, d) => storage.updateRoleTemplate(id, d),
         "role",
-        sanitizeRole
+        sanitizeRole,
+        "name"
       );
+      
+      // 2. Second: Tasks (reference roles via assignedRoleId)
+      await importTemplates(
+        templates.task,
+        () => storage.getTaskTemplates(),
+        (d) => storage.createTaskTemplate(d),
+        (id, d) => storage.updateTaskTemplate(id, d),
+        "task",
+        sanitizeTask,
+        "title"
+      );
+      
+      // 3. Third: Mappings (leaf template, no references)
       await importTemplates(
         templates.mapping,
         () => storage.getMappingTemplates(),
         (d) => storage.createMappingTemplate(d),
         (id, d) => storage.updateMappingTemplate(id, d),
-        "mapping"
+        "mapping",
+        undefined,
+        "name"
+      );
+
+      // 4. Fourth: Stages (reference tasks and roles)
+      await importTemplates(
+        templates.stage,
+        () => storage.getStageTemplates(),
+        (d) => storage.createStageTemplate(d),
+        (id, d) => storage.updateStageTemplate(id, d),
+        "stage",
+        sanitizeStage,
+        "name"
+      );
+
+      // 5. Fifth: Epics (reference tasks and stages)
+      await importTemplates(
+        templates.epic,
+        () => storage.getEpicTemplates(),
+        (d) => storage.createEpicTemplate(d),
+        (id, d) => storage.updateEpicTemplate(id, d),
+        "epic",
+        sanitizeEpic,
+        "title"
+      );
+
+      // 6. Sixth: Deliverables (reference epics)
+      await importTemplates(
+        templates.deliverable,
+        () => storage.getDeliverableTemplates(),
+        (d) => storage.createDeliverableTemplate(d),
+        (id, d) => storage.updateDeliverableTemplate(id, d),
+        "deliverable",
+        sanitizeDeliverable,
+        "title"
+      );
+
+      // 7. Seventh: Frameworks (reference stages)
+      await importTemplates(
+        templates.framework,
+        () => storage.getFrameworkTemplates(),
+        (d) => storage.createFrameworkTemplate(d),
+        (id, d) => storage.updateFrameworkTemplate(id, d),
+        "framework",
+        sanitizeFramework,
+        "name"
+      );
+
+      // 8. Eighth: Projects (reference frameworks, deliverables, roles)
+      await importTemplates(
+        templates.project,
+        () => storage.getProjectTemplates(),
+        (d) => storage.createProjectTemplate(d),
+        (id, d) => storage.updateProjectTemplate(id, d),
+        "project",
+        sanitizeProject,
+        "name"
       );
 
       res.json({ success: true, results });
