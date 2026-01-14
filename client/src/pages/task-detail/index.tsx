@@ -210,9 +210,9 @@ export default function TaskDetail() {
   return (
     <Shell>
       <div className="h-[calc(100vh-120px)]">
-        <PanelGroup direction="horizontal">
+        <PanelGroup direction="horizontal" id="task-detail-panels">
           {!leftPanelCollapsed && (
-            <Panel defaultSize={rightPanelCollapsed ? 100 : 70} minSize={40}>
+            <Panel id="main-panel" order={1} defaultSize={rightPanelCollapsed ? 100 : 70} minSize={40}>
             <div className="pr-4 space-y-6 h-full overflow-y-auto">
             <div className="space-y-4">
               {/* Project Breadcrumb */}
@@ -461,7 +461,7 @@ export default function TaskDetail() {
           )}
 
           {!rightPanelCollapsed && (
-            <Panel defaultSize={leftPanelCollapsed ? 100 : 30} minSize={25} maxSize={leftPanelCollapsed ? 100 : 50}>
+            <Panel id="sidebar-panel" order={2} defaultSize={leftPanelCollapsed ? 100 : 30} minSize={25} maxSize={leftPanelCollapsed ? 100 : 50}>
             <div className="pl-4 space-y-4 h-full overflow-y-auto">
               <div className="flex items-center justify-between">
                 <Button
