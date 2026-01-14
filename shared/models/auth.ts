@@ -35,6 +35,7 @@ export const users = pgTable("users", {
   // RBAC fields (for future use)
   systemRole: text("system_role").default("member"), // admin, manager, member, viewer
   permissions: jsonb("permissions").$type<string[]>().default([]), // Granular permissions array
+  roleTemplateIds: jsonb("role_template_ids").$type<string[]>().default([]), // Assigned role templates (e.g., Designer, Developer, QA)
   
   // Import tracking fields (for matching imported users to authenticated users)
   externalId: varchar("external_id"), // Original ID from external system (e.g., ClickUp ID)
