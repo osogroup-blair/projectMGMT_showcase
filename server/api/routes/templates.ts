@@ -501,17 +501,22 @@ export function registerTemplateRoutes(
       const { templates: rawTemplates, mode = "skip" } = req.body;
       // mode: "skip" = skip existing, "overwrite" = update existing
       
+      // Support both formats:
+      // 1. { templates: { framework: [...], stage: [...] } } - our export format
+      // 2. { FrameworkTemplates: [...], StageTemplates: [...] } - root-level PascalCase format
+      const source = rawTemplates || req.body;
+      
       // Normalize property names: accept both PascalCase (FrameworkTemplates) and lowercase (framework)
       const templates = {
-        framework: rawTemplates?.framework || rawTemplates?.FrameworkTemplates || [],
-        stage: rawTemplates?.stage || rawTemplates?.StageTemplates || [],
-        project: rawTemplates?.project || rawTemplates?.ProjectTemplates || [],
-        deliverable: rawTemplates?.deliverable || rawTemplates?.DeliverableTemplates || [],
-        epic: rawTemplates?.epic || rawTemplates?.EpicTemplates || [],
-        task: rawTemplates?.task || rawTemplates?.TaskTemplates || [],
-        role: rawTemplates?.role || rawTemplates?.RoleTemplates || [],
-        mapping: rawTemplates?.mapping || rawTemplates?.MappingTemplates || [],
-        milestone: rawTemplates?.milestone || rawTemplates?.MilestoneTemplates || [],
+        framework: source?.framework || source?.FrameworkTemplates || [],
+        stage: source?.stage || source?.StageTemplates || [],
+        project: source?.project || source?.ProjectTemplates || [],
+        deliverable: source?.deliverable || source?.DeliverableTemplates || [],
+        epic: source?.epic || source?.EpicTemplates || [],
+        task: source?.task || source?.TaskTemplates || [],
+        role: source?.role || source?.RoleTemplates || [],
+        mapping: source?.mapping || source?.MappingTemplates || [],
+        milestone: source?.milestone || source?.MilestoneTemplates || [],
       };
       
       const results = {
@@ -539,10 +544,26 @@ export function registerTemplateRoutes(
         milestone: new Map<string, string>(),
       };
 
+      // Helper to parse array values that might be JSON strings or actual arrays
+      const parseArray = (value: any): string[] => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value;
+        if (typeof value === 'string') {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        }
+        return [];
+      };
+
       // Helper to remap an array of IDs using the mapping
-      const remapIds = (ids: string[] | undefined, mapping: Map<string, string>): string[] => {
-        if (!ids?.length) return [];
-        return ids.map(id => mapping.get(id) || id);
+      const remapIds = (ids: any, mapping: Map<string, string>): string[] => {
+        const parsed = parseArray(ids);
+        if (!parsed.length) return [];
+        return parsed.map(id => mapping.get(id) || id);
       };
 
       // Helper to remap a single ID
@@ -568,7 +589,7 @@ export function registerTemplateRoutes(
         name: item.name || "Untitled Role",
         description: item.description || "",
         defaultRoleType: item.defaultRoleType || "Development",
-        defaultPermissions: item.defaultPermissions || [],
+        defaultPermissions: parseArray(item.defaultPermissions),
       });
 
       const sanitizeStage = (item: any) => ({
@@ -579,7 +600,7 @@ export function registerTemplateRoutes(
         defaultRoles: remapIds(item.defaultRoles, idMappings.role),
         entryCriteria: item.entryCriteria || "",
         exitCriteria: item.exitCriteria || "",
-        allowedTaskStatuses: item.allowedTaskStatuses || [],
+        allowedTaskStatuses: parseArray(item.allowedTaskStatuses),
       });
 
       const sanitizeFramework = (item: any) => ({
