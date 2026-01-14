@@ -535,6 +535,7 @@ export const milestoneTemplates = pgTable("milestone_templates", {
   offsetDays: integer("offset_days").default(0),
   stageTemplateId: varchar("stage_template_id").references(() => stageTemplates.id, { onDelete: "set null" }),
   order: integer("order").default(0),
+  defaultScopeRules: jsonb("default_scope_rules").default([]),
 });
 
 // Template Snippets (bundles of stages/tasks/milestones that can be applied together)
