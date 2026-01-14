@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserProfile, useUpdateProfile, useLinkIdentity, useUnlinkIdentity, useAvailableSystems } from "@/features/user-management";
+import { useRoleTemplates } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { User, Mail, Briefcase, Link2, Unlink, Plus, Loader2, ExternalLink, Clock, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { User, Mail, Briefcase, Link2, Unlink, Plus, Loader2, ExternalLink, Clock, CheckCircle2, AlertCircle, RefreshCw, Users } from "lucide-react";
 import type { IdentityPublic, LinkIdentityRequest } from "@shared/contracts/user-identity";
 
 function getSystemIcon(systemId: string) {
@@ -99,6 +101,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const { data: profile, isLoading } = useUserProfile(user?.id);
   const { data: systems = [] } = useAvailableSystems();
+  const { data: roleTemplates = [] } = useRoleTemplates();
   const updateProfile = useUpdateProfile();
   const linkIdentity = useLinkIdentity();
   const unlinkIdentity = useUnlinkIdentity();
@@ -120,6 +123,14 @@ export default function ProfilePage() {
   });
 
   const [unlinkConfirm, setUnlinkConfirm] = useState<IdentityPublic | null>(null);
+  const [selectedRoleTemplateIds, setSelectedRoleTemplateIds] = useState<string[]>([]);
+  const [isEditingRoles, setIsEditingRoles] = useState(false);
+
+  useEffect(() => {
+    if (profile?.roleTemplateIds) {
+      setSelectedRoleTemplateIds(profile.roleTemplateIds);
+    }
+  }, [profile?.roleTemplateIds]);
 
   const handleStartEdit = () => {
     if (profile) {
@@ -189,6 +200,33 @@ export default function ProfilePage() {
     } catch (error: any) {
       toast({ title: "Failed to unlink identity", description: error.message, variant: "destructive" });
     }
+  };
+
+  const handleToggleRoleTemplate = (roleTemplateId: string) => {
+    setSelectedRoleTemplateIds(prev =>
+      prev.includes(roleTemplateId)
+        ? prev.filter(id => id !== roleTemplateId)
+        : [...prev, roleTemplateId]
+    );
+  };
+
+  const handleSaveRoleTemplates = async () => {
+    if (!user?.id) return;
+    try {
+      await updateProfile.mutateAsync({
+        userId: user.id,
+        data: { roleTemplateIds: selectedRoleTemplateIds },
+      });
+      setIsEditingRoles(false);
+      toast({ title: "Roles updated successfully" });
+    } catch (error: any) {
+      toast({ title: "Failed to update roles", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleCancelRoleEdit = () => {
+    setSelectedRoleTemplateIds(profile?.roleTemplateIds || []);
+    setIsEditingRoles(false);
   };
 
   if (isLoading) {
@@ -329,6 +367,95 @@ export default function ProfilePage() {
                 <Button variant="outline" onClick={handleStartEdit} data-testid="button-edit-profile">
                   Edit Profile
                 </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card data-testid="role-templates-card">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  My Roles
+                </CardTitle>
+                <CardDescription>
+                  Select the roles that match your skills and responsibilities
+                </CardDescription>
+              </div>
+              {!isEditingRoles && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsEditingRoles(true)}
+                  data-testid="button-edit-roles"
+                >
+                  Edit Roles
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {roleTemplates.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No role templates available</p>
+                <p className="text-sm">Contact an administrator to create role templates</p>
+              </div>
+            ) : isEditingRoles ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {roleTemplates.map((template: any) => (
+                    <div 
+                      key={template.id}
+                      className="flex items-start gap-3 p-3 border rounded-lg hover:bg-accent/50 cursor-pointer"
+                      onClick={() => handleToggleRoleTemplate(template.id)}
+                      data-testid={`role-template-${template.id}`}
+                    >
+                      <Checkbox
+                        checked={selectedRoleTemplateIds.includes(template.id)}
+                        onCheckedChange={() => handleToggleRoleTemplate(template.id)}
+                        data-testid={`checkbox-role-${template.id}`}
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">{template.name}</div>
+                        {template.description && (
+                          <p className="text-sm text-muted-foreground">{template.description}</p>
+                        )}
+                        {template.defaultRoleType && (
+                          <Badge variant="secondary" className="mt-1">{template.defaultRoleType}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleSaveRoleTemplates} disabled={updateProfile.isPending} data-testid="button-save-roles">
+                    {updateProfile.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Save Roles
+                  </Button>
+                  <Button variant="outline" onClick={handleCancelRoleEdit} data-testid="button-cancel-roles">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedRoleTemplateIds.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No roles assigned. Click "Edit Roles" to select your roles.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRoleTemplateIds.map(roleId => {
+                      const template = roleTemplates.find((t: any) => t.id === roleId);
+                      return template ? (
+                        <Badge key={roleId} variant="default" className="px-3 py-1">
+                          {template.name}
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
