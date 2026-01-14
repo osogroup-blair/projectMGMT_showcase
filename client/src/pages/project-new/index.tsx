@@ -71,6 +71,7 @@ import {
   useEpicTemplates,
   useTaskTemplates,
   useRoleTemplates,
+  useMilestoneTemplates,
   useDeliverableTypes,
   useEpicTypes,
   useTaskTypes
@@ -121,6 +122,7 @@ export default function ProjectWizard() {
   const { data: epicTemplates = [], isLoading: loadingEpics } = useEpicTemplates();
   const { data: taskTemplates = [], isLoading: loadingTasks } = useTaskTemplates();
   const { data: roleTemplates = [], isLoading: loadingRoles } = useRoleTemplates();
+  const { data: milestoneTemplatesData = [], isLoading: loadingMilestoneTemplates } = useMilestoneTemplates();
   const { data: users = [], isLoading: loadingUsers } = useUsers();
   
   // Types from admin defaults (for type selectors in wizard)
@@ -137,8 +139,8 @@ export default function ProjectWizard() {
   
   const isLoading = loadingFrameworks || loadingStages || loadingProjects || 
                     loadingDeliverables || loadingEpics || loadingTasks || 
-                    loadingRoles || loadingUsers || loadingDeliverableTypes || 
-                    loadingEpicTypes || loadingTaskTypes;
+                    loadingRoles || loadingMilestoneTemplates || loadingUsers || 
+                    loadingDeliverableTypes || loadingEpicTypes || loadingTaskTypes;
   
   const [projectData, setProjectData] = useState<ProjectData>({
     name: "",
@@ -736,12 +738,43 @@ export default function ProjectWizard() {
       }));
 
       const framework = frameworkTemplates.find(f => f.id === template.defaultFrameworkId);
+      const stageTemplateIds = framework?.defaultStages || [];
+      
       if (framework) {
-        const frameworkStages = (framework.defaultStages || [])
+        const frameworkStages = stageTemplateIds
             .map((sid: string) => stageTemplates.find((st: any) => st.id === sid))
             .filter(Boolean)
             .map((st: any) => ({...st, taskCreationMode: 'per_epic' as const}));
         setStages(frameworkStages);
+        
+        // Load milestone templates linked to these stages
+        const linkedMilestoneTemplates = milestoneTemplatesData.filter(
+          (mt: any) => mt.stageTemplateId && stageTemplateIds.includes(mt.stageTemplateId)
+        );
+        
+        if (linkedMilestoneTemplates.length > 0) {
+          const wizardMilestones: WizardMilestone[] = linkedMilestoneTemplates.map((mt: any, idx: number) => {
+            const linkedStage = frameworkStages.find((s: any) => 
+              stageTemplates.find((st: any) => st.id === mt.stageTemplateId)?.id === mt.stageTemplateId
+            );
+            
+            return {
+              id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
+              name: mt.name,
+              description: mt.description || '',
+              phase: mt.phase || 'delivery',
+              targetDate: linkedStage?.endDate || projectData.dueDate || '',
+              isBillingGate: mt.isBillingGate || false,
+              ownerId: projectData.ownerId || '',
+              rule: {
+                scopeType: mt.scopeType || 'deliverable',
+                completionMode: mt.completionMode || 'percentage',
+                completionTargetPercent: mt.completionTargetPercent || 100
+              }
+            };
+          });
+          setMilestones(wizardMilestones);
+        }
       }
 
       if (template.defaultDeliverables) {
@@ -775,7 +808,7 @@ export default function ProjectWizard() {
       }
 
       if (framework) {
-        (framework.defaultStages || []).forEach((sid: string) => {
+        stageTemplateIds.forEach((sid: string) => {
             const stage = stageTemplates.find((st: any) => st.id === sid);
             if (stage) {
                 (stage.defaultRoles || []).forEach((rid: string) => uniqueRoleIds.add(rid));
@@ -810,11 +843,42 @@ export default function ProjectWizard() {
     setProjectData(prev => ({ ...prev, frameworkId }));
     const framework = frameworkTemplates.find(f => f.id === frameworkId);
     if (framework) {
-      const frameworkStages = (framework.defaultStages || [])
+      const stageTemplateIds = framework.defaultStages || [];
+      const frameworkStages = stageTemplateIds
         .map((sid: string) => stageTemplates.find((st: any) => st.id === sid))
         .filter(Boolean)
         .map((st: any) => ({...st, taskCreationMode: 'per_epic' as const}));
       setStages(frameworkStages);
+
+      // Load milestone templates linked to these stages
+      const linkedMilestoneTemplates = milestoneTemplatesData.filter(
+        (mt: any) => mt.stageTemplateId && stageTemplateIds.includes(mt.stageTemplateId)
+      );
+      
+      if (linkedMilestoneTemplates.length > 0) {
+        const wizardMilestones: WizardMilestone[] = linkedMilestoneTemplates.map((mt: any, idx: number) => {
+          // Find the stage this milestone is linked to for date calculation
+          const linkedStage = frameworkStages.find((s: any) => 
+            stageTemplates.find((st: any) => st.id === mt.stageTemplateId)?.id === mt.stageTemplateId
+          );
+          
+          return {
+            id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
+            name: mt.name,
+            description: mt.description || '',
+            phase: mt.phase || 'delivery',
+            targetDate: linkedStage?.endDate || projectData.dueDate || '',
+            isBillingGate: mt.isBillingGate || false,
+            ownerId: projectData.ownerId || '',
+            rule: {
+              scopeType: mt.scopeType || 'deliverable',
+              completionMode: mt.completionMode || 'percentage',
+              completionTargetPercent: mt.completionTargetPercent || 100
+            }
+          };
+        });
+        setMilestones(wizardMilestones);
+      }
 
       const uniqueRoleIds = new Set<string>();
       
@@ -823,7 +887,7 @@ export default function ProjectWizard() {
           template?.defaultRoles?.forEach((rid: string) => uniqueRoleIds.add(rid));
       }
 
-      (framework.defaultStages || []).forEach((sid: string) => {
+      stageTemplateIds.forEach((sid: string) => {
           const stage = stageTemplates.find((st: any) => st.id === sid);
           if (stage) {
               (stage.defaultRoles || []).forEach((rid: string) => uniqueRoleIds.add(rid));
@@ -1001,7 +1065,6 @@ export default function ProjectWizard() {
     }
   };
 
-  const milestoneTemplates: any[] = [];
   const templateSnippets: WizardTemplateSnippet[] = [];
   
   const roleTypes: WizardRoleType[] = [
@@ -1065,7 +1128,7 @@ export default function ProjectWizard() {
     deliverableTypes,
     epicTypes,
     taskTypes,
-    milestoneTemplates,
+    milestoneTemplates: milestoneTemplatesData,
     templateSnippets,
     roleTypes,
     eligibleUsers,
