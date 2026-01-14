@@ -350,6 +350,7 @@ export function PlanTab({
                     )}
                     <TableHead className="w-[30%]">Task</TableHead>
                     <TableHead>Epic</TableHead>
+                    <TableHead>Stage</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Effort</TableHead>
                     <TableHead>Assignee</TableHead>
@@ -426,6 +427,18 @@ export function PlanTab({
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const stage = projectStages.find((s: any) => s.id === task.stageId);
+                            return stage ? (
+                              <Badge variant="outline" className="font-normal">
+                                {stage.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={cn(taskStatus.bgColor, taskStatus.color, "border-0")}>

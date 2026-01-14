@@ -248,6 +248,9 @@ export function SprintPlannerPanel({
         open={showAddTasksDialog}
         onOpenChange={setShowAddTasksDialog}
         backlogTasks={sprintData.backlogTasks}
+        projectTasks={sprintData.projectTasks}
+        currentSprintId={selectedSprintId}
+        projectStages={sprintData.projectStages}
         onAddTasks={handleAddTasks}
         onCreateNew={() => {
           setShowAddTasksDialog(false);

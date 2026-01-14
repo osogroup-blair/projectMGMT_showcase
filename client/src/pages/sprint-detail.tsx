@@ -167,6 +167,9 @@ export default function SprintDetailPage() {
         open={showAddTasksDialog}
         onOpenChange={setShowAddTasksDialog}
         backlogTasks={sprintData.backlogTasks}
+        projectTasks={sprintData.projectTasks}
+        currentSprintId={sprintId}
+        projectStages={sprintData.projectStages}
         onAddTasks={sprintActions.handleAddTasks}
         onCreateNew={() => {
           setShowAddTasksDialog(false);
