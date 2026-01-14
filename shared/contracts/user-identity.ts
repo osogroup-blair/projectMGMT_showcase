@@ -86,6 +86,7 @@ export interface UserProfileWithIdentities {
   status: string | null;
   systemRole: string | null;
   avatar: string | null;
+  roleTemplateIds: string[] | null;
   createdAt: Date | null;
   updatedAt: Date | null;
   identities: IdentityPublic[];
@@ -139,6 +140,7 @@ export const updateProfileRequestSchema = z.object({
   lastName: z.string().optional(),
   jobTitle: z.string().optional(),
   avatar: z.string().url().optional().nullable(),
+  roleTemplateIds: z.array(z.string()).optional(),
 });
 
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;

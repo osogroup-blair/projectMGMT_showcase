@@ -55,6 +55,7 @@ export async function getUserProfileWithIdentities(userId: string): Promise<User
     status: user.status,
     systemRole: user.systemRole,
     avatar: user.avatar,
+    roleTemplateIds: user.roleTemplateIds,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     identities: identities.map(toIdentityPublic),
@@ -76,6 +77,7 @@ export async function updateUserProfile(
   if (data.lastName !== undefined) updateData.lastName = data.lastName;
   if (data.jobTitle !== undefined) updateData.jobTitle = data.jobTitle;
   if (data.avatar !== undefined) updateData.avatar = data.avatar;
+  if (data.roleTemplateIds !== undefined) updateData.roleTemplateIds = data.roleTemplateIds;
 
   await db.update(users).set(updateData).where(eq(users.id, userId));
 
