@@ -660,6 +660,108 @@ async function createTeamMembersForProject(
   }
 }
 
+// Pulse update content templates for realistic demo data
+const PULSE_DID_TEMPLATES = [
+  "Completed code review for the {feature} module",
+  "Fixed bug in {feature} - validation was not working correctly",
+  "Implemented {feature} API endpoints",
+  "Updated documentation for {feature}",
+  "Pair programming session on {feature} with the team",
+  "Refactored {feature} component for better performance",
+  "Wrote unit tests for {feature} module",
+  "Attended standup and planning meeting",
+  "Deployed {feature} to staging environment",
+  "Addressed feedback from stakeholder review",
+  "Completed data migration script for {feature}",
+  "Integrated {feature} with the main application",
+];
+
+const PULSE_NEXT_TEMPLATES = [
+  "Continue working on {feature} implementation",
+  "Start integration testing for {feature}",
+  "Review PR from team member on {feature}",
+  "Begin work on {feature} UI components",
+  "Write acceptance criteria for {feature}",
+  "Finish remaining tasks for {feature}",
+  "Address code review feedback on {feature}",
+  "Prepare demo for {feature} functionality",
+  "Update tests after recent changes to {feature}",
+  "Sync with QA on {feature} testing status",
+];
+
+const PULSE_BLOCKER_TEMPLATES = [
+  "Waiting on API documentation from backend team",
+  "Need design clarification for {feature} edge cases",
+  "Blocked by missing access credentials",
+  "Waiting for stakeholder approval on approach",
+  "", // No blocker
+  "", // No blocker
+  "", // No blocker - most entries won't have blockers
+  "", // No blocker
+];
+
+const FEATURE_NAMES = [
+  "user authentication", "dashboard", "reporting", "contact management",
+  "data import", "notifications", "search functionality", "permissions",
+  "API integration", "file upload", "billing", "analytics"
+];
+
+function getRandomItem<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generatePulseText(template: string): string {
+  const feature = getRandomItem(FEATURE_NAMES);
+  return template.replace("{feature}", feature);
+}
+
+async function createPulseUpdatesForSprint(
+  sprintId: string,
+  sprintStartDate: Date,
+  sprintEndDate: Date,
+  teamUserIds: string[],
+  result: DemoDataResult
+): Promise<void> {
+  const today = new Date();
+  const daysInSprint = Math.ceil((sprintEndDate.getTime() - sprintStartDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Generate pulse updates for each day up to today (or sprint end if in past)
+  const endDate = sprintEndDate < today ? sprintEndDate : today;
+  
+  for (let dayOffset = 0; dayOffset < daysInSprint; dayOffset++) {
+    const updateDate = addDays(sprintStartDate, dayOffset);
+    
+    // Skip future dates
+    if (updateDate > endDate) break;
+    
+    // Skip weekends
+    const dayOfWeek = updateDate.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+    
+    // Each team member submits a pulse update (not everyone every day - 70% chance)
+    for (const userId of teamUserIds) {
+      if (Math.random() > 0.7) continue; // 30% chance to skip this day
+      
+      const pulseId = generateId("pulse");
+      const didText = generatePulseText(getRandomItem(PULSE_DID_TEMPLATES));
+      const nextText = generatePulseText(getRandomItem(PULSE_NEXT_TEMPLATES));
+      const blockerText = generatePulseText(getRandomItem(PULSE_BLOCKER_TEMPLATES));
+      
+      await storage.createSprintPulseUpdate({
+        id: pulseId,
+        sprintId,
+        userId,
+        date: toDateString(updateDate),
+        didText,
+        nextText,
+        blockersText: blockerText || null,
+        referencedTaskIds: [],
+      } as any);
+      result.created.pulseUpdates = (result.created.pulseUpdates || 0) + 1;
+    }
+  }
+}
+
 async function createSprintsForProject(
   projectId: string,
   sprintConfigs: Array<{ name: string; goal: string; startOffset: number; endOffset: number; status: string }>,
@@ -685,6 +787,12 @@ async function createSprintsForProject(
       capacityHours: 160,
     } as any);
     result.created.sprints = (result.created.sprints || 0) + 1;
+
+    // Create pulse updates for active and completed sprints
+    if (config.status === "active" || config.status === "completed") {
+      const teamUserIds = demoUsers.slice(1, 6).map(u => u.id); // Use team members, not admin
+      await createPulseUpdatesForSprint(sprintId, startDate, endDate, teamUserIds, result);
+    }
 
     sprints.push({
       id: sprintId,
