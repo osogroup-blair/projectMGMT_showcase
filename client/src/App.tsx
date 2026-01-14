@@ -40,6 +40,7 @@ import ProjectManagement from "@/pages/project-management";
 import SprintList from "@/pages/sprint-list";
 import SprintDetail from "@/pages/sprint-detail";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
+import FrameworkTemplateDetail from "@/pages/admin/framework-template-detail";
 import DataViewerPage from "@/pages/admin/data-viewer";
 import EditUserPage from "@/pages/admin/edit-user";
 import ProjectTools from "@/pages/project-tools";
@@ -89,6 +90,7 @@ function ProtectedRoutes() {
       <Route path="/admin/users/:userId/edit" component={EditUserPage} />
       <Route path="/admin/:section" component={AdminHub} />
       <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
+      <Route path="/admin/templates/frameworks/:frameworkId" component={FrameworkTemplateDetail} />
       <Route component={NotFound} />
     </Switch>
   );

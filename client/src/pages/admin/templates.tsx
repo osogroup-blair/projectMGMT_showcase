@@ -530,57 +530,81 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
     setFormData({ ...formData, [field]: newList });
   };
 
-  const TemplateCard = ({ item, type, icon: Icon, itemsCount, itemLabel, badge }: any) => (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer group">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
-          <div className="p-2 bg-primary/10 rounded-lg text-primary">
-            <Icon className="h-5 w-5" />
+  const TemplateCard = ({ item, type, icon: Icon, itemsCount, itemLabel, badge }: any) => {
+    const handleCardClick = () => {
+      // Framework cards navigate to detail page
+      if (type === "framework") {
+        setLocation(`/admin/templates/frameworks/${item.id}`);
+      }
+    };
+
+    return (
+      <Card 
+        className="hover:shadow-md transition-shadow cursor-pointer group"
+        onClick={type === "framework" ? handleCardClick : undefined}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
+            <div className="p-2 bg-primary/10 rounded-lg text-primary">
+              <Icon className="h-5 w-5" />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                {type === "framework" && (
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setLocation(`/admin/templates/frameworks/${item.id}`); }}>
+                    <ChevronRight className="mr-2 h-4 w-4" /> Open Framework
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(item, type); }}>
+                  <Pencil className="mr-2 h-4 w-4" /> Edit Template
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => {
+                  e.stopPropagation();
+                  const dup = { ...item, id: undefined, name: `${item.name || item.title} (Copy)`, title: `${item.name || item.title} (Copy)` };
+                  handleCreate(type);
+                  setFormData(dup);
+                }}>
+                  <Copy className="mr-2 h-4 w-4" /> Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); handleDeleteClick(item, type); }}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => handleEdit(item, type)}>
-                <Pencil className="mr-2 h-4 w-4" /> Edit Template
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                const dup = { ...item, id: undefined, name: `${item.name || item.title} (Copy)`, title: `${item.name || item.title} (Copy)` };
-                handleCreate(type);
-                setFormData(dup);
-              }}>
-                <Copy className="mr-2 h-4 w-4" /> Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(item, type)}>
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <CardTitle className="text-lg mt-3">{item.name || item.title}</CardTitle>
-        <CardDescription className="line-clamp-2 mt-1 h-10">
-          {item.description}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between pt-2 border-t text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <span className="font-medium text-foreground">{itemsCount}</span> {itemLabel}
+          <CardTitle className="text-lg mt-3">{item.name || item.title}</CardTitle>
+          <CardDescription className="line-clamp-2 mt-1 h-10">
+            {item.description}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between pt-2 border-t text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <span className="font-medium text-foreground">{itemsCount}</span> {itemLabel}
+            </div>
+            {type === "framework" && (
+              <div className="flex items-center gap-1 text-primary text-xs">
+                <span>Open</span>
+                <ChevronRight className="h-3 w-3" />
+              </div>
+            )}
+            {badge && (
+              <Badge variant="secondary" className="font-normal text-xs">
+                {badge}
+              </Badge>
+            )}
           </div>
-          {badge && (
-            <Badge variant="secondary" className="font-normal text-xs">
-              {badge}
-            </Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : Shell;
 
@@ -625,7 +649,13 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
                 {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 Export
               </Button>
-              <Button className="gap-2" onClick={() => handleCreate(activeTab.slice(0, -1))}>
+              <Button className="gap-2" onClick={() => {
+                if (activeTab === "frameworks") {
+                  setLocation("/admin/templates/frameworks/new");
+                } else {
+                  handleCreate(activeTab.slice(0, -1));
+                }
+              }}>
                 <Plus className="h-4 w-4" />
                 Create {activeTab.slice(0, -1).charAt(0).toUpperCase() + activeTab.slice(0, -1).slice(1)} Template
               </Button>
@@ -643,13 +673,6 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
               Frameworks
             </TabsTrigger>
             <TabsTrigger 
-              value="stages" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
-            >
-              <Layers className="h-4 w-4" />
-              Stages
-            </TabsTrigger>
-            <TabsTrigger 
               value="tasks" 
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
             >
@@ -662,13 +685,6 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
             >
               <Users className="h-4 w-4" />
               Roles
-            </TabsTrigger>
-            <TabsTrigger 
-              value="milestones" 
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
-            >
-              <Flag className="h-4 w-4" />
-              Milestones
             </TabsTrigger>
           </TabsList>
 
@@ -696,45 +712,6 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
                     icon={Workflow}
                     itemsCount={t.defaultStages?.length || 5}
                     itemLabel="Stages"
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="stages" className="space-y-6">
-              <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
-                 <Workflow className="h-4 w-4 text-muted-foreground" />
-                 <span className="text-sm font-medium">Filter by Framework:</span>
-                 <SearchableSelect
-                    value={selectedFrameworkFilter}
-                    onValueChange={setSelectedFrameworkFilter}
-                    placeholder="All Frameworks"
-                    triggerClassName="w-[250px] h-8 text-xs"
-                    options={[
-                      { value: "all", label: "All Frameworks" },
-                      ...frameworkTemplates.map(fw => ({ value: fw.id, label: fw.name }))
-                    ]}
-                 />
-                 {selectedFrameworkFilter !== 'all' && (
-                   <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 text-xs ml-auto text-muted-foreground hover:text-foreground"
-                    onClick={() => setSelectedFrameworkFilter('all')}
-                   >
-                     Clear Filter
-                   </Button>
-                 )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filterTemplates(stageTemplates).map(t => (
-                  <TemplateCard 
-                    key={t.id}
-                    item={t}
-                    type="stage"
-                    icon={Layers}
-                    itemsCount={t.defaultTasks?.length || 0}
-                    itemLabel="Tasks"
                   />
                 ))}
               </div>
@@ -852,59 +829,6 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
                   </div>
                   <h3 className="font-semibold text-lg">Create New Role Template</h3>
                   <p className="text-sm text-muted-foreground mt-1">Define default role properties</p>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="milestones" className="space-y-6">
-              <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
-                <Layers className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Filter by Stage:</span>
-                <SearchableSelect
-                  value={selectedFrameworkFilter}
-                  onValueChange={setSelectedFrameworkFilter}
-                  placeholder="All Stages"
-                  triggerClassName="w-[250px] h-8 text-xs"
-                  data-testid="select-milestone-stage-filter"
-                  options={[
-                    { value: "all", label: "All Stages" },
-                    ...stageTemplates.map(st => ({ value: st.id, label: st.name }))
-                  ]}
-                />
-                {selectedFrameworkFilter !== 'all' && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 text-xs ml-auto text-muted-foreground hover:text-foreground"
-                    onClick={() => setSelectedFrameworkFilter('all')}
-                    data-testid="button-clear-milestone-stage-filter"
-                  >
-                    Clear Filter
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filterMilestoneTemplates(milestoneTemplates).map(t => (
-                  <TemplateCard 
-                    key={t.id}
-                    item={t}
-                    type="milestone"
-                    icon={Flag}
-                    itemsCount={t.completionTargetPercent || 100}
-                    itemLabel="% Target"
-                    badge={t.phase}
-                  />
-                ))}
-                <Card 
-                  className="flex flex-col items-center justify-center border-dashed cursor-pointer hover:bg-muted/10 transition-colors min-h-[200px]"
-                  onClick={() => handleCreate('milestone')}
-                  data-testid="card-create-milestone-template"
-                >
-                  <div className="p-4 rounded-full bg-muted text-muted-foreground mb-4">
-                    <Plus className="h-6 w-6" />
-                  </div>
-                  <h3 className="font-semibold text-lg">Create New Milestone Template</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Define default milestone properties</p>
                 </Card>
               </div>
             </TabsContent>
