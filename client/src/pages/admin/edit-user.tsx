@@ -76,7 +76,7 @@ export default function EditUserPage() {
   const { toast } = useToast();
   const userId = params?.userId;
 
-  const { data: profileData, isLoading: profileLoading, refetch: refetchProfile } = useUserProfile(userId || undefined);
+  const { data: profileData, isLoading: profileLoading, error: profileError, refetch: refetchProfile } = useUserProfile(userId || undefined);
   const updateUser = useUpdateUser();
   const linkIdentity = useLinkIdentity();
   const unlinkIdentity = useUnlinkIdentity();
@@ -235,10 +235,13 @@ export default function EditUserPage() {
   }
 
   if (!profileData) {
+    const errorMessage = profileError?.message || "User not found";
+    const isAccessError = errorMessage.includes("Access denied") || errorMessage.includes("Authentication");
+    
     return (
       <Shell>
         <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4">
-          <p className="text-muted-foreground">User not found</p>
+          <p className="text-muted-foreground">{errorMessage}</p>
           <Link href="/admin/users">
             <Button variant="outline">Back to Users</Button>
           </Link>

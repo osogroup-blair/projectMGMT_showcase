@@ -14,11 +14,31 @@ export function useUserProfile(userId: string | undefined) {
   return useQuery<UserProfileWithIdentities>({
     queryKey: ["user-profile", userId],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/users/${userId}/profile`);
-      if (!res.ok) throw new Error("Failed to fetch profile");
+      const res = await fetch(`${API_BASE}/users/${userId}/profile`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          throw new Error("Authentication required");
+        }
+        if (res.status === 403) {
+          throw new Error("Access denied - insufficient permissions");
+        }
+        if (res.status === 404) {
+          throw new Error("User not found");
+        }
+        throw new Error(errorData.error || "Failed to fetch profile");
+      }
       return res.json();
     },
     enabled: !!userId,
+    retry: (failureCount, error) => {
+      if (error.message.includes("Access denied") || error.message.includes("Authentication")) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 }
 
