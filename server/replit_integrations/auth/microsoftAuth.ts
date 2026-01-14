@@ -154,7 +154,7 @@ async function upsertMicrosoftUser(claims: any) {
   
   const name = [firstName, lastName].filter(Boolean).join(" ").trim() || email || "User";
   
-  // First check if user exists by Microsoft ID
+  // Check 1: User exists by microsoftId field (linked account)
   const existingByMicrosoftId = await db
     .select()
     .from(users)
@@ -178,7 +178,32 @@ async function upsertMicrosoftUser(claims: any) {
     return existingUser;
   }
   
-  // Check if user exists by email
+  // Check 2: User exists with primary ID matching Microsoft ID (from previous creation)
+  const existingById = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, microsoftId))
+    .limit(1);
+  
+  if (existingById.length > 0) {
+    const existingUser = existingById[0];
+    // Link microsoftId field and update profile if needed
+    await db
+      .update(users)
+      .set({
+        microsoftId, // Ensure microsoftId field is set
+        email: existingUser.email || email,
+        profileImageUrl: existingUser.profileImageUrl || profileImageUrl,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, microsoftId));
+    
+    // Create/update identity record with SSO claims
+    await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
+    return existingUser;
+  }
+  
+  // Check 3: User exists by email (imported user or different auth provider)
   if (email) {
     const existingByEmail = await db
       .select()

@@ -27,8 +27,28 @@ class AuthStorage implements IAuthStorage {
       .join(" ")
       .trim() || userData.email || "User";
 
-    // First, check if a user with this email already exists (e.g., imported user)
-    // This enables matching imported users to authenticated users
+    // Check 1: User exists by the provided ID (direct match or SSO ID as primary key)
+    if (userData.id) {
+      const existingById = await this.getUser(userData.id);
+      if (existingById) {
+        // User exists with this ID - update profile fields but preserve existing data
+        const [updatedUser] = await db
+          .update(users)
+          .set({
+            email: existingById.email || userData.email,
+            firstName: existingById.firstName || userData.firstName,
+            lastName: existingById.lastName || userData.lastName,
+            profileImageUrl: existingById.profileImageUrl || userData.profileImageUrl,
+            name: existingById.name || name,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, userData.id))
+          .returning();
+        return updatedUser;
+      }
+    }
+
+    // Check 2: User exists by email (imported user or different auth provider)
     if (userData.email) {
       const existingUserByEmail = await this.getUserByEmail(userData.email);
       
@@ -54,23 +74,12 @@ class AuthStorage implements IAuthStorage {
       }
     }
 
-    // No existing user by email - create new user with the SSO provider ID
+    // No existing user - create new user with the provided ID
     const [user] = await db
       .insert(users)
       .values({
         ...userData,
         name,
-      })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          profileImageUrl: userData.profileImageUrl,
-          name,
-          updatedAt: new Date(),
-        },
       })
       .returning();
     return user;
