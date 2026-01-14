@@ -34,8 +34,10 @@ import rolesPermissionsRoutes from "./routes/roles-permissions";
 import { seedRolesAndPermissions } from "../services/roles-permissions-service";
 
 // Helper to extract authenticated user ID from request
+// Always use the database user ID (req.user.id), not the SSO claims.sub
+// SSO claims.sub contains the external provider's GUID, not our database ID
 function getAuthUserId(req: any): string | null {
-  return req.user?.claims?.sub || null;
+  return req.user?.id || null;
 }
 
 export async function registerRoutes(

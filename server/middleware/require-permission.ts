@@ -22,7 +22,9 @@ export function requirePermission(permission: UserPermission): RequestHandler {
 
     try {
       const passportUser = req.user as any;
-      const userId = passportUser.claims?.sub || passportUser.id;
+      // Always use the database user ID (passportUser.id), not the SSO claims.sub
+      // SSO claims.sub contains the external provider's GUID, not our database ID
+      const userId = passportUser.id;
       const dbUser = await authStorage.getUser(userId);
       
       if (!dbUser) {
@@ -59,7 +61,9 @@ export function requireRole(...roles: SystemRole[]): RequestHandler {
 
     try {
       const passportUser = req.user as any;
-      const userId = passportUser.claims?.sub || passportUser.id;
+      // Always use the database user ID (passportUser.id), not the SSO claims.sub
+      // SSO claims.sub contains the external provider's GUID, not our database ID
+      const userId = passportUser.id;
       const dbUser = await authStorage.getUser(userId);
       
       if (!dbUser) {
@@ -91,7 +95,9 @@ export function requireSelfOrRole(userIdParam: string, ...roles: SystemRole[]): 
 
     try {
       const passportUser = req.user as any;
-      const userId = passportUser.claims?.sub || passportUser.id;
+      // Always use the database user ID (passportUser.id), not the SSO claims.sub
+      // SSO claims.sub contains the external provider's GUID, not our database ID
+      const userId = passportUser.id;
       const targetUserId = req.params[userIdParam];
       const isSelf = userId === targetUserId;
       
