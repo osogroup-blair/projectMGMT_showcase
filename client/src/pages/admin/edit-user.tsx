@@ -54,6 +54,7 @@ import {
   useUnlinkIdentity,
   useAvailableSystems,
 } from "@/features/user-management";
+import { useRoleTemplates } from "@/hooks/use-nexus-data";
 import type { IdentityPublic, LinkIdentityRequest } from "@shared/contracts/user-identity";
 
 const getSystemIcon = (systemId: string) => {
@@ -99,11 +100,14 @@ export default function EditUserPage() {
     },
   });
 
+  const { data: roleTemplates = [] } = useRoleTemplates();
+
   const [formData, setFormData] = useState({
     name: "",
     jobTitle: "",
     systemRole: "member",
-    permissions: [] as string[]
+    permissions: [] as string[],
+    roleTemplateIds: [] as string[]
   });
 
   const [linkForm, setLinkForm] = useState<Partial<LinkIdentityRequest>>({
@@ -123,7 +127,8 @@ export default function EditUserPage() {
         name: profileData.name || "",
         jobTitle: profileData.jobTitle || "",
         systemRole: (profileData as any).systemRole || "member",
-        permissions: (profileData as any).permissions || []
+        permissions: (profileData as any).permissions || [],
+        roleTemplateIds: (profileData as any).roleTemplateIds || []
       });
     }
   }, [profileData]);
@@ -147,6 +152,22 @@ export default function EditUserPage() {
     setFormData({ ...formData, permissions: newPerms });
   };
 
+  const toggleRoleTemplate = (roleId: string) => {
+    const current = formData.roleTemplateIds || [];
+    const newRoles = current.includes(roleId)
+      ? current.filter(r => r !== roleId)
+      : [...current, roleId];
+    setFormData({ ...formData, roleTemplateIds: newRoles });
+  };
+
+  const handleSelectAllRoles = () => {
+    setFormData({ ...formData, roleTemplateIds: roleTemplates.map(r => r.id) });
+  };
+
+  const handleClearAllRoles = () => {
+    setFormData({ ...formData, roleTemplateIds: [] });
+  };
+
   const handleSave = async () => {
     if (!userId) return;
     
@@ -158,7 +179,8 @@ export default function EditUserPage() {
           name: formData.name,
           jobTitle: formData.jobTitle,
           systemRole: formData.systemRole as any,
-          permissions: formData.permissions
+          permissions: formData.permissions,
+          roleTemplateIds: formData.roleTemplateIds
         }
       });
       toast({ title: "User Updated", description: "User profile saved successfully." });
@@ -387,6 +409,91 @@ export default function EditUserPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="flex items-center gap-2">
+                              <Briefcase className="h-5 w-5 text-muted-foreground" />
+                              Project Execution Roles
+                            </CardTitle>
+                            <CardDescription>Roles this user can perform in projects</CardDescription>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={handleSelectAllRoles}
+                              disabled={formData.roleTemplateIds.length === roleTemplates.length}
+                              data-testid="button-select-all-roles"
+                            >
+                              Select All
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={handleClearAllRoles}
+                              disabled={formData.roleTemplateIds.length === 0}
+                              data-testid="button-clear-all-roles"
+                            >
+                              Clear All
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <ScrollArea className="h-[200px] pr-4">
+                          {roleTemplates.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Briefcase className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                              <p>No role templates available</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {roleTemplates.map(role => (
+                                <div 
+                                  key={role.id} 
+                                  className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors"
+                                >
+                                  <Checkbox
+                                    id={`role-${role.id}`}
+                                    checked={formData.roleTemplateIds.includes(role.id)}
+                                    onCheckedChange={() => toggleRoleTemplate(role.id)}
+                                    data-testid={`checkbox-role-${role.id}`}
+                                  />
+                                  <label htmlFor={`role-${role.id}`} className="text-sm cursor-pointer flex-1 flex items-center gap-2">
+                                    {role.name}
+                                    {role.description && (
+                                      <span className="text-xs text-muted-foreground">- {role.description}</span>
+                                    )}
+                                  </label>
+                                  {formData.roleTemplateIds.includes(role.id) && (
+                                    <Check className="h-4 w-4 text-primary" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </ScrollArea>
+                        <div className="mt-3 pt-3 border-t flex items-center justify-between text-sm text-muted-foreground">
+                          <span>{formData.roleTemplateIds.length} of {roleTemplates.length} roles selected</span>
+                          {formData.roleTemplateIds.length > 0 && (
+                            <div className="flex gap-1 flex-wrap">
+                              {formData.roleTemplateIds.slice(0, 3).map(id => {
+                                const role = roleTemplates.find(r => r.id === id);
+                                return role ? (
+                                  <Badge key={id} variant="secondary" className="text-xs">{role.name}</Badge>
+                                ) : null;
+                              })}
+                              {formData.roleTemplateIds.length > 3 && (
+                                <Badge variant="outline" className="text-xs">+{formData.roleTemplateIds.length - 3} more</Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
 

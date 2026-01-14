@@ -41,6 +41,7 @@ function toPublicUser(user: typeof users.$inferSelect): UserPublic {
     status: user.status,
     systemRole: user.systemRole,
     permissions: user.permissions || [],
+    roleTemplateIds: user.roleTemplateIds || [],
     createdAt: user.createdAt,
   };
 }
@@ -170,6 +171,7 @@ export async function updateUser(id: string, data: UpdateUserRequest): Promise<U
   if (data.jobTitle !== undefined) updateData.jobTitle = data.jobTitle;
   if (data.systemRole !== undefined) updateData.systemRole = data.systemRole;
   if (data.permissions !== undefined) updateData.permissions = data.permissions;
+  if (data.roleTemplateIds !== undefined) updateData.roleTemplateIds = data.roleTemplateIds;
 
   const [updated] = await db
     .update(users)

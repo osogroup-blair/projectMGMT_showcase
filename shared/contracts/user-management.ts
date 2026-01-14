@@ -80,6 +80,7 @@ export interface UserPublic {
   status: string | null;
   systemRole: string | null;
   permissions: string[] | null;
+  roleTemplateIds: string[] | null;
   createdAt: Date | null;
 }
 
@@ -88,6 +89,7 @@ export const updateUserRequestSchema = z.object({
   jobTitle: z.string().optional(),
   systemRole: z.enum(["admin", "manager", "member", "viewer", "demo"]).optional(),
   permissions: z.array(z.string()).optional(),
+  roleTemplateIds: z.array(z.string()).optional(),
 });
 
 export type UpdateUserRequest = z.infer<typeof updateUserRequestSchema>;
