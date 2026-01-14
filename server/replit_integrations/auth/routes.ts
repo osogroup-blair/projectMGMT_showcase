@@ -36,7 +36,7 @@ export function registerAuthRoutes(app: Express): void {
       // Check if admin/demo is impersonating another user
       const impersonatedUserId = req.session?.impersonatedUserId;
       
-      if (impersonatedUserId && canImpersonate(realUser?.systemRole, realUser?.id)) {
+      if (impersonatedUserId && realUser && canImpersonate(realUser.systemRole, realUser.id)) {
         const impersonatedUser = await authStorage.getUser(impersonatedUserId);
         if (impersonatedUser) {
           res.json({

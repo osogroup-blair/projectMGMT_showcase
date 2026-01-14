@@ -32,18 +32,20 @@ class AuthStorage implements IAuthStorage {
     if (userData.email) {
       const existingUserByEmail = await this.getUserByEmail(userData.email);
       
-      if (existingUserByEmail && existingUserByEmail.id !== userData.id) {
-        // User was imported with a different ID - update their ID to match auth provider
-        // Store the original ID as externalId if not already set
+      if (existingUserByEmail) {
+        // User already exists - preserve their original ID, just update profile fields
+        // Store the SSO provider ID as externalId for reference
         const [updatedUser] = await db
           .update(users)
           .set({
-            id: userData.id, // Update to auth provider ID
-            firstName: userData.firstName || existingUserByEmail.firstName,
-            lastName: userData.lastName || existingUserByEmail.lastName,
-            profileImageUrl: userData.profileImageUrl || existingUserByEmail.profileImageUrl,
-            name: name || existingUserByEmail.name,
-            externalId: existingUserByEmail.externalId || existingUserByEmail.id, // Preserve original ID
+            // DO NOT change the id - keep the original user ID intact
+            // Only update profile fields if not already set
+            firstName: existingUserByEmail.firstName || userData.firstName,
+            lastName: existingUserByEmail.lastName || userData.lastName,
+            profileImageUrl: existingUserByEmail.profileImageUrl || userData.profileImageUrl,
+            name: existingUserByEmail.name || name,
+            // Store the SSO provider ID as externalId for linking purposes
+            externalId: existingUserByEmail.externalId || userData.id,
             updatedAt: new Date(),
           })
           .where(eq(users.email, userData.email))
@@ -52,7 +54,7 @@ class AuthStorage implements IAuthStorage {
       }
     }
 
-    // Standard upsert by ID
+    // No existing user by email - create new user with the SSO provider ID
     const [user] = await db
       .insert(users)
       .values({
