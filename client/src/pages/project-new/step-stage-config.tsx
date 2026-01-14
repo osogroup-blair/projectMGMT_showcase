@@ -633,25 +633,14 @@ export function StepStageConfig({
                             <Label className="text-sm flex items-center gap-2">
                               <ListTodo className="h-4 w-4" /> Tasks
                             </Label>
-                            <div className="flex gap-2">
-                              <SearchableSelect
-                                onValueChange={(templateId) => applyTaskTemplate(stageIndex, templateId)}
-                                placeholder="Add from template..."
-                                options={taskTemplates.map((template: any) => ({
-                                  value: template.id,
-                                  label: template.title
-                                }))}
-                                triggerClassName="h-8 w-48"
-                              />
-                              <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
-                                <Plus className="h-3 w-3 mr-1" /> Custom
-                              </Button>
-                            </div>
+                            <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
+                              <Plus className="h-3 w-3 mr-1" /> Add Task
+                            </Button>
                           </div>
 
                           {stage.tasks.length === 0 ? (
                             <div className="text-center p-4 border border-dashed rounded text-muted-foreground text-sm">
-                              No tasks defined. Add from templates or create custom tasks.
+                              No tasks defined. Click "Add Task" to create tasks.
                             </div>
                           ) : (
                             <div className="space-y-2">
