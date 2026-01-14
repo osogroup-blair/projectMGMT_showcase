@@ -8,13 +8,15 @@ import {
   Flag,
   GripVertical,
   Layers,
+  ListTodo,
   MoreHorizontal,
   Pencil,
   Plus,
   Trash2,
   Workflow,
   Loader2,
-  Save
+  Save,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -604,6 +606,10 @@ export default function FrameworkTemplateDetail() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Badge variant="secondary" className="gap-1">
+                                  <ListTodo className="h-3 w-3" />
+                                  {(stage.defaultTasks || []).length} tasks
+                                </Badge>
+                                <Badge variant="secondary" className="gap-1">
                                   <Flag className="h-3 w-3" />
                                   {stageMilestones.length} milestones
                                 </Badge>
@@ -645,70 +651,108 @@ export default function FrameworkTemplateDetail() {
                           </CollapsibleTrigger>
                           <CollapsibleContent>
                             <Separator />
-                            <div className="p-4 pl-16 bg-muted/30">
-                              <div className="flex items-center justify-between mb-3">
-                                <h5 className="text-sm font-medium flex items-center gap-2">
-                                  <Flag className="h-4 w-4" />
-                                  Milestones
-                                </h5>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openAddMilestoneDialog(stage.id)}
-                                >
-                                  <Plus className="h-4 w-4 mr-1" />
-                                  Add Milestone
-                                </Button>
+                            <div className="p-4 pl-16 bg-muted/30 space-y-6">
+                              {/* Tasks Section */}
+                              <div>
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="text-sm font-medium flex items-center gap-2">
+                                    <ListTodo className="h-4 w-4" />
+                                    Default Tasks
+                                  </h5>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openEditStageDialog(stage)}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-1" />
+                                    Edit Tasks
+                                  </Button>
+                                </div>
+                                {(stage.defaultTasks || []).length === 0 ? (
+                                  <p className="text-sm text-muted-foreground py-2">
+                                    No default tasks for this stage. Edit the stage to add tasks.
+                                  </p>
+                                ) : (
+                                  <div className="flex flex-wrap gap-2">
+                                    {(stage.defaultTasks || []).map((taskId: string) => {
+                                      const task = taskTemplates?.find(t => t.id === taskId);
+                                      return (
+                                        <Badge key={taskId} variant="outline" className="gap-1">
+                                          <ListTodo className="h-3 w-3" />
+                                          {task?.title || task?.name || taskId}
+                                        </Badge>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
-                              {stageMilestones.length === 0 ? (
-                                <p className="text-sm text-muted-foreground py-2">
-                                  No milestones for this stage.
-                                </p>
-                              ) : (
-                                <div className="space-y-2">
-                                  {stageMilestones.map((milestone) => (
-                                    <div
-                                      key={milestone.id}
-                                      className="flex items-center justify-between p-3 bg-background rounded-md border"
-                                    >
-                                      <div className="flex items-center gap-3">
-                                        <Flag className="h-4 w-4 text-muted-foreground" />
-                                        <div>
-                                          <p className="font-medium text-sm">{milestone.name}</p>
-                                          <div className="flex items-center gap-2 mt-1">
-                                            <Badge variant="outline" className="text-xs">
-                                              {milestone.phase}
-                                            </Badge>
-                                            {milestone.isBillingGate && (
-                                              <Badge variant="secondary" className="text-xs">
-                                                Billing Gate
+
+                              {/* Milestones Section */}
+                              <div>
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="text-sm font-medium flex items-center gap-2">
+                                    <Flag className="h-4 w-4" />
+                                    Milestones
+                                  </h5>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => openAddMilestoneDialog(stage.id)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Add Milestone
+                                  </Button>
+                                </div>
+                                {stageMilestones.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground py-2">
+                                    No milestones for this stage.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {stageMilestones.map((milestone) => (
+                                      <div
+                                        key={milestone.id}
+                                        className="flex items-center justify-between p-3 bg-background rounded-md border"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <Flag className="h-4 w-4 text-muted-foreground" />
+                                          <div>
+                                            <p className="font-medium text-sm">{milestone.name}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                              <Badge variant="outline" className="text-xs">
+                                                {milestone.phase}
                                               </Badge>
-                                            )}
+                                              {milestone.isBillingGate && (
+                                                <Badge variant="secondary" className="text-xs">
+                                                  Billing Gate
+                                                </Badge>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => openEditMilestoneDialog(milestone)}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-destructive hover:text-destructive"
+                                            onClick={() => confirmDelete("milestone", milestone)}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
                                       </div>
-                                      <div className="flex items-center gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={() => openEditMilestoneDialog(milestone)}
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-destructive hover:text-destructive"
-                                          onClick={() => confirmDelete("milestone", milestone)}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </CollapsibleContent>
                         </div>
@@ -776,6 +820,88 @@ export default function FrameworkTemplateDetail() {
                   rows={2}
                 />
               </div>
+            </div>
+
+            {/* Default Tasks Section */}
+            <Separator />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <ListTodo className="h-4 w-4" />
+                  Default Tasks
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  {(currentStage?.defaultTasks || []).length} task(s) selected
+                </span>
+              </div>
+              
+              {/* Add Task Selector */}
+              <div className="flex gap-2">
+                <SearchableSelect
+                  value=""
+                  onValueChange={(taskId) => {
+                    if (taskId && !currentStage?.defaultTasks?.includes(taskId)) {
+                      setCurrentStage(prev => ({
+                        ...prev,
+                        defaultTasks: [...(prev?.defaultTasks || []), taskId]
+                      }));
+                    }
+                  }}
+                  placeholder="Add a task template..."
+                  triggerClassName="flex-1"
+                  options={(taskTemplates || [])
+                    .filter(t => !(currentStage?.defaultTasks || []).includes(t.id))
+                    .map(t => ({
+                      value: t.id,
+                      label: t.title || t.name || "Untitled Task"
+                    }))}
+                />
+              </div>
+
+              {/* Selected Tasks List */}
+              {(currentStage?.defaultTasks || []).length > 0 && (
+                <div className="space-y-2 max-h-[150px] overflow-y-auto">
+                  {(currentStage?.defaultTasks || []).map((taskId: string, index: number) => {
+                    const task = taskTemplates?.find(t => t.id === taskId);
+                    return (
+                      <div
+                        key={taskId}
+                        className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2 text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs">{index + 1}.</span>
+                          <span>{task?.title || task?.name || taskId}</span>
+                          {task?.defaultPriority && (
+                            <Badge variant="outline" className="text-xs">
+                              {task.defaultPriority}
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => {
+                            setCurrentStage(prev => ({
+                              ...prev,
+                              defaultTasks: (prev?.defaultTasks || []).filter((id: string) => id !== taskId)
+                            }));
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {(currentStage?.defaultTasks || []).length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No tasks added yet. Select task templates from the dropdown above.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
