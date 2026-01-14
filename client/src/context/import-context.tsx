@@ -36,6 +36,7 @@ interface ImportContextType {
   initializeFromFile: (parseResult: ParseResult, options?: ImportAdapterOptions) => void;
   updateUserMapping: (sourceId: string, mappedToId: string | null, mappedToName: string | undefined, action: UserMappingEntry['action']) => void;
   updateStatusMapping: (sourceStatus: string, mappedStatus: string, mappedStatusId?: string) => void;
+  updateReferenceMapping: (entityType: ReferenceMappingEntry['entityType'], sourceValue: string, resolvedId: string, resolvedName: string) => void;
   setDefaultUnassignedTo: (userId: string | null, userName?: string) => void;
   acceptField: (fieldPath: string) => void;
   modifyField: (fieldPath: string) => void;
@@ -121,6 +122,28 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updateReferenceMapping = useCallback((
+    entityType: ReferenceMappingEntry['entityType'],
+    sourceValue: string,
+    resolvedId: string,
+    resolvedName: string
+  ) => {
+    setState(prev => ({
+      ...prev,
+      referenceMappings: prev.referenceMappings.map(m =>
+        m.entityType === entityType && m.sourceValue === sourceValue
+          ? { 
+              ...m, 
+              resolvedId, 
+              resolvedName, 
+              confidence: 'high' as const,
+              resolutionMethod: 'exact_name' as const
+            }
+          : m
+      )
+    }));
+  }, []);
+
   const setDefaultUnassignedTo = useCallback((userId: string | null, userName?: string) => {
     setState(prev => ({
       ...prev,
@@ -195,6 +218,7 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     initializeFromFile,
     updateUserMapping,
     updateStatusMapping,
+    updateReferenceMapping,
     setDefaultUnassignedTo,
     acceptField,
     modifyField,

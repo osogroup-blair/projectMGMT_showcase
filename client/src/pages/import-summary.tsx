@@ -18,7 +18,9 @@ import {
   ChevronUp,
   UserCheck,
   ArrowRightLeft,
-  Wand2
+  Wand2,
+  Link2,
+  UserPlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +44,8 @@ import { useImport } from '@/context/import-context';
 import { useStatusOptions } from '@/hooks/use-nexus-data';
 import { useAllUsersForAssignment } from '@/features/user-management';
 import type { ConfidenceLevel, UserMappingEntry, StatusMappingEntry } from '@/lib/import-to-wizard-adapter';
-import { UserPlus } from 'lucide-react';
+import type { ReferenceMappingEntry } from '@/lib/import-reference-resolver';
+import { useQuery } from '@tanstack/react-query';
 
 function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
   const config = {
@@ -63,34 +66,120 @@ function ConfidenceIcon({ confidence }: { confidence: ConfidenceLevel }) {
 
 export default function ImportSummary() {
   const [, setLocation] = useLocation();
-  const { state, updateUserMapping, updateStatusMapping, setDefaultUnassignedTo } = useImport();
+  const { state, updateUserMapping, updateStatusMapping, updateReferenceMapping, setDefaultUnassignedTo } = useImport();
   const { data: allUsers } = useAllUsersForAssignment();
   const { data: statusOptionsData } = useStatusOptions();
   
   const [userMappingOpen, setUserMappingOpen] = useState(true);
   const [statusMappingOpen, setStatusMappingOpen] = useState(true);
+  const [referenceMappingOpen, setReferenceMappingOpen] = useState(true);
   const [taskPreviewOpen, setTaskPreviewOpen] = useState(false);
   const [unassignedOpen, setUnassignedOpen] = useState(true);
 
   const systemUsers = allUsers || [];
   const taskStatuses = (statusOptionsData || []).filter((s: any) => s.type === 'task');
 
+  const { data: projectsData } = useQuery({
+    queryKey: ['/api/projects'],
+    queryFn: () => fetch('/api/projects').then(r => r.json()),
+  });
+
+  const { data: deliverablesData } = useQuery({
+    queryKey: ['/api/deliverables'],
+    queryFn: () => fetch('/api/deliverables').then(r => r.json()),
+  });
+
+  const { data: epicsData } = useQuery({
+    queryKey: ['/api/epics'],
+    queryFn: () => fetch('/api/epics').then(r => r.json()),
+  });
+
+  const { data: milestonesData } = useQuery({
+    queryKey: ['/api/milestones'],
+    queryFn: () => fetch('/api/milestones').then(r => r.json()),
+  });
+
+  const { data: sprintsData } = useQuery({
+    queryKey: ['/api/sprints'],
+    queryFn: () => fetch('/api/sprints').then(r => r.json()),
+  });
+
+  const { data: stagesData } = useQuery({
+    queryKey: ['/api/projectStages'],
+    queryFn: () => fetch('/api/projectStages').then(r => r.json()),
+  });
+
+  const entityOptions = useMemo(() => {
+    const options: Record<ReferenceMappingEntry['entityType'], SearchableSelectOption[]> = {
+      project: [{ value: '', label: 'Select project...' }],
+      deliverable: [{ value: '', label: 'Select deliverable...' }],
+      epic: [{ value: '', label: 'Select epic...' }],
+      milestone: [{ value: '', label: 'Select milestone...' }],
+      sprint: [{ value: '', label: 'Select sprint...' }],
+      stage: [{ value: '', label: 'Select stage...' }],
+    };
+
+    (projectsData || []).forEach((p: any) => {
+      options.project.push({ value: p.id, label: p.name || p.id });
+    });
+    (deliverablesData || []).forEach((d: any) => {
+      options.deliverable.push({ value: d.id, label: d.title || d.name || d.id });
+    });
+    (epicsData || []).forEach((e: any) => {
+      options.epic.push({ value: e.id, label: e.title || e.name || e.id });
+    });
+    (milestonesData || []).forEach((m: any) => {
+      options.milestone.push({ value: m.id, label: m.name || m.title || m.id });
+    });
+    (sprintsData || []).forEach((s: any) => {
+      options.sprint.push({ value: s.id, label: s.name || s.title || s.id });
+    });
+    (stagesData || []).forEach((s: any) => {
+      options.stage.push({ value: s.id, label: s.name || s.title || s.id });
+    });
+
+    return options;
+  }, [projectsData, deliverablesData, epicsData, milestonesData, sprintsData, stagesData]);
+
+  const handleReferenceMappingChange = useCallback((
+    entityType: ReferenceMappingEntry['entityType'],
+    sourceValue: string,
+    newResolvedId: string
+  ) => {
+    const entityList = {
+      project: projectsData || [],
+      deliverable: deliverablesData || [],
+      epic: epicsData || [],
+      milestone: milestonesData || [],
+      sprint: sprintsData || [],
+      stage: stagesData || [],
+    }[entityType];
+    
+    const entity = entityList.find((e: any) => e.id === newResolvedId);
+    const resolvedName = entity?.name || entity?.title || newResolvedId;
+    updateReferenceMapping(entityType, sourceValue, newResolvedId, resolvedName);
+  }, [projectsData, deliverablesData, epicsData, milestonesData, sprintsData, stagesData, updateReferenceMapping]);
+
   const stats = state.adapterResult?.stats;
   const userMappings = state.userMappings;
   const statusMappings = state.statusMappings;
+  const referenceMappings = state.referenceMappings;
+  const referenceStats = state.referenceStats;
 
   const validationSummary = useMemo(() => {
     const unmappedUsers = userMappings.filter(m => !m.mappedToId || m.action === 'unassigned');
     const lowConfidenceStatuses = statusMappings.filter(m => m.confidence === 'low');
-    const hasIssues = unmappedUsers.length > 0 || lowConfidenceStatuses.length > 0;
+    const unresolvedReferences = referenceMappings.filter(m => !m.resolvedId);
+    const hasIssues = unmappedUsers.length > 0 || lowConfidenceStatuses.length > 0 || unresolvedReferences.length > 0;
     
     return {
       unmappedUsers: unmappedUsers.length,
       lowConfidenceStatuses: lowConfidenceStatuses.length,
+      unresolvedReferences: unresolvedReferences.length,
       hasIssues,
       isReady: !hasIssues || (unmappedUsers.length === 0)
     };
-  }, [userMappings, statusMappings]);
+  }, [userMappings, statusMappings, referenceMappings]);
 
   const handleAutoMapUsers = useCallback(() => {
     const normalizeString = (str: string): string => {
@@ -336,6 +425,9 @@ export default function ImportSummary() {
                     {validationSummary.lowConfidenceStatuses > 0 && (
                       <li>{validationSummary.lowConfidenceStatuses} status(es) are using default fallback mappings</li>
                     )}
+                    {validationSummary.unresolvedReferences > 0 && (
+                      <li>{validationSummary.unresolvedReferences} entity reference(s) couldn't be resolved (e.g., project names, epic names)</li>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -555,6 +647,149 @@ export default function ImportSummary() {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+
+          {referenceMappings.length > 0 && (
+            <Collapsible open={referenceMappingOpen} onOpenChange={setReferenceMappingOpen}>
+              <Card className={validationSummary.unresolvedReferences > 0 ? "border-amber-200 bg-amber-50/30" : ""}>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-5 w-5" />
+                        <CardTitle className="text-lg">Reference Mappings</CardTitle>
+                        <Badge variant="outline">{referenceMappings.length}</Badge>
+                        {validationSummary.unresolvedReferences > 0 && (
+                          <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                            {validationSummary.unresolvedReferences} unresolved
+                          </Badge>
+                        )}
+                        {referenceStats && (
+                          <Badge className="bg-green-100 text-green-700 border-green-200">
+                            {referenceStats.resolvedByIdMatch + referenceStats.resolvedByExactName + referenceStats.resolvedByPartialName + referenceStats.resolvedByFuzzyName} resolved
+                          </Badge>
+                        )}
+                      </div>
+                      {referenceMappingOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
+                    <CardDescription>
+                      Name-based references (like project names, epic titles) were automatically matched to existing entities. Review the mappings below.
+                    </CardDescription>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    {referenceStats && (
+                      <div className="mb-4 p-3 bg-muted/30 rounded-lg border grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                        <div className="text-center">
+                          <p className="font-semibold text-lg">{referenceStats.totalReferencesProcessed}</p>
+                          <p className="text-muted-foreground text-xs">Total References</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-semibold text-lg text-green-600">{referenceStats.resolvedByIdMatch}</p>
+                          <p className="text-muted-foreground text-xs">By ID Match</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-semibold text-lg text-green-600">{referenceStats.resolvedByExactName}</p>
+                          <p className="text-muted-foreground text-xs">Exact Name</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-semibold text-lg text-amber-600">{referenceStats.resolvedByPartialName + referenceStats.resolvedByFuzzyName}</p>
+                          <p className="text-muted-foreground text-xs">Fuzzy Match</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="font-semibold text-lg text-red-600">{referenceStats.unresolved}</p>
+                          <p className="text-muted-foreground text-xs">Unresolved</p>
+                        </div>
+                      </div>
+                    )}
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Source Value</TableHead>
+                          <TableHead></TableHead>
+                          <TableHead>Resolved To</TableHead>
+                          <TableHead>Confidence</TableHead>
+                          <TableHead>Rows</TableHead>
+                          <TableHead>Manual Override</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {referenceMappings.map((mapping, idx) => {
+                          const typeLabels: Record<string, string> = {
+                            project: 'Project',
+                            deliverable: 'Deliverable',
+                            epic: 'Epic',
+                            stage: 'Stage',
+                            milestone: 'Milestone',
+                            sprint: 'Sprint'
+                          };
+                          const methodLabels: Record<string, string> = {
+                            id_match: 'ID Match',
+                            exact_name: 'Exact Name',
+                            partial_name: 'Partial Match',
+                            fuzzy_name: 'Fuzzy Match',
+                            unresolved: 'Unresolved'
+                          };
+                          const options = entityOptions[mapping.entityType] || [];
+                          return (
+                            <TableRow key={`${mapping.entityType}-${mapping.sourceValue}-${idx}`} data-testid={`reference-mapping-row-${mapping.entityType}-${idx}`}>
+                              <TableCell>
+                                <Badge variant="secondary" className="font-normal">
+                                  {typeLabels[mapping.entityType] || mapping.entityType}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium font-mono text-sm">{mapping.sourceValue}</p>
+                                  {mapping.sourceName && mapping.sourceName !== mapping.sourceValue && (
+                                    <p className="text-xs text-muted-foreground">{mapping.sourceName}</p>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <ArrowRight className="h-4 w-4 text-muted-foreground inline" />
+                              </TableCell>
+                              <TableCell>
+                                {mapping.resolvedId ? (
+                                  <div>
+                                    <p className="font-medium text-primary">{mapping.resolvedName || mapping.resolvedId}</p>
+                                    <p className="text-xs text-muted-foreground font-mono">{methodLabels[mapping.resolutionMethod]}</p>
+                                  </div>
+                                ) : (
+                                  <Badge variant="outline" className="text-red-600 border-red-200">
+                                    Not Resolved
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <ConfidenceBadge confidence={mapping.confidence} />
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">{mapping.affectedRows}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <SearchableSelect
+                                  value={mapping.resolvedId || ''}
+                                  onValueChange={(val) => handleReferenceMappingChange(mapping.entityType, mapping.sourceValue, val)}
+                                  options={options}
+                                  placeholder={`Select ${typeLabels[mapping.entityType] || 'entity'}...`}
+                                  searchPlaceholder="Search..."
+                                  emptyMessage="No matches found."
+                                  className="w-[200px]"
+                                  data-testid={`reference-select-${mapping.entityType}-${idx}`}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
 
           {unassignedTaskCount > 0 && (
             <Collapsible open={unassignedOpen} onOpenChange={setUnassignedOpen}>
