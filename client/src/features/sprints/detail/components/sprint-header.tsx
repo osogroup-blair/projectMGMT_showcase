@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { format } from "date-fns";
+import { format, differenceInDays, isWithinInterval, addDays, isBefore, isAfter } from "date-fns";
 import type { SprintStats } from "../types";
 
 interface SprintHeaderProps {
@@ -36,11 +36,41 @@ interface SprintHeaderProps {
   onCloseSprint: () => void;
 }
 
-const STATUS_CONFIG: Record<string, { color: string; bgColor: string; label: string }> = {
-  "planned": { color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
-  "active": { color: "text-blue-500", bgColor: "bg-blue-100", label: "Active" },
-  "closed": { color: "text-green-500", bgColor: "bg-green-100", label: "Closed" },
+type SprintPhase = "planned" | "starting" | "active" | "closing" | "closed";
+
+const STATUS_CONFIG: Record<SprintPhase, { color: string; bgColor: string; label: string; description?: string }> = {
+  "planned": { color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned", description: "Sprint is scheduled" },
+  "starting": { color: "text-amber-500", bgColor: "bg-amber-100", label: "Starting Soon", description: "Sprint begins within 3 days" },
+  "active": { color: "text-blue-500", bgColor: "bg-blue-100", label: "Active", description: "Sprint is in progress" },
+  "closing": { color: "text-orange-500", bgColor: "bg-orange-100", label: "Closing Soon", description: "Sprint ends within 3 days" },
+  "closed": { color: "text-green-500", bgColor: "bg-green-100", label: "Closed", description: "Sprint completed" },
 };
+
+function getSprintPhase(sprint: any): SprintPhase {
+  if (!sprint) return "planned";
+  
+  const today = new Date();
+  const startDate = sprint.startDate ? new Date(sprint.startDate) : null;
+  const endDate = sprint.endDate ? new Date(sprint.endDate) : null;
+  
+  if (sprint.status === "closed") return "closed";
+  
+  if (sprint.status === "active") {
+    if (endDate && differenceInDays(endDate, today) <= 3 && differenceInDays(endDate, today) >= 0) {
+      return "closing";
+    }
+    return "active";
+  }
+  
+  if (sprint.status === "planned") {
+    if (startDate && differenceInDays(startDate, today) <= 3 && differenceInDays(startDate, today) >= 0) {
+      return "starting";
+    }
+    return "planned";
+  }
+  
+  return "planned";
+}
 
 export function SprintHeader({
   sprint,
@@ -94,7 +124,8 @@ export function SprintHeader({
     }
   }, [isEditingGoal]);
 
-  const statusConfig = STATUS_CONFIG[sprint?.status] || STATUS_CONFIG["planned"];
+  const sprintPhase = getSprintPhase(sprint);
+  const statusConfig = STATUS_CONFIG[sprintPhase];
 
   return (
     <div className="space-y-4">

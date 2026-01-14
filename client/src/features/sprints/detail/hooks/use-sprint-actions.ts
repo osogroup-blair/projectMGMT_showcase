@@ -164,12 +164,29 @@ export function useSprintActions({
         const err = await response.json();
         throw new Error(err.error);
       }
+      const result = await response.json();
       updateSprint({ id: sprintId, updates: { status: "closed", closedAt: new Date().toISOString() } });
-      toast({ title: "Sprint closed" });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["sprints"] });
+      
+      // Show rollover summary if tasks were moved
+      if (result.rolloverSummary) {
+        const { completedTasks, rolledOverTasks, movedToBacklog, nextSprintName } = result.rolloverSummary;
+        let description = `${completedTasks} tasks completed.`;
+        if (rolledOverTasks > 0) {
+          description += ` ${rolledOverTasks} tasks rolled over to ${nextSprintName}.`;
+        }
+        if (movedToBacklog > 0) {
+          description += ` ${movedToBacklog} tasks moved to backlog.`;
+        }
+        toast({ title: "Sprint closed", description });
+      } else {
+        toast({ title: "Sprint closed" });
+      }
     } catch (error: any) {
       toast({ title: "Failed to close sprint", description: error.message, variant: "destructive" });
     }
-  }, [sprintId, updateSprint, toast]);
+  }, [sprintId, updateSprint, queryClient, toast]);
 
   const handleCloseSprintWithRollover = useCallback(async () => {
     const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
@@ -178,10 +195,25 @@ export function useSprintActions({
       toast({ title: "Failed to close sprint", description: err.error, variant: "destructive" });
       throw new Error(err.error);
     }
+    const result = await response.json();
     updateSprint({ id: sprintId, updates: { status: "closed", closedAt: new Date().toISOString() } });
     queryClient.invalidateQueries({ queryKey: ["sprints"] });
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    toast({ title: "Sprint closed successfully" });
+    
+    // Show rollover summary
+    if (result.rolloverSummary) {
+      const { completedTasks, rolledOverTasks, movedToBacklog, nextSprintName } = result.rolloverSummary;
+      let description = `${completedTasks} tasks completed.`;
+      if (rolledOverTasks > 0) {
+        description += ` ${rolledOverTasks} tasks rolled over to ${nextSprintName}.`;
+      }
+      if (movedToBacklog > 0) {
+        description += ` ${movedToBacklog} tasks moved to backlog.`;
+      }
+      toast({ title: "Sprint closed successfully", description });
+    } else {
+      toast({ title: "Sprint closed successfully" });
+    }
     setLocation(`/projects/${projectId}?tab=sprints`);
   }, [sprintId, projectId, updateSprint, queryClient, toast, setLocation]);
 

@@ -90,8 +90,69 @@ export function registerSprintRoutes(
       if (sprint.status !== "active") {
         return res.status(400).json({ error: "Only active sprints can be closed" });
       }
-      const updated = await storage.updateSprint(req.params.id, { status: "closed" });
-      res.json(updated);
+      
+      // Get all tasks in this sprint
+      const allTasks = await storage.getTasksByProjectId(sprint.projectId);
+      const sprintTasks = allTasks.filter(t => t.sprintId === sprint.id);
+      
+      // Identify incomplete tasks (not in completed statuses)
+      const completedLabels = await getCompletedStatusLabels();
+      const incompleteTasks = sprintTasks.filter(t => 
+        !t.status || !completedLabels.has(t.status)
+      );
+      
+      // Find the next planned sprint for this project (ordered by start date)
+      const projectSprints = await storage.getSprintsByProjectId(sprint.projectId);
+      const nextSprint = projectSprints
+        .filter(s => s.id !== sprint.id && s.status === "planned")
+        .sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""))[0];
+      
+      let rolledOverCount = 0;
+      
+      // Move incomplete tasks to next sprint (or keep in backlog if no next sprint)
+      if (incompleteTasks.length > 0) {
+        for (const task of incompleteTasks) {
+          if (nextSprint) {
+            await storage.updateTask(task.id, { sprintId: nextSprint.id });
+            await storage.createSprintScopeEvent({
+              sprintId: nextSprint.id,
+              taskId: task.id,
+              eventType: "added",
+              userId: null,
+              note: `Auto-rolled over from ${sprint.name}`
+            });
+            rolledOverCount++;
+          } else {
+            // No next sprint - move to backlog
+            await storage.updateTask(task.id, { sprintId: null });
+          }
+          // Log removal from closing sprint
+          await storage.createSprintScopeEvent({
+            sprintId: sprint.id,
+            taskId: task.id,
+            eventType: "removed",
+            userId: null,
+            note: nextSprint ? `Rolled over to ${nextSprint.name}` : "Moved to backlog"
+          });
+        }
+      }
+      
+      const updated = await storage.updateSprint(req.params.id, { 
+        status: "closed",
+        closedAt: new Date()
+      });
+      
+      res.json({
+        ...updated,
+        rolloverSummary: {
+          totalTasks: sprintTasks.length,
+          completedTasks: sprintTasks.length - incompleteTasks.length,
+          rolledOverTasks: rolledOverCount,
+          movedToBacklog: incompleteTasks.length - rolledOverCount,
+          nextSprintId: nextSprint?.id || null,
+          nextSprintName: nextSprint?.name || null
+        }
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
