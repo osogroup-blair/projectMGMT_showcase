@@ -850,7 +850,7 @@ async function createDeliverablesWithEpicsAndTasks(
         const milestoneId = findMilestoneForStage(epicConfig.stage);
         
         // Determine task status based on epic progress - using App Default statuses
-        let taskStatus = TASK_STATUS.BACKLOGGED;
+        let taskStatus: string = TASK_STATUS.BACKLOGGED;
         if (epicConfig.progress >= 100) {
           taskStatus = TASK_STATUS.DONE;
         } else if (epicConfig.progress > 0) {
