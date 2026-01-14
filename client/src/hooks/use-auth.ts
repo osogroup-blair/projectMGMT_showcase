@@ -90,10 +90,13 @@ export function useAuth() {
 
   // Check if user is admin (considering impersonation)
   const realUserRole = user?.realUser?.systemRole || (!user?.isImpersonating ? user?.systemRole : null);
+  const realUserId = user?.realUser?.id || (!user?.isImpersonating ? user?.id : null);
   const isAdmin = realUserRole === "admin";
   
   // Demo users can impersonate but can't access admin features
-  const canImpersonate = realUserRole === "admin" || realUserRole === "demo";
+  // Check both role and ID prefix for demo users
+  const isDemoUser = realUserRole === "demo" || (realUserId ? realUserId.startsWith("demo-") : false);
+  const canImpersonate = isAdmin || isDemoUser;
 
   return {
     user,
@@ -104,6 +107,7 @@ export function useAuth() {
     isImpersonating: user?.isImpersonating ?? false,
     realUser: user?.realUser ?? null,
     isAdmin,
+    isDemoUser,
     canImpersonate,
     impersonate: impersonateMutation.mutate,
     isImpersonating_loading: impersonateMutation.isPending,

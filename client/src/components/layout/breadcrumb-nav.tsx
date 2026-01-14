@@ -38,7 +38,7 @@ export function BreadcrumbNav() {
   const { data: projects } = useProjects();
   const { data: allMilestones } = useMilestones();
   const { data: allSprints } = useSprints();
-  const { user, isAdmin, canImpersonate, isImpersonating, realUser, impersonate, stopImpersonation, isImpersonating_loading, isStoppingImpersonation } = useAuth();
+  const { user, isAdmin, isDemoUser, canImpersonate, isImpersonating, realUser, impersonate, stopImpersonation, isImpersonating_loading, isStoppingImpersonation } = useAuth();
   
   const { data: usersWithCounts } = useQuery<Array<{
     id: string;
@@ -323,7 +323,16 @@ export function BreadcrumbNav() {
                   <CommandList>
                     <CommandEmpty>No users found</CommandEmpty>
                     <CommandGroup heading="Users">
-                      {(usersWithCounts || []).map((u) => (
+                      {(usersWithCounts || [])
+                        .filter((u) => {
+                          // Demo users can only see other demo users to impersonate
+                          if (isDemoUser) {
+                            return u.systemRole === "demo" || u.id.startsWith("demo-");
+                          }
+                          // Admins can see everyone
+                          return true;
+                        })
+                        .map((u) => (
                         <CommandItem 
                           key={u.id}
                           value={`${u.name || ''} ${u.firstName || ''} ${u.lastName || ''} ${u.email || ''}`}

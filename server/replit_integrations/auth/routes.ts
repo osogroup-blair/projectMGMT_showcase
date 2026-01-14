@@ -8,8 +8,20 @@ import { getGoogleAuthConfig } from "./googleAuth";
 // Roles that can use impersonation feature
 const IMPERSONATION_ROLES = ["admin", "demo"];
 
-function canImpersonate(role: string | null | undefined): boolean {
-  return IMPERSONATION_ROLES.includes(role || "");
+function canImpersonate(role: string | null | undefined, userId?: string | null): boolean {
+  // Check by role first
+  if (IMPERSONATION_ROLES.includes(role || "")) {
+    return true;
+  }
+  // Also allow users with demo- prefix (they have impersonation rights)
+  if (userId && userId.startsWith("demo-")) {
+    return true;
+  }
+  return false;
+}
+
+function isDemoUser(role: string | null | undefined, userId?: string | null): boolean {
+  return role === "demo" || (userId ? userId.startsWith("demo-") : false);
 }
 
 // Register auth-specific routes
@@ -24,7 +36,7 @@ export function registerAuthRoutes(app: Express): void {
       // Check if admin/demo is impersonating another user
       const impersonatedUserId = req.session?.impersonatedUserId;
       
-      if (impersonatedUserId && canImpersonate(realUser?.systemRole)) {
+      if (impersonatedUserId && canImpersonate(realUser?.systemRole, realUser?.id)) {
         const impersonatedUser = await authStorage.getUser(impersonatedUserId);
         if (impersonatedUser) {
           res.json({
@@ -59,7 +71,7 @@ export function registerAuthRoutes(app: Express): void {
       const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
       
-      if (!canImpersonate(realUser?.systemRole)) {
+      if (!canImpersonate(realUser?.systemRole, realUser?.id)) {
         return res.status(403).json({ error: "Only admins and demo users can impersonate users" });
       }
       
@@ -75,8 +87,8 @@ export function registerAuthRoutes(app: Express): void {
       }
       
       // Demo users can only impersonate other demo users
-      if (realUser?.systemRole === "demo") {
-        const isDemoTarget = targetUser.systemRole === "demo" || targetUser.id.startsWith("demo-");
+      if (isDemoUser(realUser?.systemRole, realUser?.id)) {
+        const isDemoTarget = isDemoUser(targetUser?.systemRole, targetUser?.id);
         if (!isDemoTarget) {
           return res.status(403).json({ error: "Demo users can only impersonate other demo users" });
         }
@@ -107,7 +119,7 @@ export function registerAuthRoutes(app: Express): void {
       const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
       
-      if (!canImpersonate(realUser?.systemRole)) {
+      if (!canImpersonate(realUser?.systemRole, realUser?.id)) {
         return res.status(403).json({ error: "Only admins and demo users can stop impersonation" });
       }
       
@@ -187,11 +199,12 @@ export function registerAuthRoutes(app: Express): void {
       const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
       
-      const canUserImpersonate = canImpersonate(realUser?.systemRole);
+      const canUserImpersonate = canImpersonate(realUser?.systemRole, realUser?.id);
       const isAdmin = realUser?.systemRole === "admin";
+      const isDemo = isDemoUser(realUser?.systemRole, realUser?.id);
       
       if (!canUserImpersonate) {
-        return res.json({ isAdmin: false, canImpersonate: false, isImpersonating: false });
+        return res.json({ isAdmin: false, isDemo: false, canImpersonate: false, isImpersonating: false });
       }
       
       const impersonatedUserId = req.session?.impersonatedUserId;
@@ -200,6 +213,7 @@ export function registerAuthRoutes(app: Express): void {
         const impersonatedUser = await authStorage.getUser(impersonatedUserId);
         res.json({
           isAdmin,
+          isDemo,
           canImpersonate: true,
           isImpersonating: true,
           impersonatedUser: impersonatedUser ? {
@@ -210,7 +224,7 @@ export function registerAuthRoutes(app: Express): void {
           } : null,
         });
       } else {
-        res.json({ isAdmin, canImpersonate: true, isImpersonating: false });
+        res.json({ isAdmin, isDemo, canImpersonate: true, isImpersonating: false });
       }
     } catch (error) {
       console.error("Error getting impersonation status:", error);
