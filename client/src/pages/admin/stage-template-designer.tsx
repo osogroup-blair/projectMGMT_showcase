@@ -7,10 +7,7 @@ import {
   Save, 
   Plus, 
   Trash2, 
-  Settings2,
   Check,
-  ChevronRight,
-  GripVertical,
   Pencil,
   X,
   Layout,
@@ -36,8 +33,7 @@ import { useStageTemplates, useTaskTemplates, useRoleTemplates, useMilestoneTemp
 import { 
   StageTemplate, 
   TaskTemplate, 
-  RoleTemplate, 
-  TASK_STATUS_OPTIONS
+  RoleTemplate 
 } from "@/lib/mock-data";
 
 export default function StageTemplateDesigner() {
@@ -64,15 +60,9 @@ export default function StageTemplateDesigner() {
     defaultTasks: [],
     defaultRoles: [],
     entryCriteria: "",
-    exitCriteria: "",
-    allowedTaskStatuses: ["ts1", "ts2", "ts4"]
+    exitCriteria: ""
   });
   const [isSaving, setIsSaving] = useState(false);
-
-  // Local state for managing statuses within the stage
-  const [localStatuses, setLocalStatuses] = useState(TASK_STATUS_OPTIONS);
-  const [newStatus, setNewStatus] = useState({ label: "", color: "bg-slate-100 text-slate-700" });
-  const [isAddingStatus, setIsAddingStatus] = useState(false);
 
   // Task Management State
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -150,6 +140,16 @@ export default function StageTemplateDesigner() {
         // Update existing task
         await updateTask({ id: existingTask.id, updates: currentTask });
         setLocalTaskTemplates(prev => prev.map(t => t.id === existingTask.id ? { ...t, ...currentTask } as TaskTemplate : t));
+        
+        // Auto-add the role to stage roles if assigned
+        if (currentTask.assignedRoleId) {
+          setFormData(prev => ({
+            ...prev,
+            defaultRoles: prev.defaultRoles?.includes(currentTask.assignedRoleId!) 
+              ? prev.defaultRoles 
+              : [...(prev.defaultRoles || []), currentTask.assignedRoleId!]
+          }));
+        }
       } else {
         // Create new task - let the API generate the ID
         const taskToCreate = {
@@ -166,10 +166,21 @@ export default function StageTemplateDesigner() {
         
         // Add to local state with the actual ID from the database
         setLocalTaskTemplates(prev => [...prev, createdTask]);
+        const newTaskList = [...(formData.defaultTasks || []), createdTask.id];
         setFormData(prev => ({
           ...prev,
-          defaultTasks: [...(prev.defaultTasks || []), createdTask.id]
+          defaultTasks: newTaskList
         }));
+        
+        // Auto-add the role to stage roles if assigned
+        if (createdTask.assignedRoleId) {
+          setFormData(prev => ({
+            ...prev,
+            defaultRoles: prev.defaultRoles?.includes(createdTask.assignedRoleId!) 
+              ? prev.defaultRoles 
+              : [...(prev.defaultRoles || []), createdTask.assignedRoleId!]
+          }));
+        }
       }
 
       setIsTaskFormOpen(false);
@@ -206,40 +217,19 @@ export default function StageTemplateDesigner() {
     });
   };
 
-  const toggleStatus = (statusId: string) => {
-    setFormData(prev => {
-      const current = prev.allowedTaskStatuses || [];
-      const updated = current.includes(statusId)
-        ? current.filter(id => id !== statusId)
-        : [...current, statusId];
-      return { ...prev, allowedTaskStatuses: updated };
+  const updateStageRolesFromTasks = (taskList: string[]) => {
+    const roleIds = new Set<string>();
+    taskList.forEach(taskId => {
+      const task = localTaskTemplates.find(t => t.id === taskId);
+      if (task?.assignedRoleId) {
+        roleIds.add(task.assignedRoleId);
+      }
     });
-  };
-
-  const handleAddStatus = () => {
-    if (!newStatus.label) return;
-    const id = `ts_${Date.now()}`;
-    const status = { id, label: newStatus.label, color: newStatus.color, type: "task" as const };
-    
-    setLocalStatuses([...localStatuses, status]);
-    // Automatically select the new status
     setFormData(prev => ({
       ...prev,
-      allowedTaskStatuses: [...(prev.allowedTaskStatuses || []), id]
+      defaultRoles: Array.from(roleIds)
     }));
-    
-    setNewStatus({ label: "", color: "bg-slate-100 text-slate-700" });
-    setIsAddingStatus(false);
   };
-
-  const statusColors = [
-    { label: "Slate", value: "bg-slate-100 text-slate-700" },
-    { label: "Blue", value: "bg-blue-50 text-blue-700" },
-    { label: "Green", value: "bg-green-50 text-green-700" },
-    { label: "Amber", value: "bg-amber-50 text-amber-700" },
-    { label: "Red", value: "bg-red-50 text-red-700" },
-    { label: "Purple", value: "bg-purple-50 text-purple-700" },
-  ];
 
   if (isLoading) {
     return (
@@ -323,103 +313,48 @@ export default function StageTemplateDesigner() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings2 className="h-5 w-5 text-muted-foreground" />
-                  Workflow Configuration
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  Stage Roles
                 </CardTitle>
-                <CardDescription>Define allowed statuses and required roles.</CardDescription>
+                <CardDescription>Roles are automatically set based on task assignments, or add manually below.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Allowed Statuses</Label>
-                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setIsAddingStatus(!isAddingStatus)}>
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Status
-                    </Button>
-                  </div>
-                  
-                  {isAddingStatus && (
-                    <div className="p-3 border rounded-md bg-muted/30 space-y-3 mb-2 animate-in slide-in-from-top-2">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Status Name</Label>
-                        <Input 
-                          value={newStatus.label} 
-                          onChange={(e) => setNewStatus({ ...newStatus, label: e.target.value })}
-                          placeholder="e.g. Needs Approval"
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Color Theme</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {statusColors.map((color) => (
-                            <div 
-                              key={color.label}
-                              className={cn(
-                                "w-6 h-6 rounded-full cursor-pointer border-2 transition-all",
-                                color.value.replace("text", "bg").split(" ")[0].replace("50", "500"),
-                                newStatus.color === color.value ? "border-primary scale-110" : "border-transparent opacity-70 hover:opacity-100"
-                              )}
-                              onClick={() => setNewStatus({ ...newStatus, color: color.value })}
-                              title={color.label}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2 pt-1">
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setIsAddingStatus(false)}>Cancel</Button>
-                        <Button size="sm" className="h-7 text-xs" onClick={handleAddStatus}>Add</Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 gap-2">
-                    {localStatuses.map(status => (
-                      <div key={status.id} className="flex items-center space-x-2 p-2 rounded hover:bg-muted/50 transition-colors group">
-                        <Checkbox 
-                          id={`status-${status.id}`}
-                          checked={formData.allowedTaskStatuses?.includes(status.id)}
-                          onCheckedChange={() => toggleStatus(status.id)}
-                        />
-                        <Label htmlFor={`status-${status.id}`} className="flex items-center gap-2 cursor-pointer w-full font-normal">
-                           <div className={cn("w-2 h-2 rounded-full", status.color.replace("text", "bg").split(" ")[0].replace("50", "500"))} />
-                          {status.label}
-                        </Label>
-                        {!TASK_STATUS_OPTIONS.some(s => s.id === status.id) && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => {
-                              setLocalStatuses(prev => prev.filter(s => s.id !== status.id));
-                              if (formData.allowedTaskStatuses?.includes(status.id)) {
-                                toggleStatus(status.id);
-                              }
-                            }}
-                          >
-                            <X className="h-3 w-3 text-muted-foreground" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Default Roles</Label>
-                  <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto">
-                    {((roleTemplates || []) as RoleTemplate[]).map(role => (
-                      <div key={role.id} className="flex items-center space-x-2 p-2 rounded hover:bg-muted/50 transition-colors">
-                        <Checkbox 
-                          id={`role-${role.id}`}
-                          checked={formData.defaultRoles?.includes(role.id)}
-                          onCheckedChange={() => toggleRole(role.id)}
-                        />
-                        <Label htmlFor={`role-${role.id}`} className="flex-1 cursor-pointer font-normal">
+              <CardContent className="space-y-4">
+                {formData.defaultRoles && formData.defaultRoles.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.defaultRoles.map(roleId => {
+                      const role = (roleTemplates as RoleTemplate[])?.find(r => r.id === roleId);
+                      return role ? (
+                        <Badge key={roleId} variant="secondary" className="px-3 py-1 gap-2">
                           {role.name}
-                        </Label>
+                          <button
+                            onClick={() => toggleRole(roleId)}
+                            className="hover:text-destructive transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No roles assigned. Add tasks with roles to auto-populate.</p>
+                )}
+                <Separator />
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Add Role Manually</Label>
+                  <div className="grid grid-cols-1 gap-2 max-h-[150px] overflow-y-auto">
+                    {((roleTemplates || []) as RoleTemplate[])
+                      .filter(role => !formData.defaultRoles?.includes(role.id))
+                      .map(role => (
+                      <div 
+                        key={role.id} 
+                        className="flex items-center space-x-2 p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => toggleRole(role.id)}
+                      >
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                        <span className="flex-1 font-normal text-sm">
+                          {role.name}
+                        </span>
                       </div>
                     ))}
                   </div>
