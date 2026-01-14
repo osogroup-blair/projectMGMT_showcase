@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -149,6 +150,14 @@ export default function FrameworkTemplateDetail() {
   const [currentMilestone, setCurrentMilestone] = useState<Partial<MilestoneTemplate> | null>(null);
   const [selectedStageForMilestone, setSelectedStageForMilestone] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Custom task creation state
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [currentTask, setCurrentTask] = useState<any>(null);
+  const [selectedStageForTask, setSelectedStageForTask] = useState<string | null>(null);
+  
+  // Track active tab per expanded stage
+  const [stageActiveTabs, setStageActiveTabs] = useState<Record<string, string>>({});
 
   // Sync form when framework loads
   useMemo(() => {
@@ -409,6 +418,93 @@ export default function FrameworkTemplateDetail() {
     }
   };
 
+  // Task CRUD within stage context
+  const { createAsync: createTask, updateAsync: updateTask, removeAsync: removeTask } = useTaskTemplates();
+
+  const openAddTaskDialog = (stageId: string) => {
+    setSelectedStageForTask(stageId);
+    setCurrentTask({
+      title: "",
+      description: "",
+      defaultPriority: "Medium",
+      defaultEffort: 1,
+      defaultAssigneeRole: ""
+    });
+    setIsTaskDialogOpen(true);
+  };
+
+  const openEditTaskDialog = (task: any, stageId: string) => {
+    setSelectedStageForTask(stageId);
+    setCurrentTask({ ...task });
+    setIsTaskDialogOpen(true);
+  };
+
+  const handleSaveTask = async () => {
+    if (!currentTask?.title?.trim()) {
+      toast({ title: "Error", description: "Task title is required", variant: "destructive" });
+      return;
+    }
+
+    try {
+      if (currentTask.id) {
+        // Update existing task
+        await updateTask({
+          id: currentTask.id,
+          updates: currentTask
+        });
+        toast({ title: "Success", description: "Task template updated" });
+      } else {
+        // Create new task and add to stage
+        const newId = `tt${Date.now()}`;
+        await createTask({
+          id: newId,
+          ...currentTask
+        });
+        
+        // Add to stage's defaultTasks
+        if (selectedStageForTask) {
+          const stage = stageTemplates?.find(s => s.id === selectedStageForTask);
+          if (stage) {
+            await updateStage({
+              id: stage.id,
+              updates: {
+                defaultTasks: [...(stage.defaultTasks || []), newId]
+              }
+            });
+          }
+        }
+        toast({ title: "Success", description: "Task template created and added to stage" });
+      }
+      setIsTaskDialogOpen(false);
+      setCurrentTask(null);
+      setSelectedStageForTask(null);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleRemoveTaskFromStage = async (taskId: string, stageId: string) => {
+    const stage = stageTemplates?.find(s => s.id === stageId);
+    if (!stage) return;
+
+    try {
+      await updateStage({
+        id: stage.id,
+        updates: {
+          defaultTasks: (stage.defaultTasks || []).filter((id: string) => id !== taskId)
+        }
+      });
+      toast({ title: "Success", description: "Task removed from stage" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const getStageActiveTab = (stageId: string) => stageActiveTabs[stageId] || "tasks";
+  const setStageActiveTab = (stageId: string, tab: string) => {
+    setStageActiveTabs(prev => ({ ...prev, [stageId]: tab }));
+  };
+
   // Delete confirmation
   const confirmDelete = (type: "framework" | "stage" | "milestone", item: any) => {
     setDeleteTarget({ type, item });
@@ -651,108 +747,168 @@ export default function FrameworkTemplateDetail() {
                           </CollapsibleTrigger>
                           <CollapsibleContent>
                             <Separator />
-                            <div className="p-4 pl-16 bg-muted/30 space-y-6">
-                              {/* Tasks Section */}
-                              <div>
-                                <div className="flex items-center justify-between mb-3">
-                                  <h5 className="text-sm font-medium flex items-center gap-2">
-                                    <ListTodo className="h-4 w-4" />
-                                    Default Tasks
-                                  </h5>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => openEditStageDialog(stage)}
-                                  >
-                                    <Pencil className="h-4 w-4 mr-1" />
-                                    Edit Tasks
-                                  </Button>
+                            <div className="p-4 pl-8 bg-muted/30">
+                              <Tabs value={getStageActiveTab(stage.id)} onValueChange={(v) => setStageActiveTab(stage.id, v)}>
+                                <div className="flex items-center justify-between mb-4">
+                                  <TabsList>
+                                    <TabsTrigger value="tasks" className="gap-1.5">
+                                      <ListTodo className="h-3.5 w-3.5" />
+                                      Tasks ({(stage.defaultTasks || []).length})
+                                    </TabsTrigger>
+                                    <TabsTrigger value="milestones" className="gap-1.5">
+                                      <Flag className="h-3.5 w-3.5" />
+                                      Milestones ({stageMilestones.length})
+                                    </TabsTrigger>
+                                  </TabsList>
                                 </div>
-                                {(stage.defaultTasks || []).length === 0 ? (
-                                  <p className="text-sm text-muted-foreground py-2">
-                                    No default tasks for this stage. Edit the stage to add tasks.
-                                  </p>
-                                ) : (
-                                  <div className="flex flex-wrap gap-2">
-                                    {(stage.defaultTasks || []).map((taskId: string) => {
-                                      const task = taskTemplates?.find(t => t.id === taskId);
-                                      return (
-                                        <Badge key={taskId} variant="outline" className="gap-1">
-                                          <ListTodo className="h-3 w-3" />
-                                          {task?.title || task?.name || taskId}
-                                        </Badge>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
 
-                              {/* Milestones Section */}
-                              <div>
-                                <div className="flex items-center justify-between mb-3">
-                                  <h5 className="text-sm font-medium flex items-center gap-2">
-                                    <Flag className="h-4 w-4" />
-                                    Milestones
-                                  </h5>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => openAddMilestoneDialog(stage.id)}
-                                  >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Add Milestone
-                                  </Button>
-                                </div>
-                                {stageMilestones.length === 0 ? (
-                                  <p className="text-sm text-muted-foreground py-2">
-                                    No milestones for this stage.
-                                  </p>
-                                ) : (
-                                  <div className="space-y-2">
-                                    {stageMilestones.map((milestone) => (
-                                      <div
-                                        key={milestone.id}
-                                        className="flex items-center justify-between p-3 bg-background rounded-md border"
-                                      >
-                                        <div className="flex items-center gap-3">
-                                          <Flag className="h-4 w-4 text-muted-foreground" />
-                                          <div>
-                                            <p className="font-medium text-sm">{milestone.name}</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                              <Badge variant="outline" className="text-xs">
-                                                {milestone.phase}
-                                              </Badge>
-                                              {milestone.isBillingGate && (
-                                                <Badge variant="secondary" className="text-xs">
-                                                  Billing Gate
-                                                </Badge>
-                                              )}
+                                {/* Tasks Tab */}
+                                <TabsContent value="tasks" className="mt-0">
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                      <SearchableSelect
+                                        value=""
+                                        onValueChange={(taskId) => {
+                                          if (taskId && !(stage.defaultTasks || []).includes(taskId)) {
+                                            updateStage({
+                                              id: stage.id,
+                                              updates: {
+                                                defaultTasks: [...(stage.defaultTasks || []), taskId]
+                                              }
+                                            });
+                                          }
+                                        }}
+                                        placeholder="Add existing task template..."
+                                        triggerClassName="flex-1"
+                                        options={(taskTemplates || [])
+                                          .filter(t => !(stage.defaultTasks || []).includes(t.id))
+                                          .map(t => ({
+                                            value: t.id,
+                                            label: t.title || t.name || "Untitled Task"
+                                          }))}
+                                      />
+                                      <Button size="sm" onClick={() => openAddTaskDialog(stage.id)}>
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        New Task
+                                      </Button>
+                                    </div>
+
+                                    {(stage.defaultTasks || []).length === 0 ? (
+                                      <p className="text-sm text-muted-foreground py-4 text-center">
+                                        No tasks in this stage. Add existing templates or create new ones.
+                                      </p>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        {(stage.defaultTasks || []).map((taskId: string, idx: number) => {
+                                          const task = taskTemplates?.find(t => t.id === taskId);
+                                          return (
+                                            <div
+                                              key={taskId}
+                                              className="flex items-center justify-between p-3 bg-background rounded-md border"
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                <span className="text-muted-foreground text-xs w-5">{idx + 1}.</span>
+                                                <ListTodo className="h-4 w-4 text-muted-foreground" />
+                                                <div>
+                                                  <p className="font-medium text-sm">{task?.title || task?.name || taskId}</p>
+                                                  {task?.description && (
+                                                    <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>
+                                                  )}
+                                                </div>
+                                                {task?.defaultPriority && (
+                                                  <Badge variant="outline" className="text-xs">
+                                                    {task.defaultPriority}
+                                                  </Badge>
+                                                )}
+                                              </div>
+                                              <div className="flex items-center gap-1">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-8 w-8"
+                                                  onClick={() => openEditTaskDialog(task, stage.id)}
+                                                >
+                                                  <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                                  onClick={() => handleRemoveTaskFromStage(taskId, stage.id)}
+                                                >
+                                                  <X className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </TabsContent>
+
+                                {/* Milestones Tab */}
+                                <TabsContent value="milestones" className="mt-0">
+                                  <div className="space-y-3">
+                                    <div className="flex justify-end">
+                                      <Button size="sm" onClick={() => openAddMilestoneDialog(stage.id)}>
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Add Milestone
+                                      </Button>
+                                    </div>
+
+                                    {stageMilestones.length === 0 ? (
+                                      <p className="text-sm text-muted-foreground py-4 text-center">
+                                        No milestones for this stage.
+                                      </p>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        {stageMilestones.map((milestone) => (
+                                          <div
+                                            key={milestone.id}
+                                            className="flex items-center justify-between p-3 bg-background rounded-md border"
+                                          >
+                                            <div className="flex items-center gap-3">
+                                              <Flag className="h-4 w-4 text-muted-foreground" />
+                                              <div>
+                                                <p className="font-medium text-sm">{milestone.name}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                  <Badge variant="outline" className="text-xs">
+                                                    {milestone.phase}
+                                                  </Badge>
+                                                  {milestone.isBillingGate && (
+                                                    <Badge variant="secondary" className="text-xs">
+                                                      Billing Gate
+                                                    </Badge>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={() => openEditMilestoneDialog(milestone)}
+                                              >
+                                                <Pencil className="h-4 w-4" />
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                                onClick={() => confirmDelete("milestone", milestone)}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
                                             </div>
                                           </div>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() => openEditMilestoneDialog(milestone)}
-                                          >
-                                            <Pencil className="h-4 w-4" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-destructive hover:text-destructive"
-                                            onClick={() => confirmDelete("milestone", milestone)}
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </div>
+                                        ))}
                                       </div>
-                                    ))}
+                                    )}
                                   </div>
-                                )}
-                              </div>
+                                </TabsContent>
+                              </Tabs>
                             </div>
                           </CollapsibleContent>
                         </div>
@@ -1037,6 +1193,88 @@ export default function FrameworkTemplateDetail() {
             </Button>
             <Button onClick={handleSaveMilestone}>
               {currentMilestone?.id ? "Update Milestone" : "Create Milestone"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task Dialog */}
+      <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {currentTask?.id ? "Edit Task Template" : "New Task Template"}
+            </DialogTitle>
+            <DialogDescription>
+              Create a new task template that will be added to this stage.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Title *</Label>
+              <Input
+                id="task-title"
+                value={currentTask?.title || ""}
+                onChange={(e) => setCurrentTask((prev: any) => ({ ...prev, title: e.target.value }))}
+                placeholder="e.g., Create wireframes, Write unit tests"
+                data-testid="input-task-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-description">Description</Label>
+              <Textarea
+                id="task-description"
+                value={currentTask?.description || ""}
+                onChange={(e) => setCurrentTask((prev: any) => ({ ...prev, description: e.target.value }))}
+                placeholder="What needs to be done?"
+                rows={3}
+                data-testid="input-task-description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-priority">Priority</Label>
+                <SearchableSelect
+                  value={currentTask?.defaultPriority || "Medium"}
+                  onValueChange={(v) => setCurrentTask((prev: any) => ({ ...prev, defaultPriority: v }))}
+                  options={[
+                    { value: "Low", label: "Low" },
+                    { value: "Medium", label: "Medium" },
+                    { value: "High", label: "High" },
+                    { value: "Critical", label: "Critical" }
+                  ]}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="task-effort">Effort (hours)</Label>
+                <Input
+                  id="task-effort"
+                  type="number"
+                  min={0}
+                  value={currentTask?.defaultEffort || 1}
+                  onChange={(e) => setCurrentTask((prev: any) => ({ ...prev, defaultEffort: parseFloat(e.target.value) || 1 }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-role">Default Assignee Role</Label>
+              <SearchableSelect
+                value={currentTask?.defaultAssigneeRole || ""}
+                onValueChange={(v) => setCurrentTask((prev: any) => ({ ...prev, defaultAssigneeRole: v }))}
+                placeholder="Select a role..."
+                options={[
+                  { value: "", label: "None" },
+                  ...(roleTemplates || []).map(r => ({ value: r.id, label: r.name }))
+                ]}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveTask}>
+              {currentTask?.id ? "Update Task" : "Create Task"}
             </Button>
           </DialogFooter>
         </DialogContent>
