@@ -54,13 +54,9 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  // Check token expiration if available
-  if (user.expires_at) {
-    const now = Math.floor(Date.now() / 1000);
-    if (now > user.expires_at) {
-      return res.status(401).json({ message: "Session expired" });
-    }
-  }
+  // Session expiration is handled by express-session and the PostgreSQL session store
+  // The session TTL (1 week) is the authoritative expiration, not the OAuth token's expires_at
+  // OAuth token expiration (typically 1 hour) should not invalidate the user's session
 
   return next();
 };
