@@ -29,6 +29,7 @@ import { registerTemplateRoutes } from "./routes/templates";
 import { registerConfigRoutes } from "./routes/config";
 import { registerImportExportRoutes } from "./routes/import-export";
 import { registerScheduleSyncRoutes } from "./routes/schedule-sync";
+import { registerSearchRoutes } from "./routes/search";
 import rolesPermissionsRoutes from "./routes/roles-permissions";
 import { seedRolesAndPermissions } from "../services/roles-permissions-service";
 
@@ -292,6 +293,9 @@ export async function registerRoutes(
 
   // Register schedule-sync routes
   registerScheduleSyncRoutes(app, getAuthUserId);
+
+  // Register search routes
+  registerSearchRoutes(app, getAuthUserId);
 
   // Register roles & permissions routes
   app.use("/api/roles-permissions", rolesPermissionsRoutes);

@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Search, LogOut, User, Settings, HelpCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/context/current-user-context";
+import { SearchCommandPalette } from "./search-command-palette";
 
 export function TopNav() {
   const { currentUser } = useCurrentUser();
   const [, setLocation] = useLocation();
+  const [searchOpen, setSearchOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
   
   const displayName = currentUser?.name || 
     `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 
@@ -43,18 +57,26 @@ export function TopNav() {
       </div>
 
       <div className="max-w-md w-full">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-sidebar-foreground/70" />
-          <input 
-            className="flex h-9 w-full rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1 text-sm shadow-xs transition-colors placeholder:text-sidebar-foreground/50 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-sidebar-ring disabled:cursor-not-allowed disabled:opacity-50 pl-9 text-sidebar-foreground"
-            placeholder="Search..." 
-            data-testid="input-search"
-          />
-          <kbd className="pointer-events-none absolute right-2.5 top-2.5 inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar-accent px-1.5 font-mono text-[10px] font-medium text-sidebar-foreground/70">
-            <span className="text-xs">⌘</span>K
-          </kbd>
-        </div>
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="relative w-full"
+          data-testid="button-open-search"
+        >
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-sidebar-foreground/70" />
+            <div 
+              className="flex h-9 w-full rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1 text-sm shadow-xs transition-colors pl-9 text-sidebar-foreground/50 text-left cursor-pointer hover:bg-sidebar-accent/70"
+            >
+              Search...
+            </div>
+            <kbd className="pointer-events-none absolute right-2.5 top-2.5 inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar-accent px-1.5 font-mono text-[10px] font-medium text-sidebar-foreground/70">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </div>
+        </button>
       </div>
+
+      <SearchCommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
 
       <div className="absolute right-6 flex items-center gap-4">
         <div className="text-right hidden sm:block">
