@@ -754,9 +754,7 @@ export default function ProjectWizard() {
         
         if (linkedMilestoneTemplates.length > 0) {
           const wizardMilestones: WizardMilestone[] = linkedMilestoneTemplates.map((mt: any, idx: number) => {
-            const linkedStage = frameworkStages.find((s: any) => 
-              stageTemplates.find((st: any) => st.id === mt.stageTemplateId)?.id === mt.stageTemplateId
-            );
+            const linkedStage = frameworkStages.find((stage: any) => stage.id === mt.stageTemplateId);
             
             return {
               id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
@@ -774,6 +772,8 @@ export default function ProjectWizard() {
             };
           });
           setMilestones(wizardMilestones);
+        } else {
+          setMilestones([]);
         }
       }
 
@@ -857,10 +857,7 @@ export default function ProjectWizard() {
       
       if (linkedMilestoneTemplates.length > 0) {
         const wizardMilestones: WizardMilestone[] = linkedMilestoneTemplates.map((mt: any, idx: number) => {
-          // Find the stage this milestone is linked to for date calculation
-          const linkedStage = frameworkStages.find((s: any) => 
-            stageTemplates.find((st: any) => st.id === mt.stageTemplateId)?.id === mt.stageTemplateId
-          );
+          const linkedStage = frameworkStages.find((stage: any) => stage.id === mt.stageTemplateId);
           
           return {
             id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
@@ -878,6 +875,8 @@ export default function ProjectWizard() {
           };
         });
         setMilestones(wizardMilestones);
+      } else {
+        setMilestones([]);
       }
 
       const uniqueRoleIds = new Set<string>();
