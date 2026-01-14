@@ -91,6 +91,7 @@ A repository pattern is used in `server/data/repositories/` for data access, wit
 -   **Import/Export System**: Supports multi-format (JSON, Excel/CSV, YAML) import with a 6-step wizard for file upload, entity/user/status mapping, preview, and results. Features nested Nexus export format support, array field normalization, and foreign key validation.
 -   **Homepage Current Projects Kanban**: An interactive Kanban board on the homepage displaying tasks for projects with user involvement, supporting filtering by Assignee, Epic, Milestone, and Sprint.
 -   **Identity Linking System**: Allows users to link multiple external accounts (e.g., ClickUp, Jira, Asana, Google) to their Nymbl profile, managed via the profile page or by administrators. Supports user merging.
+-   **Milestone Template Scope Rules**: Milestone templates support rule-based scoping to automatically match tasks when applied to projects. Rules can filter by stage, epic type, and task template. Scope rules are defined in framework editor and stored in `defaultScopeRules` JSONB field with typed `MilestoneScopeRule` interface.
 
 ### File Structure
 
