@@ -648,6 +648,9 @@ export function registerTemplateRoutes(
         order: item.order ?? 0,
       });
 
+      // Track errors during import
+      const errors: { type: string; id: string; name: string; error: string }[] = [];
+
       // Helper to import a template type and build ID mappings
       // matchField: 'name' for stage/framework/role/mapping, 'title' for task/deliverable/epic/project
       const importTemplates = async (
@@ -665,32 +668,43 @@ export function registerTemplateRoutes(
         const existingByField = new Map(existing.map((e: any) => [e[matchField]?.toLowerCase?.(), e]));
 
         for (const item of items) {
-          const sanitized = sanitize ? sanitize(item) : item;
-          const fieldValue = sanitized[matchField]?.toLowerCase?.();
-          const importedId = item.id;
-          
-          // Check by ID first, then by name/title
-          let existingRecord = existingById.get(sanitized.id);
-          if (!existingRecord && fieldValue) {
-            existingRecord = existingByField.get(fieldValue);
-          }
-          
-          if (existingRecord) {
-            // Record the mapping from imported ID to existing ID
-            idMappings[key].set(importedId, existingRecord.id);
+          try {
+            const sanitized = sanitize ? sanitize(item) : item;
+            const fieldValue = sanitized[matchField]?.toLowerCase?.();
+            const importedId = item.id;
             
-            if (mode === "overwrite") {
-              // Update using the existing record's ID (not the imported ID)
-              await update(existingRecord.id, { ...sanitized, id: existingRecord.id });
-              results[key].updated++;
-            } else {
-              results[key].skipped++;
+            // Check by ID first, then by name/title
+            let existingRecord = existingById.get(sanitized.id);
+            if (!existingRecord && fieldValue) {
+              existingRecord = existingByField.get(fieldValue);
             }
-          } else {
-            // Create new record - capture the returned record's ID for accurate mapping
-            const created = await create(sanitized);
-            idMappings[key].set(importedId, created.id);
-            results[key].created++;
+            
+            if (existingRecord) {
+              // Record the mapping from imported ID to existing ID
+              idMappings[key].set(importedId, existingRecord.id);
+              
+              if (mode === "overwrite") {
+                // Update using the existing record's ID (not the imported ID)
+                await update(existingRecord.id, { ...sanitized, id: existingRecord.id });
+                results[key].updated++;
+              } else {
+                results[key].skipped++;
+              }
+            } else {
+              // Create new record - capture the returned record's ID for accurate mapping
+              const created = await create(sanitized);
+              idMappings[key].set(importedId, created.id);
+              results[key].created++;
+            }
+          } catch (err: any) {
+            const itemName = item.name || item.title || item.id;
+            console.error(`[Import Error] ${key}: ${itemName}`, err.message);
+            errors.push({
+              type: key,
+              id: item.id,
+              name: itemName,
+              error: err.message
+            });
           }
         }
       }
@@ -795,8 +809,18 @@ export function registerTemplateRoutes(
         "name"
       );
 
-      res.json({ success: true, results });
+      // Log ID mappings for debugging
+      console.log('[Import] Stage ID mappings:', Object.fromEntries(idMappings.stage));
+      
+      // Include errors in response if any occurred
+      if (errors.length > 0) {
+        console.error(`[Import] ${errors.length} errors occurred during import`);
+        res.json({ success: false, results, errors });
+      } else {
+        res.json({ success: true, results });
+      }
     } catch (error: any) {
+      console.error('[Import] Fatal error:', error);
       res.status(400).json({ error: error.message });
     }
   });
