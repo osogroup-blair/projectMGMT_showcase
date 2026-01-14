@@ -5,7 +5,9 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import { db } from "../../db";
 import { users, appSettings } from "@shared/models/auth";
+import { userIdentities } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 const MICROSOFT_ISSUER_URL = "https://login.microsoftonline.com";
 
@@ -64,6 +66,85 @@ export async function getMicrosoftAuthConfig(): Promise<{
   };
 }
 
+async function upsertOrLinkMicrosoftIdentity(userId: string, claims: any) {
+  const microsoftId = claims.sub || claims.oid;
+  const email = claims.email || claims.preferred_username;
+  const firstName = claims.given_name || '';
+  const lastName = claims.family_name || '';
+  const profileImageUrl = claims.picture;
+  const tenantId = claims.tid;
+
+  // Check if identity already exists for this user and Microsoft account
+  const existingIdentity = await db
+    .select()
+    .from(userIdentities)
+    .where(
+      and(
+        eq(userIdentities.userId, userId),
+        eq(userIdentities.systemId, "microsoft"),
+        eq(userIdentities.externalUserId, microsoftId)
+      )
+    )
+    .limit(1);
+
+  if (existingIdentity.length > 0) {
+    // Update existing identity with latest claims
+    await db
+      .update(userIdentities)
+      .set({
+        externalEmail: email,
+        workspaceId: tenantId,
+        profile: {
+          displayName: `${firstName} ${lastName}`.trim(),
+          avatarUrl: profileImageUrl,
+        },
+        auth: {
+          authType: "oauth",
+          provider: "microsoft",
+          scopes: ["openid", "email", "profile"],
+        },
+        lastSyncedAt: new Date(),
+        syncStatus: "healthy",
+        updatedAt: new Date(),
+      })
+      .where(eq(userIdentities.id, existingIdentity[0].id));
+    return existingIdentity[0];
+  }
+
+  // Create new identity record
+  const identityId = `microsoft-identity-${randomUUID()}`;
+  const [newIdentity] = await db
+    .insert(userIdentities)
+    .values({
+      id: identityId,
+      userId,
+      systemId: "microsoft",
+      systemType: "sso",
+      systemName: "Microsoft",
+      workspaceId: tenantId,
+      externalUserId: microsoftId,
+      externalUsername: email,
+      externalEmail: email,
+      identityType: "user",
+      status: "active",
+      auth: {
+        authType: "oauth",
+        provider: "microsoft",
+        scopes: ["openid", "email", "profile"],
+      },
+      profile: {
+        displayName: `${firstName} ${lastName}`.trim(),
+        avatarUrl: profileImageUrl,
+      },
+      syncSourceOfTruth: "external",
+      lastSyncedAt: new Date(),
+      syncStatus: "healthy",
+    })
+    .returning();
+
+  return newIdentity;
+}
+
 async function upsertMicrosoftUser(claims: any) {
   const email = claims.email || claims.preferred_username;
   const firstName = claims.given_name;
@@ -73,6 +154,7 @@ async function upsertMicrosoftUser(claims: any) {
   
   const name = [firstName, lastName].filter(Boolean).join(" ").trim() || email || "User";
   
+  // First check if user exists by Microsoft ID
   const existingByMicrosoftId = await db
     .select()
     .from(users)
@@ -80,21 +162,23 @@ async function upsertMicrosoftUser(claims: any) {
     .limit(1);
   
   if (existingByMicrosoftId.length > 0) {
-    const [updatedUser] = await db
+    const existingUser = existingByMicrosoftId[0];
+    // Do NOT overwrite names - only update profile image if missing
+    await db
       .update(users)
       .set({
-        email,
-        firstName,
-        lastName,
-        name,
-        profileImageUrl: profileImageUrl || existingByMicrosoftId[0].profileImageUrl,
+        email, // Email can change in Microsoft
+        profileImageUrl: existingUser.profileImageUrl || profileImageUrl,
         updatedAt: new Date(),
       })
-      .where(eq(users.microsoftId, microsoftId))
-      .returning();
-    return updatedUser;
+      .where(eq(users.microsoftId, microsoftId));
+    
+    // Create/update identity record with SSO claims
+    await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
+    return existingUser;
   }
   
+  // Check if user exists by email
   if (email) {
     const existingByEmail = await db
       .select()
@@ -103,23 +187,26 @@ async function upsertMicrosoftUser(claims: any) {
       .limit(1);
     
     if (existingByEmail.length > 0) {
-      const [updatedUser] = await db
+      const existingUser = existingByEmail[0];
+      // Link Microsoft ID but do NOT overwrite names
+      await db
         .update(users)
         .set({
           microsoftId,
-          authProvider: "microsoft",
-          firstName: firstName || existingByEmail[0].firstName,
-          lastName: lastName || existingByEmail[0].lastName,
-          name: name || existingByEmail[0].name,
-          profileImageUrl: profileImageUrl || existingByEmail[0].profileImageUrl,
+          authProvider: existingUser.authProvider || "microsoft",
+          // Only update profile image if user doesn't have one
+          profileImageUrl: existingUser.profileImageUrl || profileImageUrl,
           updatedAt: new Date(),
         })
-        .where(eq(users.email, email))
-        .returning();
-      return updatedUser;
+        .where(eq(users.email, email));
+      
+      // Create/update identity record with SSO claims
+      await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
+      return existingUser;
     }
   }
   
+  // Create new user - only for truly new users do we set names from SSO
   const [newUser] = await db
     .insert(users)
     .values({
@@ -133,6 +220,9 @@ async function upsertMicrosoftUser(claims: any) {
       authProvider: "microsoft",
     })
     .returning();
+  
+  // Create identity record for the new user
+  await upsertOrLinkMicrosoftIdentity(newUser.id, claims);
   
   return newUser;
 }

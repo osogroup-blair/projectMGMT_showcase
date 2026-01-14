@@ -4,8 +4,9 @@ import passport from "passport";
 import type { Express } from "express";
 import memoize from "memoizee";
 import { db } from "../../db";
-import { appSettings, users } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { appSettings, users, userIdentities } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 const getGoogleOidcConfig = memoize(
   async () => {
@@ -52,6 +53,82 @@ export async function getGoogleAuthConfig() {
   };
 }
 
+async function upsertOrLinkGoogleIdentity(userId: string, claims: any) {
+  const googleId = claims.sub;
+  const email = claims.email;
+  const firstName = claims.given_name || claims.name?.split(' ')[0] || '';
+  const lastName = claims.family_name || claims.name?.split(' ').slice(1).join(' ') || '';
+  const profileImageUrl = claims.picture;
+
+  // Check if identity already exists for this user and Google account
+  const existingIdentity = await db
+    .select()
+    .from(userIdentities)
+    .where(
+      and(
+        eq(userIdentities.userId, userId),
+        eq(userIdentities.systemId, "google"),
+        eq(userIdentities.externalUserId, googleId)
+      )
+    )
+    .limit(1);
+
+  if (existingIdentity.length > 0) {
+    // Update existing identity with latest claims
+    await db
+      .update(userIdentities)
+      .set({
+        externalEmail: email,
+        profile: {
+          displayName: `${firstName} ${lastName}`.trim(),
+          avatarUrl: profileImageUrl,
+        },
+        auth: {
+          authType: "oauth",
+          provider: "google",
+          scopes: ["openid", "email", "profile"],
+        },
+        lastSyncedAt: new Date(),
+        syncStatus: "healthy",
+        updatedAt: new Date(),
+      })
+      .where(eq(userIdentities.id, existingIdentity[0].id));
+    return existingIdentity[0];
+  }
+
+  // Create new identity record
+  const identityId = `google-identity-${randomUUID()}`;
+  const [newIdentity] = await db
+    .insert(userIdentities)
+    .values({
+      id: identityId,
+      userId,
+      systemId: "google",
+      systemType: "sso",
+      systemName: "Google",
+      externalUserId: googleId,
+      externalUsername: email,
+      externalEmail: email,
+      identityType: "user",
+      status: "active",
+      auth: {
+        authType: "oauth",
+        provider: "google",
+        scopes: ["openid", "email", "profile"],
+      },
+      profile: {
+        displayName: `${firstName} ${lastName}`.trim(),
+        avatarUrl: profileImageUrl,
+      },
+      syncSourceOfTruth: "external",
+      lastSyncedAt: new Date(),
+      syncStatus: "healthy",
+    })
+    .returning();
+
+  return newIdentity;
+}
+
 async function upsertGoogleUser(claims: any) {
   const googleId = claims.sub;
   const email = claims.email;
@@ -68,21 +145,25 @@ async function upsertGoogleUser(claims: any) {
 
   if (existingUsers.length > 0) {
     const existingUser = existingUsers[0];
-    // Update with Google ID if not set
+    // Link Google ID if not set, but do NOT overwrite names
     if (!existingUser.googleId) {
       await db
         .update(users)
         .set({
           googleId,
-          profileImageUrl: profileImageUrl || existingUser.profileImageUrl,
+          authProvider: existingUser.authProvider || "google",
+          // Only update profile image if user doesn't have one
+          profileImageUrl: existingUser.profileImageUrl || profileImageUrl,
           updatedAt: new Date(),
         })
         .where(eq(users.id, existingUser.id));
     }
+    // Create/update identity record with SSO claims
+    await upsertOrLinkGoogleIdentity(existingUser.id, claims);
     return existingUser;
   }
 
-  // Create new user
+  // Create new user - only for truly new users do we set names from SSO
   const newUser = await db
     .insert(users)
     .values({
@@ -101,11 +182,14 @@ async function upsertGoogleUser(claims: any) {
       target: users.id,
       set: {
         googleId,
-        profileImageUrl,
+        // Don't overwrite existing data on conflict
         updatedAt: new Date(),
       },
     })
     .returning();
+
+  // Create identity record for the new user
+  await upsertOrLinkGoogleIdentity(newUser[0].id, claims);
 
   return newUser[0];
 }

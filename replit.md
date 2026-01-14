@@ -35,6 +35,29 @@ Authentication modules are located in `server/replit_integrations/auth/`:
 -   `googleAuth.ts`: Google OAuth using openid-client
 -   `routes.ts`: Auth routes including demo login and impersonation
 
+#### SSO Identity Linking Pattern
+
+When users sign in via SSO (Google or Microsoft), the system follows a specific pattern to preserve user data while capturing SSO claims:
+
+1. **User Record Behavior**:
+   - If the user already exists (matched by email), their `firstName`, `lastName`, and `name` are **never overwritten** by SSO claims
+   - Only truly new users get their names populated from SSO claims
+   - The SSO provider ID (googleId/microsoftId) is linked to the user for future logins
+   - Profile image is only updated if the user doesn't already have one
+
+2. **Identity Records**:
+   - All SSO claim data is stored in the `user_identities` table instead of overwriting user fields
+   - Each SSO login creates/updates an identity record with `systemId` set to "google" or "microsoft"
+   - The identity record captures: `externalUserId`, `externalEmail`, `profile.displayName`, `profile.avatarUrl`, auth scopes, and sync status
+   - This allows users to link multiple external accounts and preserves the SSO-provided data
+
+3. **Pattern for Future Integrations**:
+   - When adding new external system integrations (e.g., Jira, ClickUp, Asana), follow this same pattern
+   - Create identity records with `systemType: "integration"` or appropriate type
+   - Store external claims in identity records rather than overwriting user profile data
+   - Use `workspaceId` to track the external workspace/organization
+   - Set `syncSourceOfTruth` to indicate which system owns the data
+
 Role-Based Access Control (RBAC) is implemented with database-driven roles and permissions:
 
 -   **System Roles**: 5 built-in roles (admin, manager, member, viewer, demo) stored in `system_roles` table
