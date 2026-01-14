@@ -391,13 +391,15 @@ export function registerConfigRoutes(
   // Authentication Settings (Admin only)
   app.get("/api/auth/config", async (req, res) => {
     try {
-      const [microsoftConfig, googleConfig] = await Promise.all([
+      const [microsoftConfig, googleConfig, appSettings] = await Promise.all([
         getMicrosoftAuthConfig(),
-        getGoogleAuthConfig()
+        getGoogleAuthConfig(),
+        storage.getAppSettings()
       ]);
       res.json({
         microsoft: microsoftConfig,
-        google: googleConfig
+        google: googleConfig,
+        demoAdminPassthroughEnabled: appSettings?.demoAdminPassthroughEnabled === true
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -450,6 +452,41 @@ export function registerConfigRoutes(
       await setMicrosoftAllowedDomains(domains, userId || undefined);
       const config = await getMicrosoftAuthConfig();
       res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Toggle demo admin passthrough (admin only - requires authentication)
+  app.put("/api/auth/demo-admin-passthrough/toggle", async (req, res) => {
+    try {
+      const userId = getAuthUserId(req);
+      
+      // Require authentication
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      // Check if user is admin
+      const user = await storage.getUserById(userId);
+      if (!user || user.systemRole !== "admin") {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ error: "enabled must be a boolean" });
+      }
+      
+      const updated = await storage.updateAppSettings({ 
+        demoAdminPassthroughEnabled: enabled 
+      });
+      
+      res.json({ 
+        success: true, 
+        demoAdminPassthroughEnabled: updated?.demoAdminPassthroughEnabled === true 
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -18,6 +18,7 @@ interface ProviderConfig {
 interface AuthConfig {
   microsoft: ProviderConfig;
   google: ProviderConfig;
+  demoAdminPassthroughEnabled?: boolean;
 }
 
 interface AdminAuthenticationContentProps {
@@ -205,12 +206,42 @@ export default function AdminAuthenticationContent({ embedded }: AdminAuthentica
     },
   });
 
+  const toggleDemoAdminMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await fetch("/api/auth/demo-admin-passthrough/toggle", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!res.ok) throw new Error("Failed to update demo admin settings");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth-config"] });
+      toast({
+        title: "Settings Updated",
+        description: "Demo Admin passthrough settings have been saved.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleMicrosoftToggle = (enabled: boolean) => {
     toggleMicrosoftMutation.mutate(enabled);
   };
 
   const handleGoogleToggle = (enabled: boolean) => {
     toggleGoogleMutation.mutate(enabled);
+  };
+
+  const handleDemoAdminToggle = (enabled: boolean) => {
+    toggleDemoAdminMutation.mutate(enabled);
   };
 
   if (isLoading) {
@@ -396,6 +427,74 @@ export default function AdminAuthenticationContent({ embedded }: AdminAuthentica
           )}
 
           <GoogleCallbackUrlSection />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Demo Admin Passthrough</CardTitle>
+                <CardDescription>
+                  Allow direct access to a demo admin account from the landing page
+                </CardDescription>
+              </div>
+            </div>
+            <Badge variant={authConfig?.demoAdminPassthroughEnabled ? "default" : "secondary"}>
+              {authConfig?.demoAdminPassthroughEnabled ? "Enabled" : "Disabled"}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Demo Admin Access</AlertTitle>
+            <AlertDescription>
+              When enabled, a "Demo Admin" button will appear on the landing page that allows anyone to log in 
+              directly as an admin user with full access to all features. This is useful for demonstrations 
+              and testing purposes.
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="space-y-1">
+              <Label htmlFor="demo-admin-enabled" className="text-base font-medium">
+                Enable Demo Admin Passthrough
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                When enabled, users can bypass authentication and log in as a demo admin directly
+              </p>
+            </div>
+            <Switch
+              id="demo-admin-enabled"
+              checked={authConfig?.demoAdminPassthroughEnabled || false}
+              onCheckedChange={handleDemoAdminToggle}
+              disabled={toggleDemoAdminMutation.isPending}
+              data-testid="demo-admin-passthrough-toggle"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+            {authConfig?.demoAdminPassthroughEnabled ? (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                  Demo Admin Passthrough is active - button visible on landing page
+                </span>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-5 w-5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  Demo Admin Passthrough is disabled
+                </span>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

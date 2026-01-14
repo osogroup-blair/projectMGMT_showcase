@@ -125,12 +125,14 @@ export async function registerRoutes(
       const settings = await storage.getAppSettings();
       res.json({ 
         demoAvailable: settings?.demoDataReady === true,
+        demoAdminPassthroughEnabled: settings?.demoAdminPassthroughEnabled === true,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
+  
   // Get app settings (admin only - includes all settings)
   app.get("/api/admin/app-settings", async (req, res) => {
     try {

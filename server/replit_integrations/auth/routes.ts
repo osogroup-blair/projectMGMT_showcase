@@ -193,6 +193,73 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  // Demo Admin login - direct passthrough to admin account without OIDC
+  app.post("/api/demo-admin-login", async (req: any, res) => {
+    try {
+      // Check if demo admin passthrough is enabled
+      const appSettings = await storage.getAppSettings();
+      
+      if (!appSettings?.demoAdminPassthroughEnabled) {
+        return res.status(403).json({ error: "Demo Admin passthrough is not enabled." });
+      }
+      
+      // Always log in as demo-admin with full admin privileges
+      let demoAdmin = await authStorage.getUser("demo-admin");
+      
+      if (!demoAdmin) {
+        // Create a demo admin user if it doesn't exist
+        demoAdmin = await authStorage.upsertUser({
+          id: "demo-admin",
+          email: "demo-admin@nymbl.com",
+          firstName: "Demo",
+          lastName: "Admin",
+          name: "Demo Admin",
+          systemRole: "admin",
+          profileImageUrl: null,
+        });
+      }
+      
+      // Ensure the demo admin has admin role
+      if (demoAdmin.systemRole !== "admin") {
+        demoAdmin = await storage.updateUser("demo-admin", { systemRole: "admin" });
+      }
+      
+      // Create a mock user object that matches what SSO auth provides
+      const mockUser = {
+        id: demoAdmin!.id,
+        email: demoAdmin!.email,
+        claims: {
+          sub: demoAdmin!.id,
+          email: demoAdmin!.email,
+          first_name: demoAdmin!.firstName,
+          last_name: demoAdmin!.lastName,
+        },
+        access_token: "demo-admin-token",
+        refresh_token: null,
+        expires_at: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days from now
+        authProvider: "demo-admin",
+      };
+      
+      // Use Passport's login method to properly set up the session
+      req.login(mockUser, (err: any) => {
+        if (err) {
+          console.error("Error during demo admin login:", err);
+          return res.status(500).json({ error: "Failed to create demo admin session" });
+        }
+        
+        res.json({ 
+          success: true, 
+          message: "Logged in as Demo Admin with full admin privileges",
+          user: demoAdmin,
+          redirectTo: "/"
+        });
+      });
+    } catch (error) {
+      console.error("Error during demo admin login:", error);
+      res.status(500).json({ message: "Failed to start demo admin session" });
+    }
+  });
+
   // Get impersonation status (admin and demo roles)
   app.get("/api/admin/impersonation-status", isAuthenticated, async (req: any, res) => {
     try {

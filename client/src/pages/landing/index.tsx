@@ -20,13 +20,16 @@ import {
   TrendingUp,
   Shuffle,
   Settings2,
-  XCircle
+  XCircle,
+  Shield
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoAdminLoading, setIsDemoAdminLoading] = useState(false);
   const [demoAvailable, setDemoAvailable] = useState(false);
+  const [demoAdminEnabled, setDemoAdminEnabled] = useState(false);
   const [demoChecked, setDemoChecked] = useState(false);
   const [microsoftEnabled, setMicrosoftEnabled] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
@@ -37,6 +40,7 @@ export default function LandingPage() {
       .then(res => res.json())
       .then(data => {
         setDemoAvailable(data.demoAvailable === true);
+        setDemoAdminEnabled(data.demoAdminPassthroughEnabled === true);
         setDemoChecked(true);
       })
       .catch(() => {
@@ -78,6 +82,25 @@ export default function LandingPage() {
       }
     } catch (error) {
       setIsLoading(false);
+    }
+  };
+
+  const handleDemoAdminLogin = async () => {
+    setIsDemoAdminLoading(true);
+    try {
+      const response = await fetch("/api/demo-admin-login", {
+        method: "POST",
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        window.location.href = data.redirectTo || "/";
+      } else {
+        setIsDemoAdminLoading(false);
+      }
+    } catch (error) {
+      setIsDemoAdminLoading(false);
     }
   };
 
@@ -150,6 +173,18 @@ export default function LandingPage() {
             <span className="text-xl font-bold text-white tracking-tight">Project Management</span>
           </div>
           <div className="flex items-center gap-3">
+            {demoChecked && demoAdminEnabled && (
+              <Button 
+                variant="outline"
+                onClick={handleDemoAdminLogin}
+                disabled={isDemoAdminLoading}
+                className="border-red-500/50 text-red-300 hover:bg-red-500/10 hover:text-red-200"
+                data-testid="nav-demo-admin-button"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                {isDemoAdminLoading ? "Loading..." : "Demo Admin"}
+              </Button>
+            )}
             {demoChecked && demoAvailable && (
               <Button 
                 variant="outline"
@@ -206,6 +241,18 @@ export default function LandingPage() {
             and tracked with unified status management across your entire portfolio.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            {demoChecked && demoAdminEnabled && (
+              <Button 
+                size="lg" 
+                onClick={handleDemoAdminLogin}
+                disabled={isDemoAdminLoading}
+                className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-6 text-lg"
+                data-testid="hero-demo-admin-button"
+              >
+                <Shield className="w-5 h-5 mr-2" />
+                {isDemoAdminLoading ? "Loading..." : "Demo Admin Access"}
+              </Button>
+            )}
             {demoChecked && demoAvailable && (
               <Button 
                 size="lg" 
