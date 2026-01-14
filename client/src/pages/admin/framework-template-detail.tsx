@@ -61,9 +61,15 @@ import {
   useStageTemplates,
   useMilestoneTemplates,
   useTaskTemplates,
-  useRoleTemplates
+  useRoleTemplates,
+  useEpicTypes
 } from "@/hooks/use-nexus-data";
-import type { FrameworkTemplate, StageTemplate, MilestoneTemplate } from "@shared/schema";
+import { Switch } from "@/components/ui/switch";
+import type { FrameworkTemplate, StageTemplate, MilestoneTemplate, MilestoneScopeRule } from "@shared/schema";
+
+interface MilestoneWithRules extends Partial<MilestoneTemplate> {
+  defaultScopeRules?: MilestoneScopeRule[];
+}
 
 export default function FrameworkTemplateDetail() {
   const [, params] = useRoute("/admin/templates/frameworks/:frameworkId");
@@ -99,6 +105,7 @@ export default function FrameworkTemplateDetail() {
 
   const { data: taskTemplates } = useTaskTemplates();
   const { data: roleTemplates } = useRoleTemplates();
+  const { data: epicTypes } = useEpicTypes();
 
   // Find the current framework
   const framework = useMemo(() => {
@@ -147,7 +154,7 @@ export default function FrameworkTemplateDetail() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "framework" | "stage" | "milestone"; item: any } | null>(null);
   const [currentStage, setCurrentStage] = useState<Partial<StageTemplate> | null>(null);
-  const [currentMilestone, setCurrentMilestone] = useState<Partial<MilestoneTemplate> | null>(null);
+  const [currentMilestone, setCurrentMilestone] = useState<MilestoneWithRules | null>(null);
   const [selectedStageForMilestone, setSelectedStageForMilestone] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -369,14 +376,18 @@ export default function FrameworkTemplateDetail() {
       isBillingGate: false,
       offsetDays: 0,
       stageTemplateId: stageId,
-      order: (milestonesByStage[stageId]?.length || 0) + 1
+      order: (milestonesByStage[stageId]?.length || 0) + 1,
+      defaultScopeRules: []
     });
     setIsMilestoneDialogOpen(true);
   };
 
   const openEditMilestoneDialog = (milestone: MilestoneTemplate) => {
     setSelectedStageForMilestone(milestone.stageTemplateId);
-    setCurrentMilestone({ ...milestone });
+    setCurrentMilestone({
+      ...milestone,
+      defaultScopeRules: milestone.defaultScopeRules || []
+    });
     setIsMilestoneDialogOpen(true);
   };
 
@@ -1073,7 +1084,7 @@ export default function FrameworkTemplateDetail() {
 
       {/* Milestone Dialog */}
       <Dialog open={isMilestoneDialogOpen} onOpenChange={setIsMilestoneDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {currentMilestone?.id ? "Edit Milestone" : "New Milestone"}
@@ -1185,6 +1196,172 @@ export default function FrameworkTemplateDetail() {
                   }))}
                 />
               </div>
+            </div>
+
+            {/* Scope Rules Section */}
+            <Separator className="my-4" />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Flag className="h-4 w-4" />
+                  Default Scope Rules
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const rules: MilestoneScopeRule[] = currentMilestone?.defaultScopeRules || [];
+                    const newRule: MilestoneScopeRule = {
+                      id: `rule-${Date.now()}`,
+                      label: `Rule ${rules.length + 1}`,
+                      stageFilter: "",
+                      epicTypeFilter: "",
+                      taskTemplateFilter: "",
+                      isActive: true
+                    };
+                    setCurrentMilestone(prev => ({
+                      ...prev,
+                      defaultScopeRules: [...rules, newRule]
+                    }));
+                  }}
+                  data-testid="button-add-scope-rule"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Rule
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Scope rules determine which tasks are automatically included when this milestone template is applied to a project.
+              </p>
+
+              {/* Rules List */}
+              {(currentMilestone?.defaultScopeRules || []).length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground border border-dashed rounded-md">
+                  <Flag className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No scope rules defined yet.</p>
+                  <p className="text-xs">Add rules to automatically match tasks when applying this milestone.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[250px] overflow-y-auto">
+                  {(currentMilestone?.defaultScopeRules || []).map((rule: MilestoneScopeRule, index: number) => (
+                    <div
+                      key={rule.id || index}
+                      className={cn(
+                        "border rounded-lg p-3 space-y-3",
+                        !rule.isActive && "opacity-60 bg-muted/30"
+                      )}
+                      data-testid={`scope-rule-${index}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          <Badge variant={rule.isActive ? "default" : "secondary"} className="text-xs">
+                            Rule {index + 1}
+                          </Badge>
+                          <Input
+                            value={rule.label || ""}
+                            onChange={(e) => {
+                              const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                              rules[index] = { ...rules[index], label: e.target.value };
+                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
+                            }}
+                            placeholder="Rule label..."
+                            className="h-8 text-sm flex-1"
+                            data-testid={`input-rule-label-${index}`}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">Active</span>
+                            <Switch
+                              checked={rule.isActive ?? true}
+                              onCheckedChange={(checked) => {
+                                const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                                rules[index] = { ...rules[index], isActive: checked };
+                                setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
+                              }}
+                              data-testid={`switch-rule-active-${index}`}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              const rules = (currentMilestone?.defaultScopeRules || []).filter((_, i) => i !== index);
+                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
+                            }}
+                            data-testid={`button-delete-rule-${index}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Stage Filter */}
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Stage Filter</Label>
+                          <SearchableSelect
+                            value={rule.stageFilter || ""}
+                            onValueChange={(v) => {
+                              const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                              rules[index] = { ...rules[index], stageFilter: v };
+                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
+                            }}
+                            placeholder="Any stage"
+                            options={[
+                              { value: "", label: "Any stage" },
+                              ...frameworkStages.map(s => ({ value: s.id, label: s.name }))
+                            ]}
+                            triggerClassName="h-8"
+                          />
+                        </div>
+
+                        {/* Epic Type Filter */}
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Epic Type Filter</Label>
+                          <SearchableSelect
+                            value={rule.epicTypeFilter || ""}
+                            onValueChange={(v) => {
+                              const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                              rules[index] = { ...rules[index], epicTypeFilter: v };
+                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
+                            }}
+                            placeholder="Any epic type"
+                            options={[
+                              { value: "", label: "Any epic type" },
+                              ...(epicTypes || []).map((et: { id: string; name: string }) => ({ value: et.id, label: et.name }))
+                            ]}
+                            triggerClassName="h-8"
+                          />
+                        </div>
+
+                        {/* Task Template Filter */}
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Task Template Filter</Label>
+                          <SearchableSelect
+                            value={rule.taskTemplateFilter || ""}
+                            onValueChange={(v) => {
+                              const rules: MilestoneScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
+                              rules[index] = { ...rules[index], taskTemplateFilter: v };
+                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
+                            }}
+                            placeholder="Any task"
+                            options={[
+                              { value: "", label: "Any task template" },
+                              ...(taskTemplates || []).map(tt => ({ value: tt.id, label: tt.title || tt.name || "Untitled" }))
+                            ]}
+                            triggerClassName="h-8"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
