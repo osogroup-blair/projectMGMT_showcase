@@ -46,12 +46,18 @@ export function StepTaskAlignment({
     return epics;
   }, [deliverables]);
 
-  // Find the Product Management epic for default assignment
+  // Find the Product Management epic for default assignment (prioritize exact match)
   const productManagementEpic = useMemo(() => {
+    // First try exact match for "Product Management"
+    const exactMatch = allEpics.find(e => 
+      e.title.toLowerCase() === 'product management'
+    );
+    if (exactMatch) return exactMatch;
+    
+    // Fallback to partial matches
     return allEpics.find(e => 
       e.title.toLowerCase().includes('product management') ||
-      e.title.toLowerCase() === 'pm' ||
-      e.title.toLowerCase().includes('project management')
+      e.title.toLowerCase() === 'pm'
     );
   }, [allEpics]);
   

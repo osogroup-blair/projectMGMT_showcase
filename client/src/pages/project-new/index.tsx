@@ -282,20 +282,33 @@ export default function ProjectWizard() {
   }, [currentStep, stages.length, isImportMode]);
 
   // Ensure default "Management Activities" deliverable exists for Task Alignment step
-  // This provides a catch-all bucket for orphan tasks
+  // This provides a catch-all bucket for orphan tasks with 3 standard management epics
   useEffect(() => {
     if (currentStep === 3) {
       const hasMgmtActivities = deliverables.some(d => d.title === 'Management Activities');
       if (!hasMgmtActivities) {
+        const timestamp = Date.now();
         const mgmtActivitiesDeliverable: WizardDeliverable = {
-          id: `d-mgmt-${Date.now()}`,
+          id: `d-mgmt-${timestamp}`,
           title: 'Management Activities',
           description: 'Project management and coordination activities',
           epics: [
             {
-              id: `e-mgmt-${Date.now()}-1`,
+              id: `e-mgmt-${timestamp}-1`,
               title: 'Project Management',
-              description: 'Project coordination and management tasks',
+              description: 'Project coordination, planning, and oversight tasks',
+              tasks: []
+            },
+            {
+              id: `e-mgmt-${timestamp}-2`,
+              title: 'Product Management',
+              description: 'Product strategy, requirements, and backlog management tasks',
+              tasks: []
+            },
+            {
+              id: `e-mgmt-${timestamp}-3`,
+              title: 'Client Management',
+              description: 'Client communication, relationship, and stakeholder management tasks',
               tasks: []
             }
           ]
@@ -954,7 +967,7 @@ export default function ProjectWizard() {
           status: 'Upcoming',
           startDate: projectData.startDate || new Date().toISOString().split('T')[0],
           deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-          frameworkId: projectData.frameworkId || null,
+          frameworkId: projectData.frameworkId || 'custom-framework',
           sprintDurationWeeks: projectData.sprintDurationWeeks || null,
           ownerId: projectData.ownerId || null,
           client: projectData.client || null,
