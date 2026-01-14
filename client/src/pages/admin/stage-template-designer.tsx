@@ -16,7 +16,8 @@ import {
   Layout,
   ListTodo,
   Users,
-  Loader2
+  Loader2,
+  Flag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useStageTemplates, useTaskTemplates, useRoleTemplates } from "@/hooks/use-nexus-data";
+import { useStageTemplates, useTaskTemplates, useRoleTemplates, useMilestoneTemplates } from "@/hooks/use-nexus-data";
 import { 
   StageTemplate, 
   TaskTemplate, 
@@ -49,7 +50,12 @@ export default function StageTemplateDesigner() {
   const { data: stageTemplates, createAsync: createStage, updateAsync: updateStage, isLoading: stagesLoading } = useStageTemplates();
   const { data: taskTemplates, createAsync: createTask, updateAsync: updateTask, removeAsync: removeTaskAsync, isLoading: tasksLoading } = useTaskTemplates();
   const { data: roleTemplates, isLoading: rolesLoading } = useRoleTemplates();
-  const isLoading = stagesLoading || tasksLoading || rolesLoading;
+  const { data: milestoneTemplates, isLoading: milestonesLoading } = useMilestoneTemplates();
+  const isLoading = stagesLoading || tasksLoading || rolesLoading || milestonesLoading;
+  
+  const linkedMilestones = templateId && !isNew 
+    ? (milestoneTemplates || []).filter((m: any) => m.stageTemplateId === templateId).sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+    : [];
 
   // State
   const [formData, setFormData] = useState<Partial<StageTemplate>>({
@@ -420,6 +426,48 @@ export default function StageTemplateDesigner() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Linked Milestones */}
+            {!isNew && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Flag className="h-5 w-5 text-muted-foreground" />
+                    Linked Milestones
+                  </CardTitle>
+                  <CardDescription>Milestone templates linked to this stage.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {linkedMilestones.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">
+                        No milestones linked to this stage. Add them from the Milestones tab in Templates.
+                      </p>
+                    ) : (
+                      linkedMilestones.map((milestone: any) => (
+                        <div key={milestone.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20 hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <Flag className="h-4 w-4 text-primary" />
+                            <div>
+                              <p className="font-medium text-sm">{milestone.name}</p>
+                              <p className="text-xs text-muted-foreground">{milestone.phase} • {milestone.completionTargetPercent}% target</p>
+                            </div>
+                          </div>
+                          {milestone.isBillingGate && (
+                            <Badge variant="secondary" className="text-xs">Billing Gate</Badge>
+                          )}
+                        </div>
+                      ))
+                    )}
+                    <Link href="/admin/templates?tab=milestones">
+                      <Button variant="outline" size="sm" className="w-full mt-2 gap-2">
+                        <Plus className="h-4 w-4" /> Manage Milestones
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Right Column: Task Management */}
