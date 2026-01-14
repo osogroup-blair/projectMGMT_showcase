@@ -63,7 +63,7 @@ export function ImportExportContainer({ embedded = false }: AdminImportExportPro
     handleFileSelect,
     handleImport,
     clearImport
-  } = useImport();
+  } = useImport(activeTab);
 
   const Wrapper = embedded ? ({ children }: { children: React.ReactNode }) => <>{children}</> : Shell;
 

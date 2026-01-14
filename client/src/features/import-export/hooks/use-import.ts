@@ -5,9 +5,15 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/storage";
 import { ENTITY_TO_COLLECTION, IMPORT_ORDER } from "../constants";
 import { normalizeRecord, applyDefaultsForNewRecord, deserialize, flattenNestedImport } from "../utils";
-import type { ImportState, ImportPreviewData } from "../types";
+import type { ImportState, ImportPreviewData, ExportTab } from "../types";
 
-export function useImport() {
+// Template entity names that should use the bulk import endpoint
+const TEMPLATE_ENTITIES = [
+  "FrameworkTemplates", "StageTemplates", "TaskTemplates", "RoleTemplates",
+  "MilestoneTemplates", "DeliverableTemplates", "EpicTemplates", "ProjectTemplates"
+];
+
+export function useImport(activeTab?: ExportTab) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importState, setImportState] = useState<ImportState>({
@@ -170,6 +176,73 @@ export function useImport() {
 
     setImportState(prev => ({ ...prev, isImporting: true, importProgress: 0 }));
 
+    // Check if this is a templates import - use backend bulk import for proper ID remapping
+    const hasTemplateEntities = Object.keys(importState.data).some(key => 
+      TEMPLATE_ENTITIES.includes(key)
+    );
+    
+    if (activeTab === "templates" || hasTemplateEntities) {
+      // Use backend bulk import endpoint for templates - handles ID remapping for foreign keys
+      try {
+        const response = await fetch("/api/templates/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(importState.data),
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok || result.errors?.length > 0) {
+          const errorMessages = result.errors?.map((e: any) => `${e.type}: ${e.name} - ${e.error}`) || [result.error || "Import failed"];
+          setImportState(prev => ({
+            ...prev,
+            isImporting: false,
+            importProgress: 100,
+            errors: errorMessages
+          }));
+          toast({
+            title: "Import Completed with Errors",
+            description: `${errorMessages.length} errors occurred during import.`,
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Calculate totals from results
+        const totalCreated = Object.values(result.results || {}).reduce((sum: number, r: any) => sum + (r.created || 0), 0);
+        const totalUpdated = Object.values(result.results || {}).reduce((sum: number, r: any) => sum + (r.updated || 0), 0);
+        const totalSkipped = Object.values(result.results || {}).reduce((sum: number, r: any) => sum + (r.skipped || 0), 0);
+        
+        setImportState(prev => ({
+          ...prev,
+          isImporting: false,
+          importProgress: 100,
+          errors: []
+        }));
+        
+        toast({
+          title: "Import Complete",
+          description: `Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}`,
+        });
+        clearImport();
+        return;
+      } catch (error: any) {
+        setImportState(prev => ({
+          ...prev,
+          isImporting: false,
+          importProgress: 100,
+          errors: [error.message || "Failed to import templates"]
+        }));
+        toast({
+          title: "Import Failed",
+          description: error.message || "Failed to import templates",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
+    // Non-template import: use individual record creation
     const orderedEntities: [string, any[]][] = [];
     for (const entityName of IMPORT_ORDER) {
       if (importState.data[entityName] && Array.isArray(importState.data[entityName])) {
