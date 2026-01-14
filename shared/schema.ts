@@ -167,6 +167,16 @@ export const projectStages = pgTable("project_stages", {
   endDate: text("end_date"),
 });
 
+// Milestone Template Scope Rule type for defaultScopeRules field on templates and scopeRules on milestones
+export interface MilestoneTemplateScopeRule {
+  id: string;
+  label: string;
+  stageFilter: string;
+  epicTypeFilter: string;
+  taskTemplateFilter: string;
+  isActive: boolean;
+}
+
 // Milestones
 export const milestones = pgTable("milestones", {
   id: varchar("id").primaryKey(),
@@ -522,16 +532,6 @@ export const taskTemplates = pgTable("task_templates", {
   scope: text("scope").notNull().default("per_epic"),
   assigneeRoleTypeId: varchar("assignee_role_type_id").references(() => roleTypes.id),
 });
-
-// Milestone Template Scope Rule type for defaultScopeRules field on templates and scopeRules on milestones
-export interface MilestoneTemplateScopeRule {
-  id: string;
-  label: string;
-  stageFilter: string;
-  epicTypeFilter: string;
-  taskTemplateFilter: string;
-  isActive: boolean;
-}
 
 // Milestone Templates
 export const milestoneTemplates = pgTable("milestone_templates", {

@@ -703,6 +703,16 @@ async function createMilestonesForProject(
       completionMode: "percentage",
       completionTargetPercent: 100,
       isBillingGate: false,
+      scopeRules: [
+        {
+          id: `rule-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          label: "All Stage Tasks",
+          stageFilter: config.phase,
+          epicTypeFilter: "",
+          taskTemplateFilter: "",
+          isActive: true,
+        }
+      ],
     } as any);
     result.created.milestones = (result.created.milestones || 0) + 1;
 

@@ -586,6 +586,16 @@ async function generateMilestoneData(
       completionMode: "percentage",
       completionTargetPercent: 100,
       isBillingGate: config.isBillingGate,
+      scopeRules: [
+        {
+          id: `rule-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          label: `${config.phase} Tasks`,
+          stageFilter: config.phase,
+          epicTypeFilter: "",
+          taskTemplateFilter: "",
+          isActive: true,
+        }
+      ],
     };
     await storage.createMilestone(milestone as any);
     result.created.milestones = (result.created.milestones || 0) + 1;

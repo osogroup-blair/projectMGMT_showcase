@@ -768,7 +768,8 @@ export default function ProjectWizard() {
                 scopeType: mt.scopeType || 'deliverable',
                 completionMode: mt.completionMode || 'percentage',
                 completionTargetPercent: mt.completionTargetPercent || 100
-              }
+              },
+              scopeRules: mt.defaultScopeRules || []
             };
           });
           setMilestones(wizardMilestones);
@@ -871,7 +872,8 @@ export default function ProjectWizard() {
               scopeType: mt.scopeType || 'deliverable',
               completionMode: mt.completionMode || 'percentage',
               completionTargetPercent: mt.completionTargetPercent || 100
-            }
+            },
+            scopeRules: mt.defaultScopeRules || []
           };
         });
         setMilestones(wizardMilestones);
