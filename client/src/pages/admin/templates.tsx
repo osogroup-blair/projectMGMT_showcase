@@ -18,7 +18,8 @@ import {
   Download,
   Upload,
   FileJson,
-  AlertCircle
+  AlertCircle,
+  Flag
 } from "lucide-react";
 import { useRoleTypes } from "@/hooks/use-nexus-data";
 import { Button } from "@/components/ui/button";
@@ -81,7 +82,8 @@ import {
   useDeliverableTemplates, 
   useEpicTemplates, 
   useTaskTemplates, 
-  useRoleTemplates 
+  useRoleTemplates,
+  useMilestoneTemplates
 } from "@/hooks/use-nexus-data";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -154,16 +156,24 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
     isLoading: rolesLoading 
   } = useRoleTemplates();
 
+  const {
+    data: milestoneTemplates,
+    createAsync: createMilestone,
+    updateAsync: updateMilestone,
+    removeAsync: removeMilestone,
+    isLoading: milestonesLoading
+  } = useMilestoneTemplates();
+
   const { data: roleTypes = [] } = useRoleTypes();
 
   const isLoading = projectsLoading || frameworksLoading || stagesLoading || 
-                    deliverablesLoading || epicsLoading || tasksLoading || rolesLoading;
+                    deliverablesLoading || epicsLoading || tasksLoading || rolesLoading || milestonesLoading;
 
   // Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState<any>(null);
-  const [currentType, setCurrentType] = useState<"project" | "framework" | "stage" | "deliverable" | "epic" | "task" | "role">("project");
+  const [currentType, setCurrentType] = useState<"project" | "framework" | "stage" | "deliverable" | "epic" | "task" | "role" | "milestone">("project");
 
   // Task Management State inside Stage Dialog
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -308,6 +318,19 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
     return filtered;
   };
 
+  const filterMilestoneTemplates = (templates: any[]) => {
+    let filtered = (templates || []).filter(t => 
+      t.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (selectedFrameworkFilter !== 'all') {
+      filtered = filtered.filter(t => t.stageTemplateId === selectedFrameworkFilter);
+    }
+
+    return filtered;
+  };
+
   // CRUD Handlers
   const handleCreate = (type: string) => {
     setCurrentTemplate(null);
@@ -341,6 +364,17 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
     if (type === "role") {
         initialData.name = "";
         initialData.defaultRoleType = "Development";
+    }
+    if (type === "milestone") {
+        initialData.name = "";
+        initialData.phase = "delivery";
+        initialData.scopeType = "deliverable";
+        initialData.completionMode = "percentage";
+        initialData.completionTargetPercent = 100;
+        initialData.isBillingGate = false;
+        initialData.offsetDays = 0;
+        initialData.stageTemplateId = selectedFrameworkFilter !== 'all' ? selectedFrameworkFilter : null;
+        initialData.order = 0;
     }
 
     setFormData(initialData);
@@ -439,6 +473,12 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
         } else {
           await updateRole({ id: newItem.id, updates: newItem });
         }
+      } else if (currentType === "milestone") {
+        if (isNew) {
+          await createMilestone(newItem);
+        } else {
+          await updateMilestone({ id: newItem.id, updates: newItem });
+        }
       }
 
       setIsEditOpen(false);
@@ -469,6 +509,8 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
         await removeTask(currentTemplate.id);
       } else if (currentType === "role") {
         await removeRole(currentTemplate.id);
+      } else if (currentType === "milestone") {
+        await removeMilestone(currentTemplate.id);
       }
 
       setIsDeleteOpen(false);
@@ -620,6 +662,13 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
             >
               <Users className="h-4 w-4" />
               Roles
+            </TabsTrigger>
+            <TabsTrigger 
+              value="milestones" 
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-2 flex items-center gap-2"
+            >
+              <Flag className="h-4 w-4" />
+              Milestones
             </TabsTrigger>
           </TabsList>
 
@@ -806,6 +855,59 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
                 </Card>
               </div>
             </TabsContent>
+
+            <TabsContent value="milestones" className="space-y-6">
+              <div className="flex items-center gap-4 mb-4 bg-muted/20 p-3 rounded-lg border">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filter by Stage:</span>
+                <SearchableSelect
+                  value={selectedFrameworkFilter}
+                  onValueChange={setSelectedFrameworkFilter}
+                  placeholder="All Stages"
+                  triggerClassName="w-[250px] h-8 text-xs"
+                  data-testid="select-milestone-stage-filter"
+                  options={[
+                    { value: "all", label: "All Stages" },
+                    ...stageTemplates.map(st => ({ value: st.id, label: st.name }))
+                  ]}
+                />
+                {selectedFrameworkFilter !== 'all' && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 text-xs ml-auto text-muted-foreground hover:text-foreground"
+                    onClick={() => setSelectedFrameworkFilter('all')}
+                    data-testid="button-clear-milestone-stage-filter"
+                  >
+                    Clear Filter
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filterMilestoneTemplates(milestoneTemplates).map(t => (
+                  <TemplateCard 
+                    key={t.id}
+                    item={t}
+                    type="milestone"
+                    icon={Flag}
+                    itemsCount={t.completionTargetPercent || 100}
+                    itemLabel="% Target"
+                    badge={t.phase}
+                  />
+                ))}
+                <Card 
+                  className="flex flex-col items-center justify-center border-dashed cursor-pointer hover:bg-muted/10 transition-colors min-h-[200px]"
+                  onClick={() => handleCreate('milestone')}
+                  data-testid="card-create-milestone-template"
+                >
+                  <div className="p-4 rounded-full bg-muted text-muted-foreground mb-4">
+                    <Plus className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold text-lg">Create New Milestone Template</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Define default milestone properties</p>
+                </Card>
+              </div>
+            </TabsContent>
           </div>
         </Tabs>
       </div>
@@ -862,6 +964,110 @@ export default function AdminTemplates({ embedded = false }: AdminTemplatesProps
                     emptyMessage={roleTypes.length === 0 ? "No role types defined. Add them in App Defaults." : "No results found."}
                     options={roleTypes.map((rt: any) => ({ value: rt.label, label: rt.label }))}
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Milestone Specific Fields */}
+            {currentType === 'milestone' && (
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Linked Stage Template</Label>
+                  <SearchableSelect
+                    value={formData.stageTemplateId || ""}
+                    onValueChange={(val) => setFormData({...formData, stageTemplateId: val || null})}
+                    placeholder="Select stage (optional)"
+                    options={[
+                      { value: "", label: "No stage link" },
+                      ...stageTemplates.map(st => ({ value: st.id, label: st.name }))
+                    ]}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Phase</Label>
+                    <SearchableSelect
+                      value={formData.phase || "delivery"}
+                      onValueChange={(val) => setFormData({...formData, phase: val})}
+                      placeholder="Select phase"
+                      options={[
+                        { value: "planning", label: "Planning" },
+                        { value: "delivery", label: "Delivery" },
+                        { value: "closing", label: "Closing" },
+                      ]}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Scope Type</Label>
+                    <SearchableSelect
+                      value={formData.scopeType || "deliverable"}
+                      onValueChange={(val) => setFormData({...formData, scopeType: val})}
+                      placeholder="Select scope"
+                      options={[
+                        { value: "project", label: "Project" },
+                        { value: "deliverable", label: "Deliverable" },
+                        { value: "epic", label: "Epic" },
+                      ]}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Completion Mode</Label>
+                    <SearchableSelect
+                      value={formData.completionMode || "percentage"}
+                      onValueChange={(val) => setFormData({...formData, completionMode: val})}
+                      placeholder="Select mode"
+                      options={[
+                        { value: "percentage", label: "Percentage" },
+                        { value: "manual", label: "Manual" },
+                        { value: "tasks", label: "Tasks Complete" },
+                      ]}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Target %</Label>
+                    <Input 
+                      type="number" 
+                      min={0} 
+                      max={100}
+                      value={formData.completionTargetPercent ?? 100} 
+                      onChange={(e) => setFormData({...formData, completionTargetPercent: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Offset Days</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.offsetDays ?? 0} 
+                      onChange={(e) => setFormData({...formData, offsetDays: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Order</Label>
+                    <Input 
+                      type="number" 
+                      min={0}
+                      value={formData.order ?? 0} 
+                      onChange={(e) => setFormData({...formData, order: parseInt(e.target.value) || 0})}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div 
+                    className={cn(
+                      "w-4 h-4 rounded border flex items-center justify-center cursor-pointer transition-colors",
+                      formData.isBillingGate ? "bg-primary border-primary text-primary-foreground" : "border-input bg-background"
+                    )}
+                    onClick={() => setFormData({...formData, isBillingGate: !formData.isBillingGate})}
+                  >
+                    {formData.isBillingGate && <Check className="w-3 h-3" />}
+                  </div>
+                  <Label className="font-normal cursor-pointer" onClick={() => setFormData({...formData, isBillingGate: !formData.isBillingGate})}>
+                    Is Billing Gate
+                  </Label>
                 </div>
               </div>
             )}
