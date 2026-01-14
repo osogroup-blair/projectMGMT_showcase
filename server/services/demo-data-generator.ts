@@ -32,6 +32,103 @@ function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// App Default task statuses - MUST match exactly what's in status_options table
+const TASK_STATUS = {
+  BACKLOGGED: "BACKLOGGED",
+  NEXT_UP: "NEXT UP",
+  IN_PROGRESS: "IN PROGRESS",
+  BLOCKED: "BLOCKED",
+  IN_REVIEW: "IN REVIEW",
+  ACCEPTED: "ACCEPTED",
+  DONE: "DONE",
+  DEFERRED: "DEFERRED",
+  ONGOING: "ONGOING",
+  ARCHIVED: "ARCHIVED",
+} as const;
+
+// Epic/Deliverable status values
+const EPIC_STATUS = {
+  NOT_STARTED: "not-started",
+  IN_PROGRESS: "in-progress",
+  COMPLETED: "completed",
+  BLOCKED: "blocked",
+} as const;
+
+// Stage mapping for Management Activities based on framework type
+const STAGE_MAPPING: Record<string, Record<string, string>> = {
+  // Delivery Framework: Requirements, Design, Development, QA, Documentation
+  DELIVERY: {
+    governance: "Development",
+    communications: "Development", 
+    risk: "Requirements",
+    change: "QA",
+  },
+  // Generic Project: Discover, Plan, Execute, Review, Deliver, Close
+  GENERIC: {
+    governance: "Execute",
+    communications: "Execute",
+    risk: "Plan",
+    change: "Review",
+  },
+  // Alliance Partnership: Discovery, Evaluation, Negotiation, Integration, Launch
+  ALLIANCE: {
+    governance: "Integration",
+    communications: "Launch",
+    risk: "Evaluation",
+    change: "Negotiation",
+  },
+  // Support Project: Normal Operations, Incident Response, Release Support, Stabilization
+  SUPPORT: {
+    governance: "Normal Operations",
+    communications: "Normal Operations",
+    risk: "Incident Response",
+    change: "Stabilization",
+  },
+};
+
+// Get Management Activities deliverable with correct stages for the framework
+function getManagementActivitiesDeliverable(frameworkType: string, projectProgress: number): any {
+  const stages = STAGE_MAPPING[frameworkType] || STAGE_MAPPING.GENERIC;
+  const adjustedProgress = Math.min(projectProgress + 10, 80); // Management is usually slightly ahead
+  
+  return {
+    title: "Management Activities",
+    description: "Project governance, stakeholder communications, and risk management activities",
+    status: EPIC_STATUS.IN_PROGRESS,
+    progress: adjustedProgress,
+    epics: [
+      { 
+        title: "Project Governance", 
+        description: "Steering committee meetings, status reporting, and decision tracking", 
+        status: projectProgress > 30 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED, 
+        progress: Math.min(projectProgress + 20, 90), 
+        stage: stages.governance
+      },
+      { 
+        title: "Stakeholder Communications", 
+        description: "Regular updates, presentations, and stakeholder management", 
+        status: EPIC_STATUS.IN_PROGRESS, 
+        progress: Math.min(projectProgress + 15, 85), 
+        stage: stages.communications
+      },
+      { 
+        title: "Risk Management", 
+        description: "Risk identification, assessment, mitigation planning, and monitoring", 
+        status: projectProgress > 20 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED, 
+        progress: Math.min(projectProgress + 10, 70), 
+        stage: stages.risk
+      },
+      { 
+        title: "Change Management", 
+        description: "Change request handling and impact assessment", 
+        status: projectProgress > 50 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED, 
+        progress: Math.max(projectProgress - 20, 10), 
+        stage: stages.change
+      },
+    ],
+  };
+}
+
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
@@ -752,18 +849,20 @@ async function createDeliverablesWithEpicsAndTasks(
         const { sprintId, sprintStatus } = findSprintForTask(taskStartDate, taskDeadline);
         const milestoneId = findMilestoneForStage(epicConfig.stage);
         
-        // Determine task status based on epic progress
-        let taskStatus = "backlog";
+        // Determine task status based on epic progress - using App Default statuses
+        let taskStatus = TASK_STATUS.BACKLOGGED;
         if (epicConfig.progress >= 100) {
-          taskStatus = "done";
+          taskStatus = TASK_STATUS.DONE;
         } else if (epicConfig.progress > 0) {
           const taskProgress = (i / taskCount) * 100;
           if (taskProgress < epicConfig.progress * 0.8) {
-            taskStatus = "done";
+            taskStatus = TASK_STATUS.DONE;
           } else if (taskProgress < epicConfig.progress) {
-            taskStatus = "in-progress";
+            taskStatus = TASK_STATUS.IN_PROGRESS;
+          } else if (taskProgress < epicConfig.progress * 1.2) {
+            taskStatus = TASK_STATUS.NEXT_UP;
           } else {
-            taskStatus = "todo";
+            taskStatus = TASK_STATUS.BACKLOGGED;
           }
         }
 
@@ -999,36 +1098,37 @@ async function createCRMImplementation(
     {
       title: "Contact Management Module",
       description: "Core contact and company management features including import, search, and relationship mapping",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 70,
       epics: [
-        { title: "Contact CRUD", description: "Create, read, update, delete contacts", status: "completed", progress: 100, stage: "Development" },
-        { title: "Company Profiles", description: "Company management and linking", status: "in-progress", progress: 60, stage: "Development" },
-        { title: "Contact Import", description: "Bulk import from CSV/Excel", status: "not-started", progress: 0, stage: "Development" },
+        { title: "Contact CRUD", description: "Create, read, update, delete contacts", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Development" },
+        { title: "Company Profiles", description: "Company management and linking", status: EPIC_STATUS.IN_PROGRESS, progress: 60, stage: "Development" },
+        { title: "Contact Import", description: "Bulk import from CSV/Excel", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Development" },
       ],
     },
     {
       title: "Sales Pipeline",
       description: "Deal tracking, pipeline visualization, and sales forecasting",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 40,
       epics: [
-        { title: "Pipeline Stages", description: "Customizable sales stages", status: "completed", progress: 100, stage: "Design" },
-        { title: "Deal Management", description: "Deal creation and tracking", status: "in-progress", progress: 50, stage: "Development" },
-        { title: "Pipeline Analytics", description: "Sales funnel visualization", status: "not-started", progress: 0, stage: "Design" },
+        { title: "Pipeline Stages", description: "Customizable sales stages", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Design" },
+        { title: "Deal Management", description: "Deal creation and tracking", status: EPIC_STATUS.IN_PROGRESS, progress: 50, stage: "Development" },
+        { title: "Pipeline Analytics", description: "Sales funnel visualization", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Design" },
       ],
     },
     {
       title: "Reporting Dashboard",
       description: "Real-time sales metrics and KPI dashboards",
-      status: "not-started",
+      status: EPIC_STATUS.NOT_STARTED,
       progress: 10,
       epics: [
-        { title: "Dashboard Framework", description: "Widget-based dashboard system", status: "completed", progress: 100, stage: "Requirements" },
-        { title: "Sales Reports", description: "Standard sales reports", status: "not-started", progress: 0, stage: "Development" },
-        { title: "Custom Reports", description: "User-defined report builder", status: "not-started", progress: 0, stage: "Design" },
+        { title: "Dashboard Framework", description: "Widget-based dashboard system", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Requirements" },
+        { title: "Sales Reports", description: "Standard sales reports", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Development" },
+        { title: "Custom Reports", description: "User-defined report builder", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Design" },
       ],
     },
+    getManagementActivitiesDeliverable("DELIVERY", 60),
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, "CRM Implementation", deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
@@ -1095,36 +1195,37 @@ async function createDataWarehouseProject(
     {
       title: "Data Model",
       description: "Dimensional data model with fact and dimension tables",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 60,
       epics: [
-        { title: "Source Analysis", description: "Analyze source system data", status: "completed", progress: 100, stage: "Requirements" },
-        { title: "Dimensional Model", description: "Star schema design", status: "in-progress", progress: 70, stage: "Design" },
-        { title: "Data Dictionary", description: "Complete data documentation", status: "not-started", progress: 0, stage: "Documentation" },
+        { title: "Source Analysis", description: "Analyze source system data", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Requirements" },
+        { title: "Dimensional Model", description: "Star schema design", status: EPIC_STATUS.IN_PROGRESS, progress: 70, stage: "Design" },
+        { title: "Data Dictionary", description: "Complete data documentation", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Documentation" },
       ],
     },
     {
       title: "ETL Pipeline",
       description: "Extract, transform, load processes for all data sources",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 25,
       epics: [
-        { title: "Sales ETL", description: "Sales data integration", status: "in-progress", progress: 40, stage: "Development" },
-        { title: "Marketing ETL", description: "Marketing data integration", status: "not-started", progress: 0, stage: "Development" },
-        { title: "Operations ETL", description: "Operations data integration", status: "not-started", progress: 0, stage: "Development" },
+        { title: "Sales ETL", description: "Sales data integration", status: EPIC_STATUS.IN_PROGRESS, progress: 40, stage: "Development" },
+        { title: "Marketing ETL", description: "Marketing data integration", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Development" },
+        { title: "Operations ETL", description: "Operations data integration", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Development" },
       ],
     },
     {
       title: "BI Dashboards",
       description: "Executive and operational dashboards",
-      status: "not-started",
+      status: EPIC_STATUS.NOT_STARTED,
       progress: 5,
       epics: [
-        { title: "Executive Dashboard", description: "C-suite KPI dashboard", status: "in-progress", progress: 15, stage: "Design" },
-        { title: "Sales Analytics", description: "Sales performance dashboards", status: "not-started", progress: 0, stage: "Design" },
-        { title: "Self-Service BI", description: "Ad-hoc reporting", status: "not-started", progress: 0, stage: "Requirements" },
+        { title: "Executive Dashboard", description: "C-suite KPI dashboard", status: EPIC_STATUS.IN_PROGRESS, progress: 15, stage: "Design" },
+        { title: "Sales Analytics", description: "Sales performance dashboards", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Design" },
+        { title: "Self-Service BI", description: "Ad-hoc reporting", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Requirements" },
       ],
     },
+    getManagementActivitiesDeliverable("DELIVERY", 35),
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, "Data Warehouse Implementation", deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
@@ -1188,36 +1289,37 @@ async function createCaseManagementProject(
     {
       title: "Matter Management",
       description: "Core case/matter tracking and management",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 25,
       epics: [
-        { title: "Matter Data Model", description: "Case structure and fields", status: "in-progress", progress: 50, stage: "Requirements" },
-        { title: "Matter Workflow", description: "Status and lifecycle management", status: "not-started", progress: 0, stage: "Requirements" },
-        { title: "Matter Search", description: "Advanced search and filtering", status: "not-started", progress: 0, stage: "Design" },
+        { title: "Matter Data Model", description: "Case structure and fields", status: EPIC_STATUS.IN_PROGRESS, progress: 50, stage: "Requirements" },
+        { title: "Matter Workflow", description: "Status and lifecycle management", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Requirements" },
+        { title: "Matter Search", description: "Advanced search and filtering", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Design" },
       ],
     },
     {
       title: "Document Management",
       description: "Document storage, versioning, and organization",
-      status: "not-started",
+      status: EPIC_STATUS.NOT_STARTED,
       progress: 5,
       epics: [
-        { title: "Document Upload", description: "File upload and storage", status: "in-progress", progress: 20, stage: "Requirements" },
-        { title: "Document Organization", description: "Folder structure and tagging", status: "not-started", progress: 0, stage: "Requirements" },
-        { title: "Version Control", description: "Document versioning", status: "not-started", progress: 0, stage: "Design" },
+        { title: "Document Upload", description: "File upload and storage", status: EPIC_STATUS.IN_PROGRESS, progress: 20, stage: "Requirements" },
+        { title: "Document Organization", description: "Folder structure and tagging", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Requirements" },
+        { title: "Version Control", description: "Document versioning", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Design" },
       ],
     },
     {
       title: "Client Portal",
       description: "Self-service client access portal",
-      status: "not-started",
+      status: EPIC_STATUS.NOT_STARTED,
       progress: 0,
       epics: [
-        { title: "Portal Authentication", description: "Secure client login", status: "not-started", progress: 0, stage: "Requirements" },
-        { title: "Case View", description: "Client case visibility", status: "not-started", progress: 0, stage: "Design" },
-        { title: "Communication", description: "Secure messaging", status: "not-started", progress: 0, stage: "Requirements" },
+        { title: "Portal Authentication", description: "Secure client login", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Requirements" },
+        { title: "Case View", description: "Client case visibility", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Design" },
+        { title: "Communication", description: "Secure messaging", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Requirements" },
       ],
     },
+    getManagementActivitiesDeliverable("DELIVERY", 15),
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, "Case Management System", deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
@@ -1284,47 +1386,48 @@ async function createServiceNowAllianceProject(
     {
       title: "Partner Discovery",
       description: "ServiceNow partnership research and alignment",
-      status: "completed",
+      status: EPIC_STATUS.COMPLETED,
       progress: 100,
       epics: [
-        { title: "Market Research", description: "ServiceNow ecosystem analysis", status: "completed", progress: 100, stage: "Discovery" },
-        { title: "Partnership Criteria", description: "Define success metrics", status: "completed", progress: 100, stage: "Discovery" },
-        { title: "Initial Outreach", description: "Contact partner team", status: "completed", progress: 100, stage: "Discovery" },
+        { title: "Market Research", description: "ServiceNow ecosystem analysis", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Discovery" },
+        { title: "Partnership Criteria", description: "Define success metrics", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Discovery" },
+        { title: "Initial Outreach", description: "Contact partner team", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Discovery" },
       ],
     },
     {
       title: "Technical Certification",
       description: "ServiceNow technical certification path",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 45,
       epics: [
-        { title: "Platform Assessment", description: "Technical capabilities review", status: "completed", progress: 100, stage: "Evaluation" },
-        { title: "Certification Plan", description: "Team certification roadmap", status: "in-progress", progress: 60, stage: "Evaluation" },
-        { title: "Demo Environment", description: "ServiceNow sandbox setup", status: "in-progress", progress: 30, stage: "Integration" },
+        { title: "Platform Assessment", description: "Technical capabilities review", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Evaluation" },
+        { title: "Certification Plan", description: "Team certification roadmap", status: EPIC_STATUS.IN_PROGRESS, progress: 60, stage: "Evaluation" },
+        { title: "Demo Environment", description: "ServiceNow sandbox setup", status: EPIC_STATUS.IN_PROGRESS, progress: 30, stage: "Integration" },
       ],
     },
     {
       title: "Joint Solution",
       description: "Co-developed solution offering",
-      status: "not-started",
+      status: EPIC_STATUS.NOT_STARTED,
       progress: 0,
       epics: [
-        { title: "Solution Design", description: "Joint solution architecture", status: "not-started", progress: 0, stage: "Integration" },
-        { title: "Integration Development", description: "Platform integration", status: "not-started", progress: 0, stage: "Integration" },
-        { title: "Solution Documentation", description: "Technical documentation", status: "not-started", progress: 0, stage: "Launch" },
+        { title: "Solution Design", description: "Joint solution architecture", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Integration" },
+        { title: "Integration Development", description: "Platform integration", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Integration" },
+        { title: "Solution Documentation", description: "Technical documentation", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Launch" },
       ],
     },
     {
       title: "Go-to-Market",
       description: "Partnership launch activities",
-      status: "not-started",
+      status: EPIC_STATUS.NOT_STARTED,
       progress: 0,
       epics: [
-        { title: "Marketing Plan", description: "Joint marketing strategy", status: "not-started", progress: 0, stage: "Launch" },
-        { title: "Sales Enablement", description: "Sales training and materials", status: "not-started", progress: 0, stage: "Launch" },
-        { title: "Launch Event", description: "Partnership announcement", status: "not-started", progress: 0, stage: "Launch" },
+        { title: "Marketing Plan", description: "Joint marketing strategy", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Launch" },
+        { title: "Sales Enablement", description: "Sales training and materials", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Launch" },
+        { title: "Launch Event", description: "Partnership announcement", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Launch" },
       ],
     },
+    getManagementActivitiesDeliverable("ALLIANCE", 45),
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, "ServiceNow Alliance Engagement", deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
@@ -1390,36 +1493,37 @@ async function createWebinarExecutionProject(
     {
       title: "Webinar Content",
       description: "Presentation and demo materials",
-      status: "completed",
+      status: EPIC_STATUS.COMPLETED,
       progress: 100,
       epics: [
-        { title: "Presentation Deck", description: "Slide deck creation", status: "completed", progress: 100, stage: "Plan" },
-        { title: "Demo Script", description: "Live demo preparation", status: "completed", progress: 100, stage: "Plan" },
-        { title: "Speaker Notes", description: "Talking points", status: "completed", progress: 100, stage: "Execute" },
+        { title: "Presentation Deck", description: "Slide deck creation", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Plan" },
+        { title: "Demo Script", description: "Live demo preparation", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Plan" },
+        { title: "Speaker Notes", description: "Talking points", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Execute" },
       ],
     },
     {
       title: "Technical Setup",
       description: "Webinar platform and recording setup",
-      status: "completed",
+      status: EPIC_STATUS.COMPLETED,
       progress: 100,
       epics: [
-        { title: "Platform Setup", description: "Configure webinar platform", status: "completed", progress: 100, stage: "Discover" },
-        { title: "Test Run", description: "Technical rehearsal", status: "completed", progress: 100, stage: "Execute" },
-        { title: "Recording Setup", description: "Recording configuration", status: "completed", progress: 100, stage: "Execute" },
+        { title: "Platform Setup", description: "Configure webinar platform", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Discover" },
+        { title: "Test Run", description: "Technical rehearsal", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Execute" },
+        { title: "Recording Setup", description: "Recording configuration", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Execute" },
       ],
     },
     {
       title: "Post-Event",
       description: "Follow-up activities and metrics",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 30,
       epics: [
-        { title: "Recording Edit", description: "Edit and publish recording", status: "in-progress", progress: 50, stage: "Deliver" },
-        { title: "Attendee Follow-up", description: "Send follow-up emails", status: "not-started", progress: 0, stage: "Deliver" },
-        { title: "Metrics Report", description: "Engagement analytics", status: "not-started", progress: 0, stage: "Close" },
+        { title: "Recording Edit", description: "Edit and publish recording", status: EPIC_STATUS.IN_PROGRESS, progress: 50, stage: "Deliver" },
+        { title: "Attendee Follow-up", description: "Send follow-up emails", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Deliver" },
+        { title: "Metrics Report", description: "Engagement analytics", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Close" },
       ],
     },
+    getManagementActivitiesDeliverable("GENERIC", 25),
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, "Q1 Product Webinar Series", deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
@@ -1481,36 +1585,37 @@ async function createEmployeeOnsiteProject(
     {
       title: "Venue & Logistics",
       description: "Location, accommodations, and travel",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 40,
       epics: [
-        { title: "Venue Search", description: "Identify and evaluate venues", status: "in-progress", progress: 60, stage: "Discover" },
-        { title: "Accommodation", description: "Hotel block booking", status: "in-progress", progress: 30, stage: "Plan" },
-        { title: "Travel Coordination", description: "Flight and transport", status: "not-started", progress: 0, stage: "Plan" },
+        { title: "Venue Search", description: "Identify and evaluate venues", status: EPIC_STATUS.IN_PROGRESS, progress: 60, stage: "Discover" },
+        { title: "Accommodation", description: "Hotel block booking", status: EPIC_STATUS.IN_PROGRESS, progress: 30, stage: "Plan" },
+        { title: "Travel Coordination", description: "Flight and transport", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Plan" },
       ],
     },
     {
       title: "Event Agenda",
       description: "Sessions, activities, and schedule",
-      status: "not-started",
+      status: EPIC_STATUS.NOT_STARTED,
       progress: 10,
       epics: [
-        { title: "Session Planning", description: "Meeting agenda", status: "in-progress", progress: 20, stage: "Plan" },
-        { title: "Team Activities", description: "Team building events", status: "not-started", progress: 0, stage: "Plan" },
-        { title: "Evening Events", description: "Social activities", status: "not-started", progress: 0, stage: "Plan" },
+        { title: "Session Planning", description: "Meeting agenda", status: EPIC_STATUS.IN_PROGRESS, progress: 20, stage: "Plan" },
+        { title: "Team Activities", description: "Team building events", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Plan" },
+        { title: "Evening Events", description: "Social activities", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Plan" },
       ],
     },
     {
       title: "Budget & Admin",
       description: "Budget tracking and admin tasks",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 20,
       epics: [
-        { title: "Budget Tracking", description: "Cost management", status: "in-progress", progress: 40, stage: "Discover" },
-        { title: "Attendee List", description: "Headcount and RSVPs", status: "in-progress", progress: 50, stage: "Execute" },
-        { title: "Post-Event Survey", description: "Feedback collection", status: "not-started", progress: 0, stage: "Close" },
+        { title: "Budget Tracking", description: "Cost management", status: EPIC_STATUS.IN_PROGRESS, progress: 40, stage: "Discover" },
+        { title: "Attendee List", description: "Headcount and RSVPs", status: EPIC_STATUS.IN_PROGRESS, progress: 50, stage: "Execute" },
+        { title: "Post-Event Survey", description: "Feedback collection", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Close" },
       ],
     },
+    getManagementActivitiesDeliverable("GENERIC", 30),
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, "Spring Team Onsite Planning", deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
@@ -1576,47 +1681,48 @@ async function createClientSupportOpsProject(
     {
       title: "Normal Operations",
       description: "Standard support operations and ticket handling",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 65,
       epics: [
-        { title: "Ticket Triage", description: "Daily ticket triage process", status: "completed", progress: 100, stage: "Normal Operations" },
-        { title: "Issue Resolution", description: "Standard issue handling", status: "in-progress", progress: 70, stage: "Normal Operations" },
-        { title: "Knowledge Base", description: "KB article updates", status: "in-progress", progress: 50, stage: "Normal Operations" },
+        { title: "Ticket Triage", description: "Daily ticket triage process", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Normal Operations" },
+        { title: "Issue Resolution", description: "Standard issue handling", status: EPIC_STATUS.IN_PROGRESS, progress: 70, stage: "Normal Operations" },
+        { title: "Knowledge Base", description: "KB article updates", status: EPIC_STATUS.IN_PROGRESS, progress: 50, stage: "Normal Operations" },
       ],
     },
     {
       title: "Release v2.5 Support",
       description: "Support activities for v2.5 release",
-      status: "completed",
+      status: EPIC_STATUS.COMPLETED,
       progress: 100,
       epics: [
-        { title: "Release Monitoring", description: "Post-release monitoring", status: "completed", progress: 100, stage: "Release Support" },
-        { title: "Issue Tracking", description: "Release issue management", status: "completed", progress: 100, stage: "Release Support" },
-        { title: "Hotfix Support", description: "Emergency fix coordination", status: "completed", progress: 100, stage: "Release Support" },
+        { title: "Release Monitoring", description: "Post-release monitoring", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Release Support" },
+        { title: "Issue Tracking", description: "Release issue management", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Release Support" },
+        { title: "Hotfix Support", description: "Emergency fix coordination", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Release Support" },
       ],
     },
     {
       title: "March Incident Response",
       description: "Major database incident handling",
-      status: "completed",
+      status: EPIC_STATUS.COMPLETED,
       progress: 100,
       epics: [
-        { title: "Incident Containment", description: "Issue isolation", status: "completed", progress: 100, stage: "Incident Response" },
-        { title: "Resolution", description: "Fix implementation", status: "completed", progress: 100, stage: "Incident Response" },
-        { title: "Post-Incident Review", description: "RCA and documentation", status: "completed", progress: 100, stage: "Stabilization" },
+        { title: "Incident Containment", description: "Issue isolation", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Incident Response" },
+        { title: "Resolution", description: "Fix implementation", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Incident Response" },
+        { title: "Post-Incident Review", description: "RCA and documentation", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Stabilization" },
       ],
     },
     {
       title: "Q1 Process Improvements",
       description: "Continuous improvement initiatives",
-      status: "in-progress",
+      status: EPIC_STATUS.IN_PROGRESS,
       progress: 35,
       epics: [
-        { title: "SLA Review", description: "SLA metrics and targets", status: "completed", progress: 100, stage: "Stabilization" },
-        { title: "Runbook Updates", description: "Operational runbook refresh", status: "in-progress", progress: 40, stage: "Stabilization" },
-        { title: "Automation", description: "Support automation initiatives", status: "not-started", progress: 0, stage: "Normal Operations" },
+        { title: "SLA Review", description: "SLA metrics and targets", status: EPIC_STATUS.COMPLETED, progress: 100, stage: "Stabilization" },
+        { title: "Runbook Updates", description: "Operational runbook refresh", status: EPIC_STATUS.IN_PROGRESS, progress: 40, stage: "Stabilization" },
+        { title: "Automation", description: "Support automation initiatives", status: EPIC_STATUS.NOT_STARTED, progress: 0, stage: "Normal Operations" },
       ],
     },
+    getManagementActivitiesDeliverable("SUPPORT", 50),
   ];
 
   await createDeliverablesWithEpicsAndTasks(projectId, "Client Support Operations", deliverables, stageIds, stages, sprints, milestones, demoUsers, startDate, result);
