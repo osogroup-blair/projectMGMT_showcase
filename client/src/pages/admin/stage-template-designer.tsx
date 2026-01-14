@@ -66,6 +66,9 @@ export default function StageTemplateDesigner() {
 
   // Task Management State
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [isLinkMilestoneOpen, setIsLinkMilestoneOpen] = useState(false);
+  
+  const { updateAsync: updateMilestone } = useMilestoneTemplates();
   const [currentTask, setCurrentTask] = useState<Partial<TaskTemplate>>({
     title: "",
     description: "",
@@ -366,21 +369,69 @@ export default function StageTemplateDesigner() {
             {!isNew && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Flag className="h-5 w-5 text-muted-foreground" />
-                    Linked Milestones
-                  </CardTitle>
-                  <CardDescription>Milestone templates linked to this stage.</CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Flag className="h-5 w-5 text-muted-foreground" />
+                        Milestones
+                      </CardTitle>
+                      <CardDescription>Milestone templates linked to this stage.</CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setIsLinkMilestoneOpen(!isLinkMilestoneOpen)}
+                      className="gap-1"
+                    >
+                      <Plus className="h-4 w-4" /> Link
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  {isLinkMilestoneOpen && (
+                    <div className="p-3 border rounded-lg bg-muted/30 space-y-2 animate-in slide-in-from-top-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Available Milestones</Label>
+                      <div className="max-h-[150px] overflow-y-auto space-y-1">
+                        {(milestoneTemplates || [])
+                          .filter((m: any) => !m.stageTemplateId)
+                          .map((milestone: any) => (
+                            <div 
+                              key={milestone.id} 
+                              className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer group"
+                              onClick={async () => {
+                                try {
+                                  await updateMilestone({ id: milestone.id, updates: { stageTemplateId: templateId } });
+                                  toast({ title: "Milestone linked successfully" });
+                                } catch {
+                                  toast({ title: "Failed to link milestone", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Flag className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-sm">{milestone.name}</span>
+                              </div>
+                              <Plus className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          ))}
+                        {(milestoneTemplates || []).filter((m: any) => !m.stageTemplateId).length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-2">No unlinked milestones available</p>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" className="w-full mt-2" onClick={() => setIsLinkMilestoneOpen(false)}>
+                        Done
+                      </Button>
+                    </div>
+                  )}
+                  
                   <div className="space-y-2">
                     {linkedMilestones.length === 0 ? (
                       <p className="text-sm text-muted-foreground py-4 text-center">
-                        No milestones linked to this stage. Add them from the Milestones tab in Templates.
+                        No milestones linked yet. Click "Link" to add milestones.
                       </p>
                     ) : (
                       linkedMilestones.map((milestone: any) => (
-                        <div key={milestone.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20 hover:bg-muted/30 transition-colors">
+                        <div key={milestone.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20 hover:bg-muted/30 transition-colors group">
                           <div className="flex items-center gap-3">
                             <Flag className="h-4 w-4 text-primary" />
                             <div>
@@ -388,17 +439,29 @@ export default function StageTemplateDesigner() {
                               <p className="text-xs text-muted-foreground">{milestone.phase} • {milestone.completionTargetPercent}% target</p>
                             </div>
                           </div>
-                          {milestone.isBillingGate && (
-                            <Badge variant="secondary" className="text-xs">Billing Gate</Badge>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {milestone.isBillingGate && (
+                              <Badge variant="secondary" className="text-xs">Billing Gate</Badge>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                              onClick={async () => {
+                                try {
+                                  await updateMilestone({ id: milestone.id, updates: { stageTemplateId: null } });
+                                  toast({ title: "Milestone unlinked" });
+                                } catch {
+                                  toast({ title: "Failed to unlink milestone", variant: "destructive" });
+                                }
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                       ))
                     )}
-                    <Link href="/admin/templates?tab=milestones">
-                      <Button variant="outline" size="sm" className="w-full mt-2 gap-2">
-                        <Plus className="h-4 w-4" /> Manage Milestones
-                      </Button>
-                    </Link>
                   </div>
                 </CardContent>
               </Card>
