@@ -49,7 +49,7 @@ import { useRoute, Link } from "wouter";
 import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages, useResolvedTaskTypes, useDeliverableTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { Loader2, Flag, Target } from "lucide-react";
@@ -102,6 +102,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { data: allMilestones = [], isLoading: isMilestonesLoading } = useMilestones();
   const { data: allProjectStages = [] } = useProjectStages();
   const { data: resolvedTaskTypes = [] } = useResolvedTaskTypes(projectId);
+  const { data: deliverableTypes = [] } = useDeliverableTypes();
   const { statuses: taskStatuses, statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor, defaultStatus } = useTaskStatuses();
   const { updateAsync: updateEpicAsync } = useEpics();
   const { isTaskComplete } = useCompletedStatuses();
@@ -836,12 +837,13 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead style={{ width: "3%" }}></TableHead>
-                  <SortableHeader field="title" width="25%">Deliverable</SortableHeader>
-                  <SortableHeader field="status" width="12%">Status</SortableHeader>
-                  <SortableHeader field="dueDate" width="12%">Due Date</SortableHeader>
-                  <SortableHeader field="owner" width="12%">Owner</SortableHeader>
-                  <SortableHeader field="epics" width="10%">Epics</SortableHeader>
-                  <SortableHeader field="progress" width="16%">Progress</SortableHeader>
+                  <SortableHeader field="title" width="22%">Deliverable</SortableHeader>
+                  <TableHead style={{ width: "12%" }}>Type</TableHead>
+                  <SortableHeader field="status" width="10%">Status</SortableHeader>
+                  <SortableHeader field="dueDate" width="10%">Due Date</SortableHeader>
+                  <SortableHeader field="owner" width="10%">Owner</SortableHeader>
+                  <SortableHeader field="epics" width="8%">Epics</SortableHeader>
+                  <SortableHeader field="progress" width="15%">Progress</SortableHeader>
                   <TableHead style={{ width: "10%" }} className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -917,6 +919,24 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                               </div>
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <SearchableSelect
+                            options={[
+                              { value: "", label: "No type" },
+                              ...deliverableTypes.map((t: any) => ({ value: t.id, label: t.name }))
+                            ]}
+                            value={deliverable.typeId || ""}
+                            onValueChange={(value) => {
+                              updateDeliverableAsync({ 
+                                id: deliverable.id, 
+                                updates: { typeId: value || null } 
+                              });
+                            }}
+                            placeholder="Select type..."
+                            className="h-7 text-xs w-full min-w-[100px]"
+                            data-testid={`select-type-${deliverable.id}`}
+                          />
                         </TableCell>
                         <TableCell>
                           <Select 
