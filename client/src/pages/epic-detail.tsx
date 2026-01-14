@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Shell } from "@/components/layout/shell";
+import { EpicNavigator } from "@/components/epic-navigator";
 import { 
   ArrowLeft, 
   Calendar as CalendarIcon, 
@@ -30,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints, useEpicTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
@@ -81,6 +82,7 @@ interface TaskFormData {
 
 export default function EpicDetail() {
   const [match, params] = useRoute("/projects/:projectId/epics/:epicId");
+  const [, setLocation] = useLocation();
   const projectId = params?.projectId || "1";
   const epicId = params?.epicId || "e1";
   const { toast } = useToast();
@@ -103,6 +105,18 @@ export default function EpicDetail() {
   const projectSprints = useMemo(() => {
     return allSprints?.filter((s: any) => s.projectId === projectId) || [];
   }, [allSprints, projectId]);
+
+  // Get epics for this project (for navigation)
+  const projectEpics = useMemo(() => {
+    return allEpics?.filter((e: any) => {
+      const deliverable = allDeliverables?.find((d: any) => d.id === e.deliverableId);
+      return deliverable?.projectId === projectId;
+    }) || [];
+  }, [allEpics, allDeliverables, projectId]);
+
+  const handleEpicNavigate = (newEpicId: string) => {
+    setLocation(`/projects/${projectId}/epics/${newEpicId}`);
+  };
 
   // Task CRUD state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -343,6 +357,14 @@ export default function EpicDetail() {
   return (
     <Shell>
       <div className="h-[calc(100vh-8rem)] flex flex-col">
+        {/* Epic Navigator */}
+        <EpicNavigator
+          currentEpicId={epicId}
+          epics={projectEpics}
+          projectId={projectId}
+          onNavigate={handleEpicNavigate}
+        />
+
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
           <div className="flex justify-between items-start gap-4">
