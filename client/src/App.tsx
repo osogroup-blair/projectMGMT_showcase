@@ -41,6 +41,7 @@ import SprintList from "@/pages/sprint-list";
 import SprintDetail from "@/pages/sprint-detail";
 import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import DataViewerPage from "@/pages/admin/data-viewer";
+import EditUserPage from "@/pages/admin/edit-user";
 import ProjectTools from "@/pages/project-tools";
 import ImportWizard from "@/pages/import-wizard";
 import ImportUpload from "@/pages/import-upload";
@@ -85,6 +86,7 @@ function ProtectedRoutes() {
       <Route path="/help" component={HelpPage} />
       <Route path="/admin" component={AdminHub} />
       <Route path="/admin/data-viewer" component={DataViewerPage} />
+      <Route path="/admin/users/:userId/edit" component={EditUserPage} />
       <Route path="/admin/:section" component={AdminHub} />
       <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
       <Route component={NotFound} />

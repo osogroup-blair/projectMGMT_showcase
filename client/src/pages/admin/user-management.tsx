@@ -447,14 +447,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   };
 
   const handleOpenEdit = (user: UserPublic) => {
-    setEditingUser(user);
-    setFormData({
-      name: user.name || "",
-      jobTitle: user.jobTitle || "",
-      systemRole: (user.systemRole as any) || "member",
-      permissions: (user as any).permissions || []
-    });
-    setIsDialogOpen(true);
+    window.location.href = `/admin/users/${user.id}/edit`;
   };
 
   const handleSave = async () => {
