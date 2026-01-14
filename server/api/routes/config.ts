@@ -458,18 +458,28 @@ export function registerConfigRoutes(
   });
 
   // Toggle demo admin passthrough (admin only - requires authentication)
-  app.put("/api/auth/demo-admin-passthrough/toggle", async (req, res) => {
+  app.put("/api/auth/demo-admin-passthrough/toggle", async (req: any, res) => {
     try {
-      const userId = getAuthUserId(req);
+      const realUserId = getAuthUserId(req);
       
       // Require authentication
-      if (!userId) {
+      if (!realUserId) {
         return res.status(401).json({ error: "Authentication required" });
       }
       
-      // Check if user is admin
-      const user = await storage.getUserById(userId);
-      if (!user || user.systemRole !== "admin") {
+      // Check if user is admin (either real user or impersonated user)
+      const realUser = await storage.getUserById(realUserId);
+      const impersonatedUserId = req.session?.impersonatedUserId;
+      
+      let hasAdminAccess = realUser?.systemRole === "admin";
+      
+      // If impersonating, also check if the impersonated user is admin
+      if (!hasAdminAccess && impersonatedUserId) {
+        const impersonatedUser = await storage.getUserById(impersonatedUserId);
+        hasAdminAccess = impersonatedUser?.systemRole === "admin";
+      }
+      
+      if (!hasAdminAccess) {
         return res.status(403).json({ error: "Admin access required" });
       }
       
