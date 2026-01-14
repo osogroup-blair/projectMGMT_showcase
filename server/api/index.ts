@@ -137,11 +137,9 @@ export async function registerRoutes(
       const settings = await storage.getAppSettings();
       const allUsers = await storage.getUsers();
       
-      // Get list of demo users for the dropdown
+      // Get list of demo users for the dropdown (only users with demo role or demo- prefix)
       const demoUsers = allUsers.filter(u => 
-        u.systemRole === "admin" || 
-        u.systemRole === "demo" ||
-        u.id.startsWith("demo-")
+        u.systemRole === "demo" || u.id.startsWith("demo-")
       );
       
       res.json({ 
@@ -163,7 +161,7 @@ export async function registerRoutes(
       // Validate the user exists if provided
       if (demoLoginUserId !== undefined) {
         if (demoLoginUserId) {
-          const user = await storage.getUser(demoLoginUserId);
+          const user = await storage.getUserById(demoLoginUserId);
           if (!user) {
             return res.status(400).json({ error: "Selected user not found" });
           }
