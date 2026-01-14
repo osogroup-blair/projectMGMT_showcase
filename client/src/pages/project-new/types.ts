@@ -66,6 +66,8 @@ export interface WizardTaskDraft {
   datesInheritedFromStage?: boolean;
   taskTypeId?: string;
   assigneeId?: string;
+  isFromImport?: boolean;
+  sourceAssigneeId?: string;
 }
 
 export interface WizardStage {
@@ -79,6 +81,7 @@ export interface WizardStage {
   tasks: WizardTaskDraft[];
   startDate?: string;
   endDate?: string;
+  isFromImport?: boolean;
 }
 
 /**

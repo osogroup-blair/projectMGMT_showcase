@@ -154,36 +154,65 @@ export function StepTeamRoles({
     
     console.log('[TEAM-ROLES] Initializing from import with', mappedUsers.length, 'mapped users');
     
+    let newOwnerUserId = ownerUserId;
+    let newManagerUserId = managerUserId;
+    const newStakeholderUserIds: string[] = [...stakeholderUserIds];
     const importedTeamMembers: { userId: string; executionRoleId?: string }[] = [];
     
     mappedUsers.forEach(mapping => {
       if (!mapping.mappedToId) return;
       
-      const userTaskRoleIds: string[] = [];
-      stages.forEach(stage => {
-        stage.tasks?.forEach(task => {
-          const taskAny = task as any;
-          if (taskAny.sourceAssigneeId === mapping.sourceId && task.assigneeRoleTypeId) {
-            if (!userTaskRoleIds.includes(task.assigneeRoleTypeId)) {
-              userTaskRoleIds.push(task.assigneeRoleTypeId);
+      const projectRole = mapping.projectRole || 'none';
+      
+      if (projectRole === 'owner' && !newOwnerUserId) {
+        newOwnerUserId = mapping.mappedToId;
+        console.log('[TEAM-ROLES] Set owner from import:', mapping.mappedToName);
+      } else if (projectRole === 'manager' && !newManagerUserId) {
+        newManagerUserId = mapping.mappedToId;
+        console.log('[TEAM-ROLES] Set manager from import:', mapping.mappedToName);
+      } else if (projectRole === 'stakeholder') {
+        if (!newStakeholderUserIds.includes(mapping.mappedToId)) {
+          newStakeholderUserIds.push(mapping.mappedToId);
+          console.log('[TEAM-ROLES] Added stakeholder from import:', mapping.mappedToName);
+        }
+      } else {
+        const userTaskRoleIds: string[] = [];
+        stages.forEach(stage => {
+          stage.tasks?.forEach(task => {
+            const taskAny = task as any;
+            if (taskAny.sourceAssigneeId === mapping.sourceId && task.assigneeRoleTypeId) {
+              if (!userTaskRoleIds.includes(task.assigneeRoleTypeId)) {
+                userTaskRoleIds.push(task.assigneeRoleTypeId);
+              }
             }
-          }
+          });
         });
-      });
-      
-      const executionRoleId = userTaskRoleIds.length > 0 ? userTaskRoleIds[0] : undefined;
-      
-      importedTeamMembers.push({
-        userId: mapping.mappedToId,
-        executionRoleId
-      });
+        
+        const executionRoleId = userTaskRoleIds.length > 0 ? userTaskRoleIds[0] : undefined;
+        
+        importedTeamMembers.push({
+          userId: mapping.mappedToId,
+          executionRoleId
+        });
+      }
     });
+    
+    if (newOwnerUserId !== ownerUserId) {
+      setOwnerUserIdState(newOwnerUserId);
+    }
+    if (newManagerUserId !== managerUserId) {
+      setManagerUserIdState(newManagerUserId);
+    }
+    if (newStakeholderUserIds.length > stakeholderUserIds.length) {
+      setStakeholderUserIdsState(newStakeholderUserIds);
+    }
     
     if (importedTeamMembers.length > 0) {
       setTeamMembersState(importedTeamMembers);
-      setRoles(buildRolesArray(ownerUserId, managerUserId, stakeholderUserIds, importedTeamMembers));
-      console.log('[TEAM-ROLES] Added', importedTeamMembers.length, 'team members from import');
     }
+    
+    setRoles(buildRolesArray(newOwnerUserId, newManagerUserId, newStakeholderUserIds, importedTeamMembers));
+    console.log('[TEAM-ROLES] Initialized roles from import - owner:', newOwnerUserId, 'manager:', newManagerUserId, 'stakeholders:', newStakeholderUserIds.length, 'members:', importedTeamMembers.length);
     
     importInitializedRef.current = true;
   }, [importContext?.state?.isImportMode, importContext?.state?.userMappings, stages, buildRolesArray, ownerUserId, managerUserId, stakeholderUserIds, setRoles]);

@@ -77,6 +77,8 @@ export interface ImportedRole extends WizardRole {
   sourceUserId?: string;
 }
 
+export type ProjectRoleType = 'none' | 'owner' | 'manager' | 'stakeholder' | 'member';
+
 export interface UserMappingEntry {
   sourceId: string;
   sourceName?: string;
@@ -85,6 +87,11 @@ export interface UserMappingEntry {
   mappedToName?: string;
   confidence: ConfidenceLevel;
   action: 'map' | 'create' | 'skip' | 'unassigned';
+  projectRole?: ProjectRoleType;
+  suggestedExecutionRoleId?: string;
+  suggestedExecutionRoleName?: string;
+  suggestedExecutionRoleConfidence?: number;
+  taskCount?: number;
 }
 
 export interface StatusMappingEntry {
@@ -214,6 +221,78 @@ function normalizeStatus(status: string): string {
     'on_hold': 'On Hold'
   };
   return mappings[normalized] || status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+export interface RoleType {
+  id: string;
+  label: string;
+  description?: string;
+}
+
+interface TaskRolePattern {
+  patterns: RegExp[];
+  roleLabel: string;
+  priority: number;
+}
+
+const TASK_ROLE_PATTERNS: TaskRolePattern[] = [
+  { patterns: [/design/i, /wireframe/i, /mockup/i, /prototype/i, /ui\b/i, /ux\b/i, /visual/i, /layout/i], roleLabel: 'Designer', priority: 1 },
+  { patterns: [/develop/i, /implement/i, /code/i, /build/i, /engineer/i, /program/i, /frontend/i, /backend/i, /api\b/i, /database/i], roleLabel: 'Developer', priority: 2 },
+  { patterns: [/test/i, /qa\b/i, /quality/i, /verify/i, /validation/i, /bug/i, /regression/i], roleLabel: 'QA Engineer', priority: 3 },
+  { patterns: [/document/i, /write/i, /content/i, /copy/i, /help text/i, /manual/i, /guide/i], roleLabel: 'Technical Writer', priority: 4 },
+  { patterns: [/manage/i, /plan/i, /coordinate/i, /schedule/i, /organize/i, /lead/i], roleLabel: 'Project Manager', priority: 5 },
+  { patterns: [/review/i, /approve/i, /sign.?off/i, /validate/i, /check/i], roleLabel: 'Reviewer', priority: 6 },
+  { patterns: [/analyze/i, /research/i, /requirements/i, /gather/i, /define/i, /specify/i], roleLabel: 'Business Analyst', priority: 7 },
+  { patterns: [/deploy/i, /release/i, /ops/i, /infrastructure/i, /server/i, /cloud/i, /ci.?cd/i], roleLabel: 'DevOps Engineer', priority: 8 },
+];
+
+export function suggestExecutionRole(
+  taskTitles: string[],
+  roleTypes: RoleType[]
+): { roleId: string | undefined; roleName: string | undefined; confidence: number } {
+  if (taskTitles.length === 0 || roleTypes.length === 0) {
+    return { roleId: undefined, roleName: undefined, confidence: 0 };
+  }
+  
+  const patternScores: Record<string, number> = {};
+  
+  for (const title of taskTitles) {
+    for (const pattern of TASK_ROLE_PATTERNS) {
+      for (const regex of pattern.patterns) {
+        if (regex.test(title)) {
+          patternScores[pattern.roleLabel] = (patternScores[pattern.roleLabel] || 0) + 1;
+          break;
+        }
+      }
+    }
+  }
+  
+  let bestRole: string | undefined;
+  let bestScore = 0;
+  
+  for (const [roleLabel, score] of Object.entries(patternScores)) {
+    if (score > bestScore) {
+      bestScore = score;
+      bestRole = roleLabel;
+    }
+  }
+  
+  if (!bestRole) {
+    return { roleId: undefined, roleName: undefined, confidence: 0 };
+  }
+  
+  const matchedRoleType = roleTypes.find(rt => 
+    rt.label.toLowerCase().includes(bestRole!.toLowerCase()) ||
+    bestRole!.toLowerCase().includes(rt.label.toLowerCase())
+  );
+  
+  const confidence = Math.min(bestScore / taskTitles.length, 1);
+  
+  return {
+    roleId: matchedRoleType?.id,
+    roleName: matchedRoleType?.label || bestRole,
+    confidence
+  };
 }
 
 function extractProjectData(
@@ -1017,12 +1096,15 @@ export function toWizardStages(
         assignedEpicId: importedTask.assignedEpicId,
         assignedEpicTitle: importedTask.assignedEpicTitle,
         mappingStatus: importedTask.mappingStatus,
-        assigneeId
+        assigneeId,
+        isFromImport: true,
+        sourceAssigneeId: importedTask.sourceAssigneeId
       };
     }),
     type: s.type || 'standard',
     startDate: s.startDate,
-    endDate: s.endDate
+    endDate: s.endDate,
+    isFromImport: true
   }));
 }
 

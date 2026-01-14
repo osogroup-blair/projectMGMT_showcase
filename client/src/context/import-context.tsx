@@ -11,6 +11,7 @@ import type {
   StatusMappingEntry,
   ConfidenceLevel,
   ImportAdapterOptions,
+  ProjectRoleType,
 } from '@/lib/import-to-wizard-adapter';
 import { convertImportToWizardData } from '@/lib/import-to-wizard-adapter';
 import type { ReferenceMappingEntry, ResolveAllReferencesResult } from '@/lib/import-reference-resolver';
@@ -35,6 +36,7 @@ interface ImportContextType {
   state: ImportState;
   initializeFromFile: (parseResult: ParseResult, options?: ImportAdapterOptions) => void;
   updateUserMapping: (sourceId: string, mappedToId: string | null, mappedToName: string | undefined, action: UserMappingEntry['action']) => void;
+  updateUserProjectRole: (sourceId: string, projectRole: ProjectRoleType) => void;
   updateStatusMapping: (sourceStatus: string, mappedStatus: string, mappedStatusId?: string) => void;
   updateReferenceMapping: (entityType: ReferenceMappingEntry['entityType'], sourceValue: string, resolvedId: string, resolvedName: string) => void;
   setDefaultUnassignedTo: (userId: string | null, userName?: string) => void;
@@ -111,6 +113,17 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const updateUserProjectRole = useCallback((sourceId: string, projectRole: ProjectRoleType) => {
+    setState(prev => ({
+      ...prev,
+      userMappings: prev.userMappings.map(m =>
+        m.sourceId === sourceId
+          ? { ...m, projectRole }
+          : m
+      )
+    }));
+  }, []);
+
   const updateStatusMapping = useCallback((sourceStatus: string, mappedStatus: string, mappedStatusId?: string) => {
     setState(prev => ({
       ...prev,
@@ -128,9 +141,8 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     resolvedId: string,
     resolvedName: string
   ) => {
-    setState(prev => ({
-      ...prev,
-      referenceMappings: prev.referenceMappings.map(m =>
+    setState(prev => {
+      const newMappings = prev.referenceMappings.map(m =>
         m.entityType === entityType && m.sourceValue === sourceValue
           ? { 
               ...m, 
@@ -140,8 +152,78 @@ export function ImportProvider({ children }: { children: ReactNode }) {
               resolutionMethod: 'exact_name' as const
             }
           : m
-      )
-    }));
+      );
+      
+      const resolvedCount = newMappings.filter(m => m.resolvedId).length;
+      const unresolvedCount = newMappings.filter(m => !m.resolvedId).length;
+      const newStats = prev.referenceStats ? {
+        ...prev.referenceStats,
+        resolved: resolvedCount,
+        unresolved: unresolvedCount,
+        total: newMappings.length
+      } : null;
+      
+      let updatedAdapterResult = prev.adapterResult;
+      if (updatedAdapterResult) {
+        const updateEntityReferences = (obj: any): any => {
+          if (!obj || typeof obj !== 'object') return obj;
+          const updated = { ...obj };
+          
+          const allRefFields = [
+            'milestoneId', 'epicId', 'stageId', 'sprintId', 'deliverableId', 'projectId',
+            'sourceEpicId', 'sourceDeliverableId', 'sourceStageId', 'sourceMilestoneId', 'sourceSprintId'
+          ];
+          
+          allRefFields.forEach(field => {
+            if (updated[field] === sourceValue) {
+              updated[field] = resolvedId;
+            }
+          });
+          
+          const nameFields = ['sourceEpicTitle', 'epicTitle', 'milestoneName', 'stageName', 'deliverableName'];
+          nameFields.forEach(field => {
+            if (updated[field] === sourceValue) {
+              updated[field] = resolvedName;
+            }
+          });
+          
+          return updated;
+        };
+        
+        updatedAdapterResult = {
+          ...updatedAdapterResult,
+          stages: updatedAdapterResult.stages.map(stage => {
+            const updated = updateEntityReferences(stage);
+            if (stage.tasks) {
+              updated.tasks = stage.tasks.map((task: any) => updateEntityReferences(task));
+            }
+            return updated;
+          }),
+          deliverables: updatedAdapterResult.deliverables.map(del => {
+            const updated = updateEntityReferences(del);
+            if (del.epics) {
+              updated.epics = del.epics.map((epic: any) => {
+                const updatedEpic = updateEntityReferences(epic);
+                if (epic.tasks) {
+                  updatedEpic.tasks = epic.tasks.map((task: any) => updateEntityReferences(task));
+                }
+                return updatedEpic;
+              });
+            }
+            return updated;
+          }),
+          milestones: updatedAdapterResult.milestones.map(ms => updateEntityReferences(ms)),
+          roles: updatedAdapterResult.roles.map((role: any) => updateEntityReferences(role))
+        };
+      }
+      
+      return {
+        ...prev,
+        referenceMappings: newMappings,
+        referenceStats: newStats,
+        adapterResult: updatedAdapterResult
+      };
+    });
   }, []);
 
   const setDefaultUnassignedTo = useCallback((userId: string | null, userName?: string) => {
@@ -217,6 +299,7 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     state,
     initializeFromFile,
     updateUserMapping,
+    updateUserProjectRole,
     updateStatusMapping,
     updateReferenceMapping,
     setDefaultUnassignedTo,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,17 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Plus, 
@@ -30,7 +41,11 @@ import {
   LayoutTemplate,
   PanelRightOpen,
   Calendar,
-  Info
+  Info,
+  Upload,
+  AlertTriangle,
+  Merge,
+  Replace
 } from "lucide-react";
 import {
   Tooltip,
@@ -39,6 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { StepProps, WizardStage, WizardTaskDraft, WizardMilestone } from "./types";
+import { useImportOptional } from "@/context/import-context";
 
 export function StepStageConfig({
   stages,
@@ -55,6 +71,24 @@ export function StepStageConfig({
   const [expandedStages, setExpandedStages] = useState<string[]>([]);
   const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
   const [frameworkPanelOpen, setFrameworkPanelOpen] = useState(false);
+  const [showFrameworkConfirm, setShowFrameworkConfirm] = useState(false);
+  const [pendingFrameworkId, setPendingFrameworkId] = useState<string | null>(null);
+  const [frameworkAction, setFrameworkAction] = useState<'replace' | 'merge'>('replace');
+
+  const importContext = useImportOptional();
+  const isImportMode = importContext?.state?.isImportMode || false;
+
+  const importStats = useMemo(() => {
+    let importedStages = 0;
+    let importedTasks = 0;
+    stages.forEach(stage => {
+      if (stage.isFromImport) importedStages++;
+      stage.tasks?.forEach(task => {
+        if (task.isFromImport) importedTasks++;
+      });
+    });
+    return { importedStages, importedTasks, hasImportedData: importedStages > 0 || importedTasks > 0 };
+  }, [stages]);
 
   const getDefaultRule = (): WizardMilestone['rule'] => ({
     scopeType: 'stage',
@@ -207,7 +241,24 @@ export function StepStageConfig({
     setExpandedStages([...expandedStages, newStage.id]);
   };
 
-  const applyFramework = (frameworkId: string) => {
+  const handleFrameworkClick = (frameworkId: string) => {
+    if (importStats.hasImportedData) {
+      setPendingFrameworkId(frameworkId);
+      setShowFrameworkConfirm(true);
+    } else {
+      applyFramework(frameworkId, 'replace');
+    }
+  };
+
+  const handleFrameworkConfirm = () => {
+    if (pendingFrameworkId) {
+      applyFramework(pendingFrameworkId, frameworkAction);
+    }
+    setShowFrameworkConfirm(false);
+    setPendingFrameworkId(null);
+  };
+
+  const applyFramework = (frameworkId: string, mode: 'replace' | 'merge' = 'replace') => {
     const framework = frameworkTemplates?.find((f: any) => f.id === frameworkId);
     if (!framework) return;
 
@@ -245,9 +296,14 @@ export function StepStageConfig({
       })
       .filter(Boolean) as WizardStage[];
 
-    setStages(frameworkStages);
-    setExpandedStages([]);  // Close all accordions when applying framework
-    setExpandedMilestones([]);  // Also close milestone accordions
+    if (mode === 'merge') {
+      const importedStages = stages.filter(s => s.isFromImport);
+      setStages([...importedStages, ...frameworkStages]);
+    } else {
+      setStages(frameworkStages);
+    }
+    setExpandedStages([]);
+    setExpandedMilestones([]);
     setFrameworkPanelOpen(false);
   };
 
@@ -281,6 +337,73 @@ export function StepStageConfig({
 
   return (
     <div className="flex flex-col h-full">
+      <AlertDialog open={showFrameworkConfirm} onOpenChange={setShowFrameworkConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Imported Data Detected
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                You have <strong>{importStats.importedStages} stages</strong> and{" "}
+                <strong>{importStats.importedTasks} tasks</strong> from your import file.
+              </p>
+              <p>How would you like to apply the framework?</p>
+              <div className="grid gap-3 pt-2">
+                <div
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    frameworkAction === 'merge' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground'
+                  }`}
+                  onClick={() => setFrameworkAction('merge')}
+                  data-testid="option-merge-framework"
+                >
+                  <div className="flex items-center gap-2 font-medium">
+                    <Merge className="h-4 w-4" />
+                    Merge with Import
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Keep your imported stages and add framework stages alongside them.
+                  </p>
+                </div>
+                <div
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    frameworkAction === 'replace' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground'
+                  }`}
+                  onClick={() => setFrameworkAction('replace')}
+                  data-testid="option-replace-framework"
+                >
+                  <div className="flex items-center gap-2 font-medium">
+                    <Replace className="h-4 w-4" />
+                    Replace All
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Remove all current stages (including imported) and use only framework stages.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="cancel-framework-dialog">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleFrameworkConfirm} data-testid="confirm-framework-action">
+              {frameworkAction === 'merge' ? 'Merge' : 'Replace'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {importStats.hasImportedData && (
+        <Alert className="mb-4 border-blue-200 bg-blue-50">
+          <Upload className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>Import Mode:</strong> {importStats.importedStages} stages and {importStats.importedTasks} tasks loaded from{" "}
+            <span className="font-mono text-xs">{importContext?.state?.sourceFileName || 'import file'}</span>.
+            These items are marked with an import badge.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="sticky top-0 z-10 bg-background pb-4 border-b mb-4">
         <div className="flex justify-end items-center">
           <Sheet open={frameworkPanelOpen} onOpenChange={setFrameworkPanelOpen}>
@@ -306,7 +429,7 @@ export function StepStageConfig({
                         <Card 
                           key={framework.id} 
                           className="cursor-pointer hover:border-primary transition-colors"
-                          onClick={() => applyFramework(framework.id)}
+                          onClick={() => handleFrameworkClick(framework.id)}
                           data-testid={`card-framework-${framework.id}`}
                         >
                           <CardContent className="p-4">
@@ -399,6 +522,12 @@ export function StepStageConfig({
                           <span className="text-xs text-muted-foreground shrink-0">
                             {new Date(stage.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(stage.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
+                        )}
+                        {stage.isFromImport && (
+                          <Badge variant="secondary" className="shrink-0 bg-blue-100 text-blue-700 border-blue-200">
+                            <Upload className="h-3 w-3 mr-1" />
+                            Imported
+                          </Badge>
                         )}
                         <Badge variant="outline" className="shrink-0">
                           {stage.tasks.length} Tasks
@@ -527,16 +656,24 @@ export function StepStageConfig({
                           ) : (
                             <div className="space-y-2">
                               {stage.tasks.map((task, taskIndex) => (
-                                <Card key={task.id} className="bg-muted/30">
+                                <Card key={task.id} className={`${task.isFromImport ? 'bg-blue-50/50 border-blue-200' : 'bg-muted/30'}`}>
                                   <CardContent className="p-3">
                                     <div className="flex items-start gap-3">
                                       <div className="flex-1 space-y-2">
-                                        <Input
-                                          value={task.title}
-                                          onChange={(e) => updateTask(stageIndex, taskIndex, { title: e.target.value })}
-                                          className="h-8"
-                                          placeholder="Task title..."
-                                        />
+                                        <div className="flex items-center gap-2">
+                                          <Input
+                                            value={task.title}
+                                            onChange={(e) => updateTask(stageIndex, taskIndex, { title: e.target.value })}
+                                            className="h-8 flex-1"
+                                            placeholder="Task title..."
+                                          />
+                                          {task.isFromImport && (
+                                            <Badge variant="secondary" className="shrink-0 bg-blue-100 text-blue-700 border-blue-200 text-xs">
+                                              <Upload className="h-2.5 w-2.5 mr-1" />
+                                              Imported
+                                            </Badge>
+                                          )}
+                                        </div>
                                         <div className={`grid gap-2 ${taskTypes.length > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
                                           <SearchableSelect
                                             value={task.scope}

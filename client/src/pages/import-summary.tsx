@@ -43,9 +43,17 @@ import {
 import { useImport } from '@/context/import-context';
 import { useStatusOptions } from '@/hooks/use-nexus-data';
 import { useAllUsersForAssignment } from '@/features/user-management';
-import type { ConfidenceLevel, UserMappingEntry, StatusMappingEntry } from '@/lib/import-to-wizard-adapter';
+import type { ConfidenceLevel, UserMappingEntry, StatusMappingEntry, ProjectRoleType } from '@/lib/import-to-wizard-adapter';
 import type { ReferenceMappingEntry } from '@/lib/import-reference-resolver';
 import { useQuery } from '@tanstack/react-query';
+
+const PROJECT_ROLE_OPTIONS: { value: ProjectRoleType; label: string }[] = [
+  { value: 'none', label: 'No Project Role' },
+  { value: 'owner', label: 'Project Owner' },
+  { value: 'manager', label: 'Project Manager' },
+  { value: 'stakeholder', label: 'Stakeholder' },
+  { value: 'member', label: 'Team Member' },
+];
 
 function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
   const config = {
@@ -66,7 +74,7 @@ function ConfidenceIcon({ confidence }: { confidence: ConfidenceLevel }) {
 
 export default function ImportSummary() {
   const [, setLocation] = useLocation();
-  const { state, updateUserMapping, updateStatusMapping, updateReferenceMapping, setDefaultUnassignedTo } = useImport();
+  const { state, updateUserMapping, updateUserProjectRole, updateStatusMapping, updateReferenceMapping, setDefaultUnassignedTo } = useImport();
   const { data: allUsers } = useAllUsersForAssignment();
   const { data: statusOptionsData } = useStatusOptions();
   
@@ -526,6 +534,8 @@ export default function ImportSummary() {
                           <TableHead>Imported User</TableHead>
                           <TableHead>Confidence</TableHead>
                           <TableHead>Map To</TableHead>
+                          <TableHead>Project Role</TableHead>
+                          <TableHead>Suggested Role</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -536,6 +546,9 @@ export default function ImportSummary() {
                                 <p className="font-medium">{mapping.sourceName || mapping.sourceId}</p>
                                 {mapping.sourceEmail && (
                                   <p className="text-xs text-muted-foreground">{mapping.sourceEmail}</p>
+                                )}
+                                {mapping.taskCount !== undefined && (
+                                  <p className="text-xs text-muted-foreground">{mapping.taskCount} tasks assigned</p>
                                 )}
                               </div>
                             </TableCell>
@@ -553,6 +566,32 @@ export default function ImportSummary() {
                                 className="w-[220px]"
                                 data-testid={`user-select-${mapping.sourceId}`}
                               />
+                            </TableCell>
+                            <TableCell>
+                              <SearchableSelect
+                                value={mapping.projectRole || 'none'}
+                                onValueChange={(val) => updateUserProjectRole(mapping.sourceId, val as ProjectRoleType)}
+                                options={PROJECT_ROLE_OPTIONS}
+                                placeholder="Select role..."
+                                className="w-[160px]"
+                                data-testid={`project-role-select-${mapping.sourceId}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {mapping.suggestedExecutionRoleName ? (
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {mapping.suggestedExecutionRoleName}
+                                  </Badge>
+                                  {mapping.suggestedExecutionRoleConfidence !== undefined && mapping.suggestedExecutionRoleConfidence > 0.5 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      ({Math.round(mapping.suggestedExecutionRoleConfidence * 100)}%)
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
