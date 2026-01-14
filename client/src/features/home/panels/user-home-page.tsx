@@ -107,7 +107,10 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
 
     // Filter tasks assigned to current user
     const myTasks = allTasks.filter((t: any) => t.assigneeId === currentUser?.id);
-    const activeProjects = allProjects.filter((p: any) => p.status === "active");
+    // Only count active projects where the user is on the team
+    const activeProjects = allProjects.filter((p: any) => 
+      p.status === "active" && userTeamProjectIds.has(p.id)
+    );
 
     // Helper to check if a task deadline falls within a range
     const isInRange = (task: any, start: Date, end: Date) => {
@@ -148,7 +151,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
       weekCompletionRate: tasksThisWeek.length > 0 ? Math.round((completedThisWeek.length / tasksThisWeek.length) * 100) : 0,
       monthCompletionRate: tasksThisMonth.length > 0 ? Math.round((completedThisMonth.length / tasksThisMonth.length) * 100) : 0,
     };
-  }, [allTasks, allProjects, currentUser?.id]);
+  }, [allTasks, allProjects, currentUser?.id, userTeamProjectIds]);
   
   // DnD State
   const [activeId, setActiveId] = useState<string | null>(null);
