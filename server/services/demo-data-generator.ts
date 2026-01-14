@@ -61,15 +61,15 @@ export interface DemoDataResult {
   errors?: string[];
 }
 
-// Demo users with role-based names
+// Demo users with realistic names (8 users for varied role assignments across 7 projects)
 const DEMO_USERS = [
   {
     id: DEMO_USER_IDS.ADMIN,
     email: "demo.admin@nymbl.demo",
-    firstName: "Demo",
-    lastName: "Admin",
-    name: "Demo Admin",
-    jobTitle: "Administrator",
+    firstName: "David",
+    lastName: "Harrison",
+    name: "David Harrison",
+    jobTitle: "Project Director",
     systemRole: "admin",
   },
   {
@@ -331,13 +331,14 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
       await clearDemoData();
     }
 
-    // 1. Create demo users
+    // 1. Create demo users (or update existing ones with new data)
     const demoUsers: User[] = [];
     for (const userData of DEMO_USERS) {
       try {
         const existingUsers = await storage.getUsers();
         const existing = existingUsers.find(u => u.id === userData.id);
         if (!existing) {
+          // Create new user
           const user = await storage.createUser({
             email: userData.email,
             firstName: userData.firstName,
@@ -350,7 +351,15 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
           demoUsers.push({ ...user, id: userData.id });
           result.created.users = (result.created.users || 0) + 1;
         } else {
-          demoUsers.push(existing);
+          // Update existing user with current demo data (handles name changes)
+          await storage.updateUser(existing.id, {
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            name: userData.name,
+            jobTitle: userData.jobTitle,
+          });
+          demoUsers.push({ ...existing, ...userData });
+          // Don't increment created count - user already existed
         }
       } catch (e: any) {
         const existingUsers = await storage.getUsers();
