@@ -20,7 +20,7 @@ export interface EntityLookupMap {
 }
 
 export interface ReferenceMappingEntry {
-  entityType: 'project' | 'deliverable' | 'epic' | 'stage' | 'milestone' | 'sprint';
+  entityType: 'deliverable' | 'epic' | 'stage' | 'milestone' | 'sprint';
   sourceValue: string;
   sourceName?: string;
   resolvedId?: string;
@@ -456,23 +456,7 @@ export function resolveAllReferences(
   const resolvedEntities = entities.map(entity => {
     let rows = [...entity.rows];
     
-    if (entity.entityType === 'Deliverables') {
-      const result = resolveEntityReferences(rows, 'projectId', lookups.projects, 'project');
-      rows = result.resolvedRows;
-      if (result.mappingEntry) {
-        referenceMappings.push(result.mappingEntry);
-        updateStats(stats, result.mappingEntry.resolutionMethod);
-      }
-    }
-    
     if (entity.entityType === 'Epics') {
-      const projectResult = resolveEntityReferences(rows, 'projectId', lookups.projects, 'project');
-      rows = projectResult.resolvedRows;
-      if (projectResult.mappingEntry) {
-        referenceMappings.push(projectResult.mappingEntry);
-        updateStats(stats, projectResult.mappingEntry.resolutionMethod);
-      }
-      
       const deliverableResult = resolveEntityReferences(rows, 'deliverableId', lookups.deliverables, 'deliverable');
       rows = deliverableResult.resolvedRows;
       if (deliverableResult.mappingEntry) {
@@ -482,13 +466,6 @@ export function resolveAllReferences(
     }
     
     if (entity.entityType === 'Tasks') {
-      const projectResult = resolveEntityReferences(rows, 'projectId', lookups.projects, 'project');
-      rows = projectResult.resolvedRows;
-      if (projectResult.mappingEntry) {
-        referenceMappings.push(projectResult.mappingEntry);
-        updateStats(stats, projectResult.mappingEntry.resolutionMethod);
-      }
-      
       const epicResult = resolveEntityReferences(rows, 'epicId', lookups.epics, 'epic');
       rows = epicResult.resolvedRows;
       if (epicResult.mappingEntry) {
@@ -515,33 +492,6 @@ export function resolveAllReferences(
       if (sprintResult.mappingEntry) {
         referenceMappings.push(sprintResult.mappingEntry);
         updateStats(stats, sprintResult.mappingEntry.resolutionMethod);
-      }
-    }
-    
-    if (entity.entityType === 'Milestones') {
-      const projectResult = resolveEntityReferences(rows, 'projectId', lookups.projects, 'project');
-      rows = projectResult.resolvedRows;
-      if (projectResult.mappingEntry) {
-        referenceMappings.push(projectResult.mappingEntry);
-        updateStats(stats, projectResult.mappingEntry.resolutionMethod);
-      }
-    }
-    
-    if (entity.entityType === 'Sprints') {
-      const projectResult = resolveEntityReferences(rows, 'projectId', lookups.projects, 'project');
-      rows = projectResult.resolvedRows;
-      if (projectResult.mappingEntry) {
-        referenceMappings.push(projectResult.mappingEntry);
-        updateStats(stats, projectResult.mappingEntry.resolutionMethod);
-      }
-    }
-    
-    if (entity.entityType === 'ProjectStages' || entity.entityType === 'Stages') {
-      const projectResult = resolveEntityReferences(rows, 'projectId', lookups.projects, 'project');
-      rows = projectResult.resolvedRows;
-      if (projectResult.mappingEntry) {
-        referenceMappings.push(projectResult.mappingEntry);
-        updateStats(stats, projectResult.mappingEntry.resolutionMethod);
       }
     }
     

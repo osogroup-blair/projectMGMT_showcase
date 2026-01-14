@@ -170,7 +170,7 @@ export function ImportProvider({ children }: { children: ReactNode }) {
           const updated = { ...obj };
           
           const allRefFields = [
-            'milestoneId', 'epicId', 'stageId', 'sprintId', 'deliverableId', 'projectId',
+            'milestoneId', 'epicId', 'stageId', 'sprintId', 'deliverableId',
             'sourceEpicId', 'sourceDeliverableId', 'sourceStageId', 'sourceMilestoneId', 'sourceSprintId'
           ];
           
