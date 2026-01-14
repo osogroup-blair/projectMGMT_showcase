@@ -74,9 +74,12 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(404).json({ error: "User not found" });
       }
       
-      // Demo users cannot impersonate admin users
-      if (realUser?.systemRole === "demo" && targetUser.systemRole === "admin") {
-        return res.status(403).json({ error: "Demo users cannot impersonate admin users" });
+      // Demo users can only impersonate other demo users
+      if (realUser?.systemRole === "demo") {
+        const isDemoTarget = targetUser.systemRole === "demo" || targetUser.id.startsWith("demo-");
+        if (!isDemoTarget) {
+          return res.status(403).json({ error: "Demo users can only impersonate other demo users" });
+        }
       }
       
       // Store impersonated user ID in session and save explicitly

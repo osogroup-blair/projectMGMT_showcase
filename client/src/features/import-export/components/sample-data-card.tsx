@@ -399,11 +399,15 @@ export function SampleDataCard({ className }: SampleDataCardProps) {
                       <SelectValue placeholder="Select demo login user..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {demoUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id} className="text-xs">
-                          {user.name} ({user.systemRole})
-                        </SelectItem>
-                      ))}
+                      {demoUsers.length === 0 ? (
+                        <div className="text-xs text-muted-foreground px-2 py-1.5">No demo users found</div>
+                      ) : (
+                        demoUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id} className="text-xs">
+                            {user.name || user.id} ({user.systemRole})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
