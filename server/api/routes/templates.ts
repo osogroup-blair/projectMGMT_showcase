@@ -460,7 +460,8 @@ export function registerTemplateRoutes(
         epicTemplates,
         taskTemplates,
         roleTemplates,
-        mappingTemplates
+        mappingTemplates,
+        milestoneTemplates
       ] = await Promise.all([
         storage.getFrameworkTemplates(),
         storage.getStageTemplates(),
@@ -469,7 +470,8 @@ export function registerTemplateRoutes(
         storage.getEpicTemplates(),
         storage.getTaskTemplates(),
         storage.getRoleTemplates(),
-        storage.getMappingTemplates()
+        storage.getMappingTemplates(),
+        storage.getMilestoneTemplates()
       ]);
 
       const exportData = {
@@ -483,7 +485,8 @@ export function registerTemplateRoutes(
           epic: epicTemplates,
           task: taskTemplates,
           role: roleTemplates,
-          mapping: mappingTemplates
+          mapping: mappingTemplates,
+          milestone: milestoneTemplates
         }
       };
 
@@ -495,8 +498,21 @@ export function registerTemplateRoutes(
 
   app.post("/api/templates/import", async (req, res) => {
     try {
-      const { templates, mode = "skip" } = req.body;
+      const { templates: rawTemplates, mode = "skip" } = req.body;
       // mode: "skip" = skip existing, "overwrite" = update existing
+      
+      // Normalize property names: accept both PascalCase (FrameworkTemplates) and lowercase (framework)
+      const templates = {
+        framework: rawTemplates?.framework || rawTemplates?.FrameworkTemplates || [],
+        stage: rawTemplates?.stage || rawTemplates?.StageTemplates || [],
+        project: rawTemplates?.project || rawTemplates?.ProjectTemplates || [],
+        deliverable: rawTemplates?.deliverable || rawTemplates?.DeliverableTemplates || [],
+        epic: rawTemplates?.epic || rawTemplates?.EpicTemplates || [],
+        task: rawTemplates?.task || rawTemplates?.TaskTemplates || [],
+        role: rawTemplates?.role || rawTemplates?.RoleTemplates || [],
+        mapping: rawTemplates?.mapping || rawTemplates?.MappingTemplates || [],
+        milestone: rawTemplates?.milestone || rawTemplates?.MilestoneTemplates || [],
+      };
       
       const results = {
         framework: { created: 0, updated: 0, skipped: 0 },
@@ -506,7 +522,8 @@ export function registerTemplateRoutes(
         epic: { created: 0, updated: 0, skipped: 0 },
         task: { created: 0, updated: 0, skipped: 0 },
         role: { created: 0, updated: 0, skipped: 0 },
-        mapping: { created: 0, updated: 0, skipped: 0 }
+        mapping: { created: 0, updated: 0, skipped: 0 },
+        milestone: { created: 0, updated: 0, skipped: 0 }
       };
 
       // ID mappings: imported ID -> persisted ID (for remapping references)
@@ -519,6 +536,7 @@ export function registerTemplateRoutes(
         deliverable: new Map<string, string>(),
         project: new Map<string, string>(),
         mapping: new Map<string, string>(),
+        milestone: new Map<string, string>(),
       };
 
       // Helper to remap an array of IDs using the mapping
@@ -595,6 +613,20 @@ export function registerTemplateRoutes(
         defaultStageIds: remapIds(item.defaultStageIds, idMappings.stage),
       });
 
+      const sanitizeMilestone = (item: any) => ({
+        id: item.id,
+        name: item.name || "Untitled Milestone",
+        description: item.description || "",
+        phase: item.phase || "delivery",
+        scopeType: item.scopeType || "deliverable",
+        completionMode: item.completionMode || "percentage",
+        completionTargetPercent: item.completionTargetPercent ?? 100,
+        isBillingGate: item.isBillingGate ?? false,
+        offsetDays: item.offsetDays ?? 0,
+        stageTemplateId: remapId(item.stageTemplateId, idMappings.stage),
+        order: item.order ?? 0,
+      });
+
       // Helper to import a template type and build ID mappings
       // matchField: 'name' for stage/framework/role/mapping, 'title' for task/deliverable/epic/project
       const importTemplates = async (
@@ -634,9 +666,9 @@ export function registerTemplateRoutes(
               results[key].skipped++;
             }
           } else {
-            // Create new record - the ID stays the same
-            await create(sanitized);
-            idMappings[key].set(importedId, sanitized.id);
+            // Create new record - capture the returned record's ID for accurate mapping
+            const created = await create(sanitized);
+            idMappings[key].set(importedId, created.id);
             results[key].created++;
           }
         }
@@ -687,7 +719,18 @@ export function registerTemplateRoutes(
         "name"
       );
 
-      // 5. Fifth: Epics (reference tasks and stages)
+      // 5. Fifth: Milestones (reference stages via stageTemplateId)
+      await importTemplates(
+        templates.milestone,
+        () => storage.getMilestoneTemplates(),
+        (d) => storage.createMilestoneTemplate(d),
+        (id, d) => storage.updateMilestoneTemplate(id, d),
+        "milestone",
+        sanitizeMilestone,
+        "name"
+      );
+
+      // 6. Sixth: Epics (reference tasks and stages)
       await importTemplates(
         templates.epic,
         () => storage.getEpicTemplates(),
@@ -698,7 +741,7 @@ export function registerTemplateRoutes(
         "title"
       );
 
-      // 6. Sixth: Deliverables (reference epics)
+      // 7. Seventh: Deliverables (reference epics)
       await importTemplates(
         templates.deliverable,
         () => storage.getDeliverableTemplates(),
@@ -709,7 +752,7 @@ export function registerTemplateRoutes(
         "title"
       );
 
-      // 7. Seventh: Frameworks (reference stages)
+      // 8. Eighth: Frameworks (reference stages)
       await importTemplates(
         templates.framework,
         () => storage.getFrameworkTemplates(),
@@ -720,7 +763,7 @@ export function registerTemplateRoutes(
         "name"
       );
 
-      // 8. Eighth: Projects (reference frameworks, deliverables, roles)
+      // 9. Ninth: Projects (reference frameworks, deliverables, roles)
       await importTemplates(
         templates.project,
         () => storage.getProjectTemplates(),
