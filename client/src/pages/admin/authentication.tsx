@@ -5,7 +5,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CheckCircle2, XCircle, Shield, AlertTriangle, Copy, ExternalLink, Info } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, CheckCircle2, XCircle, Shield, AlertTriangle, Copy, ExternalLink, Info, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +20,13 @@ interface AuthConfig {
   microsoft: ProviderConfig;
   google: ProviderConfig;
   demoAdminPassthroughEnabled?: boolean;
+  demoAdminUserId?: string | null;
+}
+
+interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
 }
 
 interface AdminAuthenticationContentProps {
@@ -144,6 +152,7 @@ function GoogleCallbackUrlSection() {
 export default function AdminAuthenticationContent({ embedded }: AdminAuthenticationContentProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedAdminUserId, setSelectedAdminUserId] = useState<string | null>(null);
 
   const { data: authConfig, isLoading } = useQuery<AuthConfig>({
     queryKey: ["auth-config"],
@@ -153,6 +162,23 @@ export default function AdminAuthenticationContent({ embedded }: AdminAuthentica
       return res.json();
     },
   });
+
+  // Query for admin users
+  const { data: adminUsers = [] } = useQuery<AdminUser[]>({
+    queryKey: ["admin-users"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/admin-users");
+      if (!res.ok) throw new Error("Failed to fetch admin users");
+      return res.json();
+    },
+  });
+
+  // Sync selected admin user with config
+  useEffect(() => {
+    if (authConfig?.demoAdminUserId) {
+      setSelectedAdminUserId(authConfig.demoAdminUserId);
+    }
+  }, [authConfig?.demoAdminUserId]);
 
   const toggleMicrosoftMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -207,11 +233,11 @@ export default function AdminAuthenticationContent({ embedded }: AdminAuthentica
   });
 
   const toggleDemoAdminMutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
+    mutationFn: async ({ enabled, demoAdminUserId }: { enabled: boolean; demoAdminUserId?: string | null }) => {
       const res = await fetch("/api/auth/demo-admin-passthrough/toggle", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify({ enabled, demoAdminUserId }),
       });
       if (!res.ok) throw new Error("Failed to update demo admin settings");
       return res.json();
@@ -241,7 +267,15 @@ export default function AdminAuthenticationContent({ embedded }: AdminAuthentica
   };
 
   const handleDemoAdminToggle = (enabled: boolean) => {
-    toggleDemoAdminMutation.mutate(enabled);
+    toggleDemoAdminMutation.mutate({ enabled, demoAdminUserId: selectedAdminUserId });
+  };
+
+  const handleAdminUserChange = (userId: string) => {
+    setSelectedAdminUserId(userId);
+    // Also update in the backend if demo passthrough is already enabled
+    if (authConfig?.demoAdminPassthroughEnabled) {
+      toggleDemoAdminMutation.mutate({ enabled: true, demoAdminUserId: userId });
+    }
   };
 
   if (isLoading) {
@@ -476,6 +510,40 @@ export default function AdminAuthenticationContent({ embedded }: AdminAuthentica
               disabled={toggleDemoAdminMutation.isPending}
               data-testid="demo-admin-passthrough-toggle"
             />
+          </div>
+
+          <div className="space-y-3 p-4 border rounded-lg">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-base font-medium">Demo Admin User</Label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Select which admin user to log in as when using the demo passthrough button
+            </p>
+            <Select
+              value={selectedAdminUserId || ""}
+              onValueChange={handleAdminUserChange}
+              disabled={toggleDemoAdminMutation.isPending}
+            >
+              <SelectTrigger className="w-full" data-testid="demo-admin-user-select">
+                <SelectValue placeholder="Select an admin user..." />
+              </SelectTrigger>
+              <SelectContent>
+                {adminUsers.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    <div className="flex flex-col">
+                      <span>{user.name}</span>
+                      {user.email && <span className="text-xs text-muted-foreground">{user.email}</span>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {adminUsers.length === 0 && (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                No admin users found. Create a user with admin system role first.
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">

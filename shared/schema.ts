@@ -759,6 +759,7 @@ export const appSettings = pgTable("app_settings", {
   demoDataReady: boolean("demo_data_ready").default(false),
   demoLoginUserId: varchar("demo_login_user_id"),
   demoAdminPassthroughEnabled: boolean("demo_admin_passthrough_enabled").default(false),
+  demoAdminPassthroughUserId: varchar("demo_admin_passthrough_user_id"),
   completedTaskStatusIds: text("completed_task_status_ids").array().default([]),
   updatedBy: varchar("updated_by"),
   createdAt: timestamp("created_at").defaultNow(),

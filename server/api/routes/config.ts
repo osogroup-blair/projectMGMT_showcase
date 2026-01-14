@@ -399,7 +399,8 @@ export function registerConfigRoutes(
       res.json({
         microsoft: microsoftConfig,
         google: googleConfig,
-        demoAdminPassthroughEnabled: appSettings?.demoAdminPassthroughEnabled === true
+        demoAdminPassthroughEnabled: appSettings?.demoAdminPassthroughEnabled === true,
+        demoAdminUserId: appSettings?.demoAdminPassthroughUserId || null
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -483,20 +484,69 @@ export function registerConfigRoutes(
         return res.status(403).json({ error: "Admin access required" });
       }
       
-      const { enabled } = req.body;
+      const { enabled, demoAdminUserId } = req.body;
       
       if (typeof enabled !== "boolean") {
         return res.status(400).json({ error: "enabled must be a boolean" });
       }
       
-      const updated = await storage.updateAppSettings({ 
-        demoAdminPassthroughEnabled: enabled 
-      });
+      // Build the update object
+      const updateData: { demoAdminPassthroughEnabled: boolean; demoAdminPassthroughUserId?: string | null } = {
+        demoAdminPassthroughEnabled: enabled
+      };
+      
+      // If demoAdminUserId is provided, update it
+      if (demoAdminUserId !== undefined) {
+        updateData.demoAdminPassthroughUserId = demoAdminUserId || null;
+      }
+      
+      const updated = await storage.updateAppSettings(updateData);
       
       res.json({ 
         success: true, 
-        demoAdminPassthroughEnabled: updated?.demoAdminPassthroughEnabled === true 
+        demoAdminPassthroughEnabled: updated?.demoAdminPassthroughEnabled === true,
+        demoAdminUserId: updated?.demoAdminPassthroughUserId || null
       });
+    } catch (error: any) {
+      console.error("Error toggling demo admin passthrough:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get admin users for demo passthrough dropdown (admin only)
+  app.get("/api/auth/admin-users", async (req: any, res) => {
+    try {
+      const realUserId = getAuthUserId(req);
+      
+      if (!realUserId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      // Check if user is admin
+      const realUser = await storage.getUserById(realUserId);
+      const impersonatedUserId = req.session?.impersonatedUserId;
+      
+      let hasAdminAccess = realUser?.systemRole === "admin";
+      
+      // If impersonating, also check if the impersonated user is admin
+      if (!hasAdminAccess && impersonatedUserId) {
+        const impersonatedUser = await storage.getUserById(impersonatedUserId);
+        hasAdminAccess = impersonatedUser?.systemRole === "admin";
+      }
+      
+      if (!hasAdminAccess) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      // Get all users with admin system role
+      const allUsers = await storage.getUsers();
+      const adminUsers = allUsers.filter(u => u.systemRole === "admin");
+      
+      res.json(adminUsers.map(u => ({
+        id: u.id,
+        name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'Unknown',
+        email: u.email
+      })));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

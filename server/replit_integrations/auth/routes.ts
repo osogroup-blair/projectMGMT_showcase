@@ -203,42 +203,65 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(403).json({ error: "Demo Admin passthrough is not enabled." });
       }
       
-      // Always log in as demo-admin with full admin privileges
-      let demoAdmin = await authStorage.getUser("demo-admin");
+      let adminUser: any = null;
       
-      if (!demoAdmin) {
-        // Create a demo admin user if it doesn't exist
-        demoAdmin = await authStorage.upsertUser({
-          id: "demo-admin",
-          email: "demo-admin@nymbl.com",
-          firstName: "Demo",
-          lastName: "Admin",
-          name: "Demo Admin",
-          systemRole: "admin",
-          profileImageUrl: null,
-        });
-      }
-      
-      // Ensure the demo admin has admin role
-      if (demoAdmin.systemRole !== "admin") {
-        demoAdmin = await storage.updateUser("demo-admin", { systemRole: "admin" });
+      // Check if a specific admin user is configured
+      if (appSettings.demoAdminPassthroughUserId) {
+        adminUser = await authStorage.getUser(appSettings.demoAdminPassthroughUserId);
+        
+        // Reject if configured user doesn't exist
+        if (!adminUser) {
+          return res.status(400).json({ 
+            error: "Configured demo admin user not found. Please select a valid admin user in settings." 
+          });
+        }
+        
+        // Reject if configured user is not an admin
+        if (adminUser.systemRole !== "admin") {
+          return res.status(403).json({ 
+            error: `User "${adminUser.name || adminUser.email}" no longer has admin privileges. Please select a valid admin user in settings.` 
+          });
+        }
+      } else {
+        // No specific user configured - fall back to default demo-admin user
+        adminUser = await authStorage.getUser("demo-admin");
+        
+        if (!adminUser) {
+          // Create a demo admin user if it doesn't exist
+          adminUser = await authStorage.upsertUser({
+            id: "demo-admin",
+            email: "demo-admin@nymbl.com",
+            firstName: "Demo",
+            lastName: "Admin",
+            name: "Demo Admin",
+            systemRole: "admin",
+            profileImageUrl: null,
+          });
+        }
+        
+        // Ensure the demo admin has admin role
+        if (adminUser.systemRole !== "admin") {
+          adminUser = await storage.updateUser("demo-admin", { systemRole: "admin" });
+        }
       }
       
       // Create a mock user object that matches what SSO auth provides
       const mockUser = {
-        id: demoAdmin!.id,
-        email: demoAdmin!.email,
+        id: adminUser!.id,
+        email: adminUser!.email,
         claims: {
-          sub: demoAdmin!.id,
-          email: demoAdmin!.email,
-          first_name: demoAdmin!.firstName,
-          last_name: demoAdmin!.lastName,
+          sub: adminUser!.id,
+          email: adminUser!.email,
+          first_name: adminUser!.firstName,
+          last_name: adminUser!.lastName,
         },
         access_token: "demo-admin-token",
         refresh_token: null,
         expires_at: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days from now
         authProvider: "demo-admin",
       };
+      
+      const userName = adminUser!.name || `${adminUser!.firstName || ''} ${adminUser!.lastName || ''}`.trim() || 'Admin';
       
       // Use Passport's login method to properly set up the session
       req.login(mockUser, (err: any) => {
@@ -249,8 +272,8 @@ export function registerAuthRoutes(app: Express): void {
         
         res.json({ 
           success: true, 
-          message: "Logged in as Demo Admin with full admin privileges",
-          user: demoAdmin,
+          message: `Logged in as ${userName} with admin privileges`,
+          user: adminUser,
           redirectTo: "/"
         });
       });
