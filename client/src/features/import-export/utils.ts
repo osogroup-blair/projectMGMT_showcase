@@ -27,7 +27,7 @@ export const applyDefaultsForNewRecord = (record: any, entityName: string): any 
 export const normalizeRecord = (record: any, entityName: string): any => {
   const normalized = { ...record };
   
-  const arrayFields = ["tags", "stageIds", "defaultStages", "defaultEpics", "defaultTasks", "defaultRoles", "defaultPermissions", "defaultDeliverables", "allowedTaskStatuses", "permissions", "rules"];
+  const arrayFields = ["tags", "stageIds", "defaultStages", "defaultEpics", "defaultTasks", "defaultRoles", "defaultPermissions", "defaultDeliverables", "allowedTaskStatuses", "permissions", "rules", "scopeRules", "defaultScopeRules"];
   for (const field of arrayFields) {
     if (normalized[field] !== undefined && normalized[field] !== null) {
       if (typeof normalized[field] === 'string') {
