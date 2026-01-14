@@ -533,6 +533,8 @@ export const milestoneTemplates = pgTable("milestone_templates", {
   completionTargetPercent: integer("completion_target_percent").default(100),
   isBillingGate: boolean("is_billing_gate").default(false),
   offsetDays: integer("offset_days").default(0),
+  stageTemplateId: varchar("stage_template_id").references(() => stageTemplates.id, { onDelete: "set null" }),
+  order: integer("order").default(0),
 });
 
 // Template Snippets (bundles of stages/tasks/milestones that can be applied together)

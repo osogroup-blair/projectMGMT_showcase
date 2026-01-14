@@ -100,6 +100,7 @@ export const useEpicTemplates = () => useCollection("epicTemplates");
 export const useTaskTemplates = () => useCollection("taskTemplates");
 export const useRoleTemplates = () => useCollection("roleTemplates");
 export const useMappingTemplates = () => useCollection("mappingTemplates");
+export const useMilestoneTemplates = () => useCollection("milestoneTemplates");
 export const useStatusOptions = () => useCollection("statusOptions");
 export const useMilestoneScopeRules = () => useCollection("milestoneScopeRules");
 export const useMilestoneTaskLinks = () => useCollection("milestoneTaskLinks");
