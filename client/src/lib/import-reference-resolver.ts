@@ -20,7 +20,7 @@ export interface EntityLookupMap {
 }
 
 export interface ReferenceMappingEntry {
-  entityType: 'deliverable' | 'epic' | 'stage' | 'milestone' | 'sprint';
+  entityType: 'deliverable' | 'epic' | 'stage' | 'milestone';
   sourceValue: string;
   sourceName?: string;
   resolvedId?: string;
@@ -485,13 +485,6 @@ export function resolveAllReferences(
       if (milestoneResult.mappingEntry) {
         referenceMappings.push(milestoneResult.mappingEntry);
         updateStats(stats, milestoneResult.mappingEntry.resolutionMethod);
-      }
-      
-      const sprintResult = resolveEntityReferences(rows, 'sprintId', lookups.sprints, 'sprint');
-      rows = sprintResult.resolvedRows;
-      if (sprintResult.mappingEntry) {
-        referenceMappings.push(sprintResult.mappingEntry);
-        updateStats(stats, sprintResult.mappingEntry.resolutionMethod);
       }
     }
     

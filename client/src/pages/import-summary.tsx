@@ -107,11 +107,6 @@ export default function ImportSummary() {
     queryFn: () => fetch('/api/milestones').then(r => r.json()),
   });
 
-  const { data: sprintsData } = useQuery({
-    queryKey: ['/api/sprints'],
-    queryFn: () => fetch('/api/sprints').then(r => r.json()),
-  });
-
   const { data: stagesData } = useQuery({
     queryKey: ['/api/projectStages'],
     queryFn: () => fetch('/api/projectStages').then(r => r.json()),
@@ -119,17 +114,12 @@ export default function ImportSummary() {
 
   const entityOptions = useMemo(() => {
     const options: Record<ReferenceMappingEntry['entityType'], SearchableSelectOption[]> = {
-      project: [{ value: '', label: 'Select project...' }],
       deliverable: [{ value: '', label: 'Select deliverable...' }],
       epic: [{ value: '', label: 'Select epic...' }],
       milestone: [{ value: '', label: 'Select milestone...' }],
-      sprint: [{ value: '', label: 'Select sprint...' }],
       stage: [{ value: '', label: 'Select stage...' }],
     };
 
-    (projectsData || []).forEach((p: any) => {
-      options.project.push({ value: p.id, label: p.name || p.id });
-    });
     (deliverablesData || []).forEach((d: any) => {
       options.deliverable.push({ value: d.id, label: d.title || d.name || d.id });
     });
@@ -139,15 +129,12 @@ export default function ImportSummary() {
     (milestonesData || []).forEach((m: any) => {
       options.milestone.push({ value: m.id, label: m.name || m.title || m.id });
     });
-    (sprintsData || []).forEach((s: any) => {
-      options.sprint.push({ value: s.id, label: s.name || s.title || s.id });
-    });
     (stagesData || []).forEach((s: any) => {
       options.stage.push({ value: s.id, label: s.name || s.title || s.id });
     });
 
     return options;
-  }, [projectsData, deliverablesData, epicsData, milestonesData, sprintsData, stagesData]);
+  }, [deliverablesData, epicsData, milestonesData, stagesData]);
 
   const handleReferenceMappingChange = useCallback((
     entityType: ReferenceMappingEntry['entityType'],
@@ -155,18 +142,16 @@ export default function ImportSummary() {
     newResolvedId: string
   ) => {
     const entityList = {
-      project: projectsData || [],
       deliverable: deliverablesData || [],
       epic: epicsData || [],
       milestone: milestonesData || [],
-      sprint: sprintsData || [],
       stage: stagesData || [],
     }[entityType];
     
     const entity = entityList.find((e: any) => e.id === newResolvedId);
     const resolvedName = entity?.name || entity?.title || newResolvedId;
     updateReferenceMapping(entityType, sourceValue, newResolvedId, resolvedName);
-  }, [projectsData, deliverablesData, epicsData, milestonesData, sprintsData, stagesData, updateReferenceMapping]);
+  }, [deliverablesData, epicsData, milestonesData, stagesData, updateReferenceMapping]);
 
   const stats = state.adapterResult?.stats;
   const userMappings = state.userMappings;
@@ -756,12 +741,10 @@ export default function ImportSummary() {
                       <TableBody>
                         {referenceMappings.map((mapping, idx) => {
                           const typeLabels: Record<string, string> = {
-                            project: 'Project',
                             deliverable: 'Deliverable',
                             epic: 'Epic',
                             stage: 'Stage',
-                            milestone: 'Milestone',
-                            sprint: 'Sprint'
+                            milestone: 'Milestone'
                           };
                           const methodLabels: Record<string, string> = {
                             id_match: 'ID Match',
