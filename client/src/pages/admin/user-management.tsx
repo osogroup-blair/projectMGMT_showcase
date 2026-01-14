@@ -151,35 +151,20 @@ const SearchInput = React.memo(function SearchInput({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localValue, setLocalValue] = useState(externalValue);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Update local value only when externalValue changes from outside (e.g. filters cleared)
   useEffect(() => {
-    if (externalValue === "" && localValue !== "") {
-      setLocalValue("");
-    }
+    setLocalValue(externalValue);
   }, [externalValue]);
   
-  const debouncedSearch = useCallback((value: string) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      onSearch(localValue);
     }
-    timeoutRef.current = setTimeout(() => {
-      onSearch(value);
-    }, 300);
-  }, [onSearch]);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setLocalValue(newValue);
-    debouncedSearch(newValue);
+    setLocalValue(e.target.value);
   };
 
   const handleClear = () => {
@@ -193,14 +178,16 @@ const SearchInput = React.memo(function SearchInput({
       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         ref={inputRef}
-        placeholder="Search by name or email..."
-        className="pl-9 h-9"
+        placeholder="Search by name or email (Press Enter)..."
+        className="pl-9 h-9 focus-visible:ring-1"
         value={localValue}
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         data-testid="input-search-users"
       />
       {localValue && (
         <button 
+          type="button"
           onClick={handleClear}
           className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
         >
