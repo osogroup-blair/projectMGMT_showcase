@@ -13,6 +13,7 @@ import type {
   ImportAdapterOptions,
 } from '@/lib/import-to-wizard-adapter';
 import { convertImportToWizardData } from '@/lib/import-to-wizard-adapter';
+import type { ReferenceMappingEntry, ResolveAllReferencesResult } from '@/lib/import-reference-resolver';
 
 export interface ImportState {
   isImportMode: boolean;
@@ -22,6 +23,8 @@ export interface ImportState {
   adapterResult: ImportAdapterResult | null;
   userMappings: UserMappingEntry[];
   statusMappings: StatusMappingEntry[];
+  referenceMappings: ReferenceMappingEntry[];
+  referenceStats: ResolveAllReferencesResult['stats'] | null;
   acceptedFields: Set<string>;
   modifiedFields: Set<string>;
   warnings: string[];
@@ -52,6 +55,8 @@ const defaultState: ImportState = {
   adapterResult: null,
   userMappings: [],
   statusMappings: [],
+  referenceMappings: [],
+  referenceStats: null,
   acceptedFields: new Set(),
   modifiedFields: new Set(),
   warnings: [],
@@ -74,6 +79,8 @@ export function ImportProvider({ children }: { children: ReactNode }) {
       adapterResult,
       userMappings: adapterResult.userMappings,
       statusMappings: adapterResult.statusMappings,
+      referenceMappings: adapterResult.referenceMappings,
+      referenceStats: adapterResult.referenceStats || null,
       acceptedFields: new Set(),
       modifiedFields: new Set(),
       warnings: adapterResult.warnings,

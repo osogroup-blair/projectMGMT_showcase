@@ -8,6 +8,11 @@ import type {
   WizardMilestone,
   WizardRole
 } from '@/pages/project-new/types';
+import {
+  resolveAllReferences,
+  type ReferenceMappingEntry,
+  type ResolveAllReferencesResult
+} from './import-reference-resolver';
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'unmapped';
 
@@ -125,6 +130,7 @@ export interface ImportAdapterResult {
   roles: ImportedRole[];
   userMappings: UserMappingEntry[];
   statusMappings: StatusMappingEntry[];
+  referenceMappings: ReferenceMappingEntry[];
   warnings: string[];
   errors: string[];
   stats: {
@@ -137,6 +143,7 @@ export interface ImportAdapterResult {
     usersFound: number;
     stagesFound: number;
   };
+  referenceStats?: ResolveAllReferencesResult['stats'];
 }
 
 function generateId(prefix: string): string {
@@ -850,14 +857,31 @@ export function convertImportToWizardData(
   const warnings: string[] = [...parseResult.warnings];
   const errors: string[] = [...parseResult.errors];
   
-  const projectData = extractProjectData(parseResult.entities);
-  let deliverables = extractDeliverables(parseResult.entities);
-  deliverables = extractEpics(parseResult.entities, deliverables);
-  const stages = extractStages(parseResult.entities);
-  const tasks = extractTasks(parseResult.entities, stages, deliverables);
-  const milestones = extractMilestones(parseResult.entities);
-  const userMappings = extractUsers(parseResult.entities, systemUsers, userIdentities);
-  const statusMappings = extractStatuses(parseResult.entities, systemStatuses);
+  // First, resolve all name-based references to IDs
+  const referenceResolution = resolveAllReferences(
+    parseResult.entities.map(e => ({ entityType: e.entityType, rows: e.rows }))
+  );
+  
+  // Add reference resolution warnings
+  warnings.push(...referenceResolution.warnings);
+  
+  // Use resolved entities for further processing
+  const resolvedParseResult: ParseResult = {
+    ...parseResult,
+    entities: referenceResolution.resolvedEntities.map((e, i) => ({
+      ...parseResult.entities[i],
+      rows: e.rows
+    }))
+  };
+  
+  const projectData = extractProjectData(resolvedParseResult.entities);
+  let deliverables = extractDeliverables(resolvedParseResult.entities);
+  deliverables = extractEpics(resolvedParseResult.entities, deliverables);
+  const stages = extractStages(resolvedParseResult.entities);
+  const tasks = extractTasks(resolvedParseResult.entities, stages, deliverables);
+  const milestones = extractMilestones(resolvedParseResult.entities);
+  const userMappings = extractUsers(resolvedParseResult.entities, systemUsers, userIdentities);
+  const statusMappings = extractStatuses(resolvedParseResult.entities, systemStatuses);
   
   tasks.forEach(task => {
     const stage = stages.find(s => s.id === task.stageId);
@@ -886,6 +910,16 @@ export function convertImportToWizardData(
     warnings.push('Stages were reconstructed from task status values');
   }
   
+  // Add reference resolution stats summary to warnings if there are unresolved references
+  if (referenceResolution.stats.unresolved > 0) {
+    warnings.push(
+      `Reference resolution: ${referenceResolution.stats.unresolved} unresolved references. ` +
+      `(${referenceResolution.stats.resolvedByIdMatch} by ID, ` +
+      `${referenceResolution.stats.resolvedByExactName} by exact name, ` +
+      `${referenceResolution.stats.resolvedByPartialName + referenceResolution.stats.resolvedByFuzzyName} by fuzzy match)`
+    );
+  }
+  
   const stats = {
     totalEntitiesFound: parseResult.entities.reduce((sum, e) => sum + e.rowCount, 0),
     projectsFound: parseResult.entities.find(e => e.entityType === 'Projects')?.rowCount || 0,
@@ -905,9 +939,11 @@ export function convertImportToWizardData(
     roles: [],
     userMappings,
     statusMappings,
+    referenceMappings: referenceResolution.referenceMappings,
     warnings,
     errors,
-    stats
+    stats,
+    referenceStats: referenceResolution.stats
   };
 }
 
