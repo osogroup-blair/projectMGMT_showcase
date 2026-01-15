@@ -761,7 +761,7 @@ export default function ProjectOverview() {
     <Shell noPadding>
       <div className="flex flex-col">
         {/* Header Section - Wrapped in padding */}
-        <div className="px-6 py-8 space-y-8 pt-[10px] pb-[10px]">
+        <div className="px-6 py-8 space-y-8 pt-[20px] pb-[10px] mt-4">
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
               <div className="space-y-4">
@@ -935,62 +935,62 @@ export default function ProjectOverview() {
               </div>
 
               <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <Card className="bg-primary/5 border-primary/20 shadow-none">
-                    <CardContent className="pt-3 pb-3 px-3">
-                      <div className="flex items-center justify-between mb-1">
+                    <CardContent className="py-2 px-3">
+                      <div className="flex items-center justify-between">
                         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Completion</p>
-                        <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                        <CheckCircle2 className="h-3 w-3 text-primary" />
                       </div>
-                      <div className="flex items-baseline gap-2">
-                        <h3 className="text-xl font-bold" data-testid="text-completion-percent">{completionPercentage}%</h3>
+                      <div className="flex items-baseline justify-between gap-2 mt-0.5">
+                        <h3 className="text-lg font-bold leading-none" data-testid="text-completion-percent">{completionPercentage}%</h3>
+                        <Progress value={completionPercentage} className="h-1 w-20" />
                       </div>
-                      <Progress value={completionPercentage} className="h-1.5 mt-2" />
                     </CardContent>
                   </Card>
 
                   <Card className="shadow-none">
-                    <CardContent className="pt-3 pb-3 px-3">
-                      <div className="flex items-center justify-between mb-1">
+                    <CardContent className="py-2 px-3">
+                      <div className="flex items-center justify-between">
                         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Tasks</p>
-                        <ListTodo className="h-3.5 w-3.5 text-muted-foreground" />
+                        <ListTodo className="h-3 w-3 text-muted-foreground" />
                       </div>
-                      <div className="flex items-baseline gap-2">
-                        <h3 className="text-xl font-bold" data-testid="text-total-tasks">{stats.total}</h3>
+                      <div className="flex items-baseline justify-between gap-2 mt-0.5">
+                        <h3 className="text-lg font-bold leading-none" data-testid="text-total-tasks">{stats.total}</h3>
+                        <p className="text-[9px] text-muted-foreground leading-none">
+                          {stats.completed} done, {stats.inProgress} in progress
+                        </p>
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-2">
-                        {stats.completed} done, {stats.inProgress} in progress
-                      </p>
                     </CardContent>
                   </Card>
 
                   <Card className="shadow-none">
-                    <CardContent className="pt-3 pb-3 px-3">
-                      <div className="flex items-center justify-between mb-1">
+                    <CardContent className="py-2 px-3">
+                      <div className="flex items-center justify-between">
                         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">At Risk</p>
-                        <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                        <AlertTriangle className="h-3 w-3 text-red-500" />
                       </div>
-                      <div className="flex items-baseline gap-2">
-                        <h3 className="text-xl font-bold text-red-600" data-testid="text-at-risk-tasks">{stats.atRisk}</h3>
+                      <div className="flex items-baseline justify-between gap-2 mt-0.5">
+                        <h3 className="text-lg font-bold text-red-600 leading-none" data-testid="text-at-risk-tasks">{stats.atRisk}</h3>
+                        <p className="text-[9px] text-muted-foreground leading-none">
+                          Needs attention
+                        </p>
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-2">
-                        Needs attention
-                      </p>
                     </CardContent>
                   </Card>
 
                   <Card className="shadow-none">
-                    <CardContent className="pt-3 pb-3 px-3">
-                      <div className="flex items-center justify-between mb-1">
+                    <CardContent className="py-2 px-3">
+                      <div className="flex items-center justify-between">
                         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Milestones</p>
-                        <Flag className="h-3.5 w-3.5 text-blue-500" />
+                        <Flag className="h-3 w-3 text-blue-500" />
                       </div>
-                      <div className="flex items-baseline gap-2">
-                        <h3 className="text-xl font-bold" data-testid="text-milestone-count">{milestones.length}</h3>
+                      <div className="flex items-baseline justify-between gap-2 mt-0.5">
+                        <h3 className="text-lg font-bold leading-none" data-testid="text-milestone-count">{milestones.length}</h3>
+                        <p className="text-[9px] text-muted-foreground leading-none truncate max-w-[80px]">
+                          Next: {milestones[0]?.name || "None"}
+                        </p>
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-2 truncate">
-                        Next: {milestones[0]?.name || "None"}
-                      </p>
                     </CardContent>
                   </Card>
                 </div>
