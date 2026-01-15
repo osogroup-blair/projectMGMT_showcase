@@ -858,16 +858,20 @@ export default function ProjectsList() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <UserIcon className="h-3.5 w-3.5" />
-                      <span className="text-sm font-medium">{teamSizeByProject[project.id] || 0}</span>
-                    </div>
+                    <Link href={`/projects/${project.id}?tab=team&subTab=member`}>
+                      <div className="flex items-center gap-1.5 text-muted-foreground hover:text-primary cursor-pointer transition-colors">
+                        <UserIcon className="h-3.5 w-3.5" />
+                        <span className="text-sm font-medium">{teamSizeByProject[project.id] || 0}</span>
+                      </div>
+                    </Link>
                   </TableCell>
                   {/* Tasks Count (Read-only) */}
                   <TableCell>
-                    <span className="text-sm text-muted-foreground" data-testid={`task-count-${project.id}`}>
-                      {taskCountByProject[project.id] || 0}
-                    </span>
+                    <Link href={`/projects/${project.id}?tab=tasks`}>
+                      <span className="text-sm text-muted-foreground hover:text-primary cursor-pointer transition-colors" data-testid={`task-count-${project.id}`}>
+                        {taskCountByProject[project.id] || 0}
+                      </span>
+                    </Link>
                   </TableCell>
                   {/* Visible Action Buttons */}
                   <TableCell>

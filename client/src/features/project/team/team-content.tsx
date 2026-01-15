@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearch } from "wouter";
 import { 
   Users, 
   Crown, 
@@ -47,6 +48,8 @@ type TabType = 'owner' | 'manager' | 'stakeholder' | 'member' | 'roles';
 export function TeamContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
   const { data: project, isLoading: isProjectLoading, refetch: refetchProject } = useProject(projectId);
   const { data: allUsers = [], isLoading: isUsersLoading } = useUsers();
   const { data: allTasks = [], isLoading: isTasksLoading } = useTasks();
@@ -111,7 +114,12 @@ export function TeamContent({ projectId }: { projectId: string }) {
     },
   });
 
-  const [activeTab, setActiveTab] = useState<TabType>('owner');
+  const initialSubTab = searchParams.get('subTab') as TabType | null;
+  const [activeTab, setActiveTab] = useState<TabType>(
+    initialSubTab && ['owner', 'manager', 'stakeholder', 'member', 'roles'].includes(initialSubTab) 
+      ? initialSubTab 
+      : 'owner'
+  );
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
   const [deleteMemberConfirmOpen, setDeleteMemberConfirmOpen] = useState(false);
   const [editMemberDialogOpen, setEditMemberDialogOpen] = useState(false);
