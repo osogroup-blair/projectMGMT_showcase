@@ -370,11 +370,11 @@ export default function EpicDetail() {
           <div className="flex justify-between items-start gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                  <Layers className="h-6 w-6" />
-                </div>
                 <div>
-                  <h1 className="text-2xl font-bold tracking-tight text-primary">{epic.title}</h1>
+                  <h1 className="text-2xl font-bold tracking-tight text-primary flex items-center gap-2">
+                    <Layers className="h-6 w-6 text-primary/70 shrink-0" />
+                    {epic.title}
+                  </h1>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                     <span className="flex items-center gap-1">
                       <CalendarIcon className="h-3.5 w-3.5" />

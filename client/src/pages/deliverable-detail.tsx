@@ -378,6 +378,7 @@ export default function DeliverableDetail() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-1">
+                  <Package className="h-6 w-6 text-primary/70 shrink-0" />
                   <h1 className="text-2xl font-bold tracking-tight">{deliverable.title}</h1>
                   <Badge variant="outline" className={cn(
                     "font-normal",

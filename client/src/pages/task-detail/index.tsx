@@ -16,7 +16,8 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Gauge,
-  Trash2
+  Trash2,
+  CheckSquare
 } from "lucide-react";
 import {
   AlertDialog,
@@ -265,12 +266,15 @@ export default function TaskDetail() {
               </div>
 
               <div className="flex justify-between items-start gap-4">
-                <Input 
-                  className="text-4xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
-                  value={task.title}
-                  onChange={(e) => handleUpdateTask("title", e.target.value)}
-                  data-testid="input-task-title"
-                />
+                <div className="flex items-center gap-2 flex-1">
+                  <CheckSquare className="h-7 w-7 text-primary/70 shrink-0" />
+                  <Input 
+                    className="text-4xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
+                    value={task.title}
+                    onChange={(e) => handleUpdateTask("title", e.target.value)}
+                    data-testid="input-task-title"
+                  />
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" data-testid="button-task-menu">

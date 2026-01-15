@@ -270,7 +270,8 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
         {/* Welcome Section */}
         <div className="flex items-center justify-between" data-testid="welcome-section">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight" data-testid="welcome-greeting">
+            <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2" data-testid="welcome-greeting">
+              <LayoutDashboard className="h-6 w-6 text-primary/70 shrink-0" />
               {getGreeting()}, {firstName}
             </h1>
             <p className="text-muted-foreground mt-1">

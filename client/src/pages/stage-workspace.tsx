@@ -20,7 +20,8 @@ import {
   Check,
   X,
   Target,
-  Loader2
+  Loader2,
+  GitBranch
 } from "lucide-react";
 import {
   Tooltip,
@@ -496,6 +497,7 @@ export default function StageWorkspace() {
               <div className="flex items-center gap-4">
                 {isEditingName ? (
                   <div className="flex items-center gap-2">
+                    <GitBranch className="h-6 w-6 text-primary/70 shrink-0" />
                     <Input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
@@ -516,6 +518,7 @@ export default function StageWorkspace() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 group">
+                    <GitBranch className="h-6 w-6 text-primary/70 shrink-0" />
                     <h1 className="text-2xl font-bold tracking-tight text-primary" data-testid="text-stage-name">{editName}</h1>
                     <Button 
                       size="icon" 

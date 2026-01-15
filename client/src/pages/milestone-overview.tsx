@@ -441,6 +441,7 @@ export default function MilestoneOverview() {
               <div className="flex items-center gap-3 flex-wrap">
                 {isEditingName ? (
                   <div className="flex items-center gap-2">
+                    <Flag className="h-6 w-6 text-primary/70 shrink-0" />
                     <Input
                       ref={nameInputRef}
                       value={editName}
@@ -471,6 +472,7 @@ export default function MilestoneOverview() {
                     onClick={() => setIsEditingName(true)}
                     data-testid="text-milestone-name"
                   >
+                    <Flag className="h-6 w-6 text-primary/70 shrink-0" />
                     {milestone.name}
                     <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-50 transition-opacity" />
                   </h1>
