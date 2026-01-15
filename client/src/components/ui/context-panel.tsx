@@ -53,7 +53,7 @@ export function ContextPanel({
   return (
     <div
       className={cn(
-        "relative border-t-[3px] md:border-t-4 rounded-lg bg-card overflow-hidden mt-4",
+        "relative border-t-[3px] md:border-t-4 rounded-lg bg-card overflow-hidden pt-4",
         contextColorMap[contextType],
         className
       )}
