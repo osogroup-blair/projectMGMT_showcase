@@ -23,7 +23,8 @@ import {
   Plus,
   Zap,
   ClipboardList,
-  Users as UsersIcon
+  Users as UsersIcon,
+  FolderKanban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
