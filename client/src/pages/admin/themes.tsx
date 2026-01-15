@@ -559,6 +559,11 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
   
   const { data: themes = [], isLoading } = useQuery<Theme[]>({
     queryKey: ["/api/admin/themes"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/themes", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch themes");
+      return res.json();
+    },
   });
   
   const createMutation = useMutation({
@@ -566,6 +571,7 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
       const res = await fetch("/api/admin/themes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to create theme");
@@ -584,6 +590,7 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
       const res = await fetch(`/api/admin/themes/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to update theme");
@@ -599,7 +606,7 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
   
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/themes/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/themes/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) throw new Error("Failed to delete theme");
       return res.json();
     },
@@ -612,7 +619,7 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
   
   const publishMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/themes/${id}/publish`, { method: "POST" });
+      const res = await fetch(`/api/admin/themes/${id}/publish`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error("Failed to publish theme");
       return res.json();
     },
@@ -625,7 +632,7 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
   
   const setDefaultMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/themes/${id}/set-default`, { method: "POST" });
+      const res = await fetch(`/api/admin/themes/${id}/set-default`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error("Failed to set default theme");
       return res.json();
     },
@@ -638,7 +645,7 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
   
   const duplicateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/themes/${id}/duplicate`, { method: "POST" });
+      const res = await fetch(`/api/admin/themes/${id}/duplicate`, { method: "POST", credentials: "include" });
       if (!res.ok) throw new Error("Failed to duplicate theme");
       return res.json();
     },
@@ -654,6 +661,7 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
       const res = await fetch("/api/admin/themes/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to import theme");
