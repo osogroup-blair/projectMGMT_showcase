@@ -23,7 +23,8 @@ import {
   X,
   Workflow,
   Loader2,
-  Star
+  Star,
+  FolderKanban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
