@@ -175,7 +175,8 @@ export function StepTeamRoles({
           newStakeholderUserIds.push(mapping.mappedToId);
           console.log('[TEAM-ROLES] Added stakeholder from import:', mapping.mappedToName);
         }
-      } else {
+      } else if (projectRole === 'member') {
+        // Only add users who are explicitly assigned as team members
         const userTaskRoleIds: string[] = [];
         stages.forEach(stage => {
           stage.tasks?.forEach(task => {
@@ -194,7 +195,9 @@ export function StepTeamRoles({
           userId: mapping.mappedToId,
           executionRoleId
         });
+        console.log('[TEAM-ROLES] Added team member from import:', mapping.mappedToName);
       }
+      // Users with projectRole === 'none' are not added to the team
     });
     
     if (newOwnerUserId !== ownerUserId) {

@@ -519,15 +519,21 @@ export default function ImportSummary() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <UserCheck className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-lg">Team Assignment Summary</CardTitle>
-                      <Badge className="bg-primary/20 text-primary border-primary/30">
-                        {teamAssignmentSummary.totalMapped} team member{teamAssignmentSummary.totalMapped !== 1 ? 's' : ''}
-                      </Badge>
+                      <CardTitle className="text-lg">Team Assignment Preview</CardTitle>
+                      {teamAssignmentSummary.totalWithRoles > 0 ? (
+                        <Badge className="bg-green-100 text-green-700 border-green-200">
+                          {teamAssignmentSummary.totalWithRoles} will be added to project
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                          Assign roles to add to team
+                        </Badge>
+                      )}
                     </div>
                     {teamSummaryOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </div>
                   <CardDescription>
-                    These team members will be added to the project based on task assignments in the import.
+                    Users with project roles assigned below will automatically be added to the project team in the wizard.
                   </CardDescription>
                 </CardHeader>
               </CollapsibleTrigger>
@@ -664,23 +670,47 @@ export default function ImportSummary() {
                     <p className="text-sm text-muted-foreground py-4 text-center">No users found in import file</p>
                   ) : (
                     <>
-                      {validationSummary.unmappedUsers > 0 && (
-                        <div className="mb-4 flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                          <div className="text-sm">
-                            <span className="font-medium">{validationSummary.unmappedUsers} user(s)</span>
-                            <span className="text-muted-foreground"> need to be mapped to system users</span>
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={(e) => { e.stopPropagation(); handleAutoMapUsers(); }}
-                            data-testid="auto-map-users-btn"
-                          >
-                            <Wand2 className="h-4 w-4 mr-2" />
-                            Auto-Map Users
-                          </Button>
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 p-3 bg-muted/30 rounded-lg border">
+                        <div className="text-sm">
+                          {validationSummary.unmappedUsers > 0 ? (
+                            <>
+                              <span className="font-medium">{validationSummary.unmappedUsers} user(s)</span>
+                              <span className="text-muted-foreground"> need to be mapped to system users</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">All users are mapped. Assign project roles to include them in the team.</span>
+                          )}
                         </div>
-                      )}
+                        <div className="flex gap-2">
+                          {validationSummary.unmappedUsers > 0 && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={(e) => { e.stopPropagation(); handleAutoMapUsers(); }}
+                              data-testid="auto-map-users-btn"
+                            >
+                              <Wand2 className="h-4 w-4 mr-2" />
+                              Auto-Map Users
+                            </Button>
+                          )}
+                          {teamAssignmentSummary.byRole.none.count > 0 && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                teamAssignmentSummary.byRole.none.users.forEach(u => {
+                                  updateUserProjectRole(u.sourceId, 'member');
+                                });
+                              }}
+                              data-testid="assign-all-as-members-btn"
+                            >
+                              <Users className="h-4 w-4 mr-2" />
+                              Assign All as Members
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     <Table>
                       <TableHeader>
                         <TableRow>
