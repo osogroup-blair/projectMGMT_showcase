@@ -30,11 +30,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useStageTemplates, useTaskTemplates, useRoleTemplates, useMilestoneTemplates } from "@/hooks/use-nexus-data";
-import type { 
+import { 
   StageTemplate, 
   TaskTemplate, 
   RoleTemplate 
-} from "@shared/schema";
+} from "@/lib/mock-data";
 
 export default function StageTemplateDesigner() {
   const [match, params] = useRoute("/admin/templates/stage/:templateId");
@@ -303,7 +303,7 @@ export default function StageTemplateDesigner() {
                   <Label htmlFor="description">Description</Label>
                   <Textarea 
                     id="description" 
-                    value={formData.description || ""} 
+                    value={formData.description} 
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Describe the purpose of this stage..."
                     rows={4}
