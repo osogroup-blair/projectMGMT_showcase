@@ -767,6 +767,7 @@ export default function ProjectOverview() {
                 <div className="flex items-center gap-3 w-full">
                   {isEditingTitle ? (
                     <div className="flex items-center gap-2 flex-1">
+                      <FolderKanban className="h-7 w-7 text-primary/70 shrink-0" />
                       <Input
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
@@ -787,6 +788,7 @@ export default function ProjectOverview() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 group flex-1">
+                      <FolderKanban className="h-7 w-7 text-primary/70 shrink-0" />
                       <h1 className="text-3xl font-bold tracking-tight text-primary" data-testid="text-project-title">{project.name}</h1>
                       <Button 
                         size="icon" 
