@@ -31,6 +31,9 @@ export interface WizardEpicTask {
   deadline?: string;
   externalId?: string;
   taskTypeId?: string;
+  stageId?: string;
+  milestoneId?: string;
+  sprintId?: string;
 }
 
 export interface WizardEpic {
@@ -211,11 +214,11 @@ export interface StepProps {
 
 export const STEPS = [
   { id: 1, title: "Project Basics", description: "Name, dates, and basic settings" },
-  { id: 2, title: "Work Breakdown", description: "Define deliverables and epics" },
-  { id: 3, title: "Task Alignment", description: "Map tasks to epics" },
-  { id: 4, title: "Stage Configuration", description: "Set up stages, tasks, and milestones" },
-  { id: 5, title: "Assignments & Roles", description: "Assign team members by role" },
-  { id: 6, title: "Review & Summary", description: "Preview what will be created" },
+  { id: 2, title: "Stage Configuration", description: "Select framework or configure custom stages" },
+  { id: 3, title: "Assignments & Roles", description: "Assign team members by role" },
+  { id: 4, title: "Work Breakdown", description: "Define deliverables, epics, and tasks" },
+  { id: 5, title: "Task Alignment", description: "Map imported tasks to epics" },
+  { id: 6, title: "Review & Create", description: "Review and create project" },
 ];
 
 export const DEFAULT_SPRINT_DURATION = 2;

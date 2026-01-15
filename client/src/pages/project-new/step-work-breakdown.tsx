@@ -28,7 +28,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { StepProps, WizardEpic, WizardEpicTask, WizardDeliverable } from "./types";
+import { StepProps, WizardEpic, WizardEpicTask, WizardDeliverable, WizardStage, WizardMilestone } from "./types";
+import { Layers } from "lucide-react";
 import { useRef, useCallback, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,6 +41,8 @@ export function StepWorkBreakdown({
   deliverableTypes = [],
   epicTypes = [],
   taskTypes = [],
+  stages = [],
+  milestones = [],
 }: StepProps) {
   const epicInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const { toast } = useToast();
@@ -666,6 +669,33 @@ export function StepWorkBreakdown({
                                             <SelectItem value="urgent">Urgent</SelectItem>
                                           </SelectContent>
                                         </Select>
+                                        {stages.length > 0 && (
+                                          <Select
+                                            value={task.stageId || ""}
+                                            onValueChange={(value) => {
+                                              const newD = [...deliverables];
+                                              if (newD[dIndex].epics[eIndex].tasks) {
+                                                newD[dIndex].epics[eIndex].tasks![tIndex].stageId = value || undefined;
+                                              }
+                                              setDeliverables(newD);
+                                            }}
+                                          >
+                                            <SelectTrigger className="h-7 w-32 text-xs">
+                                              <div className="flex items-center gap-1">
+                                                <Layers className="h-3 w-3" />
+                                                <SelectValue placeholder="Stage" />
+                                              </div>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="">No stage</SelectItem>
+                                              {stages.map((stage: WizardStage) => (
+                                                <SelectItem key={stage.id} value={stage.id}>
+                                                  {stage.name || `Stage ${stages.indexOf(stage) + 1}`}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        )}
                                         {taskTypes.length > 0 && (
                                           <Select
                                             value={task.taskTypeId || ""}
