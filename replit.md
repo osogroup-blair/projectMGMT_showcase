@@ -92,6 +92,7 @@ A repository pattern is used in `server/data/repositories/` for data access, wit
 -   **Homepage Current Projects Kanban**: An interactive Kanban board on the homepage displaying tasks for projects with user involvement, supporting filtering by Assignee, Epic, Milestone, and Sprint.
 -   **Identity Linking System**: Allows users to link multiple external accounts (e.g., ClickUp, Jira, Asana, Google) to their Nymbl profile, managed via the profile page or by administrators. Supports user merging.
 -   **Milestone Template Scope Rules**: Milestone templates support rule-based scoping to automatically match tasks when applied to projects. Rules can filter by stage, epic type, and task template. Scope rules are defined in framework editor and stored in `defaultScopeRules` JSONB field with typed `MilestoneScopeRule` interface.
+-   **Theme Management System**: Full theme customization with import/export capabilities. Admins can create, edit, and publish themes via `/admin/themes`. Users can switch between published themes using the palette icon in the header, and toggle dark/light mode with the moon/sun icon. Theme preferences persist in localStorage. Themes define colors (background, foreground, primary, secondary, accent, etc.), typography (font families, sizes), and spacing (border radius). The `ThemeProvider` context applies theme tokens as CSS custom properties to the document root.
 
 ### File Structure
 
