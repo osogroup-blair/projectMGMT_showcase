@@ -106,13 +106,14 @@ export function StepWorkBreakdown({
       id: `t-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       title: "",
       priority: "medium",
-      estimateHours: 0
+      estimateHours: 0,
+      stageId: stages.length > 0 ? stages[0].id : undefined
     };
     epic.tasks.unshift(newTask);
     setDeliverables(newD);
     
     setExpandedEpics(prev => new Set(prev).add(epic.id));
-  }, [deliverables, setDeliverables]);
+  }, [deliverables, setDeliverables, stages]);
 
   const removeTaskFromEpic = useCallback((deliverableIndex: number, epicIndex: number, taskIndex: number) => {
     const newD = [...deliverables];

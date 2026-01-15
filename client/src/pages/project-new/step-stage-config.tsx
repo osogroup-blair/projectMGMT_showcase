@@ -181,8 +181,8 @@ export function StepStageConfig({
       ownerId: users[0]?.id || "",
       isBillingGate: false,
       rule: {
-        scopeType: 'stage',
-        scopeEntityId: stages[0]?.id || "",
+        scopeType: 'project',
+        scopeEntityId: "",
         completionMode: 'all_tasks',
         completionTargetPercent: 100
       }
@@ -286,9 +286,8 @@ export function StepStageConfig({
       .filter(Boolean) as WizardStage[];
 
     if (mode === 'merge_stages') {
-      // Stage-level merge: Keep imported stages and add framework stages
-      const importedStages = stages.filter(s => s.isFromImport);
-      setStages([...importedStages, ...frameworkStages]);
+      // Stage-level merge: Keep ALL existing stages and add framework stages
+      setStages([...stages, ...frameworkStages]);
     } else if (mode === 'merge_tasks') {
       // Task-level merge: Merge framework tasks into matching stages by name
       const mergedStages = [...stages];
