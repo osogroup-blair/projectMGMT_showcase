@@ -2,13 +2,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Button } from "@/components/ui/button";
 import { StepProps, getDefaultDueDate, DEFAULT_SPRINT_DURATION, DEFAULT_PROJECT_DURATION_WEEKS } from "./types";
 import { useEffect } from "react";
+import { Zap } from "lucide-react";
 
 export function StepBasics({
   projectData,
   setProjectData,
   users,
+  onSkipWizard,
 }: StepProps) {
   useEffect(() => {
     if (projectData.startDate && !projectData.dueDate) {
@@ -133,10 +136,35 @@ export function StepBasics({
       <div className="bg-muted/30 rounded-lg p-4 mt-6">
         <h4 className="font-medium text-sm mb-2">What's next?</h4>
         <p className="text-sm text-muted-foreground">
-          In the following steps, you'll define deliverables and epics, configure stages with tasks and milestones, 
-          and assign team members. You can apply templates in Step 3 (Stage Configuration) or build everything from scratch.
+          In the following steps, you'll assign team members, configure stages with tasks and milestones, 
+          and define deliverables and epics. You can apply templates in Stage Configuration or build everything from scratch.
         </p>
       </div>
+
+      {onSkipWizard && (
+        <div className="border border-dashed border-muted-foreground/30 rounded-lg p-4 mt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium text-sm mb-1 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                Quick Start
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Create a blank project with just the basics. You can add deliverables, stages, and team members later.
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={onSkipWizard}
+              data-testid="button-skip-wizard"
+              disabled={!projectData.name || !projectData.startDate || !projectData.dueDate}
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Create Blank Project
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

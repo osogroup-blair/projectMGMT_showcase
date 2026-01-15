@@ -1730,6 +1730,52 @@ export function registerImportExportRoutes(
                   success: true,
                   parentId: deliverableId
                 });
+                
+                // Create tasks directly defined on this epic (from Work Breakdown step)
+                if (epic.tasks?.length > 0) {
+                  console.log(`[FULL-CREATE] Creating ${epic.tasks.length} tasks for epic "${epic.title}"`);
+                  for (const epicTask of epic.tasks) {
+                    const epicTaskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    try {
+                      const resolvedStageId = epicTask.stageId ? stageIdMap.get(epicTask.stageId) || null : null;
+                      await storage.createTask({
+                        id: epicTaskId,
+                        project: projectName,
+                        projectId: projectId!,
+                        title: epicTask.title,
+                        description: epicTask.description || "",
+                        status: await storage.validateAndResolveStatus(epicTask.status, "task"),
+                        priority: epicTask.priority || "Medium",
+                        stageId: resolvedStageId,
+                        epicId: newEpic.id,
+                        milestoneId: epicTask.milestoneId || null,
+                        effort: 1,
+                        deadline: payload.project.deadline,
+                        estimateHours: epicTask.estimateHours || 0,
+                        assigneeId: epicTask.assigneeId || null,
+                        taskTypeId: epicTask.taskTypeId || null,
+                        tags: []
+                      } as any);
+                      
+                      entityResults.push({
+                        entityType: 'task',
+                        id: epicTaskId,
+                        name: epicTask.title,
+                        success: true,
+                        parentId: newEpic.id
+                      });
+                    } catch (taskErr: any) {
+                      entityResults.push({
+                        entityType: 'task',
+                        id: epicTaskId,
+                        name: epicTask.title || 'Unknown Epic Task',
+                        success: false,
+                        error: taskErr.message,
+                        parentId: newEpic.id
+                      });
+                    }
+                  }
+                }
               } catch (e: any) {
                 entityResults.push({
                   entityType: 'epic',

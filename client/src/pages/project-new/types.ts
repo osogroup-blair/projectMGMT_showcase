@@ -17,6 +17,7 @@ export interface WizardDeliverable {
   startDate?: string;
   endDate?: string;
   deliverableTypeId?: string;
+  isPassThrough?: boolean;
   epics: WizardEpic[];
 }
 
@@ -28,6 +29,8 @@ export interface WizardEpicTask {
   estimateHours?: number;
   status?: string;
   assigneeId?: string;
+  stageId?: string;
+  milestoneId?: string;
   deadline?: string;
   externalId?: string;
   taskTypeId?: string;
@@ -148,6 +151,7 @@ export interface WizardMilestone {
   isBillingGate: boolean;
   rule: WizardMilestoneRule;
   scopeRules?: WizardMilestoneScopeRule[];
+  isFromImport?: boolean;
 }
 
 export interface WizardRole {
@@ -207,14 +211,15 @@ export interface StepProps {
   onFrameworkSelect?: (frameworkId: string) => void;
   onSnippetApply: (snippetId: string) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSkipWizard?: () => void;
 }
 
 export const STEPS = [
   { id: 1, title: "Project Basics", description: "Name, dates, and basic settings" },
-  { id: 2, title: "Work Breakdown", description: "Define deliverables and epics" },
-  { id: 3, title: "Task Alignment", description: "Map tasks to epics" },
-  { id: 4, title: "Stage Configuration", description: "Set up stages, tasks, and milestones" },
-  { id: 5, title: "Assignments & Roles", description: "Assign team members by role" },
+  { id: 2, title: "Team Assignment", description: "Assign team members by role" },
+  { id: 3, title: "Stage Configuration", description: "Set up stages, tasks, and milestones" },
+  { id: 4, title: "Work Breakdown", description: "Define deliverables and epics" },
+  { id: 5, title: "Task Alignment", description: "Map orphaned tasks to epics", conditional: true },
   { id: 6, title: "Review & Summary", description: "Preview what will be created" },
 ];
 

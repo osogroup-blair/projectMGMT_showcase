@@ -45,7 +45,8 @@ import {
   Upload,
   AlertTriangle,
   Merge,
-  Replace
+  Replace,
+  User
 } from "lucide-react";
 import {
   Tooltip,
@@ -65,6 +66,8 @@ export function StepStageConfig({
   stageTemplates,
   taskTemplates,
   taskTypes = [],
+  milestoneTemplates = [],
+  roles,
   users,
 }: StepProps) {
   const [activeTab, setActiveTab] = useState<'stages' | 'milestones'>('stages');
@@ -89,6 +92,52 @@ export function StepStageConfig({
     });
     return { importedStages, importedTasks, hasImportedData: importedStages > 0 || importedTasks > 0 };
   }, [stages]);
+
+  const getFrameworkCounts = useMemo(() => {
+    return (frameworkId: string) => {
+      const framework = frameworkTemplates?.find((f: any) => f.id === frameworkId);
+      if (!framework) return { stages: 0, tasks: 0, milestones: 0 };
+      
+      const stageIds = framework.defaultStages || [];
+      let taskCount = 0;
+      
+      stageIds.forEach((stageId: string) => {
+        const stageTemplate = stageTemplates.find((st: any) => st.id === stageId);
+        if (stageTemplate?.defaultTasks) {
+          taskCount += stageTemplate.defaultTasks.length;
+        }
+      });
+      
+      const milestoneCount = milestoneTemplates.filter(
+        (mt: any) => stageIds.includes(mt.stageTemplateId)
+      ).length;
+      
+      return { stages: stageIds.length, tasks: taskCount, milestones: milestoneCount };
+    };
+  }, [frameworkTemplates, stageTemplates, milestoneTemplates]);
+
+  const teamMemberOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [
+      { value: "", label: "Unassigned" }
+    ];
+    
+    roles.forEach(role => {
+      if (role.assigneeId) {
+        const user = users.find(u => u.id === role.assigneeId);
+        if (user) {
+          const existingOption = options.find(o => o.value === user.id);
+          if (!existingOption) {
+            const displayName = user.name || user.firstName 
+              ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name 
+              : user.email || 'Unknown User';
+            options.push({ value: user.id, label: displayName });
+          }
+        }
+      }
+    });
+    
+    return options;
+  }, [roles, users]);
 
   const getDefaultRule = (): WizardMilestone['rule'] => ({
     scopeType: 'stage',
@@ -262,12 +311,17 @@ export function StepStageConfig({
     const framework = frameworkTemplates?.find((f: any) => f.id === frameworkId);
     if (!framework) return;
 
-    const frameworkStages = (framework.defaultStages || [])
+    const stageTemplateIds = framework.defaultStages || [];
+    const stageIdMap: Record<string, string> = {};
+
+    const frameworkStages = stageTemplateIds
       .map((stageId: string, idx: number) => {
         const stageTemplate = stageTemplates.find((st: any) => st.id === stageId);
         if (!stageTemplate) return null;
         
         const stageUniqueId = `stage-${Date.now()}-${idx}`;
+        stageIdMap[stageId] = stageUniqueId;
+        
         return {
           id: stageUniqueId,
           name: stageTemplate.name,
@@ -296,11 +350,35 @@ export function StepStageConfig({
       })
       .filter(Boolean) as WizardStage[];
 
+    const frameworkMilestones: WizardMilestone[] = milestoneTemplates
+      .filter((mt: any) => stageTemplateIds.includes(mt.stageTemplateId))
+      .map((mt: any, idx: number) => {
+        const linkedStageId = stageIdMap[mt.stageTemplateId] || frameworkStages[0]?.id || "";
+        return {
+          id: `ms-${Date.now()}-${idx}`,
+          name: mt.name,
+          description: mt.description || "",
+          phase: mt.phase || "delivery",
+          targetDate: "",
+          ownerId: users[0]?.id || "",
+          isBillingGate: mt.isBillingGate || false,
+          rule: {
+            scopeType: mt.scopeType || 'stage',
+            scopeEntityId: linkedStageId,
+            completionMode: mt.completionMode || 'all_tasks',
+            completionTargetPercent: mt.completionTargetPercent || 100
+          }
+        };
+      });
+
     if (mode === 'merge') {
       const importedStages = stages.filter(s => s.isFromImport);
+      const importedMilestones = milestones.filter(m => m.isFromImport);
       setStages([...importedStages, ...frameworkStages]);
+      setMilestones([...importedMilestones, ...frameworkMilestones]);
     } else {
       setStages(frameworkStages);
+      setMilestones(frameworkMilestones);
     }
     setExpandedStages([]);
     setExpandedMilestones([]);
@@ -418,37 +496,50 @@ export function StepStageConfig({
                   <LayoutTemplate className="h-5 w-5" /> Apply Framework
                 </SheetTitle>
                 <SheetDescription>
-                  Select a framework to pre-populate stages and tasks. This will replace your current configuration.
+                  Select a framework to pre-populate stages, tasks, and milestones. This will replace your current configuration.
                 </SheetDescription>
               </SheetHeader>
               <ScrollArea className="h-[calc(100vh-180px)] mt-6">
                 <div className="space-y-3 pr-4">
                   {frameworkTemplates && frameworkTemplates.length > 0 ? (
                     <>
-                      {frameworkTemplates.map((framework: any) => (
-                        <Card 
-                          key={framework.id} 
-                          className="cursor-pointer hover:border-primary transition-colors"
-                          onClick={() => handleFrameworkClick(framework.id)}
-                          data-testid={`card-framework-${framework.id}`}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="font-medium">{framework.name}</div>
-                                <div className="text-sm text-muted-foreground mt-1">{framework.description}</div>
+                      {frameworkTemplates.map((framework: any) => {
+                        const counts = getFrameworkCounts(framework.id);
+                        return (
+                          <Card 
+                            key={framework.id} 
+                            className="cursor-pointer hover:border-primary transition-colors"
+                            onClick={() => handleFrameworkClick(framework.id)}
+                            data-testid={`card-framework-${framework.id}`}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="font-medium">{framework.name}</div>
+                                  <div className="text-sm text-muted-foreground mt-1">{framework.description}</div>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex gap-2 mt-3">
-                              {framework.defaultStages?.length > 0 && (
-                                <Badge variant="secondary">
-                                  {framework.defaultStages.length} stages
-                                </Badge>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                              <div className="flex gap-2 mt-3 flex-wrap">
+                                {counts.stages > 0 && (
+                                  <Badge variant="secondary">
+                                    {counts.stages} stages
+                                  </Badge>
+                                )}
+                                {counts.tasks > 0 && (
+                                  <Badge variant="outline">
+                                    {counts.tasks} tasks
+                                  </Badge>
+                                )}
+                                {counts.milestones > 0 && (
+                                  <Badge variant="outline" className="border-amber-300 text-amber-700">
+                                    {counts.milestones} milestones
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                       
                       <div className="pt-4 border-t mt-4">
                         <p className="text-sm font-medium mb-3">Or add individual stage templates:</p>
@@ -695,6 +786,20 @@ export function StepStageConfig({
                                             className="h-8"
                                             placeholder="Hours"
                                           />
+                                        </div>
+                                        <div className="flex items-center gap-2 pt-1">
+                                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                                          <SearchableSelect
+                                            value={task.assigneeId || ""}
+                                            onValueChange={(v) => updateTask(stageIndex, taskIndex, { assigneeId: v || undefined })}
+                                            placeholder="Assign to..."
+                                            options={teamMemberOptions}
+                                            triggerClassName="h-7 text-xs w-44"
+                                            data-testid={`select-task-assignee-${stageIndex}-${taskIndex}`}
+                                          />
+                                          {teamMemberOptions.length <= 1 && (
+                                            <span className="text-xs text-muted-foreground ml-2">Add team members in the Team step</span>
+                                          )}
                                         </div>
                                         <div className="flex items-center gap-2 pt-1">
                                           <Calendar className="h-3.5 w-3.5 text-muted-foreground" />

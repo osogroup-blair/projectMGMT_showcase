@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -21,7 +23,10 @@ import {
   ChevronRight,
   ListTodo,
   GripVertical,
-  Wand2
+  Wand2,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  ArrowRightLeft
 } from "lucide-react";
 import {
   Popover,
@@ -29,7 +34,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { StepProps, WizardEpic, WizardEpicTask, WizardDeliverable } from "./types";
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export function StepWorkBreakdown({
@@ -40,10 +45,33 @@ export function StepWorkBreakdown({
   deliverableTypes = [],
   epicTypes = [],
   taskTypes = [],
+  stages = [],
+  milestones = [],
+  roles = [],
+  users = [],
 }: StepProps) {
   const epicInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const { toast } = useToast();
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
+  const [expandedDeliverables, setExpandedDeliverables] = useState<Set<string>>(() => 
+    new Set(deliverables.map(d => d.id))
+  );
+
+  const teamMemberOptions = useMemo(() => {
+    const assigneeIds = roles
+      .map(r => r.assigneeId)
+      .filter((id): id is string => id !== null && id !== undefined);
+    const uniqueIds = [...new Set(assigneeIds)];
+    return uniqueIds.map(id => {
+      const user = users.find((u: any) => u.id === id);
+      return {
+        id,
+        name: user?.name || user?.firstName && user?.lastName 
+          ? `${user.firstName} ${user.lastName}` 
+          : id
+      };
+    });
+  }, [roles, users]);
 
   const toggleEpicExpanded = (epicId: string) => {
     setExpandedEpics(prev => {
@@ -56,6 +84,35 @@ export function StepWorkBreakdown({
       return newSet;
     });
   };
+
+  const toggleDeliverableExpanded = (deliverableId: string) => {
+    setExpandedDeliverables(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(deliverableId)) {
+        newSet.delete(deliverableId);
+      } else {
+        newSet.add(deliverableId);
+      }
+      return newSet;
+    });
+  };
+
+  const expandAllDeliverables = useCallback(() => {
+    setExpandedDeliverables(new Set(deliverables.map(d => d.id)));
+    const allEpicIds = deliverables.flatMap(d => d.epics.map(e => e.id));
+    setExpandedEpics(new Set(allEpicIds));
+  }, [deliverables]);
+
+  const collapseAllDeliverables = useCallback(() => {
+    setExpandedDeliverables(new Set());
+    setExpandedEpics(new Set());
+  }, []);
+
+  const togglePassThrough = useCallback((dIndex: number) => {
+    const newD = [...deliverables];
+    newD[dIndex].isPassThrough = !newD[dIndex].isPassThrough;
+    setDeliverables(newD);
+  }, [deliverables, setDeliverables]);
 
   const addEpic = useCallback((deliverableIndex: number, focusNew: boolean = false) => {
     const epicId = `e-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -417,6 +474,36 @@ export function StepWorkBreakdown({
         </div>
       </div>
 
+      {deliverables.length > 0 && (
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={expandAllDeliverables}
+              title="Expand all"
+              data-testid="button-expand-all"
+            >
+              <ChevronsUpDown className="h-4 w-4 mr-1" />
+              Expand All
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={collapseAllDeliverables}
+              title="Collapse all"
+              data-testid="button-collapse-all"
+            >
+              <ChevronsDownUp className="h-4 w-4 mr-1" />
+              Collapse All
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {deliverables.length} deliverable{deliverables.length !== 1 ? 's' : ''}, {deliverables.reduce((sum, d) => sum + d.epics.length, 0)} epic{deliverables.reduce((sum, d) => sum + d.epics.length, 0) !== 1 ? 's' : ''}
+          </div>
+        </div>
+      )}
+
       <div className="pr-4">
         {deliverables.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-lg text-muted-foreground">
@@ -432,41 +519,87 @@ export function StepWorkBreakdown({
         ) : (
           <div className="space-y-4">
             {deliverables.map((deliverable, dIndex) => (
-              <Card key={deliverable.id} className="overflow-hidden">
-                <CardHeader className="bg-muted/30 p-4 pb-3">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-1">
-                        <Package className="h-4 w-4 text-primary" />
-                        <Input 
-                          value={deliverable.title} 
-                          onChange={(e) => {
-                            const newD = [...deliverables];
-                            newD[dIndex].title = e.target.value;
-                            setDeliverables(newD);
-                          }}
-                          className="h-8 font-medium bg-transparent border-transparent hover:border-input focus:border-input w-full max-w-sm"
-                          placeholder="Enter deliverable name..."
-                          data-testid={`input-deliverable-title-${dIndex}`}
-                        />
+              <Collapsible 
+                key={deliverable.id} 
+                open={expandedDeliverables.has(deliverable.id)}
+              >
+                <Card className="overflow-hidden">
+                  <CardHeader className="bg-muted/30 p-4 pb-3">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => toggleDeliverableExpanded(deliverable.id)}
+                            >
+                              {expandedDeliverables.has(deliverable.id) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                          <Package className="h-4 w-4 text-primary" />
+                          <Input 
+                            value={deliverable.title} 
+                            onChange={(e) => {
+                              const newD = [...deliverables];
+                              newD[dIndex].title = e.target.value;
+                              setDeliverables(newD);
+                            }}
+                            className="h-8 font-medium bg-transparent border-transparent hover:border-input focus:border-input w-full max-w-sm"
+                            placeholder="Enter deliverable name..."
+                            data-testid={`input-deliverable-title-${dIndex}`}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            ({deliverable.epics.length} epic{deliverable.epics.length !== 1 ? 's' : ''})
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!deliverable.id.startsWith('d-mgmt-') && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1">
+                                    <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
+                                    <Switch
+                                      checked={deliverable.isPassThrough || false}
+                                      onCheckedChange={() => togglePassThrough(dIndex)}
+                                      className="h-5 w-9"
+                                      data-testid={`switch-passthrough-${dIndex}`}
+                                    />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="max-w-xs">Pass-through: When enabled, the deliverable acts as a container only. Epics will be created directly under the project.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                          {!deliverable.id.startsWith('d-mgmt-') ? (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-destructive" 
+                              onClick={() => {
+                                const newD = [...deliverables];
+                                newD.splice(dIndex, 1);
+                                setDeliverables(newD);
+                              }}
+                              data-testid={`button-delete-deliverable-${dIndex}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground px-2" title="Protected deliverable">Required</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive" 
-                          onClick={() => {
-                            const newD = [...deliverables];
-                            newD.splice(dIndex, 1);
-                            setDeliverables(newD);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
 
-                    <div className="flex flex-wrap items-center gap-4 pl-6">
+                      <div className="flex flex-wrap items-center gap-4 pl-8">
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground whitespace-nowrap">
                           <Calendar className="h-3 w-3 inline mr-1" />
@@ -516,8 +649,9 @@ export function StepWorkBreakdown({
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="p-4 pt-2">
-                  <div className="pl-6 space-y-2 mt-2">
+                <CollapsibleContent>
+                  <CardContent className="p-4 pt-2">
+                    <div className="pl-6 space-y-2 mt-2">
                     {deliverable.epics.map((epic, eIndex) => (
                       <div key={epic.id} className="space-y-1">
                         <div className="flex items-start gap-2 group">
@@ -610,14 +744,17 @@ export function StepWorkBreakdown({
                                 Task
                               </Button>
                               
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" 
-                                onClick={() => removeEpic(dIndex, eIndex)}
-                              >
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
-                              </Button>
+                              {!epic.id.startsWith('e-mgmt-') && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" 
+                                  onClick={() => removeEpic(dIndex, eIndex)}
+                                  data-testid={`button-delete-epic-${dIndex}-${eIndex}`}
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              )}
                             </div>
 
                             <Collapsible open={expandedEpics.has(epic.id)}>
@@ -630,87 +767,163 @@ export function StepWorkBreakdown({
                                     {epic.tasks.map((task, tIndex) => (
                                       <div 
                                         key={task.id} 
-                                        className="flex items-center gap-2 group/task bg-muted/30 rounded-md p-2"
+                                        className="group/task bg-muted/30 rounded-md p-2 space-y-2"
                                       >
-                                        <GripVertical className="h-3 w-3 text-muted-foreground" />
-                                        <Input
-                                          value={task.title}
-                                          onChange={(e) => {
-                                            const newD = [...deliverables];
-                                            if (newD[dIndex].epics[eIndex].tasks) {
-                                              newD[dIndex].epics[eIndex].tasks![tIndex].title = e.target.value;
-                                            }
-                                            setDeliverables(newD);
-                                          }}
-                                          className="h-7 text-sm flex-1"
-                                          placeholder="Task title..."
-                                          data-testid={`input-task-title-${dIndex}-${eIndex}-${tIndex}`}
-                                        />
-                                        <Select
-                                          value={task.priority || "medium"}
-                                          onValueChange={(value) => {
-                                            const newD = [...deliverables];
-                                            if (newD[dIndex].epics[eIndex].tasks) {
-                                              newD[dIndex].epics[eIndex].tasks![tIndex].priority = value;
-                                            }
-                                            setDeliverables(newD);
-                                          }}
-                                        >
-                                          <SelectTrigger className="h-7 w-24 text-xs">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="low">Low</SelectItem>
-                                            <SelectItem value="medium">Medium</SelectItem>
-                                            <SelectItem value="high">High</SelectItem>
-                                            <SelectItem value="urgent">Urgent</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                        {taskTypes.length > 0 && (
+                                        <div className="flex items-center gap-2">
+                                          <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                          <Input
+                                            value={task.title}
+                                            onChange={(e) => {
+                                              const newD = [...deliverables];
+                                              if (newD[dIndex].epics[eIndex].tasks) {
+                                                newD[dIndex].epics[eIndex].tasks![tIndex].title = e.target.value;
+                                              }
+                                              setDeliverables(newD);
+                                            }}
+                                            className="h-7 text-sm flex-1"
+                                            placeholder="Task title..."
+                                            data-testid={`input-task-title-${dIndex}-${eIndex}-${tIndex}`}
+                                          />
                                           <Select
-                                            value={task.taskTypeId || ""}
+                                            value={task.priority || "medium"}
                                             onValueChange={(value) => {
                                               const newD = [...deliverables];
                                               if (newD[dIndex].epics[eIndex].tasks) {
-                                                newD[dIndex].epics[eIndex].tasks![tIndex].taskTypeId = value || undefined;
+                                                newD[dIndex].epics[eIndex].tasks![tIndex].priority = value;
                                               }
                                               setDeliverables(newD);
                                             }}
                                           >
-                                            <SelectTrigger className="h-7 w-28 text-xs">
-                                              <SelectValue placeholder="Type" />
+                                            <SelectTrigger className="h-7 w-24 text-xs">
+                                              <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                              {taskTypes.map((type: any) => (
-                                                <SelectItem key={type.id} value={type.id}>
-                                                  {type.label || type.name}
-                                                </SelectItem>
-                                              ))}
+                                              <SelectItem value="low">Low</SelectItem>
+                                              <SelectItem value="medium">Medium</SelectItem>
+                                              <SelectItem value="high">High</SelectItem>
+                                              <SelectItem value="urgent">Urgent</SelectItem>
                                             </SelectContent>
                                           </Select>
-                                        )}
-                                        <Input
-                                          type="number"
-                                          value={task.estimateHours || ""}
-                                          onChange={(e) => {
-                                            const newD = [...deliverables];
-                                            if (newD[dIndex].epics[eIndex].tasks) {
-                                              newD[dIndex].epics[eIndex].tasks![tIndex].estimateHours = Number(e.target.value);
-                                            }
-                                            setDeliverables(newD);
-                                          }}
-                                          className="h-7 w-16 text-xs"
-                                          placeholder="Hrs"
-                                          min={0}
-                                        />
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-7 w-7 opacity-0 group-hover/task:opacity-100"
-                                          onClick={() => removeTaskFromEpic(dIndex, eIndex, tIndex)}
-                                        >
-                                          <Trash2 className="h-3 w-3 text-muted-foreground" />
-                                        </Button>
+                                          <Input
+                                            type="number"
+                                            value={task.estimateHours || ""}
+                                            onChange={(e) => {
+                                              const newD = [...deliverables];
+                                              if (newD[dIndex].epics[eIndex].tasks) {
+                                                newD[dIndex].epics[eIndex].tasks![tIndex].estimateHours = Number(e.target.value);
+                                              }
+                                              setDeliverables(newD);
+                                            }}
+                                            className="h-7 w-16 text-xs"
+                                            placeholder="Hrs"
+                                            min={0}
+                                          />
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 opacity-0 group-hover/task:opacity-100"
+                                            onClick={() => removeTaskFromEpic(dIndex, eIndex, tIndex)}
+                                          >
+                                            <Trash2 className="h-3 w-3 text-muted-foreground" />
+                                          </Button>
+                                        </div>
+                                        <div className="flex items-center gap-2 ml-5">
+                                          {stages.length > 0 && (
+                                            <Select
+                                              value={task.stageId || ""}
+                                              onValueChange={(value) => {
+                                                const newD = [...deliverables];
+                                                if (newD[dIndex].epics[eIndex].tasks) {
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].stageId = value || undefined;
+                                                }
+                                                setDeliverables(newD);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-6 w-28 text-xs">
+                                                <SelectValue placeholder="Stage" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="">No stage</SelectItem>
+                                                {stages.map((stage: any) => (
+                                                  <SelectItem key={stage.id} value={stage.id}>
+                                                    {stage.name}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          )}
+                                          {milestones.length > 0 && (
+                                            <Select
+                                              value={task.milestoneId || ""}
+                                              onValueChange={(value) => {
+                                                const newD = [...deliverables];
+                                                if (newD[dIndex].epics[eIndex].tasks) {
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].milestoneId = value || undefined;
+                                                }
+                                                setDeliverables(newD);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-6 w-32 text-xs">
+                                                <SelectValue placeholder="Milestone" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="">No milestone</SelectItem>
+                                                {milestones.map((ms: any) => (
+                                                  <SelectItem key={ms.id} value={ms.id}>
+                                                    {ms.title}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          )}
+                                          {teamMemberOptions.length > 0 && (
+                                            <Select
+                                              value={task.assigneeId || ""}
+                                              onValueChange={(value) => {
+                                                const newD = [...deliverables];
+                                                if (newD[dIndex].epics[eIndex].tasks) {
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].assigneeId = value || undefined;
+                                                }
+                                                setDeliverables(newD);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-6 w-32 text-xs">
+                                                <SelectValue placeholder="Assignee" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="">Unassigned</SelectItem>
+                                                {teamMemberOptions.map((member) => (
+                                                  <SelectItem key={member.id} value={member.id}>
+                                                    {member.name}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          )}
+                                          {taskTypes.length > 0 && (
+                                            <Select
+                                              value={task.taskTypeId || ""}
+                                              onValueChange={(value) => {
+                                                const newD = [...deliverables];
+                                                if (newD[dIndex].epics[eIndex].tasks) {
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].taskTypeId = value || undefined;
+                                                }
+                                                setDeliverables(newD);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-6 w-28 text-xs">
+                                                <SelectValue placeholder="Type" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {taskTypes.map((type: any) => (
+                                                  <SelectItem key={type.id} value={type.id}>
+                                                    {type.label || type.name}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          )}
+                                        </div>
                                       </div>
                                     ))}
                                     <Button
@@ -739,8 +952,10 @@ export function StepWorkBreakdown({
                       <Plus className="h-3 w-3 mr-2" /> Add Epic
                     </Button>
                   </div>
-                </CardContent>
+                  </CardContent>
+                </CollapsibleContent>
               </Card>
+              </Collapsible>
             ))}
           </div>
         )}

@@ -97,7 +97,7 @@ import { StepTeamRoles } from "./step-team-roles";
 import { StepReview } from "./step-review";
 import { Link2 } from "lucide-react";
 
-const STEP_ICONS = [Settings, Package, Link2, Layers, Users, Check];
+const STEP_ICONS = [Settings, Users, Layers, Package, Link2, Check];
 
 export default function ProjectWizard() {
   const [, setLocation] = useLocation();
@@ -263,9 +263,9 @@ export default function ProjectWizard() {
     }
   }, [isImportMode, importInitialized, importContext?.state?.adapterResult, users]);
 
-  // Initialize default stages when entering Step 4 with empty stages (non-import mode)
+  // Initialize default stages when entering Stage Configuration (Step 3) with empty stages (non-import mode)
   useEffect(() => {
-    if (currentStep === 4 && stages.length === 0 && !isImportMode) {
+    if (currentStep === 3 && stages.length === 0 && !isImportMode) {
       const defaultStages: WizardStage[] = [
         { id: `stage-${Date.now()}-0`, name: 'Requirements', description: 'Gather and document project requirements', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
         { id: `stage-${Date.now()}-1`, name: 'Design', description: 'Create designs and technical specifications', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
@@ -281,11 +281,12 @@ export default function ProjectWizard() {
     }
   }, [currentStep, stages.length, isImportMode]);
 
-  // Ensure default "Management Activities" deliverable exists for Task Alignment step
+  // Ensure default "Management Activities" deliverable exists as the FIRST deliverable for Work Breakdown step (Step 4)
   // This provides a catch-all bucket for orphan tasks with 3 standard management epics
+  // This deliverable is protected - it cannot be deleted, but its name can be edited
   useEffect(() => {
-    if (currentStep === 3) {
-      const hasMgmtActivities = deliverables.some(d => d.title === 'Management Activities');
+    if (currentStep === 4) {
+      const hasMgmtActivities = deliverables.some(d => d.id.startsWith('d-mgmt-') || d.title === 'Management Activities');
       if (!hasMgmtActivities) {
         const timestamp = Date.now();
         const mgmtActivitiesDeliverable: WizardDeliverable = {
@@ -313,7 +314,8 @@ export default function ProjectWizard() {
             }
           ]
         };
-        setDeliverables(prev => [...prev, mgmtActivitiesDeliverable]);
+        // Insert as first deliverable
+        setDeliverables(prev => [mgmtActivitiesDeliverable, ...prev]);
       }
     }
   }, [currentStep, deliverables]);
@@ -380,7 +382,15 @@ export default function ProjectWizard() {
   };
 
   const handleNext = () => {
+    // Step 2 is Team Assignment - sync roles from stages for team assignment dropdowns
     if (currentStep === 2) {
+      syncRolesFromStagesAndTasks();
+    }
+    
+    // Step 3 is Stage Configuration - no special validation needed
+    
+    // Step 4 is Work Breakdown - ensure deliverables have epics
+    if (currentStep === 4) {
       const deliverablesWithoutEpics = deliverables.filter(d => !d.epics || d.epics.length === 0);
       
       if (deliverablesWithoutEpics.length > 0) {
@@ -418,7 +428,8 @@ export default function ProjectWizard() {
       }
     }
     
-    if (currentStep === 3) {
+    // Step 5 is Task Alignment - validate orphan tasks are resolved
+    if (currentStep === 5) {
       const hasImportedTasks = stages.some(stage => 
         stage.tasks.some(task => 
           task.mappingStatus && ['mapped', 'orphaned', 'manual', 'skipped'].includes(task.mappingStatus)
@@ -442,19 +453,6 @@ export default function ProjectWizard() {
           });
           return;
         }
-      }
-    }
-    
-    if (currentStep === 4) {
-      syncRolesFromStagesAndTasks();
-    }
-    
-    if (currentStep === 5) {
-      const stats = calculateTaskAssignmentStats();
-      if (stats.unassigned > 0) {
-        setUnassignedTasksStats(stats);
-        setShowUnassignedTasksWarning(true);
-        return;
       }
     }
     
@@ -497,9 +495,27 @@ export default function ProjectWizard() {
     return { total, unassigned: total - assigned, fromImport };
   };
 
+  const hasOrphanedImportedTasks = (): boolean => {
+    return stages.some(stage => 
+      stage.tasks.some(task => 
+        task.mappingStatus === 'orphaned' && 
+        task.scope === 'per_epic' && 
+        !task.assignedEpicId
+      )
+    );
+  };
+  
+  const shouldShowTaskAlignment = hasOrphanedImportedTasks();
+
   const proceedToNextStep = () => {
     if (currentStep < STEPS.length) {
-      setCurrentStep(currentStep + 1);
+      let nextStep = currentStep + 1;
+      
+      if (currentStep === 4 && nextStep === 5 && !shouldShowTaskAlignment) {
+        nextStep = 6;
+      }
+      
+      setCurrentStep(nextStep);
     } else {
       handleCreateProject();
     }
@@ -532,21 +548,36 @@ export default function ProjectWizard() {
   const handleStepSelect = (stepId: number) => {
     if (stepId === currentStep) return;
     
-    if (stepId < currentStep) {
-      const warning = getStepResetWarning(currentStep, stepId);
+    let targetStep = stepId;
+    
+    if (stepId === 5 && !shouldShowTaskAlignment) {
+      if (currentStep < 5) {
+        targetStep = 6;
+      } else {
+        targetStep = 4;
+      }
+    }
+    
+    if (targetStep === currentStep) return;
+    
+    if (targetStep < currentStep) {
+      if (targetStep === 5 && !shouldShowTaskAlignment && currentStep > 5) {
+        targetStep = 4;
+      }
+      const warning = getStepResetWarning(currentStep, targetStep);
       if (warning) {
-        setPendingStepChange(stepId);
+        setPendingStepChange(targetStep);
         setShowBackWarning(true);
         return;
       }
     }
     
-    if (stepId > currentStep) {
-      for (let i = currentStep; i < stepId; i++) {
+    if (targetStep > currentStep) {
+      for (let i = currentStep; i < targetStep; i++) {
         setCurrentStep(i);
       }
     }
-    setCurrentStep(stepId);
+    setCurrentStep(targetStep);
   };
 
   const confirmStepChange = () => {
@@ -564,13 +595,110 @@ export default function ProjectWizard() {
 
   const handleBack = () => {
     if (currentStep > 1) {
-      const warning = getStepResetWarning(currentStep, currentStep - 1);
+      let prevStep = currentStep - 1;
+      
+      if (currentStep === 6 && prevStep === 5 && !shouldShowTaskAlignment) {
+        prevStep = 4;
+      }
+      
+      const warning = getStepResetWarning(currentStep, prevStep);
       if (warning) {
-        setPendingStepChange(currentStep - 1);
+        setPendingStepChange(prevStep);
         setShowBackWarning(true);
         return;
       }
-      setCurrentStep(currentStep - 1);
+      setCurrentStep(prevStep);
+    }
+  };
+
+  const handleSkipWizard = async () => {
+    if (!projectData.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a project name.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!projectData.startDate || !projectData.dueDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please set start and end dates.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsCreating(true);
+    
+    startCreating({
+      projectName: projectData.name,
+      expectedCounts: {
+        stages: 0,
+        deliverables: 0,
+        epics: 0,
+        tasks: 0,
+        milestones: 0,
+        roles: 0
+      }
+    });
+    
+    setLocation('/projects/new/summary');
+    
+    try {
+      const response = await fetch('/api/projects/full-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project: {
+            name: projectData.name,
+            description: projectData.description || '',
+            status: 'Upcoming',
+            startDate: projectData.startDate,
+            deadline: projectData.dueDate,
+            frameworkId: null,
+            sprintDurationWeeks: projectData.sprintDurationWeeks || null,
+            ownerId: projectData.ownerId || null,
+            client: projectData.client || null,
+            riskLevel: null
+          },
+          stages: [],
+          deliverables: [],
+          milestones: [],
+          roles: []
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create project');
+      }
+      
+      const result = await response.json();
+      
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      
+      finishCreating({
+        projectId: result.project?.id || null,
+        projectName: projectData.name,
+        overallSuccess: true,
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        summary: {
+          total: 1,
+          succeeded: 1,
+          failed: 0
+        },
+        entityResults: [],
+        breakdownByType: {}
+      });
+      
+    } catch (error: any) {
+      console.error('Project creation failed:', error);
+      failCreating(`Failed to create project: ${error.message}`, projectData.name);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -940,10 +1068,31 @@ export default function ProjectWizard() {
       return;
     }
     
+    if (!projectData.startDate || !projectData.dueDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter project start and end dates.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (new Date(projectData.startDate) > new Date(projectData.dueDate)) {
+      toast({
+        title: "Validation Error",
+        description: "Project start date must be before the end date.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsCreating(true);
     
     const totalEpics = deliverables.reduce((sum, d) => sum + (d.epics?.length || 0), 0);
-    const totalTasks = stages.reduce((sum, s) => sum + (s.tasks?.length || 0), 0);
+    const stageTasks = stages.reduce((sum, s) => sum + (s.tasks?.length || 0), 0);
+    const epicTasks = deliverables.reduce((sum, d) => 
+      sum + d.epics.reduce((eSum, e) => eSum + (e.tasks?.length || 0), 0), 0);
+    const totalTasks = stageTasks + epicTasks;
     
     startCreating({
       projectName: projectData.name,
@@ -1004,7 +1153,19 @@ export default function ProjectWizard() {
           epics: (del.epics || []).map(epic => ({
             id: epic.id,
             title: epic.title,
-            description: epic.description || ''
+            description: epic.description || '',
+            tasks: (epic.tasks || []).map((task, taskIndex) => ({
+              id: task.id || `epic-task-${Date.now()}-${taskIndex}`,
+              title: task.title,
+              description: task.description || '',
+              priority: task.priority || 'Medium',
+              estimateHours: task.estimateHours || 0,
+              stageId: task.stageId || null,
+              milestoneId: task.milestoneId || null,
+              assigneeId: task.assigneeId || null,
+              taskTypeId: task.taskTypeId || null,
+              order: taskIndex
+            }))
           }))
         })),
         milestones: milestones.map(m => ({
@@ -1163,6 +1324,7 @@ export default function ProjectWizard() {
     onFrameworkSelect: handleFrameworkSelect,
     onFileUpload: handleFileUpload,
     onSnippetApply: handleSnippetApply,
+    onSkipWizard: handleSkipWizard,
   };
 
   return (
@@ -1212,20 +1374,30 @@ export default function ProjectWizard() {
                     const isActive = currentStep === step.id;
                     const isCompleted = currentStep > step.id;
                     const Icon = STEP_ICONS[idx];
+                    const isTaskAlignmentStep = step.id === 5;
+                    const willBeSkipped = isTaskAlignmentStep && !shouldShowTaskAlignment;
+                    const isSkippedAndPast = willBeSkipped && currentStep > 5;
 
                     return (
-                        <div key={step.id} className="flex flex-col items-center gap-2 bg-background px-2">
+                        <div key={step.id} className={cn(
+                            "flex flex-col items-center gap-2 bg-background px-2",
+                            willBeSkipped && currentStep < 5 && "opacity-50"
+                        )}>
                             <div 
                                 className={cn(
                                     "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
                                     isActive ? "border-primary bg-primary text-primary-foreground" : 
-                                    isCompleted ? "border-primary bg-primary/20 text-primary" : "border-muted bg-background text-muted-foreground"
+                                    isCompleted || isSkippedAndPast ? "border-primary bg-primary/20 text-primary" : 
+                                    willBeSkipped && currentStep < 5 ? "border-dashed border-muted" : "border-muted bg-background text-muted-foreground"
                                 )}
                             >
-                                {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                                {isCompleted || isSkippedAndPast ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
                             </div>
                             <div className="text-center hidden sm:block">
-                                <div className={cn("text-sm font-medium", isActive ? "text-primary" : "text-muted-foreground")}>{step.title}</div>
+                                <div className={cn("text-sm font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
+                                    {step.title}
+                                    {willBeSkipped && currentStep < 5 && <span className="text-xs ml-1">(skip)</span>}
+                                </div>
                             </div>
                         </div>
                     );
@@ -1362,10 +1534,10 @@ export default function ProjectWizard() {
                 ) : (
                   <>
                     {currentStep === 1 && <StepBasics {...stepProps} />}
-                    {currentStep === 2 && <StepWorkBreakdown {...stepProps} />}
-                    {currentStep === 3 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
-                    {currentStep === 4 && <StepStageConfig {...stepProps} />}
-                    {currentStep === 5 && <StepTeamRoles {...stepProps} />}
+                    {currentStep === 2 && <StepTeamRoles {...stepProps} />}
+                    {currentStep === 3 && <StepStageConfig {...stepProps} />}
+                    {currentStep === 4 && <StepWorkBreakdown {...stepProps} />}
+                    {currentStep === 5 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
                     {currentStep === 6 && <StepReview {...stepProps} />}
                   </>
                 )}
