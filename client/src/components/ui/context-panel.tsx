@@ -53,7 +53,7 @@ export function ContextPanel({
   return (
     <div
       className={cn(
-        "relative border-t-[3px] md:border-t-4 rounded-lg bg-card overflow-hidden",
+        "relative border-t-[3px] md:border-t-4 rounded-lg bg-card overflow-hidden mt-4",
         contextColorMap[contextType],
         className
       )}
@@ -64,7 +64,7 @@ export function ContextPanel({
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `linear-gradient(to bottom, hsl(${gradientVar} / 0.15) 0%, hsl(${gradientVar} / 0.05) 15%, transparent 40%)`,
+          background: `linear-gradient(to bottom, hsl(${gradientVar} / 0.25) 0%, hsl(${gradientVar} / 0.1) 15%, transparent 40%)`,
         }}
       />
       <div className="relative z-10">
