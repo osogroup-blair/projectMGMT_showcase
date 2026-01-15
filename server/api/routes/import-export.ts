@@ -1877,6 +1877,10 @@ export function registerImportExportRoutes(
                     const epicTaskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                     try {
                       const resolvedStageId = epicTask.stageId ? stageIdMap.get(epicTask.stageId) || null : null;
+                      // Resolve milestone ID if provided
+                      const resolvedMilestoneId = epicTask.milestoneId 
+                        ? milestoneIdMap.get(epicTask.milestoneId) || epicTask.milestoneId 
+                        : null;
                       await storage.createTask({
                         id: epicTaskId,
                         project: projectName,
@@ -1887,13 +1891,14 @@ export function registerImportExportRoutes(
                         priority: epicTask.priority || "Medium",
                         stageId: resolvedStageId,
                         epicId: newEpic.id,
-                        milestoneId: epicTask.milestoneId || null,
+                        milestoneId: resolvedMilestoneId,
+                        sprintId: epicTask.sprintId || null,
                         effort: 1,
                         deadline: payload.project.deadline,
                         estimateHours: epicTask.estimateHours || 0,
                         assigneeId: epicTask.assigneeId || null,
                         taskTypeId: epicTask.taskTypeId || null,
-                        tags: []
+                        tags: epicTask.tags || []
                       } as any);
                       
                       entityResults.push({
@@ -1967,6 +1972,11 @@ export function registerImportExportRoutes(
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
               try {
+                // Resolve milestone ID if provided
+                const resolvedMilestoneId = taskDraft.milestoneId 
+                  ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
+                  : null;
+                
                 await storage.createTask({
                   id: taskId,
                   project: projectName,
@@ -1977,11 +1987,14 @@ export function registerImportExportRoutes(
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
                   epicId: resolvedEpicId,
+                  milestoneId: resolvedMilestoneId,
+                  sprintId: taskDraft.sprintId || null,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   assigneeId: taskDraft.assigneeId || null,
-                  tags: []
+                  taskTypeId: taskDraft.taskTypeId || null,
+                  tags: taskDraft.tags || []
                 } as any);
                 
                 entityResults.push({
@@ -2009,6 +2022,9 @@ export function registerImportExportRoutes(
             if (productManagementEpicId) {
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
+              const resolvedMilestoneId = taskDraft.milestoneId 
+                ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
+                : null;
               try {
                 await storage.createTask({
                   id: taskId,
@@ -2020,11 +2036,14 @@ export function registerImportExportRoutes(
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
+                  milestoneId: resolvedMilestoneId,
+                  sprintId: taskDraft.sprintId || null,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   assigneeId: taskDraft.assigneeId || null,
-                  tags: []
+                  taskTypeId: taskDraft.taskTypeId || null,
+                  tags: taskDraft.tags || []
                 } as any);
                 
                 entityResults.push({
@@ -2047,6 +2066,9 @@ export function registerImportExportRoutes(
             }
           } else if (taskDraft.scope === 'per_epic') {
             const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
+            const resolvedMilestoneId = taskDraft.milestoneId 
+              ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
+              : null;
             
             // If there are business epics, create a task for each one
             if (businessEpics.length > 0) {
@@ -2063,11 +2085,14 @@ export function registerImportExportRoutes(
                     priority: taskDraft.priority || "Medium",
                     stageId: createdStage.createdStageId,
                     epicId: businessEpic.id,
+                    milestoneId: resolvedMilestoneId,
+                    sprintId: taskDraft.sprintId || null,
                     effort: 1,
                     deadline: taskDeadline,
                     estimateHours: taskDraft.estimateHours || 0,
                     assigneeId: taskDraft.assigneeId || null,
-                    tags: []
+                    taskTypeId: taskDraft.taskTypeId || null,
+                    tags: taskDraft.tags || []
                   } as any);
                   
                   entityResults.push({
@@ -2103,11 +2128,14 @@ export function registerImportExportRoutes(
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
+                  milestoneId: resolvedMilestoneId,
+                  sprintId: taskDraft.sprintId || null,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   assigneeId: taskDraft.assigneeId || null,
-                  tags: []
+                  taskTypeId: taskDraft.taskTypeId || null,
+                  tags: taskDraft.tags || []
                 } as any);
                 
                 entityResults.push({
@@ -2136,6 +2164,9 @@ export function registerImportExportRoutes(
             if (productManagementEpicId) {
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
+              const resolvedMilestoneId = taskDraft.milestoneId 
+                ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
+                : null;
               try {
                 await storage.createTask({
                   id: taskId,
@@ -2147,11 +2178,14 @@ export function registerImportExportRoutes(
                   priority: taskDraft.priority || "Medium",
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
+                  milestoneId: resolvedMilestoneId,
+                  sprintId: taskDraft.sprintId || null,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
                   assigneeId: taskDraft.assigneeId || null,
-                  tags: []
+                  taskTypeId: taskDraft.taskTypeId || null,
+                  tags: taskDraft.tags || []
                 } as any);
                 
                 entityResults.push({
