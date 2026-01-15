@@ -141,18 +141,15 @@ function useCollapsedColumns(boardId: string, columns: KanbanColumn[]) {
     }
   });
 
-  // Initialize from column defaults when columns first load and no stored preference exists
+  // Initialize with all columns collapsed when first loading and no stored preference exists
   useEffect(() => {
     if (initialized || columns.length === 0) return;
     
     const hasStoredValue = localStorage.getItem(storageKey) !== null;
     if (!hasStoredValue) {
-      const defaultCollapsed = columns
-        .filter(col => col.defaultCollapsed)
-        .map(col => col.id);
-      if (defaultCollapsed.length > 0) {
-        setCollapsedColumnIds(new Set(defaultCollapsed));
-      }
+      // Collapse all columns by default on initial load
+      const allColumnIds = columns.map(col => col.id);
+      setCollapsedColumnIds(new Set(allColumnIds));
     }
     setInitialized(true);
   }, [columns, storageKey, initialized]);
