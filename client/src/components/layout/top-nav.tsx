@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Search, LogOut, User, Settings, HelpCircle } from "lucide-react";
+import { Search, LogOut, User, Settings, HelpCircle, Moon, Sun, Palette, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -12,10 +12,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/context/current-user-context";
+import { useTheme } from "@/context/theme-context";
 import { SearchCommandPalette } from "./search-command-palette";
 
 export function TopNav() {
   const { currentUser } = useCurrentUser();
+  const { themes, activeTheme, isDark, setTheme, toggleDarkMode } = useTheme();
   const [, setLocation] = useLocation();
   const [searchOpen, setSearchOpen] = React.useState(false);
 
@@ -82,6 +84,69 @@ export function TopNav() {
         <div className="text-right hidden sm:block">
           <p className="text-sm text-sidebar-foreground/70 mr-2">{getTimeGreeting()}, <span className="font-medium text-sidebar-foreground">{firstName}!</span></p>
         </div>
+        
+        {/* Theme Controls */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleDarkMode}
+            className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            data-testid="dark-mode-toggle"
+          >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                data-testid="theme-switcher-trigger"
+              >
+                <Palette className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>Select Theme</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {themes.map((theme) => (
+                <DropdownMenuItem
+                  key={theme.id}
+                  onClick={() => setTheme(theme.id)}
+                  className="cursor-pointer flex items-center justify-between"
+                  data-testid={`theme-option-${theme.name.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-6 h-6 rounded border flex-shrink-0"
+                      style={{
+                        background: `linear-gradient(135deg, 
+                          hsl(${theme.lightTokens.colors.primary}) 0%, 
+                          hsl(${theme.lightTokens.colors.primary}) 50%, 
+                          hsl(${theme.lightTokens.colors.accent}) 50%, 
+                          hsl(${theme.lightTokens.colors.accent}) 100%)`,
+                      }}
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-medium text-sm">{theme.name}</span>
+                      {theme.description && (
+                        <span className="text-xs text-muted-foreground line-clamp-1">
+                          {theme.description}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {activeTheme?.id === theme.id && (
+                    <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        
         <Button
           variant="ghost"
           size="icon"

@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrentUserProvider } from "@/context/current-user-context";
 import { ImportProvider } from "@/context/import-context";
 import { CreationReportProvider } from "@/context/creation-report-context";
+import { ThemeProvider } from "@/context/theme-context";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
@@ -131,7 +132,9 @@ function AuthenticatedApp() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthenticatedApp />
+      <ThemeProvider>
+        <AuthenticatedApp />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

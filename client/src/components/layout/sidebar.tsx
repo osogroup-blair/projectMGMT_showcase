@@ -9,7 +9,10 @@ import {
   Home,
   Settings,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  Moon,
+  Sun,
+  Palette
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,10 +22,35 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentUser } from "@/context/current-user-context";
+import { useTheme } from "@/context/theme-context";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 interface FavoriteProject {
   projectId: string;
   projectName: string;
+}
+
+function SidebarThemeToggle() {
+  const { isDark, toggleDarkMode } = useTheme();
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleDarkMode}
+          className="w-full justify-center text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          data-testid="sidebar-theme-toggle"
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        {isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export function Sidebar() {
@@ -249,8 +277,16 @@ export function Sidebar() {
           </div>
         </ScrollArea>
 
-        {/* Collapse Toggle Button */}
-        <div className={cn("p-4 border-t border-sidebar-border", isCollapsed && "px-2")}>
+        {/* Footer with Theme Switcher and Collapse Toggle */}
+        <div className={cn("p-4 border-t border-sidebar-border space-y-2", isCollapsed && "px-2")}>
+          {!isCollapsed && (
+            <div className="flex items-center justify-between">
+              <ThemeSwitcher />
+            </div>
+          )}
+          {isCollapsed && (
+            <SidebarThemeToggle />
+          )}
           <Button
             variant="ghost"
             size="sm"
