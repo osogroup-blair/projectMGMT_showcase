@@ -192,6 +192,12 @@ export function registerImportExportRoutes(
     res.json(assignments);
   });
 
+  // Project Team Members (global - for team size aggregation)
+  app.get("/api/projectTeamMembers", async (req, res) => {
+    const members = await storage.getAllProjectTeamMembers();
+    res.json(members);
+  });
+
   app.post("/api/roleAssignments", async (req, res) => {
     try {
       const validated = insertRoleAssignmentSchema.parse(req.body);

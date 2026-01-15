@@ -907,6 +907,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Project Team Members (unified membership)
+  async getAllProjectTeamMembers(): Promise<ProjectTeamMember[]> {
+    return await db.select().from(schema.projectTeamMembers);
+  }
   async getProjectTeamMembers(projectId: string): Promise<ProjectTeamMember[]> {
     return await db.select().from(schema.projectTeamMembers).where(eq(schema.projectTeamMembers.projectId, projectId));
   }

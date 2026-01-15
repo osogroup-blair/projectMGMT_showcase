@@ -149,25 +149,27 @@ export default function ProjectsList() {
     }
   };
 
-  // User's project memberships
+  // All project team memberships for team size calculation
   const { data: allMemberships = [] } = useQuery<{ id: string; projectId: string; userId: string }[]>({
     queryKey: ['allProjectMemberships'],
     queryFn: async () => {
-      const res = await fetch('/api/project-team-members');
-      if (!res.ok) {
-        // Fallback to legacy team endpoint if new one doesn't exist yet
-        const legacyRes = await fetch('/api/role-assignments');
-        if (!legacyRes.ok) return [];
-        return legacyRes.json();
-      }
+      const res = await fetch('/api/projectTeamMembers');
+      if (!res.ok) return [];
       return res.json();
     }
   });
 
   const teamSizeByProject = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const usersByProject: Record<string, Set<string>> = {};
     allMemberships.forEach(m => {
-      counts[m.projectId] = (counts[m.projectId] || 0) + 1;
+      if (!usersByProject[m.projectId]) {
+        usersByProject[m.projectId] = new Set();
+      }
+      usersByProject[m.projectId].add(m.userId);
+    });
+    const counts: Record<string, number> = {};
+    Object.entries(usersByProject).forEach(([projectId, users]) => {
+      counts[projectId] = users.size;
     });
     return counts;
   }, [allMemberships]);
