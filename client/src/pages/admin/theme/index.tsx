@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { AlertCircle, Check, ChevronLeft, Download, Eye, Moon, Palette, Plus, RefreshCcw, Save, Sun, Trash2, Upload, History } from "lucide-react";
+import { AlertCircle, Check, ChevronLeft, Download, Eye, Moon, Palette, Pencil, Plus, RefreshCcw, Save, Sun, Trash2, Upload, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Link } from "wouter";
@@ -272,6 +272,9 @@ function ThemeEditor({ themeId }: { themeId: string }) {
   const queryClient = useQueryClient();
   const [previewMode, setPreviewMode] = useState<'light' | 'dark'>('light');
   const [changeNotes, setChangeNotes] = useState("");
+  const [showMetadataDialog, setShowMetadataDialog] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   
   const { data: themeData, isLoading } = useQuery({
     queryKey: ['/api/themes', themeId],
@@ -346,6 +349,30 @@ function ThemeEditor({ themeId }: { themeId: string }) {
     },
   });
   
+  const updateMetadataMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/themes/${themeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName, description: editDescription }),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/themes', themeId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/themes'] });
+      setShowMetadataDialog(false);
+      toast({ title: "Theme updated", description: "Name and description saved" });
+    },
+  });
+  
+  useEffect(() => {
+    if (theme) {
+      setEditName(theme.name || "");
+      setEditDescription(theme.description || "");
+    }
+  }, [theme]);
+  
   const updateColorToken = (mode: 'light' | 'dark', key: string, value: string) => {
     if (mode === 'light' && lightTokens) {
       setLightTokens({
@@ -380,28 +407,76 @@ function ThemeEditor({ themeId }: { themeId: string }) {
   const currentTokens = previewMode === 'light' ? lightTokens : darkTokens;
   
   if (isLoading || !lightTokens || !darkTokens) {
-    return <div className="flex items-center justify-center p-8">Loading...</div>;
+    return (
+      <Shell>
+        <div className="flex items-center justify-center p-8">Loading...</div>
+      </Shell>
+    );
   }
   
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-4">
-          <Link href="/admin/theme">
-            <Button variant="ghost" size="sm">
-              <ChevronLeft className="h-4 w-4 mr-1" /> Back
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold">{theme?.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              Version {latestVersion?.version || 1} · {theme?.status}
-            </p>
+    <Shell>
+      <div className="flex flex-col h-[calc(100vh-12rem)]">
+        <div className="flex items-center justify-between pb-4 border-b mb-4">
+          <div className="flex items-center gap-4">
+            <Link href="/admin/theme">
+              <Button variant="ghost" size="sm">
+                <ChevronLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+            </Link>
+            <div className="flex items-center gap-2">
+              <div>
+                <h1 className="text-xl font-bold">{theme?.name}</h1>
+                <p className="text-sm text-muted-foreground">
+                  {theme?.description || "No description"} · Version {latestVersion?.version || 1} · {theme?.status}
+                </p>
+              </div>
+              <Dialog open={showMetadataDialog} onOpenChange={setShowMetadataDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" data-testid="edit-theme-metadata">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Theme Details</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Theme Name</Label>
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="My Custom Theme"
+                        data-testid="edit-theme-name"
+                      />
+                    </div>
+                    <div>
+                      <Label>Description</Label>
+                      <Textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="Describe this theme..."
+                        data-testid="edit-theme-description"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      onClick={() => updateMetadataMutation.mutate()}
+                      disabled={!editName || updateMetadataMutation.isPending}
+                      data-testid="save-theme-metadata"
+                    >
+                      {updateMetadataMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button 
+          
+          <div className="flex items-center gap-2">
+            <Button 
             variant="outline" 
             size="sm" 
             onClick={() => {
@@ -496,10 +571,10 @@ function ThemeEditor({ themeId }: { themeId: string }) {
               <Check className="h-4 w-4 mr-1" /> Publish
             </Button>
           )}
+          </div>
         </div>
-      </div>
-      
-      <div className="flex-1 flex overflow-hidden">
+        
+        <div className="flex-1 flex overflow-hidden">
         <div className="w-1/2 border-r overflow-auto">
           <Tabs defaultValue="light" className="h-full flex flex-col">
             <div className="p-4 border-b">
@@ -621,8 +696,9 @@ function ThemeEditor({ themeId }: { themeId: string }) {
             </Card>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </Shell>
   );
 }
 
