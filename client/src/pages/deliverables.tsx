@@ -53,6 +53,7 @@ import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOpt
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { Loader2, Flag, Target } from "lucide-react";
+import { ContextPanel } from "@/components/ui/context-panel";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -1500,7 +1501,7 @@ export default function DeliverablesList() {
 
   return (
     <Shell>
-      <div className="space-y-8">
+      <ContextPanel contextType="deliverable" className="space-y-8 rounded-none">
         <div className="flex flex-col gap-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Link href={`/projects/${projectId}`} className="hover:text-primary transition-colors flex items-center gap-1">
@@ -1520,7 +1521,7 @@ export default function DeliverablesList() {
         </div>
 
         <DeliverablesContent projectId={projectId} />
-      </div>
+      </ContextPanel>
     </Shell>
   );
 }

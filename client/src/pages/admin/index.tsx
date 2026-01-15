@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tabs";
 import { useSearch, useLocation } from "wouter";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { ContextPanel } from "@/components/ui/context-panel";
 
 import UserManagementContent from "./user-management";
 import AdminTemplatesContent from "./templates";
@@ -78,7 +79,7 @@ export default function AdminHub({ params }: AdminHubProps) {
   return (
     <AuthGuard requiredRoles={["admin", "manager"]}>
       <Shell>
-        <div className="space-y-6">
+        <ContextPanel contextType="admin" className="space-y-6 rounded-none">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Administration</h1>
             <p className="text-muted-foreground">
@@ -121,7 +122,7 @@ export default function AdminHub({ params }: AdminHubProps) {
               <AdminImportExportContent embedded />
             </TabsContent>
           </Tabs>
-        </div>
+        </ContextPanel>
       </Shell>
     </AuthGuard>
   );

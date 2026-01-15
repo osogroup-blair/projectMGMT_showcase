@@ -57,6 +57,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, parseISO } from "date-fns";
+import { ContextPanel } from "@/components/ui/context-panel";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -430,7 +431,7 @@ export default function MilestoneOverview() {
 
   return (
     <Shell>
-      <div className="space-y-6">
+      <ContextPanel contextType="milestone" className="space-y-6 rounded-none">
         {/* Header */}
         <div className="space-y-4">
           <div className="flex items-start gap-4">
@@ -788,7 +789,7 @@ export default function MilestoneOverview() {
             />
           </TabsContent>
         </Tabs>
-      </div>
+      </ContextPanel>
     </Shell>
   );
 }

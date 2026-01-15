@@ -72,6 +72,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRoute, Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { ContextPanel } from "@/components/ui/context-panel";
 import { 
   useProject,
   useProjectStages,
@@ -488,7 +489,7 @@ export default function StageWorkspace() {
 
   return (
     <Shell>
-      <div className="h-[calc(100vh-8rem)] flex flex-col">
+      <ContextPanel contextType="stage" className="h-[calc(100vh-8rem)] flex flex-col rounded-none">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6 shrink-0">
           <div className="space-y-3">
@@ -870,7 +871,7 @@ export default function StageWorkspace() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+      </ContextPanel>
 
       {/* Add/Link Milestone Modal */}
       <Dialog open={showMilestoneModal} onOpenChange={setShowMilestoneModal}>
