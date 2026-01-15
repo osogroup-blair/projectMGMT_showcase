@@ -84,6 +84,7 @@ import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
 import { SprintPlannerPanel } from "@/features/project/sprints/sprint-planner-panel";
 import { TasksByPerson } from "@/features/project/tasks-by-person";
 import { Activity, PanelLeft, Send, BarChart3, ChevronLeftIcon, ChevronRightIcon, Search, Filter, MessageSquare } from "lucide-react";
+import { ContextPanel } from "@/components/ui/context-panel";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -758,7 +759,7 @@ export default function ProjectOverview() {
 
   return (
     <Shell noPadding>
-      <div className="flex flex-col">
+      <ContextPanel contextType="project" className="flex flex-col rounded-none">
         {/* Header Section - Wrapped in padding */}
         <div className="px-6 py-8 space-y-8 pt-[10px] pb-[10px]">
           <div className="flex flex-col gap-6">
@@ -1763,7 +1764,7 @@ export default function ProjectOverview() {
             </TabsContent>
           </div>
         </Tabs>
-      </div>
+      </ContextPanel>
 
       <Dialog open={addTaskDialogOpen} onOpenChange={setAddTaskDialogOpen}>
         <DialogContent className="max-w-lg">
