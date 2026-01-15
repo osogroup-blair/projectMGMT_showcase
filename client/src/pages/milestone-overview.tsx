@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { Shell } from "@/components/layout/shell";
 import { ListHeader, LayoutVariant, getGridClassName } from "@/components/ui/list-header";
+import { CoverageMatrix } from "@/components/coverage-matrix";
 import { 
   Flag, 
   CheckCircle2, 
@@ -1679,6 +1680,21 @@ function ScopeDefinitionTab({
     }
   };
 
+  const getMatrixTasksForCell = useCallback((epicId: string, stageId: string) => {
+    return tasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
+  }, [tasks]);
+
+  const getMatrixIncludedCount = useCallback((epicId: string, stageId: string) => {
+    const cellTasks = getMatrixTasksForCell(epicId, stageId);
+    return cellTasks.filter((t: any) => 
+      links.some((l: any) => l.taskId === t.id && l.milestoneId === milestone.id)
+    ).length;
+  }, [getMatrixTasksForCell, links, milestone.id]);
+
+  const isTaskLinkedToMilestone = useCallback((taskId: string) => {
+    return links.some((l: any) => l.taskId === taskId && l.milestoneId === milestone.id);
+  }, [links, milestone.id]);
+
   const toggleRuleExpanded = (ruleId: string) => {
     setExpandedRules(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
   };
@@ -2106,83 +2122,22 @@ function ScopeDefinitionTab({
              <div className="border rounded-md overflow-hidden">
                <div className="bg-muted/30 p-4 border-b">
                  <h4 className="font-medium text-sm">Coverage Matrix</h4>
-                 <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion for that Epic & Stage.</p>
+                 <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion for that Epic & Stage. Hover to see task details.</p>
                </div>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-sm">
-                   <thead>
-                     <tr className="border-b bg-muted/10">
-                       <th className="p-3 text-left font-medium min-w-[200px]">Epic</th>
-                       {stages.map((stage: any) => (
-                         <th key={stage.id} className="p-3 text-center font-medium border-l min-w-[100px]">
-                           {stage.label}
-                         </th>
-                       ))}
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {epics.length === 0 ? (
-                       <tr>
-                         <td colSpan={stages.length + 1} className="p-8 text-center text-muted-foreground">
-                           No epics found in this project.
-                         </td>
-                       </tr>
-                     ) : stages.length === 0 ? (
-                       <tr>
-                         <td colSpan={2} className="p-8 text-center text-muted-foreground">
-                           No stages found. Tasks must have stages assigned.
-                         </td>
-                       </tr>
-                     ) : (
-                       epics.map((epic: any) => (
-                         <tr key={epic.id} className="border-b last:border-0 hover:bg-muted/5">
-                           <td className="p-3 font-medium">
-                             {epic.title}
-                             <div className="text-xs text-muted-foreground font-normal line-clamp-1">{epic.description}</div>
-                           </td>
-                           {stages.map((stage: any) => {
-                             const cellTasks = tasks.filter((t: any) => t.epicId === epic.id && t.stageId === stage.id);
-                             const hasTasks = cellTasks.length > 0;
-                             
-                             const linkedCount = cellTasks.filter((t: any) => 
-                               links.some((l: any) => l.taskId === t.id && l.milestoneId === milestone.id)
-                             ).length;
-                             
-                             const isFullyIncluded = hasTasks && linkedCount === cellTasks.length;
-                             const isPartiallyIncluded = hasTasks && linkedCount > 0 && linkedCount < cellTasks.length;
-
-                             return (
-                               <td 
-                                 key={stage.id} 
-                                 className={cn(
-                                   "p-3 text-center border-l transition-colors relative",
-                                   hasTasks ? "cursor-pointer hover:bg-muted/20 active:bg-muted/30" : "opacity-50 cursor-default"
-                                 )}
-                                 onClick={() => hasTasks && handleToggleCellTasks(epic.id, stage.id)}
-                               >
-                                 {hasTasks ? (
-                                   <div className="flex flex-col items-center gap-1">
-                                     <div className={cn(
-                                       "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium",
-                                       isFullyIncluded ? "bg-green-100 text-green-700" :
-                                       isPartiallyIncluded ? "bg-amber-100 text-amber-700" :
-                                       "bg-slate-100 text-slate-500"
-                                     )}>
-                                       {linkedCount}/{cellTasks.length}
-                                     </div>
-                                   </div>
-                                 ) : (
-                                   <span className="text-muted-foreground/30">-</span>
-                                 )}
-                               </td>
-                             );
-                           })}
-                         </tr>
-                       ))
-                     )}
-                   </tbody>
-                 </table>
-               </div>
+               <CoverageMatrix
+                 rows={epics}
+                 columns={stages}
+                 tasks={tasks}
+                 rowLabel="Epic"
+                 getTasksForCell={getMatrixTasksForCell}
+                 getIncludedCount={getMatrixIncludedCount}
+                 isTaskIncluded={isTaskLinkedToMilestone}
+                 onCellClick={handleToggleCellTasks}
+                 showRowDescription={true}
+                 displayStyle="circle"
+                 emptyRowsMessage="No epics found in this project."
+                 emptyColumnsMessage="No stages found. Tasks must have stages assigned."
+               />
              </div>
           </TabsContent>
         </div>
