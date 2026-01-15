@@ -760,38 +760,69 @@ function extractUsers(
   userIdentities: SystemUserIdentity[] = []
 ): UserMappingEntry[] {
   const userEntity = entities.find(e => e.entityType === 'Users');
-  const userRefs = new Map<string, { name?: string; email?: string; externalId?: string }>();
+  const userRefs = new Map<string, { name?: string; email?: string; externalId?: string; taskCount: number }>();
+  
+  const extractUserFromRow = (row: any, isTask: boolean = false) => {
+    if (row.assigneeId) {
+      const existing = userRefs.get(row.assigneeId);
+      userRefs.set(row.assigneeId, {
+        name: existing?.name || row.assigneeName || row.assignee,
+        email: existing?.email || row.assigneeEmail,
+        externalId: row.assigneeId,
+        taskCount: (existing?.taskCount || 0) + (isTask ? 1 : 0)
+      });
+    }
+    if (row.ownerId) {
+      const existing = userRefs.get(row.ownerId);
+      userRefs.set(row.ownerId, {
+        name: existing?.name || row.ownerName || row.owner,
+        email: existing?.email || row.ownerEmail,
+        externalId: row.ownerId,
+        taskCount: existing?.taskCount || 0
+      });
+    }
+    if (row.managerId) {
+      const existing = userRefs.get(row.managerId);
+      userRefs.set(row.managerId, {
+        name: existing?.name || row.managerName || row.manager,
+        email: existing?.email || row.managerEmail,
+        externalId: row.managerId,
+        taskCount: existing?.taskCount || 0
+      });
+    }
+    if (row.assignee && typeof row.assignee === 'string' && !row.assigneeId) {
+      const existing = userRefs.get(row.assignee);
+      userRefs.set(row.assignee, { 
+        name: row.assignee, 
+        taskCount: (existing?.taskCount || 0) + (isTask ? 1 : 0) 
+      });
+    }
+    if (Array.isArray(row.assigneeIds)) {
+      row.assigneeIds.forEach((id: string) => {
+        const existing = userRefs.get(id);
+        userRefs.set(id, { 
+          externalId: id, 
+          taskCount: (existing?.taskCount || 0) + (isTask ? 1 : 0) 
+        });
+      });
+    }
+  };
   
   entities.forEach(entity => {
+    const isTaskEntity = entity.entityType === 'Tasks' || 
+                         entity.entityType.toLowerCase() === 'tasks';
+    
     entity.rows.forEach(row => {
-      if (row.assigneeId) {
-        userRefs.set(row.assigneeId, {
-          name: row.assigneeName || row.assignee,
-          email: row.assigneeEmail,
-          externalId: row.assigneeId
-        });
+      extractUserFromRow(row, isTaskEntity);
+      
+      if (Array.isArray(row.tasks)) {
+        row.tasks.forEach((task: any) => extractUserFromRow(task, true));
       }
-      if (row.ownerId) {
-        userRefs.set(row.ownerId, {
-          name: row.ownerName || row.owner,
-          email: row.ownerEmail,
-          externalId: row.ownerId
-        });
-      }
-      if (row.managerId) {
-        userRefs.set(row.managerId, {
-          name: row.managerName || row.manager,
-          email: row.managerEmail,
-          externalId: row.managerId
-        });
-      }
-      if (row.assignee && typeof row.assignee === 'string' && !row.assigneeId) {
-        userRefs.set(row.assignee, { name: row.assignee });
-      }
-      if (Array.isArray(row.assigneeIds)) {
-        row.assigneeIds.forEach((id: string) => {
-          if (!userRefs.has(id)) {
-            userRefs.set(id, { externalId: id });
+      if (Array.isArray(row.epics)) {
+        row.epics.forEach((epic: any) => {
+          extractUserFromRow(epic, false);
+          if (Array.isArray(epic.tasks)) {
+            epic.tasks.forEach((task: any) => extractUserFromRow(task, true));
           }
         });
       }
@@ -802,10 +833,12 @@ function extractUsers(
     userEntity.rows.forEach(row => {
       const id = row.id || row.email || row.name;
       if (id) {
+        const existing = userRefs.get(id);
         userRefs.set(id, {
           name: row.name || row.displayName || row.username,
           email: row.email,
-          externalId: row.id
+          externalId: row.id,
+          taskCount: existing?.taskCount || 0
         });
       }
     });
@@ -829,7 +862,8 @@ function extractUsers(
       mappedToId: match.userId,
       mappedToName: match.userName,
       confidence: match.confidence,
-      action: match.userId ? 'map' : 'unassigned'
+      action: match.userId ? 'map' : 'unassigned',
+      taskCount: info.taskCount || 0
     });
   });
   

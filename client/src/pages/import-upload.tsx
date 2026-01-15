@@ -135,7 +135,7 @@ export default function ImportUpload() {
       setProgress(100);
       
       setTimeout(() => {
-        setLocation('/projects/import/summary');
+        setLocation('/projects/import/team');
       }, 200);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse file');
@@ -259,7 +259,7 @@ export default function ImportUpload() {
                   'Processing...'
                 ) : (
                   <>
-                    Continue to Wizard
+                    Continue to Team Assignment
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </>
                 )}

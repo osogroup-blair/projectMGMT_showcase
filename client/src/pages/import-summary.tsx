@@ -423,7 +423,7 @@ export default function ImportSummary() {
   };
 
   const handleBack = () => {
-    setLocation('/projects/import');
+    setLocation('/projects/import/team');
   };
 
   return (
@@ -1125,9 +1125,9 @@ export default function ImportSummary() {
         <Separator className="my-8" />
 
         <div className="flex justify-between">
-          <Button variant="outline" onClick={handleBack} data-testid="back-to-upload-btn">
+          <Button variant="outline" onClick={handleBack} data-testid="back-to-team-btn">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Upload
+            Back to Team Assignment
           </Button>
           <Button onClick={handleContinue} data-testid="continue-to-wizard-btn">
             Continue to Project Setup
