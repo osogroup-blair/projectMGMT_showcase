@@ -216,6 +216,35 @@ export default function TaskDetail() {
             <Panel id="main-panel" order={1} defaultSize={rightPanelCollapsed ? 100 : 70} minSize={40}>
             <div className="pr-4 space-y-6 h-full overflow-y-auto">
             <div className="space-y-4">
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex items-center gap-2 flex-1">
+                  <CheckSquare className="h-8 w-8 text-primary/70 shrink-0" />
+                  <Input 
+                    className="text-5xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
+                    value={task.title}
+                    onChange={(e) => handleUpdateTask("title", e.target.value)}
+                    data-testid="input-task-title"
+                  />
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" data-testid="button-task-menu">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                      data-testid="menu-delete-task"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Task
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
               {/* Project Breadcrumb */}
               <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                 <Link 
@@ -263,35 +292,6 @@ export default function TaskDetail() {
                     <span className="text-xs text-muted-foreground/60">(parent)</span>
                   </>
                 )}
-              </div>
-
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex items-center gap-2 flex-1">
-                  <CheckSquare className="h-7 w-7 text-primary/70 shrink-0" />
-                  <Input 
-                    className="text-4xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
-                    value={task.title}
-                    onChange={(e) => handleUpdateTask("title", e.target.value)}
-                    data-testid="input-task-title"
-                  />
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" data-testid="button-task-menu">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem 
-                      onClick={() => setDeleteConfirmOpen(true)}
-                      className="text-destructive focus:text-destructive cursor-pointer"
-                      data-testid="menu-delete-task"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Task
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/30 rounded-lg">
