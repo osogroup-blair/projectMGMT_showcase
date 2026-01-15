@@ -150,6 +150,29 @@ export default function ProjectsList() {
   };
 
   // User's project memberships
+  const { data: allMemberships = [] } = useQuery<{ id: string; projectId: string; userId: string }[]>({
+    queryKey: ['allProjectMemberships'],
+    queryFn: async () => {
+      const res = await fetch('/api/project-team-members');
+      if (!res.ok) {
+        // Fallback to legacy team endpoint if new one doesn't exist yet
+        const legacyRes = await fetch('/api/role-assignments');
+        if (!legacyRes.ok) return [];
+        return legacyRes.json();
+      }
+      return res.json();
+    }
+  });
+
+  const teamSizeByProject = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allMemberships.forEach(m => {
+      counts[m.projectId] = (counts[m.projectId] || 0) + 1;
+    });
+    return counts;
+  }, [allMemberships]);
+
+  // User's project memberships for filtering
   const { data: userMemberships = [] } = useQuery<{ projectId: string; highLevelRoles: string[] }[]>({
     queryKey: ['userProjectMemberships', currentUser?.id],
     queryFn: async () => {
@@ -180,7 +203,7 @@ export default function ProjectsList() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Sorting State
-  type SortField = "name" | "client" | "status" | "owner" | "startDate" | "riskLevel" | "progress";
+  type SortField = "name" | "client" | "status" | "owner" | "startDate" | "riskLevel" | "progress" | "teamSize";
   type SortDirection = "asc" | "desc";
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -306,10 +329,14 @@ export default function ProjectsList() {
           bVal = riskOrder[b.riskLevel] || 0;
           break;
         case "progress":
-          aVal = a.progress || 0;
-          bVal = b.progress || 0;
-          break;
-      }
+        aVal = a.progress || 0;
+        bVal = b.progress || 0;
+        break;
+      case "teamSize":
+        aVal = teamSizeByProject[a.id] || 0;
+        bVal = teamSizeByProject[b.id] || 0;
+        break;
+    }
 
       if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
       if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
@@ -663,6 +690,9 @@ export default function ProjectsList() {
                   <SortableHeader field="progress">Progress</SortableHeader>
                 </TableHead>
                 <TableHead className="w-[80px]">
+                  <SortableHeader field="teamSize">Team</SortableHeader>
+                </TableHead>
+                <TableHead className="w-[80px]">
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tasks</span>
                 </TableHead>
                 <TableHead className="w-[100px] text-right">Actions</TableHead>
@@ -824,6 +854,12 @@ export default function ProjectsList() {
                         <span className="text-xs text-muted-foreground">{project.progress || 0}%</span>
                       </div>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <UserIcon className="h-3.5 w-3.5" />
+                      <span className="text-sm font-medium">{teamSizeByProject[project.id] || 0}</span>
+                    </div>
                   </TableCell>
                   {/* Tasks Count (Read-only) */}
                   <TableCell>
