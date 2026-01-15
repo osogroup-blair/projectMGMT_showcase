@@ -766,115 +766,6 @@ export const appSettings = pgTable("app_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Theme Token Schema - semantic tokens for consistent theming
-export interface ThemeTokens {
-  colors: {
-    background: string;
-    foreground: string;
-    card: string;
-    cardForeground: string;
-    popover: string;
-    popoverForeground: string;
-    primary: string;
-    primaryForeground: string;
-    secondary: string;
-    secondaryForeground: string;
-    muted: string;
-    mutedForeground: string;
-    accent: string;
-    accentForeground: string;
-    destructive: string;
-    destructiveForeground: string;
-    border: string;
-    input: string;
-    ring: string;
-    chart1: string;
-    chart2: string;
-    chart3: string;
-    chart4: string;
-    chart5: string;
-    sidebar: string;
-    sidebarForeground: string;
-    sidebarPrimary: string;
-    sidebarPrimaryForeground: string;
-    sidebarAccent: string;
-    sidebarAccentForeground: string;
-    sidebarBorder: string;
-    sidebarRing: string;
-    success?: string;
-    successForeground?: string;
-    warning?: string;
-    warningForeground?: string;
-    info?: string;
-    infoForeground?: string;
-  };
-  typography: {
-    fontSans: string;
-    fontHeading: string;
-    fontMono?: string;
-  };
-  spacing: {
-    radius: string;
-  };
-}
-
-export interface ThemeAssets {
-  logo?: string;
-  logoLight?: string;
-  logoDark?: string;
-  favicon?: string;
-  backgroundImage?: string;
-}
-
-export const themeStatusEnum = z.enum(['draft', 'published', 'archived']);
-export type ThemeStatus = z.infer<typeof themeStatusEnum>;
-
-// Themes - main theme entity
-export const themes = pgTable("themes", {
-  id: varchar("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  status: text("status").notNull().default("draft"),
-  isDefault: boolean("is_default").default(false),
-  isActive: boolean("is_active").default(false),
-  activeVersionId: varchar("active_version_id"),
-  createdBy: varchar("created_by").references(() => users.id),
-  updatedBy: varchar("updated_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Theme Versions - versioned token storage
-export const themeVersions = pgTable("theme_versions", {
-  id: varchar("id").primaryKey(),
-  themeId: varchar("theme_id").notNull().references(() => themes.id, { onDelete: "cascade" }),
-  version: integer("version").notNull().default(1),
-  lightTokens: jsonb("light_tokens").$type<ThemeTokens>().notNull(),
-  darkTokens: jsonb("dark_tokens").$type<ThemeTokens>().notNull(),
-  assets: jsonb("assets").$type<ThemeAssets>(),
-  validationResult: jsonb("validation_result").$type<{
-    isValid: boolean;
-    errors: Array<{ field: string; message: string; severity: 'error' | 'warning' }>;
-    contrastIssues: Array<{ pair: string; ratio: number; required: number }>;
-  }>(),
-  changeNotes: text("change_notes"),
-  publishedAt: timestamp("published_at"),
-  publishedBy: varchar("published_by").references(() => users.id),
-  createdBy: varchar("created_by").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Theme Audit Log - track theme changes
-export const themeAuditLog = pgTable("theme_audit_log", {
-  id: varchar("id").primaryKey(),
-  themeId: varchar("theme_id").notNull().references(() => themes.id, { onDelete: "cascade" }),
-  themeVersionId: varchar("theme_version_id").references(() => themeVersions.id),
-  action: text("action").notNull(),
-  changes: jsonb("changes").$type<Record<string, { from: any; to: any }>>(),
-  userId: varchar("user_id").references(() => users.id),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertProjectSchema = createInsertSchema(projects).omit({ id: true });
@@ -946,9 +837,6 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).o
 export const insertWorkBlockSchema = createInsertSchema(workBlocks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDayPlanSchema = createInsertSchema(dayPlans).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAppSettingsSchema = createInsertSchema(appSettings).omit({ updatedAt: true });
-export const insertThemeSchema = createInsertSchema(themes).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertThemeVersionSchema = createInsertSchema(themeVersions).omit({ id: true, createdAt: true });
-export const insertThemeAuditLogSchema = createInsertSchema(themeAuditLog).omit({ id: true, createdAt: true });
 
 // Bulk-create schemas (include optional id for import/full-create scenarios)
 export const bulkInsertDeliverableSchema = insertDeliverableSchema.extend({ id: z.string().optional() });
@@ -1125,12 +1013,3 @@ export type InsertTaskDependencyScopeRule = z.infer<typeof insertTaskDependencyS
 
 export type AppSettings = typeof appSettings.$inferSelect;
 export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
-
-export type Theme = typeof themes.$inferSelect;
-export type InsertTheme = z.infer<typeof insertThemeSchema>;
-
-export type ThemeVersion = typeof themeVersions.$inferSelect;
-export type InsertThemeVersion = z.infer<typeof insertThemeVersionSchema>;
-
-export type ThemeAuditLog = typeof themeAuditLog.$inferSelect;
-export type InsertThemeAuditLog = z.infer<typeof insertThemeAuditLogSchema>;

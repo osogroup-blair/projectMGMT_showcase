@@ -67,7 +67,6 @@ import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
 import { EFFORT_VALUES } from "@shared/schema";
 import { PortableKanban } from "@/components/kanban/portable-kanban";
-import { ContextPanel } from "@/components/ui/context-panel";
 
 interface TaskFormData {
   title: string;
@@ -357,7 +356,7 @@ export default function EpicDetail() {
 
   return (
     <Shell>
-      <ContextPanel contextType="epic" className="h-[calc(100vh-8rem)] flex flex-col rounded-none">
+      <div className="h-[calc(100vh-8rem)] flex flex-col">
         {/* Epic Navigator */}
         <EpicNavigator
           currentEpicId={epicId}
@@ -893,7 +892,7 @@ export default function EpicDetail() {
             </div>
           )}
         </div>
-      </ContextPanel>
+      </div>
 
       {/* Task Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

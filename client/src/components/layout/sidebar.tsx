@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { 
   Search,
   ChevronDown,
@@ -8,7 +8,6 @@ import {
   FolderKanban,
   Home,
   Settings,
-  Palette,
   PanelLeftClose,
   PanelLeft
 } from "lucide-react";
@@ -20,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentUser } from "@/context/current-user-context";
-import { useAuth } from "@/hooks/use-auth";
 
 interface FavoriteProject {
   projectId: string;
@@ -30,18 +28,6 @@ interface FavoriteProject {
 export function Sidebar() {
   const [location] = useLocation();
   const { currentUser } = useCurrentUser();
-  const { user: authUser } = useAuth();
-  
-  // Check if user has admin:access permission
-  const hasAdminAccess = useMemo(() => {
-    if (!authUser) return false;
-    const userPermissions = (authUser as any).permissions || [];
-    const systemRole = (authUser as any).systemRole;
-    // Admin and manager roles have admin:access by default
-    if (systemRole === "admin" || systemRole === "manager") return true;
-    // Also check permissions array for explicitly granted access
-    return userPermissions.includes("admin:access");
-  }, [authUser]);
   
   // Collapsible state with localStorage persistence
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -250,25 +236,16 @@ export function Sidebar() {
               </div>
             )}
 
-            {/* Admin - Only visible to users with admin:access permission */}
-            {hasAdminAccess && (
-              <div className="space-y-1">
-                <NavItem 
-                  href="/admin" 
-                  icon={Settings} 
-                  label="Admin" 
-                  isActive={location === "/admin" || (location.startsWith("/admin") && !location.startsWith("/admin/theme"))} 
-                  isCollapsed={isCollapsed} 
-                />
-                <NavItem 
-                  href="/admin/theme" 
-                  icon={Palette} 
-                  label="Theme Manager" 
-                  isActive={location === "/admin/theme"} 
-                  isCollapsed={isCollapsed} 
-                />
-              </div>
-            )}
+            {/* Admin */}
+            <div className="space-y-1">
+              <NavItem 
+                href="/admin" 
+                icon={Settings} 
+                label="Admin" 
+                isActive={location === "/admin" || location.startsWith("/admin")} 
+                isCollapsed={isCollapsed} 
+              />
+            </div>
           </div>
         </ScrollArea>
 

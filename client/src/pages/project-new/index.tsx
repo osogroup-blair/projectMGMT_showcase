@@ -97,7 +97,7 @@ import { StepTeamRoles } from "./step-team-roles";
 import { StepReview } from "./step-review";
 import { Link2 } from "lucide-react";
 
-const STEP_ICONS = [Settings, Layers, Users, Package, Link2, Check];
+const STEP_ICONS = [Settings, Package, Link2, Layers, Users, Check];
 
 export default function ProjectWizard() {
   const [, setLocation] = useLocation();
@@ -263,9 +263,9 @@ export default function ProjectWizard() {
     }
   }, [isImportMode, importInitialized, importContext?.state?.adapterResult, users]);
 
-  // Initialize default stages when entering Step 2 (Stage Configuration) with empty stages (non-import mode)
+  // Initialize default stages when entering Step 4 with empty stages (non-import mode)
   useEffect(() => {
-    if (currentStep === 2 && stages.length === 0 && !isImportMode) {
+    if (currentStep === 4 && stages.length === 0 && !isImportMode) {
       const defaultStages: WizardStage[] = [
         { id: `stage-${Date.now()}-0`, name: 'Requirements', description: 'Gather and document project requirements', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
         { id: `stage-${Date.now()}-1`, name: 'Design', description: 'Create designs and technical specifications', taskCreationMode: 'per_epic', defaultTasks: [], defaultRoles: [], type: 'standard', tasks: [] },
@@ -284,7 +284,7 @@ export default function ProjectWizard() {
   // Ensure default "Management Activities" deliverable exists for Task Alignment step
   // This provides a catch-all bucket for orphan tasks with 3 standard management epics
   useEffect(() => {
-    if (currentStep === 5) {
+    if (currentStep === 3) {
       const hasMgmtActivities = deliverables.some(d => d.title === 'Management Activities');
       if (!hasMgmtActivities) {
         const timestamp = Date.now();
@@ -380,23 +380,7 @@ export default function ProjectWizard() {
   };
 
   const handleNext = () => {
-    // Step 2: Stage Configuration - sync roles from stages before moving to Assignments
     if (currentStep === 2) {
-      syncRolesFromStagesAndTasks();
-    }
-    
-    // Step 3: Assignments & Roles - warn about unassigned tasks
-    if (currentStep === 3) {
-      const stats = calculateTaskAssignmentStats();
-      if (stats.unassigned > 0) {
-        setUnassignedTasksStats(stats);
-        setShowUnassignedTasksWarning(true);
-        return;
-      }
-    }
-    
-    // Step 4: Work Breakdown - ensure deliverables have epics
-    if (currentStep === 4) {
       const deliverablesWithoutEpics = deliverables.filter(d => !d.epics || d.epics.length === 0);
       
       if (deliverablesWithoutEpics.length > 0) {
@@ -434,8 +418,7 @@ export default function ProjectWizard() {
       }
     }
     
-    // Step 5: Task Alignment - check for unresolved orphaned tasks
-    if (currentStep === 5) {
+    if (currentStep === 3) {
       const hasImportedTasks = stages.some(stage => 
         stage.tasks.some(task => 
           task.mappingStatus && ['mapped', 'orphaned', 'manual', 'skipped'].includes(task.mappingStatus)
@@ -459,6 +442,19 @@ export default function ProjectWizard() {
           });
           return;
         }
+      }
+    }
+    
+    if (currentStep === 4) {
+      syncRolesFromStagesAndTasks();
+    }
+    
+    if (currentStep === 5) {
+      const stats = calculateTaskAssignmentStats();
+      if (stats.unassigned > 0) {
+        setUnassignedTasksStats(stats);
+        setShowUnassignedTasksWarning(true);
+        return;
       }
     }
     
@@ -519,17 +515,14 @@ export default function ProjectWizard() {
     
     const warnings: string[] = [];
     
-    // Going back to Step 1 from Step 4+ may reset work breakdown
-    if (toStep <= 1 && fromStep >= 4) {
-      warnings.push("Work breakdown structure (deliverables, epics, and tasks)");
-    }
-    // Going back to Step 2 from Step 4+ may reset stage/task configurations
     if (toStep <= 2 && fromStep >= 4) {
       warnings.push("Stage configurations and task assignments");
     }
-    // Going back to Step 3 from Step 4+ may reset role assignments
-    if (toStep <= 3 && fromStep >= 4) {
+    if (toStep <= 3 && fromStep >= 5) {
       warnings.push("Role assignments");
+    }
+    if (toStep <= 1 && fromStep >= 2) {
+      warnings.push("Work breakdown structure (deliverables and epics)");
     }
     
     if (warnings.length === 0) return null;
@@ -974,7 +967,7 @@ export default function ProjectWizard() {
           status: 'Upcoming',
           startDate: projectData.startDate || new Date().toISOString().split('T')[0],
           deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-          frameworkId: projectData.frameworkId || null,
+          frameworkId: projectData.frameworkId || 'custom-framework',
           sprintDurationWeeks: projectData.sprintDurationWeeks || null,
           ownerId: projectData.ownerId || null,
           client: projectData.client || null,
@@ -1008,14 +1001,10 @@ export default function ProjectWizard() {
           id: del.id,
           title: del.title,
           description: del.description || '',
-          startDate: del.startDate || null,
-          endDate: del.endDate || null,
           epics: (del.epics || []).map(epic => ({
             id: epic.id,
             title: epic.title,
-            description: epic.description || '',
-            startDate: epic.startDate || null,
-            endDate: epic.endDate || null
+            description: epic.description || ''
           }))
         })),
         milestones: milestones.map(m => ({
@@ -1373,10 +1362,10 @@ export default function ProjectWizard() {
                 ) : (
                   <>
                     {currentStep === 1 && <StepBasics {...stepProps} />}
-                    {currentStep === 2 && <StepStageConfig {...stepProps} />}
-                    {currentStep === 3 && <StepTeamRoles {...stepProps} />}
-                    {currentStep === 4 && <StepWorkBreakdown {...stepProps} />}
-                    {currentStep === 5 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
+                    {currentStep === 2 && <StepWorkBreakdown {...stepProps} />}
+                    {currentStep === 3 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
+                    {currentStep === 4 && <StepStageConfig {...stepProps} />}
+                    {currentStep === 5 && <StepTeamRoles {...stepProps} />}
                     {currentStep === 6 && <StepReview {...stepProps} />}
                   </>
                 )}

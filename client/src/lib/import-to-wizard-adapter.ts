@@ -384,15 +384,11 @@ function extractDeliverables(entities: ParsedEntity[]): ImportedDeliverable[] {
   return deliverableEntity.rows.map((row, index) => {
     const titleField = getFieldValue<string>(row, ['title', 'name', 'deliverableName'], `Deliverable ${index + 1}`);
     const descField = getFieldValue<string>(row, ['description', 'desc', 'summary'], '');
-    const startDateField = getFieldValue<string>(row, ['startDate', 'start_date', 'start'], '');
-    const endDateField = getFieldValue<string>(row, ['dueDate', 'endDate', 'end_date', 'due_date', 'deadline', 'end'], '');
     
     return {
       id: generateId('d'),
       title: titleField.value,
       description: descField.value,
-      startDate: parseDate(startDateField.value) || undefined,
-      endDate: parseDate(endDateField.value) || undefined,
       epics: [],
       sourceId: row.id || row.sourceId,
       confidence: titleField.sourceField ? 'high' : 'medium',
@@ -1047,14 +1043,10 @@ export function toWizardDeliverables(imported: ImportedDeliverable[]): WizardDel
     id: d.id,
     title: d.title,
     description: d.description,
-    startDate: d.startDate,
-    endDate: d.endDate,
     epics: d.epics.map(e => ({
       id: e.id,
       title: e.title,
-      description: e.description,
-      startDate: e.startDate,
-      endDate: e.endDate
+      description: e.description
     }))
   }));
 }

@@ -32,7 +32,6 @@ import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ContextPanel } from "@/components/ui/context-panel";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -147,7 +146,7 @@ export default function SprintList() {
 
   return (
     <Shell>
-      <ContextPanel contextType="sprint" className="space-y-6 rounded-none">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" data-testid="text-sprint-list-title">
@@ -274,7 +273,7 @@ export default function SprintList() {
             })
           )}
         </div>
-      </ContextPanel>
+      </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>

@@ -66,7 +66,6 @@ import { TaskAttachmentsTab } from "./task-attachments-tab";
 import { TaskHistoryTab } from "./task-history-tab";
 import { TaskPropertiesTab } from "./task-properties-tab";
 import { TaskSidebarTabs } from "./task-sidebar-tabs";
-import { ContextPanel } from "@/components/ui/context-panel";
 
 const PRIORITY_CONFIG = {
   "High": { color: "text-red-600 bg-red-100", label: "High" },
@@ -210,7 +209,7 @@ export default function TaskDetail() {
 
   return (
     <Shell>
-      <ContextPanel contextType="task" className="h-[calc(100vh-120px)] rounded-none">
+      <div className="h-[calc(100vh-120px)]">
         <PanelGroup direction="horizontal" id="task-detail-panels">
           {!leftPanelCollapsed && (
             <Panel id="main-panel" order={1} defaultSize={rightPanelCollapsed ? 100 : 70} minSize={40}>
@@ -532,7 +531,7 @@ export default function TaskDetail() {
             </div>
           )}
         </PanelGroup>
-      </ContextPanel>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

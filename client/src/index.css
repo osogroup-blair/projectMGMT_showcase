@@ -46,17 +46,6 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
-
-  /* Contextual Object Accent Colors */
-  --color-context-project: hsl(var(--context-project));
-  --color-context-deliverable: hsl(var(--context-deliverable));
-  --color-context-epic: hsl(var(--context-epic));
-  --color-context-task: hsl(var(--context-task));
-  --color-context-stage: hsl(var(--context-stage));
-  --color-context-milestone: hsl(var(--context-milestone));
-  --color-context-sprint: hsl(var(--context-sprint));
-  --color-context-admin: hsl(var(--context-admin));
-  --color-context-user: hsl(var(--context-user));
 }
 
 /* LIGHT MODE - Nymbl Brand */
@@ -115,17 +104,6 @@
   --sidebar-accent-foreground: 0 0% 100%;
   --sidebar-border: 228 50% 25%; /* Lighter Navy for border */
   --sidebar-ring: 211 55% 70%;
-
-  /* Contextual Object Accent Colors - Light Mode */
-  --context-project: 220 70% 50%;      /* Blue - structure, trust */
-  --context-deliverable: 250 60% 55%;  /* Indigo - completion */
-  --context-epic: 280 55% 55%;         /* Purple - big picture */
-  --context-task: 160 50% 45%;         /* Teal-green - action */
-  --context-stage: 38 90% 50%;         /* Amber - process flow */
-  --context-milestone: 145 60% 45%;    /* Emerald - achievement */
-  --context-sprint: 190 70% 50%;       /* Cyan - speed, iteration */
-  --context-admin: 220 15% 50%;        /* Slate - system */
-  --context-user: 25 40% 50%;          /* Warm neutral - personal */
 }
 
 .dark {
@@ -172,17 +150,6 @@
   --sidebar-accent-foreground: 211 55% 70%;
   --sidebar-border: 228 30% 20%;
   --sidebar-ring: 211 55% 70%;
-
-  /* Contextual Object Accent Colors - Dark Mode (slightly brighter for visibility) */
-  --context-project: 220 65% 60%;
-  --context-deliverable: 250 55% 65%;
-  --context-epic: 280 50% 65%;
-  --context-task: 160 45% 55%;
-  --context-stage: 38 85% 55%;
-  --context-milestone: 145 55% 55%;
-  --context-sprint: 190 65% 60%;
-  --context-admin: 220 15% 60%;
-  --context-user: 25 35% 60%;
 }
 
 @layer base {

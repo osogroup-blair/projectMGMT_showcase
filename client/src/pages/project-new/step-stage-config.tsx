@@ -73,7 +73,7 @@ export function StepStageConfig({
   const [frameworkPanelOpen, setFrameworkPanelOpen] = useState(false);
   const [showFrameworkConfirm, setShowFrameworkConfirm] = useState(false);
   const [pendingFrameworkId, setPendingFrameworkId] = useState<string | null>(null);
-  const [frameworkAction, setFrameworkAction] = useState<'replace' | 'merge_stages' | 'merge_tasks'>('replace');
+  const [frameworkAction, setFrameworkAction] = useState<'replace' | 'merge'>('replace');
 
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
@@ -89,6 +89,17 @@ export function StepStageConfig({
     });
     return { importedStages, importedTasks, hasImportedData: importedStages > 0 || importedTasks > 0 };
   }, [stages]);
+
+  const getDefaultRule = (): WizardMilestone['rule'] => ({
+    scopeType: 'stage',
+    scopeEntityId: stages[0]?.id || "",
+    completionMode: 'all_tasks',
+    completionTargetPercent: 100
+  });
+
+  const getMilestoneRule = (milestone: WizardMilestone): WizardMilestone['rule'] => {
+    return milestone.rule || getDefaultRule();
+  };
 
   const addStage = () => {
     const newStage: WizardStage = {
@@ -181,8 +192,8 @@ export function StepStageConfig({
       ownerId: users[0]?.id || "",
       isBillingGate: false,
       rule: {
-        scopeType: 'project',
-        scopeEntityId: "",
+        scopeType: 'stage',
+        scopeEntityId: stages[0]?.id || "",
         completionMode: 'all_tasks',
         completionTargetPercent: 100
       }
@@ -247,7 +258,7 @@ export function StepStageConfig({
     setPendingFrameworkId(null);
   };
 
-  const applyFramework = (frameworkId: string, mode: 'replace' | 'merge_stages' | 'merge_tasks' = 'replace') => {
+  const applyFramework = (frameworkId: string, mode: 'replace' | 'merge' = 'replace') => {
     const framework = frameworkTemplates?.find((f: any) => f.id === frameworkId);
     if (!framework) return;
 
@@ -285,46 +296,10 @@ export function StepStageConfig({
       })
       .filter(Boolean) as WizardStage[];
 
-    if (mode === 'merge_stages') {
-      // Stage-level merge: Keep ALL existing stages and add framework stages
-      setStages([...stages, ...frameworkStages]);
-    } else if (mode === 'merge_tasks') {
-      // Task-level merge: Merge framework tasks into matching stages by name
-      const mergedStages = [...stages];
-      
-      frameworkStages.forEach(fwStage => {
-        // Find matching stage by name (case-insensitive)
-        const matchingStageIdx = mergedStages.findIndex(
-          s => s.name.toLowerCase().trim() === fwStage.name.toLowerCase().trim()
-        );
-        
-        if (matchingStageIdx >= 0) {
-          // Merge tasks into existing stage
-          const existingTasks = mergedStages[matchingStageIdx].tasks || [];
-          const existingTaskTitles = new Set(existingTasks.map(t => t.title.toLowerCase()));
-          
-          // Add framework tasks that don't already exist
-          const newTasks = fwStage.tasks.filter(
-            t => !existingTaskTitles.has(t.title.toLowerCase())
-          ).map(t => ({
-            ...t,
-            stageId: mergedStages[matchingStageIdx].id,
-            id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-          }));
-          
-          mergedStages[matchingStageIdx] = {
-            ...mergedStages[matchingStageIdx],
-            tasks: [...existingTasks, ...newTasks]
-          };
-        } else {
-          // No matching stage - add as new stage
-          mergedStages.push(fwStage);
-        }
-      });
-      
-      setStages(mergedStages);
+    if (mode === 'merge') {
+      const importedStages = stages.filter(s => s.isFromImport);
+      setStages([...importedStages, ...frameworkStages]);
     } else {
-      // Replace mode
       setStages(frameworkStages);
     }
     setExpandedStages([]);
@@ -348,6 +323,17 @@ export function StepStageConfig({
     { value: "High", label: "High" },
   ];
 
+  const scopeTypeOptions = [
+    { value: "stage", label: "All tasks in Stage" },
+    { value: "deliverable", label: "All tasks in Deliverable" },
+    { value: "epic", label: "All tasks in Epic" },
+    { value: "all", label: "All project tasks" },
+  ];
+
+  const completionModeOptions = [
+    { value: "all_tasks", label: "All tasks completed" },
+    { value: "percentage", label: "Percentage completed" },
+  ];
 
   return (
     <div className="flex flex-col h-full">
@@ -367,29 +353,14 @@ export function StepStageConfig({
               <div className="grid gap-3 pt-2">
                 <div
                   className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                    frameworkAction === 'merge_tasks' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground'
+                    frameworkAction === 'merge' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground'
                   }`}
-                  onClick={() => setFrameworkAction('merge_tasks')}
-                  data-testid="option-merge-tasks"
+                  onClick={() => setFrameworkAction('merge')}
+                  data-testid="option-merge-framework"
                 >
                   <div className="flex items-center gap-2 font-medium">
                     <Merge className="h-4 w-4" />
-                    Merge Tasks into Stages
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Keep your stages and merge framework tasks into matching stages by name. New stages are added if no match.
-                  </p>
-                </div>
-                <div
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                    frameworkAction === 'merge_stages' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground'
-                  }`}
-                  onClick={() => setFrameworkAction('merge_stages')}
-                  data-testid="option-merge-stages"
-                >
-                  <div className="flex items-center gap-2 font-medium">
-                    <Plus className="h-4 w-4" />
-                    Add Framework Stages
+                    Merge with Import
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     Keep your imported stages and add framework stages alongside them.
@@ -416,7 +387,7 @@ export function StepStageConfig({
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="cancel-framework-dialog">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleFrameworkConfirm} data-testid="confirm-framework-action">
-              {frameworkAction === 'merge_tasks' ? 'Merge Tasks' : frameworkAction === 'merge_stages' ? 'Add Stages' : 'Replace'}
+              {frameworkAction === 'merge' ? 'Merge' : 'Replace'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -812,7 +783,13 @@ export function StepStageConfig({
                 onValueChange={setExpandedMilestones}
                 className="space-y-2"
               >
-                {milestones.map((milestone, index) => (
+                {milestones.map((milestone, index) => {
+                  const rule = getMilestoneRule(milestone);
+                  const stageOptions = stages.map((s, idx) => ({
+                    value: s.id,
+                    label: s.name || `Stage ${idx + 1}`
+                  }));
+                  return (
                   <AccordionItem 
                     key={milestone.id} 
                     value={milestone.id}
@@ -867,19 +844,120 @@ export function StepStageConfig({
                           </div>
                         </div>
                         
-                        <div className="space-y-1">
-                          <Label className="text-sm">Description</Label>
-                          <Input
-                            value={milestone.description || ""}
-                            onChange={(e) => {
-                              const newMs = [...milestones];
-                              newMs[index].description = e.target.value;
-                              setMilestones(newMs);
-                            }}
-                            className="h-9"
-                            placeholder="Optional milestone description..."
-                          />
-                        </div>
+                        <Card className="bg-muted/30">
+                          <CardHeader className="pb-2 pt-3 px-4">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                              <Target className="h-4 w-4" /> Scope Rule
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground">
+                              Define which tasks must be completed for this milestone
+                            </p>
+                          </CardHeader>
+                          <CardContent className="px-4 pb-4 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Scope Type</Label>
+                                <SearchableSelect
+                                  value={rule.scopeType}
+                                  onValueChange={(v) => {
+                                    const newMs = [...milestones];
+                                    if (!newMs[index].rule) {
+                                      newMs[index].rule = getDefaultRule();
+                                    }
+                                    newMs[index].rule.scopeType = v as any;
+                                    newMs[index].rule.scopeEntityId = undefined;
+                                    setMilestones(newMs);
+                                  }}
+                                  options={scopeTypeOptions}
+                                  triggerClassName="h-9"
+                                />
+                              </div>
+                              
+                              {rule.scopeType === 'stage' && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">Stage</Label>
+                                  <SearchableSelect
+                                    value={rule.scopeEntityId || ""}
+                                    onValueChange={(v) => {
+                                      const newMs = [...milestones];
+                                      if (!newMs[index].rule) {
+                                        newMs[index].rule = getDefaultRule();
+                                      }
+                                      newMs[index].rule.scopeEntityId = v;
+                                      setMilestones(newMs);
+                                    }}
+                                    placeholder="Select stage..."
+                                    options={stageOptions}
+                                    triggerClassName="h-9"
+                                  />
+                                </div>
+                              )}
+                              
+                              {rule.scopeType === 'all' && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">Entity</Label>
+                                  <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border rounded-md bg-background">
+                                    All tasks in project
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {(rule.scopeType === 'deliverable' || rule.scopeType === 'epic') && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">
+                                    {rule.scopeType === 'deliverable' ? 'Deliverable' : 'Epic'}
+                                  </Label>
+                                  <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border rounded-md bg-background italic">
+                                    Selected at runtime
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Completion Mode</Label>
+                                <SearchableSelect
+                                  value={rule.completionMode}
+                                  onValueChange={(v) => {
+                                    const newMs = [...milestones];
+                                    if (!newMs[index].rule) {
+                                      newMs[index].rule = getDefaultRule();
+                                    }
+                                    newMs[index].rule.completionMode = v as any;
+                                    setMilestones(newMs);
+                                  }}
+                                  options={completionModeOptions}
+                                  triggerClassName="h-9"
+                                />
+                              </div>
+                              
+                              {rule.completionMode === 'percentage' && (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">Target %</Label>
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="100"
+                                      value={rule.completionTargetPercent || 100}
+                                      onChange={(e) => {
+                                        const newMs = [...milestones];
+                                        if (!newMs[index].rule) {
+                                          newMs[index].rule = getDefaultRule();
+                                        }
+                                        newMs[index].rule.completionTargetPercent = parseInt(e.target.value) || 100;
+                                        setMilestones(newMs);
+                                      }}
+                                      className="h-9"
+                                    />
+                                    <span className="text-sm text-muted-foreground">%</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
                         
                         <div className="flex items-center justify-between pt-2">
                           <div className="flex items-center gap-3">
@@ -910,7 +988,7 @@ export function StepStageConfig({
                       </div>
                     </AccordionContent>
                   </AccordionItem>
-                ))}
+                )})}
               </Accordion>
             )}
           </div>

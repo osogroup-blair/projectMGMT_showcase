@@ -39,7 +39,6 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CurrentProjectsPanel } from "./current-projects-panel";
 import { CurrentTasksPanel } from "./current-tasks-panel";
 import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
-import { ContextPanel } from "@/components/ui/context-panel";
 
 interface UserHomePageProps {
   homeState: UserHomeState;
@@ -267,7 +266,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
 
   return (
     <Shell>
-      <ContextPanel contextType="user" className="space-y-8 pb-8 rounded-none">
+      <div className="space-y-8 pb-8">
         {/* Welcome Section */}
         <div className="flex items-center justify-between" data-testid="welcome-section">
           <div>
@@ -530,7 +529,7 @@ export function UserHomePage({ homeState }: UserHomePageProps) {
             <CurrentProjectsPanel />
           </TabsContent>
         </Tabs>
-      </ContextPanel>
+      </div>
 
       <TaskQuickCreateDialog 
         open={isCreateTaskOpen} 

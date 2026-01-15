@@ -1689,8 +1689,8 @@ export function registerImportExportRoutes(
             description: deliverable.description || "",
             status: "Active",
             ownerId: payload.project.ownerId || "1",
-            startDate: deliverable.startDate || payload.project.startDate,
-            dueDate: deliverable.endDate || payload.project.deadline,
+            startDate: payload.project.startDate,
+            dueDate: payload.project.deadline,
             progress: 0
           } as any);
           
@@ -1715,8 +1715,8 @@ export function registerImportExportRoutes(
                   description: epic.description || "",
                   status: "Active",
                   ownerId: payload.project.ownerId || "1",
-                  startDate: epic.startDate || deliverable.startDate || payload.project.startDate,
-                  endDate: epic.endDate || deliverable.endDate || payload.project.deadline,
+                  startDate: payload.project.startDate,
+                  endDate: payload.project.deadline,
                   progress: 0,
                   stageIds: allStageIds
                 } as any);
@@ -2043,44 +2043,6 @@ export function registerImportExportRoutes(
       if (roles.length > 0) {
         console.log(`[FULL-CREATE] Creating ${roles.length} team members with roles`);
         
-        // First, collect all unique execution roleTypeIds and create project roles for them
-        // roleTypeId is a role template ID, but execution_role_assignments.role_id references project_roles.id
-        const roleTemplateIdToProjectRoleId = new Map<string, string>();
-        const uniqueRoleTypeIds = new Set<string>();
-        const highLevelRoleTypes = ['owner', 'manager', 'stakeholder', 'member'];
-        
-        for (const role of roles) {
-          if (role.roleTypeId && !highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
-            uniqueRoleTypeIds.add(role.roleTypeId);
-          }
-        }
-        
-        // Get role templates to find role info
-        const roleTemplates = await storage.getRoleTemplates();
-        
-        // Create project roles for each unique role template ID
-        for (const templateId of Array.from(uniqueRoleTypeIds)) {
-          try {
-            const template = roleTemplates.find(t => t.id === templateId);
-            const projectRoleId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            
-            await storage.createProjectRole({
-              id: projectRoleId,
-              projectId: projectId!,
-              name: template?.name || 'Team Member',
-              description: template?.description || '',
-              roleType: 'execution',
-              isRequired: false,
-              permissions: []
-            } as any);
-            
-            roleTemplateIdToProjectRoleId.set(templateId, projectRoleId);
-            console.log(`[FULL-CREATE] Created project role ${projectRoleId} from template ${templateId}`);
-          } catch (e: any) {
-            console.error(`[FULL-CREATE] Error creating project role from template ${templateId}:`, e.message);
-          }
-        }
-        
         // Track users that have been added as team members
         const addedUserIds = new Set<string>();
         
@@ -2120,6 +2082,7 @@ export function registerImportExportRoutes(
             }
             
             // Add high-level role if it's a project role (owner, manager, stakeholder, member)
+            const highLevelRoleTypes = ['owner', 'manager', 'stakeholder', 'member'];
             if (highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
               await storage.createHighLevelRole({
                 teamMemberId,
@@ -2133,17 +2096,11 @@ export function registerImportExportRoutes(
             }
             
             // Add execution role assignment if roleTypeId is provided
-            // Use the mapped project role ID instead of the template ID
             if (role.roleTypeId && !highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
-              const projectRoleId = roleTemplateIdToProjectRoleId.get(role.roleTypeId);
-              if (projectRoleId) {
-                await storage.createExecutionRoleAssignment({
-                  teamMemberId,
-                  roleId: projectRoleId
-                });
-              } else {
-                console.warn(`[FULL-CREATE] No project role found for template ID ${role.roleTypeId}`);
-              }
+              await storage.createExecutionRoleAssignment({
+                teamMemberId,
+                roleId: role.roleTypeId
+              });
             }
           } catch (e: any) {
             console.error(`[FULL-CREATE] Error creating team member for role:`, e.message);

@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CurrentUserProvider } from "@/context/current-user-context";
 import { ImportProvider } from "@/context/import-context";
 import { CreationReportProvider } from "@/context/creation-report-context";
-import { ThemeProvider } from "@/context/theme-context";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
@@ -44,7 +43,6 @@ import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import FrameworkTemplateDetail from "@/pages/admin/framework-template-detail";
 import DataViewerPage from "@/pages/admin/data-viewer";
 import EditUserPage from "@/pages/admin/edit-user";
-import ThemeManager from "@/pages/admin/theme";
 import ProjectTools from "@/pages/project-tools";
 import ImportWizard from "@/pages/import-wizard";
 import ImportUpload from "@/pages/import-upload";
@@ -88,7 +86,6 @@ function ProtectedRoutes() {
       <Route path="/profile" component={ProfilePage} />
       <Route path="/help" component={HelpPage} />
       <Route path="/admin" component={AdminHub} />
-      <Route path="/admin/theme" component={ThemeManager} />
       <Route path="/admin/data-viewer" component={DataViewerPage} />
       <Route path="/admin/users/:userId/edit" component={EditUserPage} />
       <Route path="/admin/:section" component={AdminHub} />
@@ -134,9 +131,7 @@ function AuthenticatedApp() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthenticatedApp />
-      </ThemeProvider>
+      <AuthenticatedApp />
     </QueryClientProvider>
   );
 }
