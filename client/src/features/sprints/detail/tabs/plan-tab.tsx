@@ -33,6 +33,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CoverageMatrix } from "@/components/coverage-matrix";
 import type { SprintStats, ScopeRule } from "../types";
 
 interface PlanTabProps {
@@ -189,6 +190,29 @@ export function PlanTab({
       });
     }
   };
+
+  const getMatrixTasksForCell = useCallback((rowId: string, columnId: string) => {
+    return projectTasks.filter((t: any) => {
+      if (matrixAxis === "epics") {
+        return t.epicId === rowId && t.stageId === columnId;
+      } else {
+        return t.milestoneId === rowId && t.stageId === columnId;
+      }
+    });
+  }, [projectTasks, matrixAxis]);
+
+  const getMatrixIncludedCount = useCallback((rowId: string, columnId: string) => {
+    const cellTasks = getMatrixTasksForCell(rowId, columnId);
+    return cellTasks.filter((t: any) => sprintTaskIds.includes(t.id)).length;
+  }, [getMatrixTasksForCell, sprintTaskIds]);
+
+  const isTaskInSprint = useCallback((taskId: string) => {
+    return sprintTaskIds.includes(taskId);
+  }, [sprintTaskIds]);
+
+  const handleMatrixCellClick = useCallback((rowId: string, columnId: string) => {
+    handleToggleCellTasksGeneric(rowId, columnId, matrixAxis);
+  }, [matrixAxis]);
 
   const evaluateRule = useCallback((rule: ScopeRule): any[] => {
     if (!rule.active) return [];
@@ -784,59 +808,20 @@ export function PlanTab({
                 ]}
               />
             </div>
-            <div className="border rounded-md overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/10">
-                    <th className="p-3 text-left font-medium min-w-[200px]">
-                      {matrixAxis === "epics" ? "Epic" : "Milestone"}
-                    </th>
-                    {projectStages.map((stage: any) => (
-                      <th key={stage.id} className="p-3 text-center font-medium border-l min-w-[100px]">
-                        {stage.label || stage.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(matrixAxis === "epics" ? projectEpics : projectMilestones).map((item: any) => (
-                    <tr key={item.id} className="border-b hover:bg-muted/5">
-                      <td className="p-3 font-medium">{item.title || item.name}</td>
-                      {projectStages.map((stage: any) => {
-                        const counts = getCellTaskCounts(item.id, stage.id, matrixAxis);
-                        const allInSprint = counts.total > 0 && counts.inSprint === counts.total;
-                        const someInSprint = counts.inSprint > 0 && counts.inSprint < counts.total;
-                        
-                        return (
-                          <td 
-                            key={stage.id} 
-                            className={cn(
-                              "p-3 text-center border-l cursor-pointer transition-colors",
-                              counts.total === 0 && "bg-muted/10",
-                              allInSprint && "bg-green-50",
-                              someInSprint && "bg-amber-50"
-                            )}
-                            onClick={() => handleToggleCellTasksGeneric(item.id, stage.id, matrixAxis)}
-                          >
-                            {counts.total > 0 ? (
-                              <span className={cn(
-                                "text-sm font-medium",
-                                allInSprint && "text-green-700",
-                                someInSprint && "text-amber-700"
-                              )}>
-                                {counts.inSprint}/{counts.total}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground/30">-</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <CoverageMatrix
+              rows={matrixAxis === "epics" ? projectEpics : projectMilestones}
+              columns={projectStages}
+              tasks={projectTasks}
+              users={users}
+              rowLabel={matrixAxis === "epics" ? "Epic" : "Milestone"}
+              getTasksForCell={getMatrixTasksForCell}
+              getIncludedCount={getMatrixIncludedCount}
+              isTaskIncluded={isTaskInSprint}
+              onCellClick={handleMatrixCellClick}
+              displayStyle="text"
+              emptyRowsMessage={matrixAxis === "epics" ? "No epics found in this project." : "No milestones found in this project."}
+              emptyColumnsMessage="No stages found. Tasks must have stages assigned."
+            />
           </TabsContent>
         </Tabs>
       </TabsContent>
