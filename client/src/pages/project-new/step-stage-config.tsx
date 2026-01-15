@@ -146,10 +146,6 @@ export function StepStageConfig({
     completionTargetPercent: 100
   });
 
-  const getMilestoneRule = (milestone: WizardMilestone): WizardMilestone['rule'] => {
-    return milestone.rule || getDefaultRule();
-  };
-
   const addStage = () => {
     const newStage: WizardStage = {
       id: `stage-${Date.now()}`,
@@ -399,18 +395,6 @@ export function StepStageConfig({
     { value: "Low", label: "Low" },
     { value: "Medium", label: "Medium" },
     { value: "High", label: "High" },
-  ];
-
-  const scopeTypeOptions = [
-    { value: "stage", label: "All tasks in Stage" },
-    { value: "deliverable", label: "All tasks in Deliverable" },
-    { value: "epic", label: "All tasks in Epic" },
-    { value: "all", label: "All project tasks" },
-  ];
-
-  const completionModeOptions = [
-    { value: "all_tasks", label: "All tasks completed" },
-    { value: "percentage", label: "Percentage completed" },
   ];
 
   return (
@@ -888,13 +872,7 @@ export function StepStageConfig({
                 onValueChange={setExpandedMilestones}
                 className="space-y-2"
               >
-                {milestones.map((milestone, index) => {
-                  const rule = getMilestoneRule(milestone);
-                  const stageOptions = stages.map((s, idx) => ({
-                    value: s.id,
-                    label: s.name || `Stage ${idx + 1}`
-                  }));
-                  return (
+                {milestones.map((milestone, index) => (
                   <AccordionItem 
                     key={milestone.id} 
                     value={milestone.id}
@@ -949,121 +927,6 @@ export function StepStageConfig({
                           </div>
                         </div>
                         
-                        <Card className="bg-muted/30">
-                          <CardHeader className="pb-2 pt-3 px-4">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                              <Target className="h-4 w-4" /> Scope Rule
-                            </CardTitle>
-                            <p className="text-xs text-muted-foreground">
-                              Define which tasks must be completed for this milestone
-                            </p>
-                          </CardHeader>
-                          <CardContent className="px-4 pb-4 space-y-3">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Scope Type</Label>
-                                <SearchableSelect
-                                  value={rule.scopeType}
-                                  onValueChange={(v) => {
-                                    const newMs = [...milestones];
-                                    if (!newMs[index].rule) {
-                                      newMs[index].rule = getDefaultRule();
-                                    }
-                                    newMs[index].rule.scopeType = v as any;
-                                    newMs[index].rule.scopeEntityId = undefined;
-                                    setMilestones(newMs);
-                                  }}
-                                  options={scopeTypeOptions}
-                                  triggerClassName="h-9"
-                                />
-                              </div>
-                              
-                              {rule.scopeType === 'stage' && (
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Stage</Label>
-                                  <SearchableSelect
-                                    value={rule.scopeEntityId || ""}
-                                    onValueChange={(v) => {
-                                      const newMs = [...milestones];
-                                      if (!newMs[index].rule) {
-                                        newMs[index].rule = getDefaultRule();
-                                      }
-                                      newMs[index].rule.scopeEntityId = v;
-                                      setMilestones(newMs);
-                                    }}
-                                    placeholder="Select stage..."
-                                    options={stageOptions}
-                                    triggerClassName="h-9"
-                                  />
-                                </div>
-                              )}
-                              
-                              {rule.scopeType === 'all' && (
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Entity</Label>
-                                  <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border rounded-md bg-background">
-                                    All tasks in project
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {(rule.scopeType === 'deliverable' || rule.scopeType === 'epic') && (
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">
-                                    {rule.scopeType === 'deliverable' ? 'Deliverable' : 'Epic'}
-                                  </Label>
-                                  <div className="h-9 flex items-center text-sm text-muted-foreground px-3 border rounded-md bg-background italic">
-                                    Selected at runtime
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Completion Mode</Label>
-                                <SearchableSelect
-                                  value={rule.completionMode}
-                                  onValueChange={(v) => {
-                                    const newMs = [...milestones];
-                                    if (!newMs[index].rule) {
-                                      newMs[index].rule = getDefaultRule();
-                                    }
-                                    newMs[index].rule.completionMode = v as any;
-                                    setMilestones(newMs);
-                                  }}
-                                  options={completionModeOptions}
-                                  triggerClassName="h-9"
-                                />
-                              </div>
-                              
-                              {rule.completionMode === 'percentage' && (
-                                <div className="space-y-1">
-                                  <Label className="text-xs text-muted-foreground">Target %</Label>
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      max="100"
-                                      value={rule.completionTargetPercent || 100}
-                                      onChange={(e) => {
-                                        const newMs = [...milestones];
-                                        if (!newMs[index].rule) {
-                                          newMs[index].rule = getDefaultRule();
-                                        }
-                                        newMs[index].rule.completionTargetPercent = parseInt(e.target.value) || 100;
-                                        setMilestones(newMs);
-                                      }}
-                                      className="h-9"
-                                    />
-                                    <span className="text-sm text-muted-foreground">%</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                        
                         <div className="flex items-center justify-between pt-2">
                           <div className="flex items-center gap-3">
                             <input
@@ -1093,7 +956,7 @@ export function StepStageConfig({
                       </div>
                     </AccordionContent>
                   </AccordionItem>
-                )})}
+                ))}
               </Accordion>
             )}
           </div>

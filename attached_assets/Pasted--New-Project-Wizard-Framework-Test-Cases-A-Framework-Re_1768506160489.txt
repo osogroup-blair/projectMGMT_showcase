@@ -1,0 +1,143 @@
+# New Project Wizard & Framework – Test Cases
+
+---
+
+## A) Framework Requirement & Regression
+
+**TC-001 — Create project without framework**
+- **Steps:** Start New Project → leave framework unselected → complete wizard.
+- **Expected:** Project is created successfully; no “framework required” error; framework set to `Custom`. :contentReference[oaicite:0]{index=0}
+
+**TC-002 — Custom framework path**
+- **Steps:** Select “Custom / None” → proceed through Stage Configuration.
+- **Expected:** Wizard allows progression; stages remain editable. :contentReference[oaicite:1]{index=1}
+
+---
+
+## B) Task Creation Without Forced Hierarchy
+
+**TC-003 — Create task without Deliverable/Epic**
+- **Steps:** Quick-add task with only name.
+- **Expected:** Task is created in Unassigned/Orphaned state. :contentReference[oaicite:2]{index=2}
+
+**TC-004 — Assign orphaned task later**
+- **Steps:** Open Task Alignment → assign Deliverable, Epic, Stage.
+- **Expected:** Task moves to selected hierarchy and persists. :contentReference[oaicite:3]{index=3}
+
+**TC-005 — Rapid task entry (simple project)**
+- **Steps:** Create 10 tasks rapidly without hierarchy.
+- **Expected:** No blocking prompts; all tasks created. :contentReference[oaicite:4]{index=4}
+
+---
+
+## C) Deliverable & Epic Rules
+
+**TC-006 — At least one Deliverable required**
+- **Steps:** Attempt to finish wizard with zero Deliverables.
+- **Expected:** Blocking validation with CTA to add Deliverable. :contentReference[oaicite:5]{index=5}
+
+**TC-007 — Pass-through Epic toggle**
+- **Steps:** Toggle pass-through Epic ON then OFF.
+- **Expected:** Epic is created/removed correctly with safeguards. :contentReference[oaicite:6]{index=6}
+
+**TC-008 — Epic inherits Deliverable dates**
+- **Steps:** Create Epic under dated Deliverable.
+- **Expected:** Epic start/end dates prefilled. :contentReference[oaicite:7]{index=7}
+
+---
+
+## D) Scoping & Estimation Import
+
+**TC-009 — Estimation import pre-fills Deliverables/Epics**
+- **Steps:** Upload estimation sheet during setup.
+- **Expected:** Deliverables and Epics auto-created. :contentReference[oaicite:8]{index=8}
+
+**TC-010 — Imported team prefilled**
+- **Steps:** Import team data → go to Team Assignment.
+- **Expected:** Team members pre-populated and editable. :contentReference[oaicite:9]{index=9}
+
+---
+
+## E) User Stories Visibility
+
+**TC-011 — User story guidance visible**
+- **Steps:** Open Work Breakdown.
+- **Expected:** Clear guidance on how user stories map to Epics/Tasks. :contentReference[oaicite:10]{index=10}
+
+**TC-012 — Task Type = User Story**
+- **Steps:** Create task with type “User Story” → filter.
+- **Expected:** Task appears under User Story filter. :contentReference[oaicite:11]{index=11}
+
+---
+
+## F) Wizard Order & Skip Path
+
+**TC-013 — Wizard step order**
+- **Expected Order:** Project Basics → Team Assignment → Stage Configuration → Work Breakdown → Review → Summary.
+- **Expected:** Navigation works without data loss. :contentReference[oaicite:12]{index=12}
+
+**TC-014 — Skip wizard**
+- **Steps:** Click “Skip Wizard”.
+- **Expected:** Blank project created with no prefilled hierarchy. :contentReference[oaicite:13]{index=13}
+
+**TC-015 — Team assignment optional**
+- **Steps:** Skip Team Assignment → complete wizard.
+- **Expected:** Project created; tasks default unassigned. :contentReference[oaicite:14]{index=14}
+
+---
+
+## G) Stage Configuration & Framework Merge
+
+**TC-016 — Apply framework adds stages/milestones/tasks**
+- **Expected:** All defined framework elements appear. :contentReference[oaicite:15]{index=15}
+
+**TC-017 — Merge option: add full stages**
+- **Expected:** New stages added without altering existing ones. :contentReference[oaicite:16]{index=16}
+
+**TC-018 — Merge into existing stage**
+- **Expected:** Tasks/milestones merged with conflict handling. :contentReference[oaicite:17]{index=17}
+
+**TC-019 — Milestones without scope rule**
+- **Expected:** Milestones save without scope UI. :contentReference[oaicite:18]{index=18}
+
+**TC-020 — Templated task optional owner**
+- **Expected:** Tasks save with or without owner. :contentReference[oaicite:19]{index=19}
+
+---
+
+## H) Work Breakdown Behavior
+
+**TC-021 — New Epic prefilled with stage tasks**
+- **Expected:** Epic auto-creates templated tasks. :contentReference[oaicite:20]{index=20}
+
+**TC-022 — Task inline CRUD**
+- **Expected:** Name, description, stage, milestone, owner, sprint editable. :contentReference[oaicite:21]{index=21}
+
+**TC-023 — Management Activities deliverable**
+- **Expected:** One deliverable with 3 epics (Project, Product, Client Mgmt). :contentReference[oaicite:22]{index=22}
+
+**TC-024 — Default unassigned routing**
+- **Expected:** Tasks default to Product Management epic or explicit unassigned list. :contentReference[oaicite:23]{index=23}
+
+**TC-025 — Collapse/expand Deliverables & Epics**
+- **Expected:** Individual and global controls work. :contentReference[oaicite:24]{index=24}
+
+---
+
+## I) Review Page
+
+**TC-026 — Review page UX**
+- **Expected:** Tabbed layout, strong headers, “What happens next” banner visible. :contentReference[oaicite:25]{index=25}
+
+---
+
+## J) Creation-Time Validation
+
+**TC-027 — Stage dates fit project timeframe**
+- **Expected:** Stages auto-scale within project dates. :contentReference[oaicite:26]{index=26}
+
+**TC-028 — Framework assigned or set to Custom**
+- **Expected:** Project metadata reflects correct framework. :contentReference[oaicite:27]{index=27}
+
+**TC-029 — Task completeness validation**
+- **Expected:** All tasks exist; unassigned tasks explicitly listed for resolution. :contentReference[oaicite:28]{index=28}
