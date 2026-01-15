@@ -22,7 +22,8 @@ import {
   Save,
   Loader2,
   Flag,
-  AlertTriangle
+  AlertTriangle,
+  Zap
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -1523,18 +1524,31 @@ export default function ProjectWizard() {
                   </Select>
                 </div>
                 
-                <Button onClick={handleNext} disabled={isCreating} data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}>
-                    {isCreating ? (
-                        <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Creating...
-                        </>
-                    ) : currentStep === STEPS.length ? (
-                        <>Create Project <Save className="h-4 w-4 ml-2" /></>
-                    ) : (
-                        <>Next <ChevronRight className="h-4 w-4 ml-2" /></>
-                    )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {currentStep === 1 && (
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSkipWizard}
+                      data-testid="button-skip-wizard"
+                      disabled={!projectData.name.trim() || !projectData.startDate || !projectData.dueDate || isCreating}
+                    >
+                      <Zap className="h-4 w-4 mr-2" />
+                      Start Blank
+                    </Button>
+                  )}
+                  <Button onClick={handleNext} disabled={isCreating} data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}>
+                      {isCreating ? (
+                          <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Creating...
+                          </>
+                      ) : currentStep === STEPS.length ? (
+                          <>Create Project <Save className="h-4 w-4 ml-2" /></>
+                      ) : (
+                          <>Next <ChevronRight className="h-4 w-4 ml-2" /></>
+                      )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="flex-1 pt-6">
