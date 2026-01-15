@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Briefcase, 
@@ -15,8 +16,11 @@ import {
   UserCheck,
   UserX,
   ArrowRightLeft,
-  Info
+  Info,
+  Download
 } from "lucide-react";
+import { saveAs } from "file-saver";
+import { useToast } from "@/hooks/use-toast";
 import { StepProps } from "./types";
 import { useImportOptional } from "@/context/import-context";
 
@@ -28,10 +32,152 @@ export function StepReview({
   roles,
   users,
 }: StepProps) {
+  const { toast } = useToast();
   const importContext = useImportOptional();
   const isImportMode = importContext?.state.isImportMode || false;
   const userMappings = importContext?.state.userMappings || [];
   const statusMappings = importContext?.state.statusMappings || [];
+
+  const handleExportPayload = () => {
+    const generateTempId = () => `temp-${crypto.randomUUID()}`;
+    const projectId = generateTempId();
+    
+    const nestedDeliverables = deliverables.map((deliverable) => {
+      const deliverableId = deliverable.id || generateTempId();
+      
+      const nestedEpics = deliverable.epics.map((epic) => {
+        const epicId = epic.id || generateTempId();
+        
+        const nestedTasks = (epic.tasks || []).map((task: any) => ({
+          id: task.id || generateTempId(),
+          projectId,
+          deliverableId,
+          epicId,
+          title: task.title,
+          description: task.description || "",
+          status: task.status || "Not Started",
+          priority: task.priority || "Medium",
+          assigneeId: task.assigneeId || null,
+          stageId: task.stageId || null,
+          estimateHours: task.estimateHours || null,
+          scope: task.scope || "once",
+          templateId: task.templateId || null,
+          type: task.type || null,
+          comments: [],
+          attachments: [],
+          history: [],
+          dependencies: []
+        }));
+        
+        return {
+          id: epicId,
+          projectId,
+          deliverableId,
+          title: epic.title,
+          description: epic.description || "",
+          status: (epic as any).status || "Not Started",
+          type: (epic as any).type || null,
+          templateId: (epic as any).templateId || null,
+          tasks: nestedTasks
+        };
+      });
+      
+      return {
+        id: deliverableId,
+        projectId,
+        title: deliverable.title,
+        description: deliverable.description || "",
+        status: (deliverable as any).status || "Not Started",
+        type: (deliverable as any).type || null,
+        templateId: (deliverable as any).templateId || null,
+        epics: nestedEpics
+      };
+    });
+
+    const nestedStages = stages.map((stage, index) => ({
+      id: stage.id || generateTempId(),
+      projectId,
+      name: stage.name,
+      description: stage.description || "",
+      order: (stage as any).order ?? index + 1,
+      type: stage.type || "execution",
+      status: (stage as any).status || "Active",
+      startDate: stage.startDate || null,
+      endDate: stage.endDate || null,
+      tasks: stage.tasks.map((task: any) => ({
+        id: task.id || generateTempId(),
+        projectId,
+        stageId: stage.id,
+        title: task.title,
+        description: task.description || "",
+        status: task.status || "Not Started",
+        priority: task.priority || "Medium",
+        assigneeId: task.assigneeId || null,
+        estimateHours: task.estimateHours || null,
+        scope: task.scope || "once",
+        templateId: task.templateId || null,
+        type: task.type || null
+      }))
+    }));
+
+    const nestedMilestones = milestones.map((milestone) => ({
+      id: milestone.id || generateTempId(),
+      projectId,
+      name: milestone.name,
+      description: milestone.description || "",
+      phase: milestone.phase || null,
+      targetDate: milestone.targetDate || null,
+      isBillingGate: milestone.isBillingGate || false,
+      status: (milestone as any).status || "Pending",
+      scopeRules: milestone.scopeRules || [],
+      taskLinks: []
+    }));
+
+    const nestedRoles = roles.map((role) => ({
+      id: role.id || generateTempId(),
+      projectId,
+      name: role.name,
+      roleType: role.roleType,
+      assigneeId: role.assigneeId || null,
+      isRequired: (role as any).isRequired || false
+    }));
+
+    const exportPayload = {
+      projects: [{
+        id: projectId,
+        name: projectData.name,
+        description: projectData.description || "",
+        client: projectData.client || "",
+        status: "Not Started",
+        startDate: projectData.startDate,
+        deadline: projectData.dueDate,
+        sprintDurationWeeks: projectData.sprintDurationWeeks || 2,
+        ownerId: projectData.ownerId || null,
+        progress: 0,
+        deliverables: nestedDeliverables,
+        stages: nestedStages,
+        milestones: nestedMilestones,
+        roles: nestedRoles,
+        sprints: []
+      }],
+      metadata: {
+        exportedAt: new Date().toISOString(),
+        format: "nexus-nested",
+        version: "1.0",
+        source: "project-wizard"
+      }
+    };
+
+    const jsonString = JSON.stringify(exportPayload, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const filename = `${projectData.name.replace(/[^a-zA-Z0-9]/g, '_') || 'New_Project'}_Wizard_Export_${new Date().toISOString().split('T')[0]}.json`;
+    saveAs(blob, filename);
+
+    toast({
+      title: "Export Successful",
+      description: `Project payload exported as ${filename}`,
+    });
+  };
   
   const totalEpics = deliverables.reduce((acc, d) => acc + d.epics.length, 0);
   
@@ -175,6 +321,19 @@ export function StepReview({
             <span className="text-sm font-medium">Large project: {totalTasks} tasks will be created</span>
           </div>
         )}
+        
+        <div className="flex justify-end mt-4">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleExportPayload}
+            className="text-xs"
+            data-testid="button-export-payload"
+          >
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export Wizard Payload
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
