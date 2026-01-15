@@ -830,11 +830,11 @@ export function StepWorkBreakdown({
                                         <div className="flex items-center gap-2 ml-5">
                                           {stages.length > 0 && (
                                             <Select
-                                              value={task.stageId || ""}
+                                              value={task.stageId || "none"}
                                               onValueChange={(value) => {
                                                 const newD = [...deliverables];
                                                 if (newD[dIndex].epics[eIndex].tasks) {
-                                                  newD[dIndex].epics[eIndex].tasks![tIndex].stageId = value || undefined;
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].stageId = value === "none" ? undefined : value;
                                                 }
                                                 setDeliverables(newD);
                                               }}
@@ -843,7 +843,7 @@ export function StepWorkBreakdown({
                                                 <SelectValue placeholder="Stage" />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value="">No stage</SelectItem>
+                                                <SelectItem value="none">No stage</SelectItem>
                                                 {stages.map((stage: any) => (
                                                   <SelectItem key={stage.id} value={stage.id}>
                                                     {stage.name}
@@ -854,11 +854,11 @@ export function StepWorkBreakdown({
                                           )}
                                           {milestones.length > 0 && (
                                             <Select
-                                              value={task.milestoneId || ""}
+                                              value={task.milestoneId || "none"}
                                               onValueChange={(value) => {
                                                 const newD = [...deliverables];
                                                 if (newD[dIndex].epics[eIndex].tasks) {
-                                                  newD[dIndex].epics[eIndex].tasks![tIndex].milestoneId = value || undefined;
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].milestoneId = value === "none" ? undefined : value;
                                                 }
                                                 setDeliverables(newD);
                                               }}
@@ -867,7 +867,7 @@ export function StepWorkBreakdown({
                                                 <SelectValue placeholder="Milestone" />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value="">No milestone</SelectItem>
+                                                <SelectItem value="none">No milestone</SelectItem>
                                                 {milestones.map((ms: any) => (
                                                   <SelectItem key={ms.id} value={ms.id}>
                                                     {ms.title}
@@ -878,11 +878,11 @@ export function StepWorkBreakdown({
                                           )}
                                           {teamMemberOptions.length > 0 && (
                                             <Select
-                                              value={task.assigneeId || ""}
+                                              value={task.assigneeId || "none"}
                                               onValueChange={(value) => {
                                                 const newD = [...deliverables];
                                                 if (newD[dIndex].epics[eIndex].tasks) {
-                                                  newD[dIndex].epics[eIndex].tasks![tIndex].assigneeId = value || undefined;
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].assigneeId = value === "none" ? undefined : value;
                                                 }
                                                 setDeliverables(newD);
                                               }}
@@ -891,7 +891,7 @@ export function StepWorkBreakdown({
                                                 <SelectValue placeholder="Assignee" />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value="">Unassigned</SelectItem>
+                                                <SelectItem value="none">Unassigned</SelectItem>
                                                 {teamMemberOptions.map((member) => (
                                                   <SelectItem key={member.id} value={member.id}>
                                                     {member.name}
