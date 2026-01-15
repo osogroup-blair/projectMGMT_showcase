@@ -502,7 +502,10 @@ export default function ProjectsList() {
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-primary">Projects List</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-primary flex items-center gap-2">
+              <FolderKanban className="h-6 w-6 text-primary/70 shrink-0" />
+              Projects List
+            </h1>
             <p className="text-muted-foreground text-sm">Manage and track all ongoing projects across the organization.</p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
