@@ -364,7 +364,7 @@ function ThemeEditor({
                         <ColorEditor
                           key={key}
                           colorKey={key}
-                          value={(currentTokens.colors as Record<string, string>)[key] || "0 0% 50%"}
+                          value={(currentTokens.colors as unknown as Record<string, string>)[key] || "0 0% 50%"}
                           onChange={handleColorChange}
                         />
                       ))}
@@ -515,7 +515,7 @@ function ThemeEditor({
                   key={key}
                   className="w-12 h-12 rounded"
                   style={{
-                    backgroundColor: `hsl(${(currentTokens.colors as Record<string, string>)[key]})`,
+                    backgroundColor: `hsl(${(currentTokens.colors as unknown as Record<string, string>)[key]})`,
                     borderRadius: currentTokens.spacing.radius,
                   }}
                 />
@@ -807,7 +807,7 @@ export default function AdminThemesContent({ embedded }: AdminThemesContentProps
                       key={key}
                       className="w-8 h-8 rounded border"
                       style={{
-                        backgroundColor: `hsl(${(theme.lightTokens?.colors as Record<string, string>)?.[key] || "0 0% 50%"})`,
+                        backgroundColor: `hsl(${(theme.lightTokens?.colors as unknown as Record<string, string>)?.[key] || "0 0% 50%"})`,
                       }}
                       title={key}
                     />
