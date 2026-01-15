@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, Layers, Settings, LayoutTemplate, Sliders, Users, Download, Star, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Home, Layers, Settings, LayoutTemplate, Sliders, Users, Download, Star, PanelLeftClose, PanelLeft, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -196,6 +196,12 @@ export function SubNav() {
             icon={Download}
             label="Import & Export"
             isActive={location === "/admin/import-export"}
+          />
+          <NavButton
+            href="/admin/theme"
+            icon={Palette}
+            label="Theme Manager"
+            isActive={location === "/admin/theme"}
           />
           
           <div className="mt-2 pt-2 border-t border-border">
