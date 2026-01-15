@@ -763,8 +763,8 @@ export default function ProjectOverview() {
         {/* Header Section - Wrapped in padding */}
         <div className="px-6 py-8 space-y-8 pt-[10px] pb-[10px]">
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
+              <div className="xl:col-span-1 space-y-2">
                 <div className="flex items-center gap-3 w-full">
                   {isEditingTitle ? (
                     <div className="flex items-center gap-2 flex-1">
@@ -814,7 +814,7 @@ export default function ProjectOverview() {
                 </div>
 
                 {isEditingDescription ? (
-                  <div className="flex items-start gap-2 max-w-xl">
+                  <div className="flex items-start gap-2">
                     <Textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
@@ -835,7 +835,7 @@ export default function ProjectOverview() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 group">
-                    <p className="text-sm text-muted-foreground max-w-xl" data-testid="text-project-description">
+                    <p className="text-sm text-muted-foreground" data-testid="text-project-description">
                       {project.description || <span className="italic">Click to add description...</span>}
                     </p>
                     <Button 
@@ -850,7 +850,7 @@ export default function ProjectOverview() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1.5" data-testid="text-framework-name">
                     <Briefcase className="h-4 w-4" />
                     {frameworkName}
@@ -934,84 +934,71 @@ export default function ProjectOverview() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Collapsible open={metricsOpen} onOpenChange={setMetricsOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="outline" size="sm" className="gap-2" data-testid="button-toggle-metrics">
-                      <ChevronDown className={cn("h-4 w-4 transition-transform", metricsOpen && "rotate-180")} />
-                      Project Metrics
-                    </Button>
-                  </CollapsibleTrigger>
-                </Collapsible>
-              </div>
-            </div>
-
-            <Collapsible open={metricsOpen} onOpenChange={setMetricsOpen}>
-              <CollapsibleContent className="mt-[-6px] mb-[-6px] pt-[1px] pb-[1px]">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="bg-primary/5 border-primary/20">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Completion</p>
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
+              <div className="xl:col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card className="bg-primary/5 border-primary/20 shadow-none">
+                    <CardContent className="pt-4 pb-4 px-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-medium text-muted-foreground">Completion</p>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <h3 className="text-2xl font-bold" data-testid="text-completion-percent">{completionPercentage}%</h3>
+                        <h3 className="text-xl font-bold" data-testid="text-completion-percent">{completionPercentage}%</h3>
                       </div>
-                      <Progress value={completionPercentage} className="h-2 mt-4" />
+                      <Progress value={completionPercentage} className="h-1.5 mt-2" />
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
-                        <ListTodo className="h-4 w-4 text-muted-foreground" />
+                  <Card className="shadow-none">
+                    <CardContent className="pt-4 pb-4 px-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-medium text-muted-foreground">Total Tasks</p>
+                        <ListTodo className="h-3.5 w-3.5 text-muted-foreground" />
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <h3 className="text-2xl font-bold" data-testid="text-total-tasks">{stats.total}</h3>
-                        <p className="text-xs text-muted-foreground">across all epics</p>
+                        <h3 className="text-xl font-bold" data-testid="text-total-tasks">{stats.total}</h3>
+                        <p className="text-[10px] text-muted-foreground">across all epics</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-4">
+                      <p className="text-[10px] text-muted-foreground mt-2">
                         {stats.completed} completed, {stats.inProgress} in progress
                       </p>
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">At Risk</p>
-                        <AlertTriangle className="h-4 w-4 text-red-500" />
+                  <Card className="shadow-none">
+                    <CardContent className="pt-4 pb-4 px-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-medium text-muted-foreground">At Risk</p>
+                        <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <h3 className="text-2xl font-bold text-red-600" data-testid="text-at-risk-tasks">{stats.atRisk}</h3>
-                        <p className="text-xs text-muted-foreground">tasks needing attention</p>
+                        <h3 className="text-xl font-bold text-red-600" data-testid="text-at-risk-tasks">{stats.atRisk}</h3>
+                        <p className="text-[10px] text-muted-foreground">needing attention</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-4">
+                      <p className="text-[10px] text-muted-foreground mt-2">
                         High priority items past due
                       </p>
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-muted-foreground">Milestones</p>
-                        <Flag className="h-4 w-4 text-blue-500" />
+                  <Card className="shadow-none">
+                    <CardContent className="pt-4 pb-4 px-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-medium text-muted-foreground">Milestones</p>
+                        <Flag className="h-3.5 w-3.5 text-blue-500" />
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <h3 className="text-2xl font-bold" data-testid="text-milestone-count">{milestones.length}</h3>
-                        <p className="text-xs text-muted-foreground">defined</p>
+                        <h3 className="text-xl font-bold" data-testid="text-milestone-count">{milestones.length}</h3>
+                        <p className="text-[10px] text-muted-foreground">defined</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-4">
-                        Next: {milestones[0]?.name || "None scheduled"}
+                      <p className="text-[10px] text-muted-foreground mt-2 truncate">
+                        Next: {milestones[0]?.name || "None"}
                       </p>
                     </CardContent>
                   </Card>
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
+              </div>
+            </div>
           </div>
         </div>
 
