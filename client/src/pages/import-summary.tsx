@@ -20,7 +20,10 @@ import {
   ArrowRightLeft,
   Wand2,
   Link2,
-  UserPlus
+  UserPlus,
+  Crown,
+  Briefcase,
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -293,6 +296,38 @@ export default function ImportSummary() {
     return entry?.count || 0;
   }, [tasksByAssignee]);
 
+  const teamAssignmentSummary = useMemo(() => {
+    const mappedUsers = userMappings.filter(m => m.mappedToId && m.action === 'map');
+    const byRole: Record<string, { users: typeof mappedUsers; count: number }> = {
+      owner: { users: [], count: 0 },
+      manager: { users: [], count: 0 },
+      stakeholder: { users: [], count: 0 },
+      member: { users: [], count: 0 },
+      none: { users: [], count: 0 },
+    };
+    
+    mappedUsers.forEach(m => {
+      const role = m.projectRole || 'none';
+      if (byRole[role]) {
+        byRole[role].users.push(m);
+        byRole[role].count++;
+      }
+    });
+    
+    const totalMapped = mappedUsers.length;
+    const totalWithRoles = totalMapped - byRole.none.count;
+    
+    return {
+      byRole,
+      totalMapped,
+      totalWithRoles,
+      hasOwner: byRole.owner.count > 0,
+      hasManager: byRole.manager.count > 0,
+    };
+  }, [userMappings]);
+
+  const [teamSummaryOpen, setTeamSummaryOpen] = useState(true);
+
   const defaultAssigneeOptions: SearchableSelectOption[] = useMemo(() => {
     const options: SearchableSelectOption[] = [
       { value: 'none', label: 'Leave unassigned' }
@@ -428,7 +463,7 @@ export default function ImportSummary() {
           </Card>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -465,7 +500,140 @@ export default function ImportSummary() {
               <p className="text-2xl font-bold">{stats?.milestonesFound || 0}</p>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Users className="h-4 w-4" />
+                <span className="text-xs">Team Members</span>
+              </div>
+              <p className="text-2xl font-bold">{teamAssignmentSummary.totalMapped}</p>
+            </CardContent>
+          </Card>
         </div>
+
+        {teamAssignmentSummary.totalMapped > 0 && (
+          <Collapsible open={teamSummaryOpen} onOpenChange={setTeamSummaryOpen}>
+            <Card className="mb-4 border-primary/30 bg-primary/5">
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-lg">Team Assignment Summary</CardTitle>
+                      <Badge className="bg-primary/20 text-primary border-primary/30">
+                        {teamAssignmentSummary.totalMapped} team member{teamAssignmentSummary.totalMapped !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    {teamSummaryOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
+                  <CardDescription>
+                    These team members will be added to the project based on task assignments in the import.
+                  </CardDescription>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-amber-50 border-amber-200">
+                      <Crown className="h-5 w-5 text-amber-600" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Owner</p>
+                        <p className="text-lg font-bold text-amber-900">{teamAssignmentSummary.byRole.owner.count}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-purple-50 border-purple-200">
+                      <Briefcase className="h-5 w-5 text-purple-600" />
+                      <div>
+                        <p className="text-sm font-medium text-purple-800">Manager</p>
+                        <p className="text-lg font-bold text-purple-900">{teamAssignmentSummary.byRole.manager.count}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-blue-50 border-blue-200">
+                      <Eye className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">Stakeholders</p>
+                        <p className="text-lg font-bold text-blue-900">{teamAssignmentSummary.byRole.stakeholder.count}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-green-50 border-green-200">
+                      <Users className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="text-sm font-medium text-green-800">Members</p>
+                        <p className="text-lg font-bold text-green-900">{teamAssignmentSummary.byRole.member.count}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {teamAssignmentSummary.byRole.none.count > 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">
+                            {teamAssignmentSummary.byRole.none.count} user{teamAssignmentSummary.byRole.none.count !== 1 ? 's' : ''} mapped without a project role
+                          </p>
+                          <p className="text-xs text-amber-700 mt-1">
+                            Assign project roles in the User Mappings section below to include them in the project team.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!teamAssignmentSummary.hasOwner && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+                      <div className="flex items-start gap-2">
+                        <Crown className="h-4 w-4 text-amber-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">No project owner assigned</p>
+                          <p className="text-xs text-amber-700 mt-1">
+                            Consider assigning an owner in the User Mappings section below.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Team Members:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {teamAssignmentSummary.byRole.owner.users.map(u => (
+                        <Badge key={u.sourceId} className="bg-amber-100 text-amber-800 border-amber-200">
+                          <Crown className="h-3 w-3 mr-1" />
+                          {u.mappedToName || u.sourceName}
+                        </Badge>
+                      ))}
+                      {teamAssignmentSummary.byRole.manager.users.map(u => (
+                        <Badge key={u.sourceId} className="bg-purple-100 text-purple-800 border-purple-200">
+                          <Briefcase className="h-3 w-3 mr-1" />
+                          {u.mappedToName || u.sourceName}
+                        </Badge>
+                      ))}
+                      {teamAssignmentSummary.byRole.stakeholder.users.map(u => (
+                        <Badge key={u.sourceId} className="bg-blue-100 text-blue-800 border-blue-200">
+                          <Eye className="h-3 w-3 mr-1" />
+                          {u.mappedToName || u.sourceName}
+                        </Badge>
+                      ))}
+                      {teamAssignmentSummary.byRole.member.users.map(u => (
+                        <Badge key={u.sourceId} className="bg-green-100 text-green-800 border-green-200">
+                          <Users className="h-3 w-3 mr-1" />
+                          {u.mappedToName || u.sourceName}
+                        </Badge>
+                      ))}
+                      {teamAssignmentSummary.byRole.none.users.map(u => (
+                        <Badge key={u.sourceId} variant="outline" className="text-muted-foreground">
+                          {u.mappedToName || u.sourceName}
+                          <span className="text-xs ml-1">(no role)</span>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        )}
 
         <div className="space-y-4">
           <Collapsible open={userMappingOpen} onOpenChange={setUserMappingOpen}>
