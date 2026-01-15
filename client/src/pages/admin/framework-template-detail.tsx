@@ -16,7 +16,8 @@ import {
   Workflow,
   Loader2,
   Save,
-  X
+  X,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -457,6 +458,8 @@ export default function FrameworkTemplateDetail() {
     }
 
     try {
+      const assignedRoleId = currentTask.defaultAssigneeRole || currentTask.assignedRoleId;
+      
       if (currentTask.id) {
         // Update existing task
         await updateTask({
@@ -472,15 +475,22 @@ export default function FrameworkTemplateDetail() {
           ...currentTask
         });
         
-        // Add to stage's defaultTasks
+        // Add to stage's defaultTasks and update roles if task has an assigned role
         if (selectedStageForTask) {
           const stage = stageTemplates?.find(s => s.id === selectedStageForTask);
           if (stage) {
+            const updates: { defaultTasks: string[]; defaultRoles?: string[] } = {
+              defaultTasks: [...(stage.defaultTasks || []), newId]
+            };
+            
+            // Auto-add the role to stage if task has an assigned role
+            if (assignedRoleId && !(stage.defaultRoles || []).includes(assignedRoleId)) {
+              updates.defaultRoles = [...(stage.defaultRoles || []), assignedRoleId];
+            }
+            
             await updateStage({
               id: stage.id,
-              updates: {
-                defaultTasks: [...(stage.defaultTasks || []), newId]
-              }
+              updates
             });
           }
         }
@@ -720,6 +730,12 @@ export default function FrameworkTemplateDetail() {
                                   <Flag className="h-3 w-3" />
                                   {stageMilestones.length} milestones
                                 </Badge>
+                                {(stage.defaultRoles || []).length > 0 && (
+                                  <Badge variant="outline" className="gap-1">
+                                    <Users className="h-3 w-3" />
+                                    {(stage.defaultRoles || []).length} roles
+                                  </Badge>
+                                )}
                                 {isExpanded ? (
                                   <ChevronDown className="h-4 w-4" />
                                 ) : (
@@ -822,15 +838,25 @@ export default function FrameworkTemplateDetail() {
                                                 <ListTodo className="h-4 w-4 text-muted-foreground" />
                                                 <div>
                                                   <p className="font-medium text-sm">{task?.title || task?.name || taskId}</p>
-                                                  {task?.description && (
-                                                    <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>
+                                                  <div className="flex items-center gap-2 mt-0.5">
+                                                    {task?.description && (
+                                                      <p className="text-xs text-muted-foreground line-clamp-1">{task.description}</p>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                  {task?.defaultPriority && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                      {task.defaultPriority}
+                                                    </Badge>
+                                                  )}
+                                                  {(task?.assignedRoleId || task?.defaultAssigneeRole) && (
+                                                    <Badge variant="secondary" className="text-xs gap-1">
+                                                      <Users className="h-3 w-3" />
+                                                      {roleTemplates?.find(r => r.id === (task.assignedRoleId || task.defaultAssigneeRole))?.name || "Role"}
+                                                    </Badge>
                                                   )}
                                                 </div>
-                                                {task?.defaultPriority && (
-                                                  <Badge variant="outline" className="text-xs">
-                                                    {task.defaultPriority}
-                                                  </Badge>
-                                                )}
                                               </div>
                                               <div className="flex items-center gap-1">
                                                 <Button
