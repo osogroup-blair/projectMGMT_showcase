@@ -967,7 +967,7 @@ export default function ProjectWizard() {
           status: 'Upcoming',
           startDate: projectData.startDate || new Date().toISOString().split('T')[0],
           deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-          frameworkId: projectData.frameworkId || 'custom-framework',
+          frameworkId: projectData.frameworkId && projectData.frameworkId.trim() !== '' ? projectData.frameworkId : null,
           sprintDurationWeeks: projectData.sprintDurationWeeks || null,
           ownerId: projectData.ownerId || null,
           client: projectData.client || null,
