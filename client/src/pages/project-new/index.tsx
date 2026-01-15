@@ -311,11 +311,28 @@ export default function ProjectWizard() {
   // Ensure default "Management Activities" deliverable exists as the FIRST deliverable for Work Breakdown step (Step 4)
   // This provides a catch-all bucket for orphan tasks with 3 standard management epics
   // This deliverable is protected - it cannot be deleted, but its name can be edited
+  // Once tasks (scope: 'once') from stages are applied to the Product Management epic
   useEffect(() => {
     if (currentStep === 4) {
       const hasMgmtActivities = deliverables.some(d => d.id.startsWith('d-mgmt-') || d.title === 'Management Activities');
       if (!hasMgmtActivities) {
         const timestamp = Date.now();
+        
+        // Get all "once" tasks from stages to apply to Product Management epic
+        const onceTasks = stages.flatMap(stage => 
+          stage.tasks.filter(t => t.scope === 'once').map(task => ({
+            id: `t-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            title: task.title,
+            description: task.description,
+            priority: task.priority?.toLowerCase() || 'medium',
+            estimateHours: task.estimateHours || 0,
+            stageId: stage.id,
+            milestoneId: task.milestoneId,
+            assigneeId: task.assigneeId,
+            taskTypeId: task.taskTypeId
+          }))
+        );
+        
         const mgmtActivitiesDeliverable: WizardDeliverable = {
           id: `d-mgmt-${timestamp}`,
           title: 'Management Activities',
@@ -331,7 +348,7 @@ export default function ProjectWizard() {
               id: `e-mgmt-${timestamp}-2`,
               title: 'Product Management',
               description: 'Product strategy, requirements, and backlog management tasks',
-              tasks: []
+              tasks: onceTasks
             },
             {
               id: `e-mgmt-${timestamp}-3`,
@@ -345,7 +362,7 @@ export default function ProjectWizard() {
         setDeliverables(prev => [mgmtActivitiesDeliverable, ...prev]);
       }
     }
-  }, [currentStep, deliverables]);
+  }, [currentStep, deliverables, stages]);
 
   const syncRolesFromStagesAndTasks = () => {
     const uniqueRoleIds = new Set<string>();

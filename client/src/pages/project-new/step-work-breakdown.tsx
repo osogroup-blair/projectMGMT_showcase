@@ -33,8 +33,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { StepProps, WizardEpic, WizardEpicTask, WizardDeliverable } from "./types";
-import { useRef, useCallback, useState, useMemo } from "react";
+import { StepProps, WizardEpic, WizardEpicTask, WizardDeliverable, WizardStage } from "./types";
+import { useRef, useCallback, useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export function StepWorkBreakdown({
@@ -47,6 +47,7 @@ export function StepWorkBreakdown({
   taskTypes = [],
   stages = [],
   milestones = [],
+  sprints = [],
   roles = [],
   users = [],
 }: StepProps) {
@@ -61,7 +62,7 @@ export function StepWorkBreakdown({
     const assigneeIds = roles
       .map(r => r.assigneeId)
       .filter((id): id is string => id !== null && id !== undefined);
-    const uniqueIds = [...new Set(assigneeIds)];
+    const uniqueIds = Array.from(new Set(assigneeIds));
     return uniqueIds.map(id => {
       const user = users.find((u: any) => u.id === id);
       return {
@@ -72,6 +73,41 @@ export function StepWorkBreakdown({
       };
     });
   }, [roles, users]);
+
+  // Auto-expand all deliverables and epics on mount
+  useEffect(() => {
+    if (deliverables.length > 0) {
+      setExpandedDeliverables(new Set(deliverables.map(d => d.id)));
+      const allEpicIds = deliverables.flatMap(d => d.epics.map(e => e.id));
+      setExpandedEpics(new Set(allEpicIds));
+    }
+  }, []);
+
+  // Re-expand when deliverables change (e.g., when Management Activities is added)
+  useEffect(() => {
+    setExpandedDeliverables(new Set(deliverables.map(d => d.id)));
+    const allEpicIds = deliverables.flatMap(d => d.epics.map(e => e.id));
+    setExpandedEpics(new Set(allEpicIds));
+  }, [deliverables.length]);
+
+  // Helper function to generate per_epic tasks from stage configuration
+  const generatePerEpicTasks = useCallback((): WizardEpicTask[] => {
+    return stages.flatMap((stage: WizardStage) => 
+      stage.tasks
+        .filter(t => t.scope === 'per_epic')
+        .map(task => ({
+          id: `t-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          title: task.title,
+          description: task.description,
+          priority: task.priority?.toLowerCase() || 'medium',
+          estimateHours: task.estimateHours || 0,
+          stageId: stage.id,
+          milestoneId: task.milestoneId,
+          assigneeId: task.assigneeId,
+          taskTypeId: task.taskTypeId
+        }))
+    );
+  }, [stages]);
 
   const toggleEpicExpanded = (epicId: string) => {
     setExpandedEpics(prev => {
@@ -118,16 +154,23 @@ export function StepWorkBreakdown({
     const epicId = `e-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const deliverable = deliverables[deliverableIndex];
     const newD = [...deliverables];
+    
+    // Generate per_epic tasks from stage rules
+    const perEpicTasks = generatePerEpicTasks();
+    
     const newEpic: WizardEpic = {
       id: epicId,
-      title: "",
+      title: "Epic",
       description: "",
       startDate: deliverable.startDate,
       endDate: deliverable.endDate,
-      tasks: []
+      tasks: perEpicTasks
     };
     newD[deliverableIndex].epics.unshift(newEpic);
     setDeliverables(newD);
+    
+    // Auto-expand the new epic to show tasks
+    setExpandedEpics(prev => new Set(prev).add(epicId));
     
     if (focusNew) {
       setTimeout(() => {
@@ -135,7 +178,7 @@ export function StepWorkBreakdown({
         if (input) input.focus();
       }, 50);
     }
-  }, [deliverables, setDeliverables]);
+  }, [deliverables, setDeliverables, generatePerEpicTasks]);
 
   const removeEpic = useCallback((deliverableIndex: number, epicIndex: number) => {
     if (deliverables[deliverableIndex].epics.length <= 1) {
@@ -299,21 +342,26 @@ export function StepWorkBreakdown({
     }
   };
 
-  const createNewDeliverable = (): WizardDeliverable => ({
-    id: `d-${Date.now()}`,
-    title: "",
-    description: "",
-    startDate: projectData.startDate,
-    endDate: projectData.dueDate,
-    epics: [{ 
-      id: `e-${Date.now()}`, 
-      title: "", 
+  const createNewDeliverable = useCallback((): WizardDeliverable => {
+    const epicId = `e-${Date.now()}`;
+    const perEpicTasks = generatePerEpicTasks();
+    
+    return {
+      id: `d-${Date.now()}`,
+      title: "",
       description: "",
       startDate: projectData.startDate,
       endDate: projectData.dueDate,
-      tasks: []
-    }]
-  });
+      epics: [{ 
+        id: epicId, 
+        title: "Epic",
+        description: "",
+        startDate: projectData.startDate,
+        endDate: projectData.dueDate,
+        tasks: perEpicTasks
+      }]
+    };
+  }, [projectData.startDate, projectData.dueDate, generatePerEpicTasks]);
 
   const bulkSetDeliverableType = (typeId: string | undefined) => {
     const newDeliverables = deliverables.map(d => ({
@@ -828,25 +876,46 @@ export function StepWorkBreakdown({
                                           </Button>
                                         </div>
                                         <div className="flex items-center gap-2 ml-5">
-                                          {stages.length > 0 && (
+                                          <Select
+                                            value={task.stageId || ""}
+                                            onValueChange={(value) => {
+                                              const newD = [...deliverables];
+                                              if (newD[dIndex].epics[eIndex].tasks) {
+                                                newD[dIndex].epics[eIndex].tasks![tIndex].stageId = value || undefined;
+                                              }
+                                              setDeliverables(newD);
+                                            }}
+                                          >
+                                            <SelectTrigger className={`h-6 w-28 text-xs ${!task.stageId ? 'border-destructive' : ''}`} data-testid={`select-task-stage-${dIndex}-${eIndex}-${tIndex}`}>
+                                              <SelectValue placeholder="Stage *" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {stages.map((stage: any) => (
+                                                <SelectItem key={stage.id} value={stage.id}>
+                                                  {stage.name}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          {sprints.length > 0 && (
                                             <Select
-                                              value={task.stageId || "none"}
+                                              value={task.sprintId || "none"}
                                               onValueChange={(value) => {
                                                 const newD = [...deliverables];
                                                 if (newD[dIndex].epics[eIndex].tasks) {
-                                                  newD[dIndex].epics[eIndex].tasks![tIndex].stageId = value === "none" ? undefined : value;
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].sprintId = value === "none" ? undefined : value;
                                                 }
                                                 setDeliverables(newD);
                                               }}
                                             >
-                                              <SelectTrigger className="h-6 w-28 text-xs">
-                                                <SelectValue placeholder="Stage" />
+                                              <SelectTrigger className="h-6 w-28 text-xs" data-testid={`select-task-sprint-${dIndex}-${eIndex}-${tIndex}`}>
+                                                <SelectValue placeholder="Sprint" />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value="none">No stage</SelectItem>
-                                                {stages.map((stage: any) => (
-                                                  <SelectItem key={stage.id} value={stage.id}>
-                                                    {stage.name}
+                                                <SelectItem value="none">No sprint</SelectItem>
+                                                {sprints.map((sprint: any) => (
+                                                  <SelectItem key={sprint.id} value={sprint.id}>
+                                                    {sprint.name}
                                                   </SelectItem>
                                                 ))}
                                               </SelectContent>

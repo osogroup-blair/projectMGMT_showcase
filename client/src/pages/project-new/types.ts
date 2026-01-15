@@ -31,6 +31,7 @@ export interface WizardEpicTask {
   assigneeId?: string;
   stageId?: string;
   milestoneId?: string;
+  sprintId?: string;
   deadline?: string;
   externalId?: string;
   taskTypeId?: string;
@@ -182,6 +183,13 @@ export interface WizardRoleType {
   description?: string;
 }
 
+export interface WizardSprint {
+  id: string;
+  name: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface StepProps {
   projectData: ProjectData;
   setProjectData: React.Dispatch<React.SetStateAction<ProjectData>>;
@@ -193,6 +201,7 @@ export interface StepProps {
   setMilestones: React.Dispatch<React.SetStateAction<WizardMilestone[]>>;
   roles: WizardRole[];
   setRoles: React.Dispatch<React.SetStateAction<WizardRole[]>>;
+  sprints?: WizardSprint[];
   frameworkTemplates?: any[];
   stageTemplates: any[];
   projectTemplatesData: any[];
