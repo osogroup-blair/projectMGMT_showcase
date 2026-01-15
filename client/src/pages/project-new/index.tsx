@@ -1607,20 +1607,20 @@ export default function ProjectWizard() {
                       variant="outline" 
                       onClick={handleSkipWizard}
                       data-testid="button-skip-wizard"
-                      disabled={!projectData.name.trim() || !projectData.startDate || !projectData.dueDate || isCreating}
+                      disabled={!projectData.name.trim() || !projectData.startDate || !projectData.dueDate}
+                      loading={isCreating}
                     >
                       <Zap className="h-4 w-4 mr-2" />
                       Start Blank
                     </Button>
                   )}
-                  <Button onClick={handleNext} disabled={isCreating} data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}>
-                      {isCreating ? (
-                          <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Creating...
-                          </>
-                      ) : currentStep === STEPS.length ? (
-                          <>Create Project <Save className="h-4 w-4 ml-2" /></>
+                  <Button 
+                    onClick={handleNext} 
+                    loading={isCreating} 
+                    data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}
+                  >
+                      {currentStep === STEPS.length ? (
+                          <>{isCreating ? "Creating..." : "Create Project"} <Save className="h-4 w-4 ml-2" /></>
                       ) : (
                           <>Next <ChevronRight className="h-4 w-4 ml-2" /></>
                       )}
