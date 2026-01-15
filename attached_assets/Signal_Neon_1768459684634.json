@@ -1,0 +1,119 @@
+{
+  "name": "Signal Neon",
+  "lightTokens": {
+    "colors": {
+      "background": "230 25% 97%",
+      "foreground": "232 30% 18%",
+      "card": "0 0% 100%",
+      "cardForeground": "232 30% 18%",
+      "popover": "0 0% 100%",
+      "popoverForeground": "232 30% 18%",
+
+      "primary": "275 85% 55%",
+      "primaryForeground": "0 0% 100%",
+      "secondary": "230 25% 92%",
+      "secondaryForeground": "232 30% 18%",
+
+      "accent": "190 95% 45%",
+      "accentForeground": "0 0% 100%",
+
+      "muted": "230 20% 94%",
+      "mutedForeground": "225 15% 45%",
+
+      "border": "230 20% 85%",
+      "input": "230 20% 88%",
+      "ring": "190 95% 45%",
+
+      "success": "145 85% 40%",
+      "successForeground": "0 0% 100%",
+      "warning": "40 95% 55%",
+      "warningForeground": "0 0% 100%",
+      "destructive": "350 85% 55%",
+      "destructiveForeground": "0 0% 100%",
+
+      "info": "205 95% 50%",
+      "infoForeground": "0 0% 100%",
+
+      "sidebar": "232 30% 16%",
+      "sidebarForeground": "0 0% 98%",
+      "sidebarPrimary": "275 85% 55%",
+      "sidebarPrimaryForeground": "0 0% 100%",
+      "sidebarAccent": "232 25% 22%",
+      "sidebarAccentForeground": "0 0% 98%",
+      "sidebarBorder": "232 25% 22%",
+      "sidebarRing": "190 95% 45%",
+
+      "chart1": "275 85% 55%",
+      "chart2": "190 95% 45%",
+      "chart3": "145 85% 40%",
+      "chart4": "40 95% 55%",
+      "chart5": "350 85% 55%"
+    },
+    "spacing": {
+      "radius": "0.5rem"
+    },
+    "typography": {
+      "fontSans": "'Space Grotesk', sans-serif",
+      "fontHeading": "'Space Grotesk', sans-serif",
+      "fontMono": "'JetBrains Mono', monospace"
+    }
+  },
+  "darkTokens": {
+    "colors": {
+      "background": "232 45% 6%",
+      "foreground": "210 20% 96%",
+      "card": "232 40% 10%",
+      "cardForeground": "210 20% 96%",
+      "popover": "232 40% 10%",
+      "popoverForeground": "210 20% 96%",
+
+      "primary": "275 85% 60%",
+      "primaryForeground": "232 45% 10%",
+      "secondary": "232 30% 16%",
+      "secondaryForeground": "210 20% 96%",
+
+      "accent": "190 95% 50%",
+      "accentForeground": "232 45% 10%",
+
+      "muted": "232 30% 16%",
+      "mutedForeground": "215 15% 65%",
+
+      "border": "232 30% 18%",
+      "input": "232 30% 18%",
+      "ring": "190 95% 50%",
+
+      "success": "145 85% 45%",
+      "successForeground": "0 0% 100%",
+      "warning": "40 95% 60%",
+      "warningForeground": "0 0% 100%",
+      "destructive": "350 85% 60%",
+      "destructiveForeground": "0 0% 100%",
+
+      "info": "205 95% 55%",
+      "infoForeground": "0 0% 100%",
+
+      "sidebar": "232 45% 4%",
+      "sidebarForeground": "210 20% 90%",
+      "sidebarPrimary": "275 85% 60%",
+      "sidebarPrimaryForeground": "232 45% 10%",
+      "sidebarAccent": "232 30% 12%",
+      "sidebarAccentForeground": "210 20% 90%",
+      "sidebarBorder": "232 30% 18%",
+      "sidebarRing": "190 95% 50%",
+
+      "chart1": "275 85% 60%",
+      "chart2": "190 95% 50%",
+      "chart3": "145 85% 45%",
+      "chart4": "40 95% 60%",
+      "chart5": "350 85% 60%"
+    },
+    "spacing": {
+      "radius": "0.5rem"
+    },
+    "typography": {
+      "fontSans": "'Space Grotesk', sans-serif",
+      "fontHeading": "'Space Grotesk', sans-serif",
+      "fontMono": "'JetBrains Mono', monospace"
+    }
+  }
+}

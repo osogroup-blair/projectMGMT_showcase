@@ -1,0 +1,119 @@
+{
+  "name": "Earthworks",
+  "lightTokens": {
+    "colors": {
+      "background": "40 35% 96%",
+      "foreground": "25 25% 18%",
+      "card": "40 40% 99%",
+      "cardForeground": "25 25% 18%",
+      "popover": "40 40% 99%",
+      "popoverForeground": "25 25% 18%",
+
+      "primary": "145 40% 28%",
+      "primaryForeground": "40 40% 99%",
+      "secondary": "35 30% 90%",
+      "secondaryForeground": "25 25% 18%",
+
+      "accent": "18 70% 45%",
+      "accentForeground": "0 0% 100%",
+
+      "muted": "35 25% 92%",
+      "mutedForeground": "25 12% 40%",
+
+      "border": "30 18% 82%",
+      "input": "30 18% 86%",
+      "ring": "145 40% 28%",
+
+      "success": "145 55% 32%",
+      "successForeground": "40 40% 99%",
+      "warning": "35 85% 52%",
+      "warningForeground": "25 25% 18%",
+      "destructive": "6 75% 52%",
+      "destructiveForeground": "0 0% 100%",
+
+      "info": "205 55% 45%",
+      "infoForeground": "0 0% 100%",
+
+      "sidebar": "35 30% 92%",
+      "sidebarForeground": "25 25% 18%",
+      "sidebarPrimary": "145 40% 28%",
+      "sidebarPrimaryForeground": "40 40% 99%",
+      "sidebarAccent": "35 25% 88%",
+      "sidebarAccentForeground": "25 25% 18%",
+      "sidebarBorder": "30 18% 82%",
+      "sidebarRing": "145 40% 28%",
+
+      "chart1": "145 40% 28%",
+      "chart2": "18 70% 45%",
+      "chart3": "205 55% 45%",
+      "chart4": "35 85% 52%",
+      "chart5": "6 75% 52%"
+    },
+    "spacing": {
+      "radius": "0.75rem"
+    },
+    "typography": {
+      "fontSans": "'Lato', sans-serif",
+      "fontHeading": "'Merriweather Sans', sans-serif",
+      "fontMono": "'Source Code Pro', monospace"
+    }
+  },
+  "darkTokens": {
+    "colors": {
+      "background": "25 25% 8%",
+      "foreground": "40 25% 96%",
+      "card": "25 22% 12%",
+      "cardForeground": "40 25% 96%",
+      "popover": "25 22% 12%",
+      "popoverForeground": "40 25% 96%",
+
+      "primary": "145 45% 45%",
+      "primaryForeground": "25 25% 10%",
+      "secondary": "25 18% 18%",
+      "secondaryForeground": "40 25% 96%",
+
+      "accent": "18 75% 55%",
+      "accentForeground": "25 25% 10%",
+
+      "muted": "25 18% 18%",
+      "mutedForeground": "35 12% 70%",
+
+      "border": "25 18% 20%",
+      "input": "25 18% 20%",
+      "ring": "145 45% 45%",
+
+      "success": "145 55% 42%",
+      "successForeground": "0 0% 100%",
+      "warning": "35 90% 58%",
+      "warningForeground": "25 25% 10%",
+      "destructive": "6 75% 58%",
+      "destructiveForeground": "0 0% 100%",
+
+      "info": "205 60% 55%",
+      "infoForeground": "0 0% 100%",
+
+      "sidebar": "25 25% 6%",
+      "sidebarForeground": "40 25% 90%",
+      "sidebarPrimary": "145 45% 45%",
+      "sidebarPrimaryForeground": "25 25% 10%",
+      "sidebarAccent": "25 18% 14%",
+      "sidebarAccentForeground": "40 25% 90%",
+      "sidebarBorder": "25 18% 20%",
+      "sidebarRing": "145 45% 45%",
+
+      "chart1": "145 45% 45%",
+      "chart2": "18 75% 55%",
+      "chart3": "205 60% 55%",
+      "chart4": "35 90% 58%",
+      "chart5": "6 75% 58%"
+    },
+    "spacing": {
+      "radius": "0.75rem"
+    },
+    "typography": {
+      "fontSans": "'Lato', sans-serif",
+      "fontHeading": "'Merriweather Sans', sans-serif",
+      "fontMono": "'Source Code Pro', monospace"
+    }
+  }
+}
