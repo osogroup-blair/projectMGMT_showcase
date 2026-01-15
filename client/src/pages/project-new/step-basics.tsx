@@ -10,7 +10,6 @@ import { Zap } from "lucide-react";
 export function StepBasics({
   projectData,
   setProjectData,
-  users,
   onSkipWizard,
 }: StepProps) {
   useEffect(() => {
@@ -115,19 +114,6 @@ export function StepBasics({
               {projectData.sprintDurationWeeks > 0 
                 ? `Sprints will be automatically created based on project dates.`
                 : `You can create sprints manually later.`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label>Project Owner</Label>
-            <SearchableSelect 
-              value={projectData.ownerId || ""} 
-              onValueChange={(v) => setProjectData({...projectData, ownerId: v})}
-              placeholder="Select project owner..."
-              options={users.map(user => ({ value: user.id, label: user.name }))}
-              data-testid="select-project-owner"
-            />
-            <p className="text-xs text-muted-foreground">
-              The person responsible for overall project delivery.
             </p>
           </div>
         </div>

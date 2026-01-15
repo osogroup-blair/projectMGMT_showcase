@@ -382,6 +382,18 @@ export default function ProjectWizard() {
   };
 
   const handleNext = () => {
+    // Step 1 is Project Basics - require project name
+    if (currentStep === 1) {
+      if (!projectData.name.trim()) {
+        toast({
+          title: "Project Name Required",
+          description: "Please enter a project name before proceeding.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     // Step 2 is Team Assignment - sync roles from stages for team assignment dropdowns
     if (currentStep === 2) {
       syncRolesFromStagesAndTasks();
