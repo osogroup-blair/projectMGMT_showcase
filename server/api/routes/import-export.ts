@@ -1553,7 +1553,86 @@ export function registerImportExportRoutes(
       // Get validated default task status from App Defaults
       const defaultTaskStatus = await storage.getDefaultStatusByType("task");
       
-      // 2. Create stages
+      // 2. Create team members with high-level and execution roles (BEFORE stages so assignees exist)
+      const roles = payload.roles || [];
+      const addedUserIds = new Set<string>();
+      const teamMemberMap = new Map<string, string>(); // userId -> teamMemberId
+      
+      if (roles.length > 0) {
+        console.log(`[FULL-CREATE] Creating ${roles.length} team members with roles`);
+        
+        for (const role of roles) {
+          if (!role.userId) continue;
+          
+          try {
+            let teamMemberId: string;
+            
+            // Check if user is already a team member
+            if (addedUserIds.has(role.userId)) {
+              // Find existing team member
+              const existingMembers = await storage.getProjectTeamMembers(projectId!);
+              const existing = existingMembers.find(m => m.userId === role.userId);
+              if (existing) {
+                teamMemberId = existing.id;
+              } else {
+                continue;
+              }
+            } else {
+              // Create new team member
+              const newTeamMember = await storage.createProjectTeamMember({
+                projectId: projectId!,
+                userId: role.userId,
+                allocationPercent: role.allocation || 100
+              });
+              teamMemberId = newTeamMember.id;
+              addedUserIds.add(role.userId);
+              teamMemberMap.set(role.userId, teamMemberId);
+              
+              entityResults.push({
+                entityType: 'team_member',
+                id: teamMemberId,
+                name: `Team Member (${role.roleType || 'member'})`,
+                success: true,
+                parentId: projectId!
+              });
+            }
+            
+            // Add high-level role if it's a project role (owner, manager, stakeholder, member)
+            const highLevelRoleTypes = ['owner', 'manager', 'stakeholder', 'member'];
+            if (highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
+              await storage.createHighLevelRole({
+                teamMemberId,
+                roleType: role.roleType.toLowerCase()
+              });
+              
+              // If owner, also update project.ownerId
+              if (role.roleType.toLowerCase() === 'owner') {
+                await storage.updateProject(projectId!, { ownerId: role.userId });
+              }
+            }
+            
+            // Add execution role assignment if roleTypeId is provided
+            if (role.roleTypeId && !highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
+              await storage.createExecutionRoleAssignment({
+                teamMemberId,
+                roleId: role.roleTypeId
+              });
+            }
+          } catch (e: any) {
+            console.error(`[FULL-CREATE] Error creating team member for role:`, e.message);
+            entityResults.push({
+              entityType: 'team_member',
+              id: 'error',
+              name: `Team Member (${role.roleType || 'unknown'})`,
+              success: false,
+              error: e.message,
+              parentId: projectId!
+            });
+          }
+        }
+      }
+      
+      // 3. Create stages
       const stages = payload.stages || [];
       for (let i = 0; i < stages.length; i++) {
         const stage = stages[i];
@@ -1596,7 +1675,61 @@ export function registerImportExportRoutes(
       // Get all created stage IDs for epics
       const allStageIds = Array.from(stageIdMap.values());
       
-      // 3. Create management deliverable and epics
+      // 4. Create milestones (BEFORE deliverables/epics/tasks)
+      const milestones = payload.milestones || [];
+      const milestoneIdMap = new Map<string, string>(); // wizard ID -> created ID
+      
+      for (const milestone of milestones) {
+        const milestoneId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        try {
+          const rule = milestone.rule || { scopeType: 'all', completionMode: 'all_tasks', completionTargetPercent: 100 };
+          const resolvedStageId = rule.scopeType === 'stage' && rule.scopeEntityId 
+            ? stageIdMap.get(rule.scopeEntityId) || null 
+            : null;
+          
+          await storage.createMilestone({
+            id: milestoneId,
+            projectId: projectId!,
+            name: milestone.name,
+            description: milestone.description || "",
+            phase: milestone.phase || "plan_strategy",
+            stageId: resolvedStageId,
+            targetDate: milestone.targetDate,
+            status: "planned",
+            ownerId: milestone.ownerId || payload.project.ownerId || "1",
+            scopeType: rule.scopeType,
+            completionMode: rule.completionMode,
+            completionTargetPercent: rule.completionTargetPercent || 100,
+            isBillingGate: milestone.isBillingGate || false,
+            tags: []
+          } as any);
+          
+          // Track milestone ID mapping
+          if (milestone.id) {
+            milestoneIdMap.set(milestone.id, milestoneId);
+          }
+          
+          entityResults.push({
+            entityType: 'milestone',
+            id: milestoneId,
+            name: milestone.name,
+            success: true,
+            parentId: projectId!
+          });
+        } catch (e: any) {
+          entityResults.push({
+            entityType: 'milestone',
+            id: milestoneId,
+            name: milestone.name || 'Unknown Milestone',
+            success: false,
+            error: e.message,
+            parentId: projectId!
+          });
+        }
+      }
+      
+      // 5. Create management deliverable and epics (auto-created)
       let projectManagementEpicId: string | null = null;
       let productManagementEpicId: string | null = null;
       
@@ -1680,7 +1813,7 @@ export function registerImportExportRoutes(
         });
       }
       
-      // 4. Create business deliverables and epics
+      // 6. Create business deliverables and epics
       const businessEpics: { id: string; title: string }[] = [];
       const deliverables = payload.deliverables || [];
       
@@ -1820,7 +1953,7 @@ export function registerImportExportRoutes(
       }
       console.log('[FULL-CREATE] Epic ID mapping:', Object.fromEntries(epicIdMap));
       
-      // 5. Create tasks based on stage task templates
+      // 7. Create tasks based on stage task templates
       for (const wizardStage of stages) {
         const createdStage = createdStages.find(cs => cs.templateId === wizardStage.id);
         if (!createdStage) continue;
@@ -2039,131 +2172,6 @@ export function registerImportExportRoutes(
                 });
               }
             }
-          }
-        }
-      }
-      
-      // 6. Create milestones
-      const milestones = payload.milestones || [];
-      for (const milestone of milestones) {
-        const milestoneId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        try {
-          const rule = milestone.rule || { scopeType: 'all', completionMode: 'all_tasks', completionTargetPercent: 100 };
-          const resolvedStageId = rule.scopeType === 'stage' && rule.scopeEntityId 
-            ? stageIdMap.get(rule.scopeEntityId) || null 
-            : null;
-          
-          await storage.createMilestone({
-            id: milestoneId,
-            projectId: projectId!,
-            name: milestone.name,
-            description: milestone.description || "",
-            phase: milestone.phase || "plan_strategy",
-            stageId: resolvedStageId,
-            targetDate: milestone.targetDate,
-            status: "planned",
-            ownerId: milestone.ownerId || payload.project.ownerId || "1",
-            scopeType: rule.scopeType,
-            completionMode: rule.completionMode,
-            completionTargetPercent: rule.completionTargetPercent || 100,
-            isBillingGate: milestone.isBillingGate || false,
-            tags: []
-          } as any);
-          
-          entityResults.push({
-            entityType: 'milestone',
-            id: milestoneId,
-            name: milestone.name,
-            success: true,
-            parentId: projectId!
-          });
-        } catch (e: any) {
-          entityResults.push({
-            entityType: 'milestone',
-            id: milestoneId,
-            name: milestone.name || 'Unknown Milestone',
-            success: false,
-            error: e.message,
-            parentId: projectId!
-          });
-        }
-      }
-      
-      // 7. Create team members with high-level and execution roles
-      const roles = payload.roles || [];
-      if (roles.length > 0) {
-        console.log(`[FULL-CREATE] Creating ${roles.length} team members with roles`);
-        
-        // Track users that have been added as team members
-        const addedUserIds = new Set<string>();
-        
-        for (const role of roles) {
-          if (!role.userId) continue;
-          
-          try {
-            let teamMemberId: string;
-            
-            // Check if user is already a team member
-            if (addedUserIds.has(role.userId)) {
-              // Find existing team member
-              const existingMembers = await storage.getProjectTeamMembers(projectId!);
-              const existing = existingMembers.find(m => m.userId === role.userId);
-              if (existing) {
-                teamMemberId = existing.id;
-              } else {
-                continue;
-              }
-            } else {
-              // Create new team member
-              const newTeamMember = await storage.createProjectTeamMember({
-                projectId: projectId!,
-                userId: role.userId,
-                allocationPercent: role.allocation || 100
-              });
-              teamMemberId = newTeamMember.id;
-              addedUserIds.add(role.userId);
-              
-              entityResults.push({
-                entityType: 'team_member',
-                id: teamMemberId,
-                name: `Team Member (${role.roleType || 'member'})`,
-                success: true,
-                parentId: projectId!
-              });
-            }
-            
-            // Add high-level role if it's a project role (owner, manager, stakeholder, member)
-            const highLevelRoleTypes = ['owner', 'manager', 'stakeholder', 'member'];
-            if (highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
-              await storage.createHighLevelRole({
-                teamMemberId,
-                roleType: role.roleType.toLowerCase()
-              });
-              
-              // If owner, also update project.ownerId
-              if (role.roleType.toLowerCase() === 'owner') {
-                await storage.updateProject(projectId!, { ownerId: role.userId });
-              }
-            }
-            
-            // Add execution role assignment if roleTypeId is provided
-            if (role.roleTypeId && !highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
-              await storage.createExecutionRoleAssignment({
-                teamMemberId,
-                roleId: role.roleTypeId
-              });
-            }
-          } catch (e: any) {
-            console.error(`[FULL-CREATE] Error creating team member for role:`, e.message);
-            entityResults.push({
-              entityType: 'team_member',
-              id: 'error',
-              name: `Team Member (${role.roleType || 'unknown'})`,
-              success: false,
-              error: e.message,
-              parentId: projectId!
-            });
           }
         }
       }
