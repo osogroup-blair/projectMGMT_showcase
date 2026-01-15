@@ -127,7 +127,17 @@ export default function FrameworkTemplateDetail() {
     return stageTemplates.filter(s => !usedIds.includes(s.id));
   }, [stageTemplates, framework]);
 
-  // Get milestones grouped by stage
+  // Get all milestones for this framework's stages
+  const frameworkMilestones = useMemo(() => {
+    if (!milestoneTemplates || !framework) return [];
+    const stageIds = framework.defaultStages || [];
+    // Get milestones that belong to any of the framework's stages, plus unassigned milestones
+    return milestoneTemplates.filter(m => 
+      !m.stageTemplateId || stageIds.includes(m.stageTemplateId)
+    );
+  }, [milestoneTemplates, framework]);
+
+  // Get milestones grouped by stage (for stage-level display if needed)
   const milestonesByStage = useMemo(() => {
     if (!milestoneTemplates) return {};
     const map: Record<string, MilestoneTemplate[]> = {};
@@ -166,6 +176,24 @@ export default function FrameworkTemplateDetail() {
   
   // Track active tab per expanded stage
   const [stageActiveTabs, setStageActiveTabs] = useState<Record<string, string>>({});
+  
+  // Expanded milestone state for framework-level milestone list
+  const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
+  const [milestoneActiveTabs, setMilestoneActiveTabs] = useState<Record<string, string>>({});
+  
+  const toggleMilestoneExpanded = (milestoneId: string) => {
+    setExpandedMilestones(prev => {
+      const next = new Set(prev);
+      if (next.has(milestoneId)) next.delete(milestoneId);
+      else next.add(milestoneId);
+      return next;
+    });
+  };
+  
+  const getMilestoneActiveTab = (milestoneId: string) => milestoneActiveTabs[milestoneId] || "details";
+  const setMilestoneActiveTab = (milestoneId: string, tab: string) => {
+    setMilestoneActiveTabs(prev => ({ ...prev, [milestoneId]: tab }));
+  };
 
   // Sync form when framework loads
   useMemo(() => {
@@ -365,7 +393,7 @@ export default function FrameworkTemplateDetail() {
   };
 
   // Milestone CRUD
-  const openAddMilestoneDialog = (stageId: string) => {
+  const openAddMilestoneDialog = (stageId: string | null) => {
     setSelectedStageForMilestone(stageId);
     setCurrentMilestone({
       name: "",
@@ -376,8 +404,8 @@ export default function FrameworkTemplateDetail() {
       completionTargetPercent: 100,
       isBillingGate: false,
       offsetDays: 0,
-      stageTemplateId: stageId,
-      order: (milestonesByStage[stageId]?.length || 0) + 1,
+      stageTemplateId: stageId || undefined,
+      order: stageId ? (milestonesByStage[stageId]?.length || 0) + 1 : frameworkMilestones.length + 1,
       defaultScopeRules: []
     });
     setIsMilestoneDialogOpen(true);
@@ -754,7 +782,7 @@ export default function FrameworkTemplateDetail() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => openAddMilestoneDialog(stage.id)}>
                                       <Flag className="h-4 w-4 mr-2" />
-                                      Add Milestone
+                                      Create Milestone for Stage
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={() => handleRemoveStageFromFramework(stage.id)}>
@@ -884,19 +912,47 @@ export default function FrameworkTemplateDetail() {
                                   </div>
                                 </TabsContent>
 
-                                {/* Milestones Tab */}
+                                {/* Milestones Tab - Assignment UI */}
                                 <TabsContent value="milestones" className="mt-0">
                                   <div className="space-y-3">
-                                    <div className="flex justify-end">
-                                      <Button size="sm" onClick={() => openAddMilestoneDialog(stage.id)}>
+                                    <div className="flex items-center gap-2">
+                                      <SearchableSelect
+                                        value=""
+                                        onValueChange={async (milestoneId) => {
+                                          if (milestoneId) {
+                                            try {
+                                              await updateMilestone({
+                                                id: milestoneId,
+                                                updates: { stageTemplateId: stage.id }
+                                              });
+                                              toast({ title: "Milestone assigned to stage" });
+                                            } catch (error: any) {
+                                              toast({ title: "Error", description: error.message, variant: "destructive" });
+                                            }
+                                          }
+                                        }}
+                                        placeholder="Assign existing milestone..."
+                                        triggerClassName="flex-1"
+                                        options={(milestoneTemplates || [])
+                                          .filter(m => m.stageTemplateId !== stage.id)
+                                          .map(m => ({
+                                            value: m.id,
+                                            label: m.name
+                                          }))}
+                                      />
+                                      <Button size="sm" variant="outline" onClick={() => openAddMilestoneDialog(stage.id)}>
                                         <Plus className="h-4 w-4 mr-1" />
-                                        Add Milestone
+                                        New
                                       </Button>
                                     </div>
+                                    
+                                    <p className="text-xs text-muted-foreground">
+                                      Assign milestones to this stage. Milestones can be managed in the Milestones section below.
+                                    </p>
 
                                     {stageMilestones.length === 0 ? (
                                       <p className="text-sm text-muted-foreground py-4 text-center">
-                                        No milestones for this stage.
+                                        No milestones assigned to this stage.
                                       </p>
                                     ) : (
                                       <div className="space-y-2">
@@ -913,31 +969,397 @@ export default function FrameworkTemplateDetail() {
                                                   <Badge variant="outline" className="text-xs">
                                                     {milestone.phase}
                                                   </Badge>
+                                                  <Badge variant="secondary" className="text-xs">
+                                                    {milestone.scopeType}
+                                                  </Badge>
                                                   {milestone.isBillingGate && (
-                                                    <Badge variant="secondary" className="text-xs">
+                                                    <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-200">
                                                       Billing Gate
                                                     </Badge>
                                                   )}
+                                                  <Badge variant="outline" className="text-xs">
+                                                    {(milestone.defaultScopeRules || []).length} rules
+                                                  </Badge>
                                                 </div>
                                               </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                               <Button
                                                 variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8"
-                                                onClick={() => openEditMilestoneDialog(milestone)}
+                                                size="sm"
+                                                className="text-muted-foreground hover:text-foreground"
+                                                onClick={async () => {
+                                                  try {
+                                                    await updateMilestone({
+                                                      id: milestone.id,
+                                                      updates: { stageTemplateId: null }
+                                                    });
+                                                    toast({ title: "Milestone unassigned from stage" });
+                                                  } catch (error: any) {
+                                                    toast({ title: "Error", description: error.message, variant: "destructive" });
+                                                  }
+                                                }}
                                               >
-                                                <Pencil className="h-4 w-4" />
+                                                <X className="h-4 w-4 mr-1" />
+                                                Unassign
                                               </Button>
-                                              <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                                onClick={() => confirmDelete("milestone", milestone)}
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </Button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </TabsContent>
+                              </Tabs>
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Milestones Section - Framework Level */}
+        {!isNew && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Flag className="h-5 w-5" />
+                  Milestones
+                </CardTitle>
+                <CardDescription>
+                  Milestone templates define key checkpoints. Stages can reference these milestones.
+                </CardDescription>
+              </div>
+              <Button size="sm" onClick={() => openAddMilestoneDialog(null)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Milestone
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {frameworkMilestones.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Flag className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No milestones defined yet.</p>
+                  <p className="text-sm">Create milestones to mark key checkpoints in your framework.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {frameworkMilestones.map((milestone, index) => {
+                    const isExpanded = expandedMilestones.has(milestone.id);
+                    const stageName = milestone.stageTemplateId 
+                      ? stageTemplates?.find(s => s.id === milestone.stageTemplateId)?.name 
+                      : null;
+                    const rulesCount = (milestone.defaultScopeRules || []).length;
+
+                    return (
+                      <Collapsible
+                        key={milestone.id}
+                        open={isExpanded}
+                        onOpenChange={() => toggleMilestoneExpanded(milestone.id)}
+                      >
+                        <div className="border rounded-lg">
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50">
+                              <div className="flex items-center gap-3">
+                                <Flag className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <h4 className="font-medium">{milestone.name}</h4>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="outline" className="text-xs">
+                                      {milestone.phase}
+                                    </Badge>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {milestone.scopeType}
+                                    </Badge>
+                                    {milestone.isBillingGate && (
+                                      <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-200">
+                                        Billing Gate
+                                      </Badge>
+                                    )}
+                                    {stageName && (
+                                      <Badge variant="outline" className="text-xs">
+                                        Stage: {stageName}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="gap-1">
+                                  <ListTodo className="h-3 w-3" />
+                                  {rulesCount} rules
+                                </Badge>
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => openEditMilestoneDialog(milestone)}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Edit Milestone
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive"
+                                      onClick={() => confirmDelete("milestone", milestone)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete Milestone
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <Separator />
+                            <div className="p-4 bg-muted/30">
+                              <Tabs value={getMilestoneActiveTab(milestone.id)} onValueChange={(v) => setMilestoneActiveTab(milestone.id, v)}>
+                                <TabsList className="mb-4">
+                                  <TabsTrigger value="details" className="gap-1.5">
+                                    <Flag className="h-3.5 w-3.5" />
+                                    Details
+                                  </TabsTrigger>
+                                  <TabsTrigger value="scope" className="gap-1.5">
+                                    <ListTodo className="h-3.5 w-3.5" />
+                                    Scope Rules ({rulesCount})
+                                  </TabsTrigger>
+                                </TabsList>
+
+                                {/* Details Tab */}
+                                <TabsContent value="details" className="mt-0">
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-medium">Description</p>
+                                      <p className="text-sm">{milestone.description || "No description"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-medium">Phase</p>
+                                      <p className="text-sm capitalize">{milestone.phase}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-medium">Scope Type</p>
+                                      <p className="text-sm capitalize">{milestone.scopeType}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-medium">Completion</p>
+                                      <p className="text-sm">
+                                        {milestone.completionMode === "percentage" 
+                                          ? `${milestone.completionTargetPercent || 100}%` 
+                                          : milestone.completionMode}
+                                      </p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-medium">Offset Days</p>
+                                      <p className="text-sm">{milestone.offsetDays || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-muted-foreground font-medium">Billing Gate</p>
+                                      <p className="text-sm">{milestone.isBillingGate ? "Yes" : "No"}</p>
+                                    </div>
+                                  </div>
+                                  <div className="mt-4">
+                                    <Button size="sm" variant="outline" onClick={() => openEditMilestoneDialog(milestone)}>
+                                      <Pencil className="h-4 w-4 mr-2" />
+                                      Edit Details
+                                    </Button>
+                                  </div>
+                                </TabsContent>
+
+                                {/* Scope Rules Tab */}
+                                <TabsContent value="scope" className="mt-0">
+                                  <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-sm text-muted-foreground">
+                                        Scope rules determine which tasks are automatically included when this milestone is applied to a project.
+                                      </p>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={async () => {
+                                          const rules: MilestoneTemplateScopeRule[] = milestone.defaultScopeRules || [];
+                                          const newRule: MilestoneTemplateScopeRule = {
+                                            id: `rule-${Date.now()}`,
+                                            label: `Rule ${rules.length + 1}`,
+                                            stageFilter: "",
+                                            epicTypeFilter: "",
+                                            taskTemplateFilter: "",
+                                            isActive: true
+                                          };
+                                          try {
+                                            await updateMilestone({
+                                              id: milestone.id,
+                                              updates: {
+                                                defaultScopeRules: [...rules, newRule]
+                                              }
+                                            });
+                                            toast({ title: "Rule added" });
+                                          } catch (error: any) {
+                                            toast({ title: "Error", description: error.message, variant: "destructive" });
+                                          }
+                                        }}
+                                      >
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Add Rule
+                                      </Button>
+                                    </div>
+
+                                    {(milestone.defaultScopeRules || []).length === 0 ? (
+                                      <div className="text-center py-6 text-muted-foreground border border-dashed rounded-md">
+                                        <ListTodo className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm">No scope rules defined.</p>
+                                        <p className="text-xs">Add rules to automatically match tasks when applying this milestone.</p>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {(milestone.defaultScopeRules || []).map((rule: MilestoneTemplateScopeRule, ruleIndex: number) => (
+                                          <div
+                                            key={rule.id || ruleIndex}
+                                            className={cn(
+                                              "border rounded-lg p-4 space-y-3",
+                                              !rule.isActive && "opacity-60 bg-muted/30"
+                                            )}
+                                          >
+                                            <div className="flex items-center justify-between gap-2">
+                                              <div className="flex items-center gap-2 flex-1">
+                                                <Badge variant={rule.isActive ? "default" : "secondary"} className="text-xs">
+                                                  Rule {ruleIndex + 1}
+                                                </Badge>
+                                                <span className="text-sm font-medium">{rule.label || `Rule ${ruleIndex + 1}`}</span>
+                                              </div>
+                                              <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-xs text-muted-foreground">Active</span>
+                                                  <Switch
+                                                    checked={rule.isActive ?? true}
+                                                    onCheckedChange={async (checked) => {
+                                                      const rules = [...(milestone.defaultScopeRules || [])];
+                                                      rules[ruleIndex] = { ...rules[ruleIndex], isActive: checked };
+                                                      try {
+                                                        await updateMilestone({
+                                                          id: milestone.id,
+                                                          updates: { defaultScopeRules: rules }
+                                                        });
+                                                      } catch (error: any) {
+                                                        toast({ title: "Error", description: error.message, variant: "destructive" });
+                                                      }
+                                                    }}
+                                                  />
+                                                </div>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="icon"
+                                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                                  onClick={async () => {
+                                                    const rules = (milestone.defaultScopeRules || []).filter((_, i) => i !== ruleIndex);
+                                                    try {
+                                                      await updateMilestone({
+                                                        id: milestone.id,
+                                                        updates: { defaultScopeRules: rules }
+                                                      });
+                                                      toast({ title: "Rule removed" });
+                                                    } catch (error: any) {
+                                                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                                                    }
+                                                  }}
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-3 gap-3">
+                                              <div className="space-y-1">
+                                                <Label className="text-xs">Stage Filter</Label>
+                                                <SearchableSelect
+                                                  value={rule.stageFilter || ""}
+                                                  onValueChange={async (value) => {
+                                                    const rules = [...(milestone.defaultScopeRules || [])];
+                                                    rules[ruleIndex] = { ...rules[ruleIndex], stageFilter: value };
+                                                    try {
+                                                      await updateMilestone({
+                                                        id: milestone.id,
+                                                        updates: { defaultScopeRules: rules }
+                                                      });
+                                                    } catch (error: any) {
+                                                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                                                    }
+                                                  }}
+                                                  placeholder="All stages"
+                                                  options={[
+                                                    { value: "", label: "All Stages" },
+                                                    ...frameworkStages.map(s => ({
+                                                      value: s.id,
+                                                      label: s.name
+                                                    }))
+                                                  ]}
+                                                />
+                                              </div>
+                                              <div className="space-y-1">
+                                                <Label className="text-xs">Epic Type Filter</Label>
+                                                <SearchableSelect
+                                                  value={rule.epicTypeFilter || ""}
+                                                  onValueChange={async (value) => {
+                                                    const rules = [...(milestone.defaultScopeRules || [])];
+                                                    rules[ruleIndex] = { ...rules[ruleIndex], epicTypeFilter: value };
+                                                    try {
+                                                      await updateMilestone({
+                                                        id: milestone.id,
+                                                        updates: { defaultScopeRules: rules }
+                                                      });
+                                                    } catch (error: any) {
+                                                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                                                    }
+                                                  }}
+                                                  placeholder="All epic types"
+                                                  options={[
+                                                    { value: "", label: "All Epic Types" },
+                                                    ...(epicTypes || []).map((et: any) => ({
+                                                      value: et.key || et.id,
+                                                      label: et.name || et.label || et.key
+                                                    }))
+                                                  ]}
+                                                />
+                                              </div>
+                                              <div className="space-y-1">
+                                                <Label className="text-xs">Task Template Filter</Label>
+                                                <SearchableSelect
+                                                  value={rule.taskTemplateFilter || ""}
+                                                  onValueChange={async (value) => {
+                                                    const rules = [...(milestone.defaultScopeRules || [])];
+                                                    rules[ruleIndex] = { ...rules[ruleIndex], taskTemplateFilter: value };
+                                                    try {
+                                                      await updateMilestone({
+                                                        id: milestone.id,
+                                                        updates: { defaultScopeRules: rules }
+                                                      });
+                                                    } catch (error: any) {
+                                                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                                                    }
+                                                  }}
+                                                  placeholder="All task templates"
+                                                  options={[
+                                                    { value: "", label: "All Task Templates" },
+                                                    ...(taskTemplates || []).map(t => ({
+                                                      value: t.id,
+                                                      label: t.title || t.name || t.id
+                                                    }))
+                                                  ]}
+                                                />
+                                              </div>
                                             </div>
                                           </div>
                                         ))}
@@ -1224,171 +1646,14 @@ export default function FrameworkTemplateDetail() {
               </div>
             </div>
 
-            {/* Scope Rules Section */}
-            <Separator className="my-4" />
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Flag className="h-4 w-4" />
-                  Default Scope Rules
-                </Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const rules: MilestoneTemplateScopeRule[] = currentMilestone?.defaultScopeRules || [];
-                    const newRule: MilestoneTemplateScopeRule = {
-                      id: `rule-${Date.now()}`,
-                      label: `Rule ${rules.length + 1}`,
-                      stageFilter: "",
-                      epicTypeFilter: "",
-                      taskTemplateFilter: "",
-                      isActive: true
-                    };
-                    setCurrentMilestone(prev => ({
-                      ...prev,
-                      defaultScopeRules: [...rules, newRule]
-                    }));
-                  }}
-                  data-testid="button-add-scope-rule"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Rule
-                </Button>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Scope rules determine which tasks are automatically included when this milestone template is applied to a project.
-              </p>
-
-              {/* Rules List */}
-              {(currentMilestone?.defaultScopeRules || []).length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground border border-dashed rounded-md">
-                  <Flag className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No scope rules defined yet.</p>
-                  <p className="text-xs">Add rules to automatically match tasks when applying this milestone.</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[250px] overflow-y-auto">
-                  {(currentMilestone?.defaultScopeRules || []).map((rule: MilestoneTemplateScopeRule, index: number) => (
-                    <div
-                      key={rule.id || index}
-                      className={cn(
-                        "border rounded-lg p-3 space-y-3",
-                        !rule.isActive && "opacity-60 bg-muted/30"
-                      )}
-                      data-testid={`scope-rule-${index}`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1">
-                          <Badge variant={rule.isActive ? "default" : "secondary"} className="text-xs">
-                            Rule {index + 1}
-                          </Badge>
-                          <Input
-                            value={rule.label || ""}
-                            onChange={(e) => {
-                              const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
-                              rules[index] = { ...rules[index], label: e.target.value };
-                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
-                            }}
-                            placeholder="Rule label..."
-                            className="h-8 text-sm flex-1"
-                            data-testid={`input-rule-label-${index}`}
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">Active</span>
-                            <Switch
-                              checked={rule.isActive ?? true}
-                              onCheckedChange={(checked) => {
-                                const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
-                                rules[index] = { ...rules[index], isActive: checked };
-                                setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
-                              }}
-                              data-testid={`switch-rule-active-${index}`}
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => {
-                              const rules = (currentMilestone?.defaultScopeRules || []).filter((_, i) => i !== index);
-                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
-                            }}
-                            data-testid={`button-delete-rule-${index}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2">
-                        {/* Stage Filter */}
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Stage Filter</Label>
-                          <SearchableSelect
-                            value={rule.stageFilter || ""}
-                            onValueChange={(v) => {
-                              const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
-                              rules[index] = { ...rules[index], stageFilter: v };
-                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
-                            }}
-                            placeholder="Any stage"
-                            options={[
-                              { value: "", label: "Any stage" },
-                              ...frameworkStages.map(s => ({ value: s.id, label: s.name }))
-                            ]}
-                            triggerClassName="h-8"
-                          />
-                        </div>
-
-                        {/* Epic Type Filter */}
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Epic Type Filter</Label>
-                          <SearchableSelect
-                            value={rule.epicTypeFilter || ""}
-                            onValueChange={(v) => {
-                              const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
-                              rules[index] = { ...rules[index], epicTypeFilter: v };
-                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
-                            }}
-                            placeholder="Any epic type"
-                            options={[
-                              { value: "", label: "Any epic type" },
-                              ...(epicTypes || []).map((et: { id: string; name: string }) => ({ value: et.id, label: et.name }))
-                            ]}
-                            triggerClassName="h-8"
-                          />
-                        </div>
-
-                        {/* Task Template Filter */}
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Task Template Filter</Label>
-                          <SearchableSelect
-                            value={rule.taskTemplateFilter || ""}
-                            onValueChange={(v) => {
-                              const rules: MilestoneTemplateScopeRule[] = [...(currentMilestone?.defaultScopeRules || [])];
-                              rules[index] = { ...rules[index], taskTemplateFilter: v };
-                              setCurrentMilestone(prev => ({ ...prev, defaultScopeRules: rules }));
-                            }}
-                            placeholder="Any task"
-                            options={[
-                              { value: "", label: "Any task template" },
-                              ...(taskTemplates || []).map(tt => ({ value: tt.id, label: tt.title || tt.name || "Untitled" }))
-                            ]}
-                            triggerClassName="h-8"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {currentMilestone?.id && (
+              <>
+                <Separator className="my-4" />
+                <p className="text-xs text-muted-foreground">
+                  Scope rules can be managed in the expanded milestone view after saving.
+                </p>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsMilestoneDialogOpen(false)}>
