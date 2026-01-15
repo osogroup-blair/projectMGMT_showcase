@@ -1001,10 +1001,14 @@ export default function ProjectWizard() {
           id: del.id,
           title: del.title,
           description: del.description || '',
+          startDate: del.startDate || null,
+          endDate: del.endDate || null,
           epics: (del.epics || []).map(epic => ({
             id: epic.id,
             title: epic.title,
-            description: epic.description || ''
+            description: epic.description || '',
+            startDate: epic.startDate || null,
+            endDate: epic.endDate || null
           }))
         })),
         milestones: milestones.map(m => ({
