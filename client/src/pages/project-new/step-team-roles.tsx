@@ -431,98 +431,228 @@ export function StepTeamRoles({
         </Card>
       )}
 
-      <Card>
-        <Collapsible open={expandedSections.has('owner')} onOpenChange={() => toggleSection('owner')}>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                    <Crown className="h-5 w-5 text-amber-600" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <Collapsible open={expandedSections.has('owner')} onOpenChange={() => toggleSection('owner')}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                      <Crown className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Owner</CardTitle>
+                      <CardDescription>Single project owner with full control</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-base">Owner</CardTitle>
-                    <CardDescription>Single project owner with full control</CardDescription>
+                  <div className="flex items-center gap-2">
+                    {ownerUserId && (
+                      <Badge variant="secondary" className="text-xs">
+                        {getUserName(ownerUserId)}
+                      </Badge>
+                    )}
+                    {expandedSections.has('owner') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {ownerUserId && (
-                    <Badge variant="secondary" className="text-xs">
-                      {getUserName(ownerUserId)}
-                    </Badge>
-                  )}
-                  {expandedSections.has('owner') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  <Label>Select Project Owner</Label>
+                  <SearchableSelect
+                    value={ownerUserId}
+                    onValueChange={setOwnerUserId}
+                    options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== ownerUserId))}
+                    placeholder="Select owner..."
+                    data-testid="select-owner"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The owner has ultimate responsibility and approval authority for the project.
+                  </p>
                 </div>
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                <Label>Select Project Owner</Label>
-                <SearchableSelect
-                  value={ownerUserId}
-                  onValueChange={setOwnerUserId}
-                  options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== ownerUserId))}
-                  placeholder="Select owner..."
-                  data-testid="select-owner"
-                />
-                <p className="text-xs text-muted-foreground">
-                  The owner has ultimate responsibility and approval authority for the project.
-                </p>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
 
-      <Card>
-        <Collapsible open={expandedSections.has('manager')} onOpenChange={() => toggleSection('manager')}>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <Briefcase className="h-5 w-5 text-blue-600" />
+        <Card>
+          <Collapsible open={expandedSections.has('manager')} onOpenChange={() => toggleSection('manager')}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                      <Briefcase className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Manager</CardTitle>
+                      <CardDescription>Day-to-day project management</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-base">Manager</CardTitle>
-                    <CardDescription>Day-to-day project management</CardDescription>
+                  <div className="flex items-center gap-2">
+                    {managerUserId && (
+                      <Badge variant="secondary" className="text-xs">
+                        {getUserName(managerUserId)}
+                      </Badge>
+                    )}
+                    {expandedSections.has('manager') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {managerUserId && (
-                    <Badge variant="secondary" className="text-xs">
-                      {getUserName(managerUserId)}
-                    </Badge>
-                  )}
-                  {expandedSections.has('manager') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  <Label>Select Project Manager</Label>
+                  <SearchableSelect
+                    value={managerUserId}
+                    onValueChange={setManagerUserId}
+                    options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== managerUserId))}
+                    placeholder="Select manager..."
+                    data-testid="select-manager"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The manager oversees execution, coordinates team activities, and reports to stakeholders.
+                  </p>
                 </div>
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                <Label>Select Project Manager</Label>
-                <SearchableSelect
-                  value={managerUserId}
-                  onValueChange={setManagerUserId}
-                  options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== managerUserId))}
-                  placeholder="Select manager..."
-                  data-testid="select-manager"
-                />
-                <p className="text-xs text-muted-foreground">
-                  The manager oversees execution, coordinates team activities, and reports to stakeholders.
-                </p>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      </div>
 
-      <Card>
-        <Collapsible open={expandedSections.has('stakeholder')} onOpenChange={() => toggleSection('stakeholder')}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <Collapsible open={expandedSections.has('member')} onOpenChange={() => toggleSection('member')}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <User className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Team Members</CardTitle>
+                      <CardDescription>Contributors with execution roles</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {teamMembers.filter(m => m.userId).length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {teamMembers.filter(m => m.userId).length} assigned
+                      </Badge>
+                    )}
+                    {expandedSections.has('member') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-4">
+                {teamMembers.map((member, idx) => {
+                  const taskSummary = member.executionRoleId ? getTasksForExecutionRole(member.executionRoleId) : null;
+                  return (
+                    <Card key={idx} className="bg-muted/30">
+                      <CardContent className="pt-4 space-y-3">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 space-y-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Team Member</Label>
+                              <SearchableSelect
+                                value={member.userId}
+                                onValueChange={(val) => updateTeamMember(idx, 'userId', val)}
+                                options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== member.userId))}
+                                placeholder="Select team member..."
+                                data-testid={`select-member-${idx}`}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Execution Role (from templates)</Label>
+                              <SearchableSelect
+                                value={member.executionRoleId || ""}
+                                onValueChange={(val) => updateTeamMember(idx, 'executionRoleId', val)}
+                                options={[
+                                  { value: "", label: "No specific role" },
+                                  ...executionRoleOptions
+                                ]}
+                                placeholder="Select execution role..."
+                                data-testid={`select-execution-role-${idx}`}
+                              />
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeTeamMember(idx)}
+                            className="text-destructive hover:text-destructive mt-6"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        {taskSummary && member.userId && (
+                          <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                            <div className="flex items-center gap-2 mb-2">
+                              <ListTodo className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                                {taskSummary.tasks.length} tasks will be assigned
+                              </span>
+                            </div>
+                            <div className="max-h-24 overflow-y-auto space-y-1">
+                              {taskSummary.tasks.slice(0, 5).map((task, taskIdx) => (
+                                <div key={taskIdx} className="text-xs text-green-700 dark:text-green-300 bg-green-100/50 dark:bg-green-900/30 rounded px-2 py-1">
+                                  <span className="font-medium">{task.title}</span>
+                                  <span className="text-green-600 dark:text-green-400 ml-1">({task.stageName})</span>
+                                </div>
+                              ))}
+                              {taskSummary.tasks.length > 5 && (
+                                <div className="text-xs text-green-600 dark:text-green-400 italic px-2">
+                                  +{taskSummary.tasks.length - 5} more tasks
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {taskSummary && !member.userId && (
+                          <div className="p-3 bg-muted/50 rounded-lg border">
+                            <div className="flex items-center gap-2 mb-2">
+                              <ListTodo className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-muted-foreground">
+                                {taskSummary.tasks.length} tasks waiting for assignment
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Select a team member above to assign these tasks to the {taskSummary.roleName} role.
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addTeamMember}
+                  className="w-full"
+                  data-testid="button-add-team-member"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Team Member
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Team members are active contributors. Assign an execution role to automatically assign matching tasks.
+                </p>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+
+        <Card>
+          <Collapsible open={expandedSections.has('stakeholder')} onOpenChange={() => toggleSection('stakeholder')}>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
@@ -584,134 +714,8 @@ export function StepTeamRoles({
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
-      </Card>
-
-      <Card>
-        <Collapsible open={expandedSections.has('member')} onOpenChange={() => toggleSection('member')}>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                    <User className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">Team Members</CardTitle>
-                    <CardDescription>Contributors with execution roles</CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {teamMembers.filter(m => m.userId).length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {teamMembers.filter(m => m.userId).length} assigned
-                    </Badge>
-                  )}
-                  {expandedSections.has('member') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </div>
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-0 space-y-4">
-              {teamMembers.map((member, idx) => {
-                const taskSummary = member.executionRoleId ? getTasksForExecutionRole(member.executionRoleId) : null;
-                return (
-                  <Card key={idx} className="bg-muted/30">
-                    <CardContent className="pt-4 space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 space-y-3">
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Team Member</Label>
-                            <SearchableSelect
-                              value={member.userId}
-                              onValueChange={(val) => updateTeamMember(idx, 'userId', val)}
-                              options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== member.userId))}
-                              placeholder="Select team member..."
-                              data-testid={`select-member-${idx}`}
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Execution Role (from templates)</Label>
-                            <SearchableSelect
-                              value={member.executionRoleId || ""}
-                              onValueChange={(val) => updateTeamMember(idx, 'executionRoleId', val)}
-                              options={[
-                                { value: "", label: "No specific role" },
-                                ...executionRoleOptions
-                              ]}
-                              placeholder="Select execution role..."
-                              data-testid={`select-execution-role-${idx}`}
-                            />
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeTeamMember(idx)}
-                          className="text-destructive hover:text-destructive mt-6"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      
-                      {taskSummary && member.userId && (
-                        <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                          <div className="flex items-center gap-2 mb-2">
-                            <ListTodo className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                              {taskSummary.tasks.length} tasks will be assigned
-                            </span>
-                          </div>
-                          <div className="max-h-24 overflow-y-auto space-y-1">
-                            {taskSummary.tasks.slice(0, 5).map((task, taskIdx) => (
-                              <div key={taskIdx} className="text-xs text-green-700 dark:text-green-300 bg-green-100/50 dark:bg-green-900/30 rounded px-2 py-1">
-                                <span className="font-medium">{task.title}</span>
-                                <span className="text-green-600 dark:text-green-400 ml-1">({task.stageName})</span>
-                              </div>
-                            ))}
-                            {taskSummary.tasks.length > 5 && (
-                              <div className="text-xs text-green-600 dark:text-green-400 italic px-2">
-                                +{taskSummary.tasks.length - 5} more tasks
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {taskSummary && !member.userId && (
-                        <div className="p-3 bg-muted/50 rounded-lg border">
-                          <div className="flex items-center gap-2 mb-2">
-                            <ListTodo className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {taskSummary.tasks.length} tasks waiting for assignment
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Select a team member above to assign these tasks to the {taskSummary.roleName} role.
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addTeamMember}
-                className="w-full"
-                data-testid="button-add-team-member"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Team Member
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Team members are active contributors. Assign an execution role to automatically assign matching tasks.
-              </p>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
+        </Card>
+      </div>
 
       <div className="p-4 bg-muted/20 rounded-lg border">
         <h4 className="font-medium text-sm mb-3">Team Summary</h4>
