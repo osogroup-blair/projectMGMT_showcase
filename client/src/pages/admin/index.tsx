@@ -5,7 +5,8 @@ import {
   LayoutTemplate, 
   Settings, 
   Download,
-  KeyRound
+  KeyRound,
+  Palette
 } from "lucide-react";
 import { 
   Tabs, 
@@ -21,11 +22,13 @@ import AdminTemplatesContent from "./templates";
 import AdminAppDefaultsContent from "./app-defaults";
 import AdminImportExportContent from "./import-export";
 import AdminAuthenticationContent from "./authentication";
+import AdminThemesContent from "./themes";
 
 const ADMIN_TABS = [
   { id: "users", label: "Users", icon: Users },
   { id: "templates", label: "Templates", icon: LayoutTemplate },
   { id: "defaults", label: "App Defaults", icon: Settings },
+  { id: "themes", label: "Themes", icon: Palette },
   { id: "auth", label: "Authentication", icon: KeyRound },
   { id: "import-export", label: "Import/Export", icon: Download },
 ] as const;
@@ -36,6 +39,7 @@ const PATH_TO_TAB: Record<string, AdminTab> = {
   "users": "users",
   "templates": "templates",
   "defaults": "defaults",
+  "themes": "themes",
   "auth": "auth",
   "import-export": "import-export",
 };
@@ -87,7 +91,7 @@ export default function AdminHub({ params }: AdminHubProps) {
           </div>
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-            <TabsList className="grid w-full max-w-3xl grid-cols-5">
+            <TabsList className="grid w-full max-w-4xl grid-cols-6">
               {ADMIN_TABS.map((tab) => (
                 <TabsTrigger 
                   key={tab.id} 
@@ -111,6 +115,10 @@ export default function AdminHub({ params }: AdminHubProps) {
 
             <TabsContent value="defaults" className="space-y-6">
               <AdminAppDefaultsContent embedded />
+            </TabsContent>
+
+            <TabsContent value="themes" className="space-y-6">
+              <AdminThemesContent embedded />
             </TabsContent>
 
             <TabsContent value="auth" className="space-y-6">

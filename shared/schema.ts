@@ -1013,3 +1013,98 @@ export type InsertTaskDependencyScopeRule = z.infer<typeof insertTaskDependencyS
 
 export type AppSettings = typeof appSettings.$inferSelect;
 export type InsertAppSettings = z.infer<typeof insertAppSettingsSchema>;
+
+// Theme Token Types
+export interface ThemeColorTokens {
+  background: string;
+  foreground: string;
+  card: string;
+  cardForeground: string;
+  popover: string;
+  popoverForeground: string;
+  primary: string;
+  primaryForeground: string;
+  secondary: string;
+  secondaryForeground: string;
+  muted: string;
+  mutedForeground: string;
+  accent: string;
+  accentForeground: string;
+  destructive: string;
+  destructiveForeground: string;
+  border: string;
+  input: string;
+  ring: string;
+  chart1: string;
+  chart2: string;
+  chart3: string;
+  chart4: string;
+  chart5: string;
+  sidebar: string;
+  sidebarForeground: string;
+  sidebarPrimary: string;
+  sidebarPrimaryForeground: string;
+  sidebarAccent: string;
+  sidebarAccentForeground: string;
+  sidebarBorder: string;
+  sidebarRing: string;
+  success: string;
+  successForeground: string;
+  warning: string;
+  warningForeground: string;
+  info: string;
+  infoForeground: string;
+}
+
+export interface ThemeTypographyTokens {
+  fontSans: string;
+  fontHeading: string;
+  fontMono: string;
+}
+
+export interface ThemeSpacingTokens {
+  radius: string;
+}
+
+export interface ThemeTokens {
+  colors: ThemeColorTokens;
+  typography: ThemeTypographyTokens;
+  spacing: ThemeSpacingTokens;
+}
+
+// Themes
+export const themes = pgTable("themes", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("draft"), // draft, published, archived
+  isDefault: boolean("is_default").default(false),
+  isSystem: boolean("is_system").default(false), // System themes cannot be deleted
+  version: integer("version").notNull().default(1),
+  lightTokens: jsonb("light_tokens").$type<ThemeTokens>().notNull(),
+  darkTokens: jsonb("dark_tokens").$type<ThemeTokens>().notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  publishedBy: varchar("published_by").references(() => users.id),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertThemeSchema = createInsertSchema(themes).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  publishedAt: true,
+});
+
+export type Theme = typeof themes.$inferSelect;
+export type InsertTheme = z.infer<typeof insertThemeSchema>;
+
+// Theme import/export format
+export interface ThemeExportFormat {
+  name: string;
+  lightTokens: ThemeTokens;
+  darkTokens: ThemeTokens;
+  exportedAt: string;
+}

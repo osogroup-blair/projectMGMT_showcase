@@ -177,4 +177,175 @@ export function registerAdminRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Theme Management Routes
+  app.get("/api/admin/themes", async (req, res) => {
+    try {
+      const themes = await storage.getThemes();
+      res.json(themes);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/themes/:id", async (req, res) => {
+    try {
+      const theme = await storage.getThemeById(req.params.id);
+      if (!theme) {
+        return res.status(404).json({ error: "Theme not found" });
+      }
+      res.json(theme);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/themes/active", async (req, res) => {
+    try {
+      const theme = await storage.getActiveTheme();
+      res.json(theme || null);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/themes", async (req, res) => {
+    try {
+      const { name, description, lightTokens, darkTokens, isSystem } = req.body;
+      const id = crypto.randomUUID();
+      const userId = (req as any).user?.id;
+      
+      const theme = await storage.createTheme({
+        id,
+        name,
+        description,
+        lightTokens,
+        darkTokens,
+        isSystem: isSystem || false,
+        status: "draft",
+        version: 1,
+        createdBy: userId,
+        updatedBy: userId,
+      });
+      res.json(theme);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/admin/themes/:id", async (req, res) => {
+    try {
+      const { name, description, lightTokens, darkTokens, status } = req.body;
+      const userId = (req as any).user?.id;
+      
+      const updates: any = { updatedBy: userId };
+      if (name !== undefined) updates.name = name;
+      if (description !== undefined) updates.description = description;
+      if (lightTokens !== undefined) updates.lightTokens = lightTokens;
+      if (darkTokens !== undefined) updates.darkTokens = darkTokens;
+      if (status !== undefined) updates.status = status;
+      
+      const theme = await storage.updateTheme(req.params.id, updates);
+      res.json(theme);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/themes/:id", async (req, res) => {
+    try {
+      const theme = await storage.getThemeById(req.params.id);
+      if (!theme) {
+        return res.status(404).json({ error: "Theme not found" });
+      }
+      if (theme.isSystem) {
+        return res.status(400).json({ error: "Cannot delete system theme" });
+      }
+      if (theme.isDefault) {
+        return res.status(400).json({ error: "Cannot delete default theme" });
+      }
+      await storage.deleteTheme(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/themes/:id/publish", async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const theme = await storage.publishTheme(req.params.id, userId);
+      res.json(theme);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/themes/:id/set-default", async (req, res) => {
+    try {
+      const theme = await storage.getThemeById(req.params.id);
+      if (!theme) {
+        return res.status(404).json({ error: "Theme not found" });
+      }
+      if (theme.status !== "published") {
+        return res.status(400).json({ error: "Only published themes can be set as default" });
+      }
+      const updated = await storage.setDefaultTheme(req.params.id);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/themes/:id/duplicate", async (req, res) => {
+    try {
+      const original = await storage.getThemeById(req.params.id);
+      if (!original) {
+        return res.status(404).json({ error: "Theme not found" });
+      }
+      const userId = (req as any).user?.id;
+      const id = crypto.randomUUID();
+      
+      const theme = await storage.createTheme({
+        id,
+        name: `${original.name} (Copy)`,
+        description: original.description,
+        lightTokens: original.lightTokens,
+        darkTokens: original.darkTokens,
+        isSystem: false,
+        status: "draft",
+        version: 1,
+        createdBy: userId,
+        updatedBy: userId,
+      });
+      res.json(theme);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Theme import endpoint
+  app.post("/api/admin/themes/import", async (req, res) => {
+    try {
+      const { name, lightTokens, darkTokens } = req.body;
+      const userId = (req as any).user?.id;
+      const id = crypto.randomUUID();
+      
+      const theme = await storage.createTheme({
+        id,
+        name: name || "Imported Theme",
+        description: "Imported from JSON file",
+        lightTokens,
+        darkTokens,
+        isSystem: false,
+        status: "draft",
+        version: 1,
+        createdBy: userId,
+        updatedBy: userId,
+      });
+      res.json(theme);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 }

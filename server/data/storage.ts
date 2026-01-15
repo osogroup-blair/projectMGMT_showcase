@@ -59,6 +59,7 @@ import type {
   UserIdentity, InsertUserIdentity,
   UserRoleEligibility,
   AppSettings, InsertAppSettings,
+  Theme, InsertTheme,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -461,6 +462,16 @@ export interface IStorage {
 
   // Subtasks
   getSubtasksByParentId(parentTaskId: string): Promise<Task[]>;
+
+  // Themes
+  getThemes(): Promise<Theme[]>;
+  getThemeById(id: string): Promise<Theme | undefined>;
+  getActiveTheme(): Promise<Theme | undefined>;
+  createTheme(theme: InsertTheme & { id: string }): Promise<Theme>;
+  updateTheme(id: string, theme: Partial<Theme>): Promise<Theme>;
+  deleteTheme(id: string): Promise<void>;
+  publishTheme(id: string, publishedBy: string): Promise<Theme>;
+  setDefaultTheme(id: string): Promise<Theme>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1889,6 +1900,66 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return created;
     }
+  }
+
+  // Themes
+  async getThemes(): Promise<Theme[]> {
+    return await db.select().from(schema.themes);
+  }
+  
+  async getThemeById(id: string): Promise<Theme | undefined> {
+    const [theme] = await db.select().from(schema.themes).where(eq(schema.themes.id, id));
+    return theme;
+  }
+  
+  async getActiveTheme(): Promise<Theme | undefined> {
+    const [theme] = await db.select().from(schema.themes)
+      .where(and(eq(schema.themes.isDefault, true), eq(schema.themes.status, "published")));
+    return theme;
+  }
+  
+  async createTheme(theme: InsertTheme & { id: string }): Promise<Theme> {
+    const [created] = await db.insert(schema.themes).values(theme).returning();
+    return created;
+  }
+  
+  async updateTheme(id: string, theme: Partial<Theme>): Promise<Theme> {
+    const [updated] = await db.update(schema.themes)
+      .set({ ...theme, updatedAt: new Date() })
+      .where(eq(schema.themes.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async deleteTheme(id: string): Promise<void> {
+    await db.delete(schema.themes).where(eq(schema.themes.id, id));
+  }
+  
+  async publishTheme(id: string, publishedBy: string): Promise<Theme> {
+    const theme = await this.getThemeById(id);
+    if (!theme) throw new Error("Theme not found");
+    const [updated] = await db.update(schema.themes)
+      .set({ 
+        status: "published", 
+        publishedBy, 
+        publishedAt: new Date(),
+        version: (theme.version || 1) + 1,
+        updatedAt: new Date() 
+      })
+      .where(eq(schema.themes.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async setDefaultTheme(id: string): Promise<Theme> {
+    // First, unset any existing default
+    await db.update(schema.themes).set({ isDefault: false }).where(eq(schema.themes.isDefault, true));
+    // Then set the new default
+    const [updated] = await db.update(schema.themes)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(eq(schema.themes.id, id))
+      .returning();
+    return updated;
   }
 }
 
