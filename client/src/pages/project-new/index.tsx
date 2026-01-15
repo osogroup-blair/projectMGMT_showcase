@@ -110,6 +110,8 @@ export default function ProjectWizard() {
   const [showBackWarning, setShowBackWarning] = useState(false);
   const [showUnassignedTasksWarning, setShowUnassignedTasksWarning] = useState(false);
   const [unassignedTasksStats, setUnassignedTasksStats] = useState({ total: 0, unassigned: 0, fromImport: false });
+  const [showLeaveWarning, setShowLeaveWarning] = useState(false);
+  const [pendingLeaveLocation, setPendingLeaveLocation] = useState<string | null>(null);
   
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
@@ -173,6 +175,30 @@ export default function ProjectWizard() {
 
   // Track previous project dates to detect changes
   const prevDatesRef = useRef({ startDate: projectData.startDate, dueDate: projectData.dueDate });
+  
+  // Check if user has unsaved work in the wizard
+  const hasUnsavedWork = useMemo(() => {
+    return projectData.name.trim() !== '' || 
+           projectData.description.trim() !== '' ||
+           deliverables.length > 0 ||
+           stages.length > 0 ||
+           roles.length > 0 ||
+           milestones.length > 0;
+  }, [projectData.name, projectData.description, deliverables, stages, roles, milestones]);
+  
+  // Warn user when trying to leave the page with unsaved work
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedWork && !isCreating) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedWork, isCreating]);
   
   // Recalculate stage dates when project dates change
   useEffect(() => {
@@ -1468,6 +1494,40 @@ export default function ProjectWizard() {
               </AlertDialogCancel>
               <AlertDialogAction onClick={confirmProceedWithUnassignedTasks} className="bg-primary hover:bg-primary/90">
                 Continue Anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showLeaveWarning} onOpenChange={setShowLeaveWarning}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Leave Project Wizard?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                You have unsaved work in this wizard. If you leave now, all your progress will be lost.
+                <span className="block mt-2 font-medium text-amber-600">
+                  This includes any project details, team assignments, stages, and task configurations you've set up.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setShowLeaveWarning(false); setPendingLeaveLocation(null); }}>
+                Stay and Continue
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => {
+                  setShowLeaveWarning(false);
+                  if (pendingLeaveLocation) {
+                    setLocation(pendingLeaveLocation);
+                  }
+                  setPendingLeaveLocation(null);
+                }} 
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Leave Anyway
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
