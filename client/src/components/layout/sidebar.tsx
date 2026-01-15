@@ -8,6 +8,7 @@ import {
   FolderKanban,
   Home,
   Settings,
+  Palette,
   PanelLeftClose,
   PanelLeft
 } from "lucide-react";
@@ -256,7 +257,14 @@ export function Sidebar() {
                   href="/admin" 
                   icon={Settings} 
                   label="Admin" 
-                  isActive={location === "/admin" || location.startsWith("/admin")} 
+                  isActive={location === "/admin" || (location.startsWith("/admin") && !location.startsWith("/admin/theme"))} 
+                  isCollapsed={isCollapsed} 
+                />
+                <NavItem 
+                  href="/admin/theme" 
+                  icon={Palette} 
+                  label="Theme Manager" 
+                  isActive={location === "/admin/theme"} 
                   isCollapsed={isCollapsed} 
                 />
               </div>
