@@ -218,9 +218,9 @@ export default function TaskDetail() {
             <div className="space-y-4">
               <div className="flex justify-between items-start gap-4">
                 <div className="flex items-center gap-2 flex-1">
-                  <CheckSquare className="h-8 w-8 text-primary/70 shrink-0" />
+                  <CheckSquare className="h-10 w-10 text-primary/70 shrink-0" />
                   <Input 
-                    className="text-5xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
+                    className="text-6xl font-bold border-none shadow-none px-0 h-auto focus-visible:ring-0"
                     value={task.title}
                     onChange={(e) => handleUpdateTask("title", e.target.value)}
                     data-testid="input-task-title"
@@ -246,7 +246,7 @@ export default function TaskDetail() {
               </div>
 
               {/* Project Breadcrumb */}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap mt-2">
                 <Link 
                   href={`/projects/${projectId}`}
                   className="hover:text-foreground hover:underline transition-colors font-medium"
