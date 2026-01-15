@@ -69,6 +69,7 @@ export interface WizardTaskDraft {
   datesInheritedFromStage?: boolean;
   taskTypeId?: string;
   assigneeId?: string;
+  milestoneId?: string;
   isFromImport?: boolean;
   sourceAssigneeId?: string;
 }

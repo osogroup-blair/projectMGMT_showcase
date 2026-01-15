@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,13 +13,23 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  MouseSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,14 +49,17 @@ import {
   ListTodo,
   Target,
   LayoutTemplate,
-  PanelRightOpen,
   Calendar,
   Info,
   Upload,
   AlertTriangle,
   Merge,
   Replace,
-  User
+  User,
+  Check,
+  Pencil,
+  GripVertical,
+  ChevronDown
 } from "lucide-react";
 import {
   Tooltip,
@@ -56,6 +69,317 @@ import {
 } from "@/components/ui/tooltip";
 import { StepProps, WizardStage, WizardTaskDraft, WizardMilestone } from "./types";
 import { useImportOptional } from "@/context/import-context";
+
+interface SortableStageItemProps {
+  stage: WizardStage;
+  stageIndex: number;
+  stages: WizardStage[];
+  setStages: (stages: WizardStage[]) => void;
+  milestoneOptions: Array<{ value: string; label: string }>;
+  teamMemberOptions: Array<{ value: string; label: string }>;
+  taskTypes: any[];
+  priorityOptions: Array<{ value: string; label: string }>;
+  addTaskToStage: (stageIndex: number) => void;
+  removeTaskFromStage: (stageIndex: number, taskIndex: number) => void;
+  updateTask: (stageIndex: number, taskIndex: number, updates: Partial<WizardTaskDraft>) => void;
+  removeStage: (index: number) => void;
+}
+
+function SortableStageItem({
+  stage,
+  stageIndex,
+  stages,
+  setStages,
+  milestoneOptions,
+  teamMemberOptions,
+  taskTypes,
+  priorityOptions,
+  addTaskToStage,
+  removeTaskFromStage,
+  updateTask,
+  removeStage,
+}: SortableStageItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stage.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <AccordionItem 
+      key={stage.id} 
+      value={stage.id}
+      ref={setNodeRef}
+      style={style}
+      className="border rounded-lg px-4"
+    >
+      <AccordionTrigger className="hover:no-underline py-3">
+        <div className="flex items-center gap-3 flex-1 mr-4">
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 -ml-2 hover:bg-muted rounded"
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`stage-drag-handle-${stageIndex}`}
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs shrink-0">
+            {stageIndex + 1}
+          </div>
+          <span className="font-medium text-left flex-1">
+            {stage.name || `Stage ${stageIndex + 1}`}
+          </span>
+          {stage.startDate && stage.endDate && (
+            <span className="text-xs text-muted-foreground shrink-0">
+              {new Date(stage.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(stage.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          )}
+          {stage.isFromImport && (
+            <Badge variant="secondary" className="shrink-0 bg-blue-100 text-blue-700 border-blue-200">
+              <Upload className="h-3 w-3 mr-1" />
+              Imported
+            </Badge>
+          )}
+          <Badge variant="outline" className="shrink-0">
+            {stage.tasks.length} Tasks
+          </Badge>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="pb-4">
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center gap-3">
+            <Label className="text-sm shrink-0">Stage Name:</Label>
+            <Input
+              value={stage.name}
+              onChange={(e) => {
+                const newStages = [...stages];
+                newStages[stageIndex].name = e.target.value;
+                setStages(newStages);
+              }}
+              className="h-8 flex-1"
+              placeholder="Enter stage name..."
+              data-testid={`input-stage-name-${stageIndex}`}
+            />
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-destructive shrink-0"
+              onClick={() => removeStage(stageIndex)}
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> Remove
+            </Button>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground shrink-0">Start:</Label>
+              <Input
+                type="date"
+                value={stage.startDate || ""}
+                onChange={(e) => {
+                  const newStages = [...stages];
+                  newStages[stageIndex].startDate = e.target.value;
+                  setStages(newStages);
+                }}
+                className="h-8 w-36"
+                data-testid={`input-stage-start-${stageIndex}`}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground shrink-0">End:</Label>
+              <Input
+                type="date"
+                value={stage.endDate || ""}
+                onChange={(e) => {
+                  const newStages = [...stages];
+                  newStages[stageIndex].endDate = e.target.value;
+                  setStages(newStages);
+                }}
+                className="h-8 w-36"
+                data-testid={`input-stage-end-${stageIndex}`}
+              />
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+                    <Info className="h-3 w-3" />
+                    <span>Tasks inherit these dates</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px]">
+                  <p className="text-xs">New tasks will inherit the stage's start and end dates by default. You can override dates on individual tasks.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          
+          <div className="flex items-center gap-4 py-2 px-3 bg-muted/50 rounded-md">
+            <Label className="text-sm text-muted-foreground shrink-0">Task Creation Mode:</Label>
+            <div className="flex items-center gap-4">
+              {(['none', 'once', 'per_epic'] as const).map((mode) => (
+                <div key={mode} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    id={`stage-${mode}-${stage.id}`}
+                    name={`stage-mode-${stage.id}`}
+                    checked={stage.taskCreationMode === mode}
+                    onChange={() => {
+                      const newStages = [...stages];
+                      newStages[stageIndex].taskCreationMode = mode;
+                      setStages(newStages);
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor={`stage-${mode}-${stage.id}`} className="text-sm cursor-pointer capitalize">
+                    {mode === 'per_epic' ? 'Per Epic' : mode === 'none' ? 'None' : 'Once'}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm flex items-center gap-2">
+                <ListTodo className="h-4 w-4" /> Tasks
+              </Label>
+              <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
+                <Plus className="h-3 w-3 mr-1" /> Add Task
+              </Button>
+            </div>
+
+            {stage.tasks.length === 0 ? (
+              <div className="text-center p-4 border border-dashed rounded text-muted-foreground text-sm">
+                No tasks defined. Click "Add Task" to create tasks.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {stage.tasks.map((task, taskIndex) => (
+                  <Card key={task.id} className={`${task.isFromImport ? 'bg-blue-50/50 border-blue-200' : 'bg-muted/30'}`}>
+                    <CardContent className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={task.title}
+                              onChange={(e) => updateTask(stageIndex, taskIndex, { title: e.target.value })}
+                              className="h-8 flex-1"
+                              placeholder="Task title..."
+                            />
+                            {task.isFromImport && (
+                              <Badge variant="secondary" className="shrink-0 bg-blue-100 text-blue-700 border-blue-200 text-xs">
+                                <Upload className="h-2.5 w-2.5 mr-1" />
+                                Imported
+                              </Badge>
+                            )}
+                          </div>
+                          <div className={`grid gap-2 ${taskTypes.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                            <SearchableSelect
+                              value={task.priority}
+                              onValueChange={(v) => updateTask(stageIndex, taskIndex, { priority: v })}
+                              options={priorityOptions}
+                              triggerClassName="h-8"
+                            />
+                            {taskTypes.length > 0 && (
+                              <SearchableSelect
+                                value={task.taskTypeId || ""}
+                                onValueChange={(v) => updateTask(stageIndex, taskIndex, { taskTypeId: v || undefined })}
+                                placeholder="Type"
+                                options={taskTypes.map((type: any) => ({
+                                  value: type.id,
+                                  label: type.label || type.name
+                                }))}
+                                triggerClassName="h-8"
+                              />
+                            )}
+                            <Input
+                              type="number"
+                              value={task.estimateHours}
+                              onChange={(e) => updateTask(stageIndex, taskIndex, { estimateHours: parseInt(e.target.value) || 0 })}
+                              className="h-8"
+                              placeholder="Hours"
+                            />
+                          </div>
+                          <div className="flex items-center gap-4 pt-1">
+                            <div className="flex items-center gap-2">
+                              <User className="h-3.5 w-3.5 text-muted-foreground" />
+                              <SearchableSelect
+                                value={task.assigneeId || ""}
+                                onValueChange={(v) => updateTask(stageIndex, taskIndex, { assigneeId: v || undefined })}
+                                placeholder="Assign to..."
+                                options={teamMemberOptions}
+                                triggerClassName="h-7 text-xs w-40"
+                                data-testid={`select-task-assignee-${stageIndex}-${taskIndex}`}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                              <SearchableSelect
+                                value={task.milestoneId || ""}
+                                onValueChange={(v) => updateTask(stageIndex, taskIndex, { milestoneId: v || undefined })}
+                                placeholder="Link to milestone..."
+                                options={[{ value: "", label: "No Milestone" }, ...milestoneOptions]}
+                                triggerClassName="h-7 text-xs w-40"
+                                data-testid={`select-task-milestone-${stageIndex}-${taskIndex}`}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 pt-1">
+                            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                            <div className="flex items-center gap-2 flex-1">
+                              <span className="text-xs text-muted-foreground">Due:</span>
+                              <Input
+                                type="date"
+                                value={task.deadline || ""}
+                                onChange={(e) => updateTask(stageIndex, taskIndex, { 
+                                  deadline: e.target.value,
+                                  datesInheritedFromStage: false 
+                                })}
+                                className="h-7 text-xs w-36"
+                                data-testid={`input-task-deadline-${stageIndex}-${taskIndex}`}
+                              />
+                              {task.datesInheritedFromStage && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="secondary" className="text-xs gap-1 cursor-help">
+                                        <Info className="h-3 w-3" />
+                                        Inherited
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-[200px]">
+                                      <p className="text-xs">Date inherited from stage. Edit to override.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => removeTaskFromStage(stageIndex, taskIndex)}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
 
 export function StepStageConfig({
   stages,
@@ -70,13 +394,15 @@ export function StepStageConfig({
   roles,
   users,
 }: StepProps) {
-  const [activeTab, setActiveTab] = useState<'stages' | 'milestones'>('stages');
+  const [activeTab, setActiveTab] = useState<'stages' | 'milestones'>('milestones');
   const [expandedStages, setExpandedStages] = useState<string[]>([]);
   const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
-  const [frameworkPanelOpen, setFrameworkPanelOpen] = useState(false);
   const [showFrameworkConfirm, setShowFrameworkConfirm] = useState(false);
   const [pendingFrameworkId, setPendingFrameworkId] = useState<string | null>(null);
   const [frameworkAction, setFrameworkAction] = useState<'replace' | 'merge'>('replace');
+  const [selectedFrameworkId, setSelectedFrameworkId] = useState<string | null>(null);
+  const [isCustomized, setIsCustomized] = useState(false);
+  const [frameworkAccordionOpen, setFrameworkAccordionOpen] = useState<string[]>(['framework']);
 
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
@@ -370,15 +696,19 @@ export function StepStageConfig({
     if (mode === 'merge') {
       const importedStages = stages.filter(s => s.isFromImport);
       const importedMilestones = milestones.filter(m => m.isFromImport);
-      setStages([...importedStages, ...frameworkStages]);
+      const mergedStages = [...importedStages, ...frameworkStages];
+      setStages(mergedStages);
       setMilestones([...importedMilestones, ...frameworkMilestones]);
+      setExpandedStages(mergedStages.map(s => s.id));
     } else {
       setStages(frameworkStages);
       setMilestones(frameworkMilestones);
+      setExpandedStages(frameworkStages.map(s => s.id));
     }
-    setExpandedStages([]);
     setExpandedMilestones([]);
-    setFrameworkPanelOpen(false);
+    setSelectedFrameworkId(frameworkId);
+    setIsCustomized(false);
+    setActiveTab('stages');
   };
 
   const stageTemplateOptions = stageTemplates.map((template: any) => ({
@@ -386,16 +716,91 @@ export function StepStageConfig({
     label: `${template.name} (${template.defaultTasks?.length || 0} tasks)`
   }));
 
-  const scopeOptions = [
-    { value: "once", label: "Once" },
-    { value: "per_epic", label: "Per Epic" },
-  ];
-
   const priorityOptions = [
     { value: "Low", label: "Low" },
     { value: "Medium", label: "Medium" },
     { value: "High", label: "High" },
   ];
+
+  const selectedFramework = selectedFrameworkId 
+    ? frameworkTemplates?.find((f: any) => f.id === selectedFrameworkId)
+    : null;
+
+  const markAsCustomized = useCallback(() => {
+    if (selectedFrameworkId && !isCustomized) {
+      setIsCustomized(true);
+    }
+  }, [selectedFrameworkId, isCustomized]);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = stages.findIndex(s => s.id === active.id);
+      const newIndex = stages.findIndex(s => s.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newStages = arrayMove(stages, oldIndex, newIndex);
+        
+        // Recalculate dates proportionally if stages have dates
+        const stagesWithDates = newStages.filter(s => s.startDate && s.endDate);
+        if (stagesWithDates.length > 0) {
+          const allDates = newStages.flatMap(s => [s.startDate, s.endDate].filter(Boolean) as string[]);
+          if (allDates.length >= 2) {
+            const startDates = allDates.map(d => new Date(d).getTime());
+            const overallStart = Math.min(...startDates);
+            const overallEnd = Math.max(...startDates);
+            const totalDuration = overallEnd - overallStart;
+            
+            if (totalDuration > 0 && newStages.length > 0) {
+              const stageDuration = totalDuration / newStages.length;
+              
+              newStages.forEach((stage, idx) => {
+                const stageStart = new Date(overallStart + (idx * stageDuration));
+                const stageEnd = new Date(overallStart + ((idx + 1) * stageDuration));
+                stage.startDate = stageStart.toISOString().split('T')[0];
+                stage.endDate = stageEnd.toISOString().split('T')[0];
+              });
+            }
+          }
+        }
+        
+        setStages(newStages);
+        markAsCustomized();
+      }
+    }
+  }, [stages, setStages, markAsCustomized]);
+
+  const handleSelectCustom = () => {
+    setSelectedFrameworkId('custom');
+    setIsCustomized(false);
+    if (stages.length === 0) {
+      addStage();
+    }
+  };
+
+  const milestoneOptions = useMemo(() => {
+    return milestones.map(m => ({
+      value: m.id,
+      label: m.name || 'Unnamed Milestone'
+    }));
+  }, [milestones]);
 
   return (
     <div className="flex flex-col h-full">
@@ -466,95 +871,135 @@ export function StepStageConfig({
         </Alert>
       )}
 
-      <div className="sticky top-0 z-10 bg-background pb-4 border-b mb-4">
-        <div className="flex justify-end items-center">
-          <Sheet open={frameworkPanelOpen} onOpenChange={setFrameworkPanelOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm" data-testid="button-apply-framework">
-                <LayoutTemplate className="h-4 w-4 mr-2" /> Apply Framework
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="w-[400px] sm:w-[540px]">
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <LayoutTemplate className="h-5 w-5" /> Apply Framework
-                </SheetTitle>
-                <SheetDescription>
-                  Select a framework to pre-populate stages, tasks, and milestones. This will replace your current configuration.
-                </SheetDescription>
-              </SheetHeader>
-              <ScrollArea className="h-[calc(100vh-180px)] mt-6">
-                <div className="space-y-3 pr-4">
-                  {frameworkTemplates && frameworkTemplates.length > 0 ? (
+      <Accordion 
+        type="multiple" 
+        value={frameworkAccordionOpen} 
+        onValueChange={setFrameworkAccordionOpen}
+        className="mb-4"
+      >
+        <AccordionItem value="framework" className="border rounded-lg">
+          <AccordionTrigger className="px-4 py-3 hover:no-underline">
+            <div className="flex items-center gap-3 flex-1">
+              <LayoutTemplate className="h-5 w-5 text-primary" />
+              <div className="flex-1 text-left">
+                <div className="font-medium">
+                  {selectedFrameworkId === 'custom' ? (
+                    'Custom Configuration'
+                  ) : selectedFramework ? (
                     <>
-                      {frameworkTemplates.map((framework: any) => {
-                        const counts = getFrameworkCounts(framework.id);
-                        return (
-                          <Card 
-                            key={framework.id} 
-                            className="cursor-pointer hover:border-primary transition-colors"
-                            onClick={() => handleFrameworkClick(framework.id)}
-                            data-testid={`card-framework-${framework.id}`}
-                          >
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="font-medium">{framework.name}</div>
-                                  <div className="text-sm text-muted-foreground mt-1">{framework.description}</div>
-                                </div>
-                              </div>
-                              <div className="flex gap-2 mt-3 flex-wrap">
-                                {counts.stages > 0 && (
-                                  <Badge variant="secondary">
-                                    {counts.stages} stages
-                                  </Badge>
-                                )}
-                                {counts.tasks > 0 && (
-                                  <Badge variant="outline">
-                                    {counts.tasks} tasks
-                                  </Badge>
-                                )}
-                                {counts.milestones > 0 && (
-                                  <Badge variant="outline" className="border-amber-300 text-amber-700">
-                                    {counts.milestones} milestones
-                                  </Badge>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                      
-                      <div className="pt-4 border-t mt-4">
-                        <p className="text-sm font-medium mb-3">Or add individual stage templates:</p>
-                        <SearchableSelect
-                          onValueChange={applyStageTemplate}
-                          placeholder="Select a stage template..."
-                          options={stageTemplateOptions}
-                        />
-                      </div>
+                      {selectedFramework.name}
+                      {isCustomized && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Customized
+                        </Badge>
+                      )}
                     </>
                   ) : (
-                    <div className="text-center p-6 text-muted-foreground border-2 border-dashed rounded-lg">
-                      <LayoutTemplate className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No frameworks available.</p>
-                      <p className="text-xs mt-1">Add stages manually using the Stages tab.</p>
-                    </div>
+                    'Select a Framework'
                   )}
                 </div>
-              </ScrollArea>
-            </SheetContent>
-          </Sheet>
-        </div>
-      </div>
+                {!selectedFrameworkId && (
+                  <p className="text-sm text-muted-foreground font-normal">
+                    Choose a framework to pre-populate stages and tasks
+                  </p>
+                )}
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {frameworkTemplates && frameworkTemplates.map((framework: any) => {
+                const counts = getFrameworkCounts(framework.id);
+                const isSelected = selectedFrameworkId === framework.id;
+                return (
+                  <Card 
+                    key={framework.id} 
+                    className={`cursor-pointer transition-all ${
+                      isSelected 
+                        ? 'border-primary ring-2 ring-primary/20 bg-primary/5' 
+                        : 'hover:border-primary/50'
+                    }`}
+                    onClick={() => handleFrameworkClick(framework.id)}
+                    data-testid={`card-framework-${framework.id}`}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="font-medium text-sm">{framework.name}</div>
+                        {isSelected && (
+                          <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-3 w-3 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {counts.stages > 0 && (
+                          <Badge variant="secondary" className="text-xs py-0">
+                            {counts.stages} stages
+                          </Badge>
+                        )}
+                        {counts.tasks > 0 && (
+                          <Badge variant="outline" className="text-xs py-0">
+                            {counts.tasks} tasks
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              
+              <Card 
+                className={`cursor-pointer transition-all ${
+                  selectedFrameworkId === 'custom'
+                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5' 
+                    : 'hover:border-primary/50 border-dashed'
+                }`}
+                onClick={handleSelectCustom}
+                data-testid="card-framework-custom"
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-medium text-sm">Custom</div>
+                    {selectedFrameworkId === 'custom' && (
+                      <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="h-3 w-3 text-primary-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Build your own stages from scratch
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {stageTemplateOptions.length > 0 && (
+              <div className="pt-4 mt-4 border-t">
+                <p className="text-sm text-muted-foreground mb-2">Add individual stage templates:</p>
+                <SearchableSelect
+                  onValueChange={(id) => {
+                    applyStageTemplate(id);
+                    if (selectedFrameworkId && selectedFrameworkId !== 'custom') {
+                      markAsCustomized();
+                    }
+                  }}
+                  placeholder="Select a stage template..."
+                  options={stageTemplateOptions}
+                />
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'stages' | 'milestones')} className="flex-1">
         <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="stages" className="flex items-center gap-2">
-            <Layers className="h-4 w-4" /> Stages ({stages.length})
-          </TabsTrigger>
           <TabsTrigger value="milestones" className="flex items-center gap-2">
             <Target className="h-4 w-4" /> Milestones ({milestones.length})
+          </TabsTrigger>
+          <TabsTrigger value="stages" className="flex items-center gap-2">
+            <Layers className="h-4 w-4" /> Stages ({stages.length})
           </TabsTrigger>
         </TabsList>
 
@@ -573,280 +1018,41 @@ export function StepStageConfig({
                 <p className="text-sm mt-1">Click "Add Stage" or use "Apply Framework" to get started.</p>
               </div>
             ) : (
-              <Accordion 
-                type="multiple" 
-                value={expandedStages}
-                onValueChange={setExpandedStages}
-                className="space-y-2"
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
               >
-                {stages.map((stage, stageIndex) => (
-                  <AccordionItem 
-                    key={stage.id} 
-                    value={stage.id}
-                    className="border rounded-lg px-4"
+                <SortableContext
+                  items={stages.map(s => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <Accordion 
+                    type="multiple" 
+                    value={expandedStages}
+                    onValueChange={setExpandedStages}
+                    className="space-y-2"
                   >
-                    <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex items-center gap-3 flex-1 mr-4">
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs shrink-0">
-                          {stageIndex + 1}
-                        </div>
-                        <span className="font-medium text-left flex-1">
-                          {stage.name || `Stage ${stageIndex + 1}`}
-                        </span>
-                        {stage.startDate && stage.endDate && (
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {new Date(stage.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(stage.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                        {stage.isFromImport && (
-                          <Badge variant="secondary" className="shrink-0 bg-blue-100 text-blue-700 border-blue-200">
-                            <Upload className="h-3 w-3 mr-1" />
-                            Imported
-                          </Badge>
-                        )}
-                        <Badge variant="outline" className="shrink-0">
-                          {stage.tasks.length} Tasks
-                        </Badge>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-4">
-                      <div className="space-y-4 pt-2">
-                        <div className="flex items-center gap-3">
-                          <Label className="text-sm shrink-0">Stage Name:</Label>
-                          <Input
-                            value={stage.name}
-                            onChange={(e) => {
-                              const newStages = [...stages];
-                              newStages[stageIndex].name = e.target.value;
-                              setStages(newStages);
-                            }}
-                            className="h-8 flex-1"
-                            placeholder="Enter stage name..."
-                            data-testid={`input-stage-name-${stageIndex}`}
-                          />
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="text-destructive shrink-0"
-                            onClick={() => removeStage(stageIndex)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" /> Remove
-                          </Button>
-                        </div>
-                        
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-sm text-muted-foreground shrink-0">Start:</Label>
-                            <Input
-                              type="date"
-                              value={stage.startDate || ""}
-                              onChange={(e) => {
-                                const newStages = [...stages];
-                                newStages[stageIndex].startDate = e.target.value;
-                                setStages(newStages);
-                              }}
-                              className="h-8 w-36"
-                              data-testid={`input-stage-start-${stageIndex}`}
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Label className="text-sm text-muted-foreground shrink-0">End:</Label>
-                            <Input
-                              type="date"
-                              value={stage.endDate || ""}
-                              onChange={(e) => {
-                                const newStages = [...stages];
-                                newStages[stageIndex].endDate = e.target.value;
-                                setStages(newStages);
-                              }}
-                              className="h-8 w-36"
-                              data-testid={`input-stage-end-${stageIndex}`}
-                            />
-                          </div>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
-                                  <Info className="h-3 w-3" />
-                                  <span>Tasks inherit these dates</span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-[220px]">
-                                <p className="text-xs">New tasks will inherit the stage's start and end dates by default. You can override dates on individual tasks.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 py-2 px-3 bg-muted/50 rounded-md">
-                          <Label className="text-sm text-muted-foreground shrink-0">Task Creation Mode:</Label>
-                          <div className="flex items-center gap-4">
-                            {(['none', 'once', 'per_epic'] as const).map((mode) => (
-                              <div key={mode} className="flex items-center gap-2">
-                                <input
-                                  type="radio"
-                                  id={`stage-${mode}-${stage.id}`}
-                                  name={`stage-mode-${stage.id}`}
-                                  checked={stage.taskCreationMode === mode}
-                                  onChange={() => {
-                                    const newStages = [...stages];
-                                    newStages[stageIndex].taskCreationMode = mode;
-                                    setStages(newStages);
-                                  }}
-                                  className="h-4 w-4"
-                                />
-                                <Label htmlFor={`stage-${mode}-${stage.id}`} className="text-sm cursor-pointer capitalize">
-                                  {mode === 'per_epic' ? 'Per Epic' : mode === 'none' ? 'None' : 'Once'}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm flex items-center gap-2">
-                              <ListTodo className="h-4 w-4" /> Tasks
-                            </Label>
-                            <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
-                              <Plus className="h-3 w-3 mr-1" /> Add Task
-                            </Button>
-                          </div>
-
-                          {stage.tasks.length === 0 ? (
-                            <div className="text-center p-4 border border-dashed rounded text-muted-foreground text-sm">
-                              No tasks defined. Click "Add Task" to create tasks.
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              {stage.tasks.map((task, taskIndex) => (
-                                <Card key={task.id} className={`${task.isFromImport ? 'bg-blue-50/50 border-blue-200' : 'bg-muted/30'}`}>
-                                  <CardContent className="p-3">
-                                    <div className="flex items-start gap-3">
-                                      <div className="flex-1 space-y-2">
-                                        <div className="flex items-center gap-2">
-                                          <Input
-                                            value={task.title}
-                                            onChange={(e) => updateTask(stageIndex, taskIndex, { title: e.target.value })}
-                                            className="h-8 flex-1"
-                                            placeholder="Task title..."
-                                          />
-                                          {task.isFromImport && (
-                                            <Badge variant="secondary" className="shrink-0 bg-blue-100 text-blue-700 border-blue-200 text-xs">
-                                              <Upload className="h-2.5 w-2.5 mr-1" />
-                                              Imported
-                                            </Badge>
-                                          )}
-                                        </div>
-                                        <div className={`grid gap-2 ${taskTypes.length > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                                          <SearchableSelect
-                                            value={task.scope}
-                                            onValueChange={(v) => updateTask(stageIndex, taskIndex, { scope: v as 'once' | 'per_epic' })}
-                                            options={scopeOptions}
-                                            triggerClassName="h-8"
-                                          />
-                                          <SearchableSelect
-                                            value={task.priority}
-                                            onValueChange={(v) => updateTask(stageIndex, taskIndex, { priority: v })}
-                                            options={priorityOptions}
-                                            triggerClassName="h-8"
-                                          />
-                                          {taskTypes.length > 0 && (
-                                            <SearchableSelect
-                                              value={task.taskTypeId || ""}
-                                              onValueChange={(v) => updateTask(stageIndex, taskIndex, { taskTypeId: v || undefined })}
-                                              placeholder="Type"
-                                              options={taskTypes.map((type: any) => ({
-                                                value: type.id,
-                                                label: type.label || type.name
-                                              }))}
-                                              triggerClassName="h-8"
-                                            />
-                                          )}
-                                          <Input
-                                            type="number"
-                                            value={task.estimateHours}
-                                            onChange={(e) => updateTask(stageIndex, taskIndex, { estimateHours: parseInt(e.target.value) || 0 })}
-                                            className="h-8"
-                                            placeholder="Hours"
-                                          />
-                                        </div>
-                                        <div className="flex items-center gap-2 pt-1">
-                                          <User className="h-3.5 w-3.5 text-muted-foreground" />
-                                          <SearchableSelect
-                                            value={task.assigneeId || ""}
-                                            onValueChange={(v) => updateTask(stageIndex, taskIndex, { assigneeId: v || undefined })}
-                                            placeholder="Assign to..."
-                                            options={teamMemberOptions}
-                                            triggerClassName="h-7 text-xs w-44"
-                                            data-testid={`select-task-assignee-${stageIndex}-${taskIndex}`}
-                                          />
-                                          {teamMemberOptions.length <= 1 && (
-                                            <span className="text-xs text-muted-foreground ml-2">Add team members in the Team step</span>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-2 pt-1">
-                                          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                          <div className="flex items-center gap-2 flex-1">
-                                            <Input
-                                              type="date"
-                                              value={task.startDate || ""}
-                                              onChange={(e) => updateTask(stageIndex, taskIndex, { 
-                                                startDate: e.target.value,
-                                                datesInheritedFromStage: false 
-                                              })}
-                                              className="h-7 text-xs w-32"
-                                              data-testid={`input-task-start-${stageIndex}-${taskIndex}`}
-                                            />
-                                            <span className="text-xs text-muted-foreground">to</span>
-                                            <Input
-                                              type="date"
-                                              value={task.deadline || ""}
-                                              onChange={(e) => updateTask(stageIndex, taskIndex, { 
-                                                deadline: e.target.value,
-                                                datesInheritedFromStage: false 
-                                              })}
-                                              className="h-7 text-xs w-32"
-                                              data-testid={`input-task-deadline-${stageIndex}-${taskIndex}`}
-                                            />
-                                            {task.datesInheritedFromStage && (
-                                              <TooltipProvider>
-                                                <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                    <Badge variant="secondary" className="text-xs gap-1 cursor-help">
-                                                      <Info className="h-3 w-3" />
-                                                      Inherited
-                                                    </Badge>
-                                                  </TooltipTrigger>
-                                                  <TooltipContent side="top" className="max-w-[200px]">
-                                                    <p className="text-xs">Dates inherited from stage. Edit to override.</p>
-                                                  </TooltipContent>
-                                                </Tooltip>
-                                              </TooltipProvider>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-8 w-8"
-                                        onClick={() => removeTaskFromStage(stageIndex, taskIndex)}
-                                      >
-                                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                                      </Button>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
+                    {stages.map((stage, stageIndex) => (
+                      <SortableStageItem
+                        key={stage.id}
+                        stage={stage}
+                        stageIndex={stageIndex}
+                        stages={stages}
+                        setStages={setStages}
+                        milestoneOptions={milestoneOptions}
+                        teamMemberOptions={teamMemberOptions}
+                        taskTypes={taskTypes}
+                        priorityOptions={priorityOptions}
+                        addTaskToStage={addTaskToStage}
+                        removeTaskFromStage={removeTaskFromStage}
+                        updateTask={updateTask}
+                        removeStage={removeStage}
+                      />
+                    ))}
+                  </Accordion>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         </TabsContent>
