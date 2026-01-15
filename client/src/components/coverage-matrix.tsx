@@ -47,6 +47,8 @@ interface CoverageMatrixProps {
   emptyRowsMessage?: string;
   emptyColumnsMessage?: string;
   className?: string;
+  stickyRowHeader?: boolean;
+  cellTestIdPrefix?: string;
 }
 
 const STATUS_ICONS: Record<string, typeof Circle> = {
@@ -142,45 +144,51 @@ export function CoverageMatrix({
   emptyRowsMessage = "No items found.",
   emptyColumnsMessage = "No stages found.",
   className,
+  stickyRowHeader = false,
+  cellTestIdPrefix,
 }: CoverageMatrixProps) {
   
-  if (rows.length === 0) {
-    return (
-      <div className="p-8 text-center text-muted-foreground border rounded-md">
-        {emptyRowsMessage}
-      </div>
-    );
-  }
-
-  if (columns.length === 0) {
-    return (
-      <div className="p-8 text-center text-muted-foreground border rounded-md">
-        {emptyColumnsMessage}
-      </div>
-    );
-  }
-
   return (
-    <div className={cn("border rounded-md overflow-hidden", className)}>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/10">
-              <th className="p-3 text-left font-medium min-w-[200px]">
-                {rowLabel}
+    <div className={cn("overflow-x-auto", className)}>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/10">
+            <th className={cn(
+              "p-3 text-left font-medium min-w-[200px]",
+              stickyRowHeader && "sticky left-0 bg-muted/10 z-10"
+            )}>
+              {rowLabel}
+            </th>
+            {columns.map(col => (
+              <th key={col.id} className="p-3 text-center font-medium border-l min-w-[100px]">
+                {(col.label || col.name || "").split(' ')[0]}
               </th>
-              {columns.map(col => (
-                <th key={col.id} className="p-3 text-center font-medium border-l min-w-[100px]">
-                  {col.label || col.name}
-                </th>
-              ))}
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length + 1} className="p-8 text-center text-muted-foreground">
+                {emptyRowsMessage}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map(row => (
+          ) : columns.length === 0 ? (
+            <tr>
+              <td colSpan={2} className="p-8 text-center text-muted-foreground">
+                {emptyColumnsMessage}
+              </td>
+            </tr>
+          ) : (
+            rows.map(row => (
               <tr key={row.id} className="border-b last:border-0 hover:bg-muted/5">
-                <td className="p-3 font-medium">
-                  {row.title || row.name}
+                <td className={cn(
+                  "p-3 font-medium",
+                  stickyRowHeader && "sticky left-0 bg-white dark:bg-background z-10"
+                )}>
+                  <span className={cn(stickyRowHeader && "truncate max-w-[180px] block")}>
+                    {row.title || row.name}
+                  </span>
                   {showRowDescription && row.description && (
                     <div className="text-xs text-muted-foreground font-normal line-clamp-1">
                       {row.description}
@@ -194,6 +202,8 @@ export function CoverageMatrix({
                   const isFullyIncluded = hasTasks && includedCount === cellTasks.length;
                   const isPartiallyIncluded = hasTasks && includedCount > 0 && includedCount < cellTasks.length;
 
+                  const testId = cellTestIdPrefix ? `${cellTestIdPrefix}-${row.id}-${col.id}` : undefined;
+
                   const cellContent = (
                     <td 
                       key={col.id} 
@@ -201,31 +211,50 @@ export function CoverageMatrix({
                         "p-3 text-center border-l transition-colors relative",
                         hasTasks ? "cursor-pointer hover:bg-muted/20 active:bg-muted/30" : "opacity-50 cursor-default",
                         !hasTasks && "bg-muted/10",
-                        displayStyle === "text" && isFullyIncluded && "bg-green-50",
-                        displayStyle === "text" && isPartiallyIncluded && "bg-amber-50"
+                        displayStyle === "text" && isFullyIncluded && "bg-green-50 hover:bg-green-100 dark:bg-green-950 dark:hover:bg-green-900",
+                        displayStyle === "text" && isPartiallyIncluded && "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950 dark:hover:bg-amber-900",
+                        displayStyle === "text" && hasTasks && !isFullyIncluded && !isPartiallyIncluded && "hover:bg-muted/20"
                       )}
                       onClick={() => hasTasks && onCellClick?.(row.id, col.id)}
+                      data-testid={testId}
                     >
                       {hasTasks ? (
                         displayStyle === "circle" ? (
-                          <div className="flex flex-col items-center gap-1">
-                            <div className={cn(
-                              "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium",
-                              isFullyIncluded ? "bg-green-100 text-green-700" :
-                              isPartiallyIncluded ? "bg-amber-100 text-amber-700" :
-                              "bg-slate-100 text-slate-500"
-                            )}>
-                              {includedCount}/{cellTasks.length}
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <div className="relative">
+                              {isFullyIncluded ? (
+                                <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center border border-green-200 shadow-sm">
+                                  <CheckCircle2 className="h-5 w-5" />
+                                </div>
+                              ) : isPartiallyIncluded ? (
+                                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center border border-amber-200 shadow-sm">
+                                  <div className="h-4 w-4 rounded-full border-2 border-current flex items-center justify-center">
+                                    <div className="h-2 w-2 bg-current rounded-full" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200 hover:bg-slate-200 hover:text-slate-500 transition-colors">
+                                  <Circle className="h-5 w-5" />
+                                </div>
+                              )}
+                              <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border text-[10px] font-medium text-muted-foreground shadow-sm">
+                                {cellTasks.length}
+                              </span>
                             </div>
                           </div>
                         ) : (
-                          <span className={cn(
-                            "text-sm font-medium",
-                            isFullyIncluded && "text-green-700",
-                            isPartiallyIncluded && "text-amber-700"
-                          )}>
-                            {includedCount}/{cellTasks.length}
-                          </span>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className={cn(
+                              "text-sm font-medium",
+                              isFullyIncluded && "text-green-700 dark:text-green-300",
+                              isPartiallyIncluded && "text-amber-700 dark:text-amber-300"
+                            )}>
+                              {includedCount}/{cellTasks.length}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {isFullyIncluded ? "All linked" : isPartiallyIncluded ? "Partial" : "None"}
+                            </span>
+                          </div>
                         )
                       ) : (
                         <span className="text-muted-foreground/30">-</span>
@@ -268,10 +297,10 @@ export function CoverageMatrix({
                   );
                 })}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }

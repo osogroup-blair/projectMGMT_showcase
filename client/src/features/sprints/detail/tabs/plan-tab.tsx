@@ -821,6 +821,8 @@ export function PlanTab({
               displayStyle="text"
               emptyRowsMessage={matrixAxis === "epics" ? "No epics found in this project." : "No milestones found in this project."}
               emptyColumnsMessage="No stages found. Tasks must have stages assigned."
+              cellTestIdPrefix={matrixAxis === "epics" ? "cell-sprint-epic" : "cell-sprint-milestone"}
+              className="border rounded-md"
             />
           </TabsContent>
         </Tabs>

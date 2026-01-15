@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CoverageMatrix } from "@/components/coverage-matrix";
 import { 
   Search, 
   Plus, 
@@ -318,7 +319,7 @@ export function TaskDependenciesTab({
     });
   };
 
-  const handleToggleCellTasks = (epicId: string, stageId: string) => {
+  const handleToggleCellTasks = useCallback((epicId: string, stageId: string) => {
     const cellTasks = availableTasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
     if (cellTasks.length === 0) return;
 
@@ -335,21 +336,24 @@ export function TaskDependenciesTab({
     } else if (removableDeps.length > 0) {
       removableDeps.forEach((d: any) => removeDependency(d.id));
     }
-  };
+  }, [availableTasks, dependsOnTaskIds, dependsOn, addDependency, removeDependency]);
 
   const toggleRuleExpanded = (ruleId: string) => {
     setExpandedRules(prev => ({ ...prev, [ruleId]: !prev[ruleId] }));
   };
 
-  const getCellTaskCounts = (epicId: string, stageId: string) => {
-    const cellTasks = availableTasks.filter((t: any) => 
-      t.epicId === epicId && t.stageId === stageId
-    );
-    const linkedCount = cellTasks.filter((t: any) => 
-      dependsOnTaskIds.includes(t.id)
-    ).length;
-    return { total: cellTasks.length, linked: linkedCount };
-  };
+  const getMatrixTasksForCell = useCallback((epicId: string, stageId: string) => {
+    return availableTasks.filter((t: any) => t.epicId === epicId && t.stageId === stageId);
+  }, [availableTasks]);
+
+  const getMatrixIncludedCount = useCallback((epicId: string, stageId: string) => {
+    const cellTasks = getMatrixTasksForCell(epicId, stageId);
+    return cellTasks.filter((t: any) => dependsOnTaskIds.includes(t.id)).length;
+  }, [getMatrixTasksForCell, dependsOnTaskIds]);
+
+  const isTaskADependency = useCallback((taskId: string) => {
+    return dependsOnTaskIds.includes(taskId);
+  }, [dependsOnTaskIds]);
 
   return (
     <div className="space-y-6">
@@ -581,86 +585,25 @@ export function TaskDependenciesTab({
                   <div className="bg-muted/30 p-4 border-b">
                     <h4 className="font-medium text-sm">Coverage Matrix</h4>
                     <p className="text-xs text-muted-foreground">
-                      Click on cells to toggle all tasks in that Epic & Stage as dependencies.
+                      Click on cells to toggle all tasks in that Epic & Stage as dependencies. Hover to see task details.
                     </p>
                   </div>
                   <ScrollArea className="h-[400px]">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-muted/10">
-                            <th className="p-3 text-left font-medium min-w-[200px] sticky left-0 bg-muted/10">
-                              Epic
-                            </th>
-                            {stages.map((stage: any) => (
-                              <th key={stage.id} className="p-3 text-center font-medium border-l min-w-[100px]">
-                                {stage.label || stage.name}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {allEpics.length === 0 ? (
-                            <tr>
-                              <td colSpan={stages.length + 1} className="p-8 text-center text-muted-foreground">
-                                No epics found in this project.
-                              </td>
-                            </tr>
-                          ) : stages.length === 0 ? (
-                            <tr>
-                              <td colSpan={2} className="p-8 text-center text-muted-foreground">
-                                No stages found. Tasks must have stages assigned.
-                              </td>
-                            </tr>
-                          ) : (
-                            allEpics.map((epic: any) => (
-                              <tr key={epic.id} className="border-b hover:bg-muted/5">
-                                <td className="p-3 font-medium sticky left-0 bg-white dark:bg-background">
-                                  <span className="truncate max-w-[180px] block">{epic.title || epic.name}</span>
-                                </td>
-                                {stages.map((stage: any) => {
-                                  const counts = getCellTaskCounts(epic.id, stage.id);
-                                  const allLinked = counts.total > 0 && counts.linked === counts.total;
-                                  const someLinked = counts.linked > 0 && counts.linked < counts.total;
-                                  
-                                  return (
-                                    <td 
-                                      key={stage.id} 
-                                      className={cn(
-                                        "p-3 text-center border-l cursor-pointer transition-colors",
-                                        counts.total === 0 && "bg-muted/10",
-                                        allLinked && "bg-green-50 hover:bg-green-100 dark:bg-green-950 dark:hover:bg-green-900",
-                                        someLinked && "bg-amber-50 hover:bg-amber-100 dark:bg-amber-950 dark:hover:bg-amber-900",
-                                        counts.total > 0 && !allLinked && !someLinked && "hover:bg-muted/20"
-                                      )}
-                                      onClick={() => counts.total > 0 && handleToggleCellTasks(epic.id, stage.id)}
-                                      data-testid={`cell-epic-${epic.id}-${stage.id}`}
-                                    >
-                                      {counts.total > 0 ? (
-                                        <div className="flex flex-col items-center gap-0.5">
-                                          <span className={cn(
-                                            "text-sm font-medium",
-                                            allLinked && "text-green-700 dark:text-green-300",
-                                            someLinked && "text-amber-700 dark:text-amber-300"
-                                          )}>
-                                            {counts.linked}/{counts.total}
-                                          </span>
-                                          <span className="text-[10px] text-muted-foreground">
-                                            {allLinked ? "All linked" : someLinked ? "Partial" : "None"}
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground/30">-</span>
-                                      )}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                    <CoverageMatrix
+                      rows={allEpics}
+                      columns={stages}
+                      tasks={availableTasks}
+                      rowLabel="Epic"
+                      getTasksForCell={getMatrixTasksForCell}
+                      getIncludedCount={getMatrixIncludedCount}
+                      isTaskIncluded={isTaskADependency}
+                      onCellClick={handleToggleCellTasks}
+                      displayStyle="text"
+                      emptyRowsMessage="No epics found in this project."
+                      emptyColumnsMessage="No stages found. Tasks must have stages assigned."
+                      stickyRowHeader={true}
+                      cellTestIdPrefix="cell-epic"
+                    />
                   </ScrollArea>
                 </div>
               </TabsContent>

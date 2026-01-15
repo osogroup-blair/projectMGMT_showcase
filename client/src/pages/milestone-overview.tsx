@@ -2137,6 +2137,7 @@ function ScopeDefinitionTab({
                  displayStyle="circle"
                  emptyRowsMessage="No epics found in this project."
                  emptyColumnsMessage="No stages found. Tasks must have stages assigned."
+                 cellTestIdPrefix="cell-milestone-overview"
                />
              </div>
           </TabsContent>

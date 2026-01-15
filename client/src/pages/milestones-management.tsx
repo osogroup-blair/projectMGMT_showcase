@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Shell } from "@/components/layout/shell";
+import { CoverageMatrix } from "@/components/coverage-matrix";
 import { 
   Plus, Search, Filter, MoreVertical, Edit, Trash2, 
   CheckCircle2, Circle, Clock, AlertCircle, Calendar, 
@@ -629,6 +630,51 @@ function ScopeBuilder({
     });
   };
 
+  const getMatrixTasksForCell = useCallback((epicId: string, stageId: string) => {
+    return tasks.filter(t => t.epicId === epicId && t.stageId === stageId);
+  }, [tasks]);
+
+  const getMatrixIncludedCount = useCallback((epicId: string, stageId: string) => {
+    const cellTasks = getMatrixTasksForCell(epicId, stageId);
+    return cellTasks.filter(t => 
+      links.some(l => l.taskId === t.id && l.milestoneId === milestone.id)
+    ).length;
+  }, [getMatrixTasksForCell, links, milestone.id]);
+
+  const isTaskLinkedToMilestone = useCallback((taskId: string) => {
+    return links.some(l => l.taskId === taskId && l.milestoneId === milestone.id);
+  }, [links, milestone.id]);
+
+  const handleToggleCellTasks = useCallback((epicId: string, stageId: string) => {
+    const cellTasks = tasks.filter(t => t.epicId === epicId && t.stageId === stageId);
+    if (cellTasks.length === 0) return;
+
+    const linkedCount = cellTasks.filter(t => 
+      links.some(l => l.taskId === t.id && l.milestoneId === milestone.id)
+    ).length;
+    const isFullyIncluded = linkedCount === cellTasks.length;
+
+    if (isFullyIncluded) {
+      const taskIdsToRemove = cellTasks.map(t => t.id);
+      onUpdateLinks(links.filter(l => 
+        !(l.milestoneId === milestone.id && taskIdsToRemove.includes(l.taskId))
+      ));
+    } else {
+      const existingLinks = links.filter(l => l.milestoneId === milestone.id);
+      const newLinks = cellTasks
+        .filter(t => !existingLinks.some(l => l.taskId === t.id))
+        .map(t => ({
+          id: `l-${Date.now()}-${t.id}`,
+          milestoneId: milestone.id,
+          taskId: t.id,
+          source: "manual_add" as const,
+          locked: true,
+          createdAt: new Date().toISOString()
+        }));
+      onUpdateLinks([...links, ...newLinks]);
+    }
+  }, [tasks, links, milestone.id, onUpdateLinks]);
+
   return (
     <div className="space-y-6 mt-6">
       <Tabs defaultValue="rules" className="w-full">
@@ -834,108 +880,23 @@ function ScopeBuilder({
              <div className="border rounded-md overflow-hidden">
                <div className="bg-muted/30 p-4 border-b">
                  <h4 className="font-medium text-sm">Coverage Matrix</h4>
-                 <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion for that Epic & Stage.</p>
+                 <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion. Hover to see task details.</p>
                </div>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-sm">
-                   <thead>
-                     <tr className="border-b bg-muted/10">
-                       <th className="p-3 text-left font-medium min-w-[200px]">Epic</th>
-                       {TASK_STAGES.map(stage => (
-                         <th key={stage.id} className="p-3 text-center font-medium border-l min-w-[100px]">
-                           {stage.label.split(' ')[0]}
-                         </th>
-                       ))}
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {epics.map(epic => (
-                       <tr key={epic.id} className="border-b last:border-0 hover:bg-muted/5">
-                         <td className="p-3 font-medium">
-                           {epic.title}
-                           <div className="text-xs text-muted-foreground font-normal line-clamp-1">{epic.description}</div>
-                         </td>
-                         {TASK_STAGES.map(stage => {
-                           // Find tasks for this epic and stage
-                           const cellTasks = tasks.filter(t => t.epicId === epic.id && t.stageId === stage.id);
-                           const hasTasks = cellTasks.length > 0;
-                           
-                           // Check how many are linked
-                           const linkedCount = cellTasks.filter(t => 
-                             links.some(l => l.taskId === t.id && l.milestoneId === milestone.id)
-                           ).length;
-                           
-                           const isFullyIncluded = hasTasks && linkedCount === cellTasks.length;
-                           const isPartiallyIncluded = hasTasks && linkedCount > 0 && linkedCount < cellTasks.length;
-
-                           return (
-                             <td 
-                               key={stage.id} 
-                               className={cn(
-                                 "p-3 text-center border-l transition-colors relative",
-                                 hasTasks ? "cursor-pointer hover:bg-muted/10" : "opacity-50"
-                               )}
-                               onClick={() => {
-                                 if (!hasTasks) return;
-                                 
-                                 // Toggle logic: If fully included, remove all. Else, add all missing.
-                                 if (isFullyIncluded) {
-                                   // Remove all
-                                   const taskIdsToRemove = cellTasks.map(t => t.id);
-                                   onUpdateLinks(links.filter(l => 
-                                     !(l.milestoneId === milestone.id && taskIdsToRemove.includes(l.taskId))
-                                   ));
-                                 } else {
-                                   // Add missing
-                                   const existingLinks = links.filter(l => l.milestoneId === milestone.id);
-                                   const newLinks = cellTasks
-                                     .filter(t => !existingLinks.some(l => l.taskId === t.id))
-                                     .map(t => ({
-                                        id: `l-${Date.now()}-${t.id}`,
-                                        milestoneId: milestone.id,
-                                        taskId: t.id,
-                                        source: "manual_add" as const,
-                                        locked: true,
-                                        createdAt: new Date().toISOString()
-                                     }));
-                                   onUpdateLinks([...links, ...newLinks]);
-                                 }
-                               }}
-                             >
-                               <div className="flex flex-col items-center justify-center gap-1">
-                                 {hasTasks ? (
-                                   <div className="relative">
-                                     {isFullyIncluded ? (
-                                       <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center border border-green-200 shadow-sm">
-                                         <CheckCircle2 className="h-5 w-5" />
-                                       </div>
-                                     ) : isPartiallyIncluded ? (
-                                       <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center border border-amber-200 shadow-sm">
-                                          <div className="h-4 w-4 rounded-full border-2 border-current flex items-center justify-center">
-                                            <div className="h-2 w-2 bg-current rounded-full" />
-                                          </div>
-                                       </div>
-                                     ) : (
-                                       <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200 hover:bg-slate-200 hover:text-slate-500 transition-colors">
-                                         <Circle className="h-5 w-5" />
-                                       </div>
-                                     )}
-                                     <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border text-[10px] font-medium text-muted-foreground shadow-sm">
-                                       {cellTasks.length}
-                                     </span>
-                                   </div>
-                                 ) : (
-                                   <span className="text-muted-foreground/20 text-xs">-</span>
-                                 )}
-                               </div>
-                             </td>
-                           );
-                         })}
-                       </tr>
-                     ))}
-                   </tbody>
-                 </table>
-               </div>
+               <CoverageMatrix
+                 rows={epics}
+                 columns={TASK_STAGES}
+                 tasks={tasks}
+                 rowLabel="Epic"
+                 getTasksForCell={getMatrixTasksForCell}
+                 getIncludedCount={getMatrixIncludedCount}
+                 isTaskIncluded={isTaskLinkedToMilestone}
+                 onCellClick={handleToggleCellTasks}
+                 showRowDescription={true}
+                 displayStyle="circle"
+                 emptyRowsMessage="No epics found in this project."
+                 emptyColumnsMessage="No stages found."
+                 cellTestIdPrefix="cell-milestone"
+               />
              </div>
           </TabsContent>
         </div>
