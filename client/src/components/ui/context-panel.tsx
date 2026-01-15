@@ -18,15 +18,15 @@ interface ContextPanelProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const contextColorMap: Record<ContextType, string> = {
-  project: "border-l-[hsl(var(--context-project))]",
-  deliverable: "border-l-[hsl(var(--context-deliverable))]",
-  epic: "border-l-[hsl(var(--context-epic))]",
-  task: "border-l-[hsl(var(--context-task))]",
-  stage: "border-l-[hsl(var(--context-stage))]",
-  milestone: "border-l-[hsl(var(--context-milestone))]",
-  sprint: "border-l-[hsl(var(--context-sprint))]",
-  admin: "border-l-[hsl(var(--context-admin))]",
-  user: "border-l-[hsl(var(--context-user))]",
+  project: "border-t-[hsl(var(--context-project))]",
+  deliverable: "border-t-[hsl(var(--context-deliverable))]",
+  epic: "border-t-[hsl(var(--context-epic))]",
+  task: "border-t-[hsl(var(--context-task))]",
+  stage: "border-t-[hsl(var(--context-stage))]",
+  milestone: "border-t-[hsl(var(--context-milestone))]",
+  sprint: "border-t-[hsl(var(--context-sprint))]",
+  admin: "border-t-[hsl(var(--context-admin))]",
+  user: "border-t-[hsl(var(--context-user))]",
 };
 
 const contextGradientMap: Record<ContextType, string> = {
@@ -53,7 +53,7 @@ export function ContextPanel({
   return (
     <div
       className={cn(
-        "relative border-l-[3px] md:border-l-4 rounded-lg bg-card overflow-hidden",
+        "relative border-t-[3px] md:border-t-4 rounded-lg bg-card overflow-hidden",
         contextColorMap[contextType],
         className
       )}
@@ -64,7 +64,7 @@ export function ContextPanel({
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `linear-gradient(to right, hsl(${gradientVar} / 0.15) 0%, hsl(${gradientVar} / 0.05) 40%, transparent 100%)`,
+          background: `linear-gradient(to bottom, hsl(${gradientVar} / 0.15) 0%, hsl(${gradientVar} / 0.05) 15%, transparent 40%)`,
         }}
       />
       <div className="relative z-10">
