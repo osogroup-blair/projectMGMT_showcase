@@ -29,23 +29,47 @@ const contextColorMap: Record<ContextType, string> = {
   user: "border-l-[hsl(var(--context-user))]",
 };
 
+const contextGradientMap: Record<ContextType, string> = {
+  project: "var(--context-project)",
+  deliverable: "var(--context-deliverable)",
+  epic: "var(--context-epic)",
+  task: "var(--context-task)",
+  stage: "var(--context-stage)",
+  milestone: "var(--context-milestone)",
+  sprint: "var(--context-sprint)",
+  admin: "var(--context-admin)",
+  user: "var(--context-user)",
+};
+
 export function ContextPanel({ 
   contextType, 
   children, 
   className,
+  style,
   ...props 
 }: ContextPanelProps) {
+  const gradientVar = contextGradientMap[contextType];
+  
   return (
     <div
       className={cn(
-        "border-l-[3px] md:border-l-4 rounded-lg bg-card",
+        "relative border-l-[3px] md:border-l-4 rounded-lg bg-card overflow-hidden",
         contextColorMap[contextType],
         className
       )}
       data-context-type={contextType}
+      style={style}
       {...props}
     >
-      {children}
+      <div 
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `linear-gradient(to right, hsl(${gradientVar} / 0.15) 0%, hsl(${gradientVar} / 0.05) 40%, transparent 100%)`,
+        }}
+      />
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   );
 }
