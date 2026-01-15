@@ -30,6 +30,7 @@ import { registerConfigRoutes } from "./routes/config";
 import { registerImportExportRoutes } from "./routes/import-export";
 import { registerScheduleSyncRoutes } from "./routes/schedule-sync";
 import { registerSearchRoutes } from "./routes/search";
+import { registerThemeRoutes } from "./routes/themes";
 import rolesPermissionsRoutes from "./routes/roles-permissions";
 import { seedRolesAndPermissions } from "../services/roles-permissions-service";
 
@@ -298,6 +299,9 @@ export async function registerRoutes(
 
   // Register search routes
   registerSearchRoutes(app, getAuthUserId);
+
+  // Register theme routes
+  registerThemeRoutes(app);
 
   // Register roles & permissions routes
   app.use("/api/roles-permissions", rolesPermissionsRoutes);
