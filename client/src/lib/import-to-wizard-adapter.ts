@@ -87,7 +87,7 @@ export interface UserMappingEntry {
   mappedToName?: string;
   confidence: ConfidenceLevel;
   action: 'map' | 'create' | 'skip' | 'unassigned';
-  projectRole?: ProjectRoleType;
+  projectRoles?: ProjectRoleType[];
   suggestedExecutionRoleId?: string;
   suggestedExecutionRoleName?: string;
   suggestedExecutionRoleConfidence?: number;

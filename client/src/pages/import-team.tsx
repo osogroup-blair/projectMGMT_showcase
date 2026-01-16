@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { 
   ArrowRight, 
@@ -24,6 +24,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -86,9 +88,100 @@ function getRoleBadgeStyle(role: ProjectRoleType | 'none' | undefined) {
   }
 }
 
+interface RoleCheckboxGroupProps {
+  mapping: UserMappingEntry;
+  currentOwner: UserMappingEntry | undefined;
+  currentManager: UserMappingEntry | undefined;
+  onRolesChange: (roles: ProjectRoleType[]) => void;
+  disabled?: boolean;
+}
+
+const ROLE_CONFIG: { value: ProjectRoleType; label: string; icon: React.ReactNode; exclusive: boolean }[] = [
+  { value: 'owner', label: 'Owner', icon: <Crown className="h-3 w-3" />, exclusive: true },
+  { value: 'manager', label: 'Manager', icon: <Briefcase className="h-3 w-3" />, exclusive: true },
+  { value: 'stakeholder', label: 'Stakeholder', icon: <Eye className="h-3 w-3" />, exclusive: false },
+  { value: 'member', label: 'Member', icon: <Users className="h-3 w-3" />, exclusive: false },
+];
+
+function RoleCheckboxGroup({ mapping, currentOwner, currentManager, onRolesChange, disabled }: RoleCheckboxGroupProps) {
+  const currentRoles = mapping.projectRoles || [];
+  
+  const handleRoleToggle = (role: ProjectRoleType, checked: boolean) => {
+    let newRoles: ProjectRoleType[];
+    
+    if (checked) {
+      newRoles = [...currentRoles.filter(r => r !== 'none'), role];
+    } else {
+      newRoles = currentRoles.filter(r => r !== role);
+    }
+    
+    onRolesChange(newRoles);
+  };
+  
+  const isRoleDisabled = (role: ProjectRoleType): { disabled: boolean; reason?: string } => {
+    if (disabled) return { disabled: true };
+    
+    if (role === 'owner' && currentOwner && currentOwner.sourceId !== mapping.sourceId) {
+      return { disabled: true, reason: `Owner is already assigned to ${currentOwner.mappedToName || currentOwner.sourceName}` };
+    }
+    if (role === 'manager' && currentManager && currentManager.sourceId !== mapping.sourceId) {
+      return { disabled: true, reason: `Manager is already assigned to ${currentManager.mappedToName || currentManager.sourceName}` };
+    }
+    return { disabled: false };
+  };
+  
+  return (
+    <TooltipProvider>
+      <div className="flex flex-wrap gap-2" data-testid={`role-checkboxes-${mapping.sourceId}`}>
+        {ROLE_CONFIG.map(({ value, label, icon, exclusive }) => {
+          const isChecked = currentRoles.includes(value);
+          const { disabled: isDisabled, reason } = isRoleDisabled(value);
+          
+          const checkbox = (
+            <label
+              key={value}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs cursor-pointer transition-colors ${
+                isChecked 
+                  ? getRoleBadgeStyle(value)
+                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+              } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Checkbox
+                checked={isChecked}
+                onCheckedChange={(checked) => handleRoleToggle(value, checked === true)}
+                disabled={isDisabled}
+                className="h-3 w-3"
+                data-testid={`role-checkbox-${mapping.sourceId}-${value}`}
+              />
+              {icon}
+              <span>{label}</span>
+              {exclusive && <span className="text-[10px] opacity-60">(1)</span>}
+            </label>
+          );
+          
+          if (isDisabled && reason) {
+            return (
+              <Tooltip key={value}>
+                <TooltipTrigger asChild>
+                  {checkbox}
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{reason}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+          
+          return checkbox;
+        })}
+      </div>
+    </TooltipProvider>
+  );
+}
+
 export default function ImportTeam() {
   const [, setLocation] = useLocation();
-  const { state, updateUserMapping, updateUserProjectRole } = useImport();
+  const { state, updateUserMapping, updateUserProjectRoles } = useImport();
   const { data: allUsers } = useAllUsersForAssignment();
   
   const [multiAssigneeOpen, setMultiAssigneeOpen] = useState(true);
@@ -177,6 +270,14 @@ export default function ImportTeam() {
     }
   };
 
+  const currentOwner = useMemo(() => {
+    return state.userMappings.find(m => m.projectRoles?.includes('owner'));
+  }, [state.userMappings]);
+
+  const currentManager = useMemo(() => {
+    return state.userMappings.find(m => m.projectRoles?.includes('manager'));
+  }, [state.userMappings]);
+
   const teamStats = useMemo(() => {
     const userMappings = state.userMappings || [];
     const mapped = userMappings.filter(m => m.mappedToId && m.action === 'map');
@@ -191,18 +292,26 @@ export default function ImportTeam() {
     };
     
     mapped.forEach(m => {
-      const role = m.projectRole || 'none';
-      if (byRole[role]) {
-        byRole[role].push(m);
+      const roles = m.projectRoles || [];
+      if (roles.length === 0) {
+        byRole.none.push(m);
+      } else {
+        roles.forEach(role => {
+          if (byRole[role]) {
+            byRole[role].push(m);
+          }
+        });
       }
     });
+    
+    const withRoles = mapped.filter(m => m.projectRoles && m.projectRoles.length > 0 && !m.projectRoles.every(r => r === 'none')).length;
     
     return {
       total: userMappings.length,
       mapped: mapped.length,
       unmapped: unmapped.length,
       byRole,
-      withRoles: mapped.length - byRole.none.length,
+      withRoles,
     };
   }, [state.userMappings]);
 
@@ -387,7 +496,7 @@ export default function ImportTeam() {
                     size="sm" 
                     onClick={() => {
                       teamStats.byRole.none.forEach(u => {
-                        updateUserProjectRole(u.sourceId, 'member');
+                        updateUserProjectRoles(u.sourceId, ['member']);
                       });
                     }}
                     data-testid="assign-all-members-btn"
@@ -410,7 +519,7 @@ export default function ImportTeam() {
                   <TableHead>Tasks</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Map To System User</TableHead>
-                  <TableHead>Project Role</TableHead>
+                  <TableHead>Project Roles</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -448,14 +557,12 @@ export default function ImportTeam() {
                       />
                     </TableCell>
                     <TableCell>
-                      <SearchableSelect
-                        value={mapping.projectRole || 'none'}
-                        onValueChange={(val) => updateUserProjectRole(mapping.sourceId, val as ProjectRoleType)}
-                        options={PROJECT_ROLE_OPTIONS}
-                        placeholder="Select role..."
-                        className="w-[160px]"
+                      <RoleCheckboxGroup
+                        mapping={mapping}
+                        currentOwner={currentOwner}
+                        currentManager={currentManager}
+                        onRolesChange={(roles) => updateUserProjectRoles(mapping.sourceId, roles)}
                         disabled={!mapping.mappedToId || mapping.action === 'unassigned'}
-                        data-testid={`role-select-${mapping.sourceId}`}
                       />
                     </TableCell>
                   </TableRow>

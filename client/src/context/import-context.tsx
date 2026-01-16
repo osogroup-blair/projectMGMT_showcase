@@ -36,7 +36,7 @@ interface ImportContextType {
   state: ImportState;
   initializeFromFile: (parseResult: ParseResult, options?: ImportAdapterOptions) => void;
   updateUserMapping: (sourceId: string, mappedToId: string | null, mappedToName: string | undefined, action: UserMappingEntry['action']) => void;
-  updateUserProjectRole: (sourceId: string, projectRole: ProjectRoleType) => void;
+  updateUserProjectRoles: (sourceId: string, projectRoles: ProjectRoleType[]) => void;
   updateStatusMapping: (sourceStatus: string, mappedStatus: string, mappedStatusId?: string) => void;
   updateReferenceMapping: (entityType: ReferenceMappingEntry['entityType'], sourceValue: string, resolvedId: string, resolvedName: string) => void;
   setDefaultUnassignedTo: (userId: string | null, userName?: string) => void;
@@ -113,12 +113,12 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const updateUserProjectRole = useCallback((sourceId: string, projectRole: ProjectRoleType) => {
+  const updateUserProjectRoles = useCallback((sourceId: string, projectRoles: ProjectRoleType[]) => {
     setState(prev => ({
       ...prev,
       userMappings: prev.userMappings.map(m =>
         m.sourceId === sourceId
-          ? { ...m, projectRole }
+          ? { ...m, projectRoles }
           : m
       )
     }));
@@ -299,7 +299,7 @@ export function ImportProvider({ children }: { children: ReactNode }) {
     state,
     initializeFromFile,
     updateUserMapping,
-    updateUserProjectRole,
+    updateUserProjectRoles,
     updateStatusMapping,
     updateReferenceMapping,
     setDefaultUnassignedTo,
