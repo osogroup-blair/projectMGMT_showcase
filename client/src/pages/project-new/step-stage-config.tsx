@@ -87,6 +87,7 @@ interface SortableStageItemProps {
   removeTaskFromStage: (stageIndex: number, taskIndex: number) => void;
   updateTask: (stageIndex: number, taskIndex: number, updates: Partial<WizardTaskDraft>) => void;
   removeStage: (index: number) => void;
+  onStageNameChange?: () => void;
 }
 
 function SortableStageItem({
@@ -102,6 +103,7 @@ function SortableStageItem({
   removeTaskFromStage,
   updateTask,
   removeStage,
+  onStageNameChange,
 }: SortableStageItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stage.id });
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -191,6 +193,7 @@ function SortableStageItem({
                 const newStages = [...stages];
                 newStages[stageIndex].name = e.target.value;
                 setStages(newStages);
+                onStageNameChange?.();
               }}
               className="h-8 flex-1"
               placeholder="Enter stage name..."
@@ -235,12 +238,42 @@ function SortableStageItem({
                 data-testid={`input-stage-end-${stageIndex}`}
               />
             </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground shrink-0">Mode:</Label>
+              <div className="flex items-center gap-3">
+                {(['none', 'once', 'per_epic'] as const).map((mode) => (
+                  <div key={mode} className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      id={`stage-${mode}-${stage.id}`}
+                      name={`stage-mode-${stage.id}`}
+                      checked={stage.taskCreationMode === mode}
+                      onChange={() => {
+                        const newStages = [...stages];
+                        newStages[stageIndex].taskCreationMode = mode;
+                        if (mode === 'once' || mode === 'per_epic') {
+                          newStages[stageIndex].tasks = newStages[stageIndex].tasks.map(task => ({
+                            ...task,
+                            scope: mode
+                          }));
+                        }
+                        setStages(newStages);
+                      }}
+                      className="h-3 w-3"
+                    />
+                    <Label htmlFor={`stage-${mode}-${stage.id}`} className="text-xs cursor-pointer">
+                      {mode === 'per_epic' ? 'Per Epic' : mode === 'none' ? 'None' : 'Once'}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
                     <Info className="h-3 w-3" />
-                    <span>Tasks inherit these dates</span>
+                    <span>Tasks inherit dates</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-[220px]">
@@ -248,38 +281,6 @@ function SortableStageItem({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </div>
-          
-          <div className="flex items-center gap-4 py-2 px-3 bg-muted/50 rounded-md">
-            <Label className="text-sm text-muted-foreground shrink-0">Task Creation Mode:</Label>
-            <div className="flex items-center gap-4">
-              {(['none', 'once', 'per_epic'] as const).map((mode) => (
-                <div key={mode} className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    id={`stage-${mode}-${stage.id}`}
-                    name={`stage-mode-${stage.id}`}
-                    checked={stage.taskCreationMode === mode}
-                    onChange={() => {
-                      const newStages = [...stages];
-                      newStages[stageIndex].taskCreationMode = mode;
-                      // Update all existing tasks in this stage to match the new scope
-                      if (mode === 'once' || mode === 'per_epic') {
-                        newStages[stageIndex].tasks = newStages[stageIndex].tasks.map(task => ({
-                          ...task,
-                          scope: mode
-                        }));
-                      }
-                      setStages(newStages);
-                    }}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor={`stage-${mode}-${stage.id}`} className="text-sm cursor-pointer capitalize">
-                    {mode === 'per_epic' ? 'Per Epic' : mode === 'none' ? 'None' : 'Once'}
-                  </Label>
-                </div>
-              ))}
-            </div>
           </div>
 
           <div className="space-y-2">
@@ -539,25 +540,24 @@ export function StepStageConfig({
   const [showFrameworkChangeWarning, setShowFrameworkChangeWarning] = useState(false);
   const [pendingFrameworkId, setPendingFrameworkId] = useState<string | null>(null);
   const [frameworkAction, setFrameworkAction] = useState<'replace' | 'merge'>('replace');
-  const [selectedFrameworkId, setSelectedFrameworkId] = useState<string | null>(null);
+  const [selectedFrameworkId, setSelectedFrameworkId] = useState<string | null>('custom');
   const [isCustomized, setIsCustomized] = useState(false);
   
-  const [frameworkSidebarCollapsed, setFrameworkSidebarCollapsed] = useState(() => {
-    const saved = localStorage.getItem('stage-config-framework-collapsed');
-    return saved === 'true';
-  });
   const [navSidebarCollapsed, setNavSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('stage-config-nav-collapsed');
     return saved === 'true';
   });
   
   useEffect(() => {
-    localStorage.setItem('stage-config-framework-collapsed', String(frameworkSidebarCollapsed));
-  }, [frameworkSidebarCollapsed]);
-  
-  useEffect(() => {
     localStorage.setItem('stage-config-nav-collapsed', String(navSidebarCollapsed));
   }, [navSidebarCollapsed]);
+
+  const switchToCustom = useCallback(() => {
+    if (selectedFrameworkId && selectedFrameworkId !== 'custom') {
+      setSelectedFrameworkId('custom');
+      setIsCustomized(false);
+    }
+  }, [selectedFrameworkId]);
 
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
@@ -1037,10 +1037,10 @@ export function StepStageConfig({
         }
         
         setStages(newStages);
-        markAsCustomized();
+        switchToCustom(); // Reordering stages switches to custom
       }
     }
-  }, [stages, setStages, markAsCustomized]);
+  }, [stages, setStages, switchToCustom]);
 
   const handleSelectCustom = () => {
     setSelectedFrameworkId('custom');
@@ -1057,432 +1057,316 @@ export function StepStageConfig({
     }));
   }, [milestones]);
 
-  const selectedFramework = selectedFrameworkId 
+  const selectedFramework = selectedFrameworkId && selectedFrameworkId !== 'custom'
     ? frameworkTemplates?.find((f: any) => f.id === selectedFrameworkId)
     : null;
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex h-full -mx-6 -mt-6">
-        {/* Framework Sidebar */}
-        <div className={cn(
-          "border-r bg-muted/30 flex flex-col transition-all duration-300",
-          frameworkSidebarCollapsed ? "w-12" : "w-56"
-        )}>
-          <div className={cn("p-3 border-b", frameworkSidebarCollapsed && "px-2")}>
-            {frameworkSidebarCollapsed ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex justify-center">
-                    <LayoutTemplate className="h-5 w-5 text-primary" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right">Frameworks</TooltipContent>
-              </Tooltip>
-            ) : (
-              <div className="flex items-center gap-2">
-                <LayoutTemplate className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Frameworks</span>
-              </div>
-            )}
-          </div>
-          
-          <ScrollArea className="flex-1">
-            <div className={cn("space-y-1", frameworkSidebarCollapsed ? "p-1" : "p-2")}>
+      <div className="flex flex-col h-full -mx-6 -mt-6">
+        {/* Framework Bar (thin horizontal bar at top) */}
+        <div className="border-b bg-muted/30 px-4 py-2">
+          <div className="flex items-center gap-2">
+            <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">Framework:</span>
+            <div className="flex items-center gap-1 flex-1 overflow-x-auto">
+              {/* Custom option - first */}
+              <Button
+                variant={selectedFrameworkId === 'custom' || !selectedFrameworkId ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "h-7 text-xs shrink-0",
+                  (selectedFrameworkId === 'custom' || !selectedFrameworkId) && "bg-primary text-primary-foreground"
+                )}
+                onClick={handleSelectCustom}
+                data-testid="card-framework-custom"
+              >
+                Custom
+              </Button>
+              
+              {/* Framework templates */}
               {frameworkTemplates && frameworkTemplates.map((framework: any) => {
-                const counts = getFrameworkCounts(framework.id);
                 const isSelected = selectedFrameworkId === framework.id;
-                const button = (
-                  <div
+                return (
+                  <Button
                     key={framework.id}
+                    variant={isSelected ? "default" : "ghost"}
+                    size="sm"
                     className={cn(
-                      "rounded-md cursor-pointer transition-all",
-                      frameworkSidebarCollapsed ? "p-2 flex justify-center" : "p-2",
-                      isSelected 
-                        ? "bg-primary/10 border border-primary" 
-                        : "hover:bg-muted border border-transparent"
+                      "h-7 text-xs shrink-0",
+                      isSelected && "bg-primary text-primary-foreground"
                     )}
                     onClick={() => handleFrameworkClick(framework.id)}
                     data-testid={`card-framework-${framework.id}`}
                   >
-                    {frameworkSidebarCollapsed ? (
-                      <div className={cn(
-                        "h-6 w-6 rounded flex items-center justify-center text-xs font-medium",
-                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
-                      )}>
-                        {framework.name.charAt(0)}
-                      </div>
-                    ) : (
+                    {framework.name}
+                    {isSelected && isCustomized && (
+                      <Pencil className="h-3 w-3 ml-1" />
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Main layout with navigation sidebar and content */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Navigation Sidebar (Milestones/Stages) */}
+          <div className={cn(
+            "border-r bg-card flex flex-col transition-all duration-300",
+            navSidebarCollapsed ? "w-12" : "w-40"
+          )}>
+            <div className={cn("p-2 border-b flex items-center justify-between", navSidebarCollapsed && "justify-center")}>
+              {!navSidebarCollapsed && (
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</span>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setNavSidebarCollapsed(!navSidebarCollapsed)}
+                  >
+                    {navSidebarCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {navSidebarCollapsed ? "Expand" : "Collapse"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            
+            <div className={cn("space-y-1 flex-1", navSidebarCollapsed ? "p-1" : "p-2")}>
+              {[
+                { key: 'milestones' as const, icon: Target, label: 'Milestones', count: milestones.length },
+                { key: 'stages' as const, icon: Layers, label: 'Stages', count: stages.length },
+              ].map(item => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.key;
+                const button = (
+                  <div
+                    key={item.key}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md cursor-pointer transition-all",
+                      navSidebarCollapsed ? "p-2 justify-center" : "px-3 py-2",
+                      isActive 
+                        ? "bg-primary/10 text-primary font-medium" 
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    onClick={() => setActiveTab(item.key)}
+                    data-testid={`nav-${item.key}`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {!navSidebarCollapsed && (
                       <>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium truncate">{framework.name}</span>
-                          {isSelected && <Check className="h-3 w-3 text-primary shrink-0" />}
-                        </div>
-                        <div className="flex gap-1 flex-wrap">
-                          <span className="text-xs text-muted-foreground">{counts.stages}s</span>
-                          <span className="text-xs text-muted-foreground">{counts.tasks}t</span>
-                        </div>
+                        <span className="text-sm flex-1">{item.label}</span>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0">{item.count}</Badge>
                       </>
                     )}
                   </div>
                 );
                 
-                if (frameworkSidebarCollapsed) {
+                if (navSidebarCollapsed) {
                   return (
-                    <Tooltip key={framework.id}>
+                    <Tooltip key={item.key}>
                       <TooltipTrigger asChild>{button}</TooltipTrigger>
-                      <TooltipContent side="right">
-                        {framework.name} ({counts.stages} stages, {counts.tasks} tasks)
-                      </TooltipContent>
+                      <TooltipContent side="right">{item.label} ({item.count})</TooltipContent>
                     </Tooltip>
                   );
                 }
                 return button;
               })}
-              
-              {/* Custom option */}
-              {(() => {
-                const customButton = (
-                  <div
-                    className={cn(
-                      "rounded-md cursor-pointer transition-all border-dashed",
-                      frameworkSidebarCollapsed ? "p-2 flex justify-center" : "p-2",
-                      selectedFrameworkId === 'custom'
-                        ? "bg-primary/10 border border-primary border-solid" 
-                        : "hover:bg-muted border border-muted-foreground/30"
-                    )}
-                    onClick={handleSelectCustom}
-                    data-testid="card-framework-custom"
-                  >
-                    {frameworkSidebarCollapsed ? (
-                      <div className={cn(
-                        "h-6 w-6 rounded flex items-center justify-center text-xs",
-                        selectedFrameworkId === 'custom' ? "bg-primary text-primary-foreground" : "bg-muted"
-                      )}>
-                        +
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Custom</span>
-                          {selectedFrameworkId === 'custom' && <Check className="h-3 w-3 text-primary" />}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Build from scratch</p>
-                      </>
-                    )}
-                  </div>
-                );
-                
-                if (frameworkSidebarCollapsed) {
-                  return (
-                    <Tooltip>
-                      <TooltipTrigger asChild>{customButton}</TooltipTrigger>
-                      <TooltipContent side="right">Custom - Build from scratch</TooltipContent>
-                    </Tooltip>
-                  );
-                }
-                return customButton;
-              })()}
             </div>
-          </ScrollArea>
-          
-          <div className="p-2 border-t">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFrameworkSidebarCollapsed(!frameworkSidebarCollapsed)}
-                  className="w-full justify-center"
-                >
-                  {frameworkSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {frameworkSidebarCollapsed ? "Expand" : "Collapse"}
-              </TooltipContent>
-            </Tooltip>
           </div>
-        </div>
 
-        {/* Navigation Sidebar (Milestones/Stages) */}
-        <div className={cn(
-          "border-r bg-card flex flex-col transition-all duration-300",
-          navSidebarCollapsed ? "w-12" : "w-40"
-        )}>
-          <div className={cn("p-3 border-b", navSidebarCollapsed && "px-2")}>
-            {navSidebarCollapsed ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex justify-center">
-                    <Layers className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right">Navigation</TooltipContent>
-              </Tooltip>
-            ) : (
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</span>
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Status bar */}
+            {importStats.hasImportedData && (
+              <Alert className="m-4 mb-0 border-blue-200 bg-blue-50">
+                <Upload className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  <strong>Import Mode:</strong> {importStats.importedStages} stages and {importStats.importedTasks} tasks loaded from{" "}
+                  <span className="font-mono text-xs">{importContext?.state?.sourceFileName || 'import file'}</span>.
+                </AlertDescription>
+              </Alert>
             )}
-          </div>
-          
-          <div className={cn("space-y-1", navSidebarCollapsed ? "p-1" : "p-2")}>
-            {[
-              { key: 'milestones' as const, icon: Target, label: 'Milestones', count: milestones.length },
-              { key: 'stages' as const, icon: Layers, label: 'Stages', count: stages.length },
-            ].map(item => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.key;
-              const button = (
-                <div
-                  key={item.key}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md cursor-pointer transition-all",
-                    navSidebarCollapsed ? "p-2 justify-center" : "px-3 py-2",
-                    isActive 
-                      ? "bg-primary/10 text-primary font-medium" 
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  onClick={() => setActiveTab(item.key)}
-                  data-testid={`nav-${item.key}`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {!navSidebarCollapsed && (
-                    <>
-                      <span className="text-sm flex-1">{item.label}</span>
-                      <Badge variant="secondary" className="text-xs px-1.5 py-0">{item.count}</Badge>
-                    </>
-                  )}
-                </div>
-              );
-              
-              if (navSidebarCollapsed) {
-                return (
-                  <Tooltip key={item.key}>
-                    <TooltipTrigger asChild>{button}</TooltipTrigger>
-                    <TooltipContent side="right">{item.label} ({item.count})</TooltipContent>
-                  </Tooltip>
-                );
-              }
-              return button;
-            })}
-          </div>
-          
-          <div className="mt-auto p-2 border-t">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setNavSidebarCollapsed(!navSidebarCollapsed)}
-                  className="w-full justify-center"
-                >
-                  {navSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {navSidebarCollapsed ? "Expand" : "Collapse"}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Status bar */}
-          {importStats.hasImportedData && (
-            <Alert className="m-4 mb-0 border-blue-200 bg-blue-50">
-              <Upload className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800">
-                <strong>Import Mode:</strong> {importStats.importedStages} stages and {importStats.importedTasks} tasks loaded from{" "}
-                <span className="font-mono text-xs">{importContext?.state?.sourceFileName || 'import file'}</span>.
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {/* Selected framework indicator */}
-          {selectedFramework && (
-            <div className="px-4 pt-4 pb-2">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Framework:</span>
-                <Badge variant="outline" className="font-medium">
-                  {selectedFramework.name}
-                  {isCustomized && <Pencil className="h-3 w-3 ml-1" />}
-                </Badge>
-              </div>
-            </div>
-          )}
-          
-          {/* Content area */}
-          <div className="flex-1 overflow-auto p-4">
-            {activeTab === 'stages' && (
-              <>
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <div className="flex items-center gap-2">
-                    {stageTemplateOptions.length > 0 && (
-                      <SearchableSelect
-                        onValueChange={(id) => {
-                          applyStageTemplate(id);
-                          if (selectedFrameworkId && selectedFrameworkId !== 'custom') {
-                            markAsCustomized();
-                          }
-                        }}
-                        placeholder="Add from template..."
-                        options={stageTemplateOptions}
-                        triggerClassName="w-48"
-                      />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {stages.length > 0 && (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setShowClearStagesConfirm(true)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" /> Clear All
-                      </Button>
-                    )}
-                    <Button size="sm" onClick={addStage} data-testid="button-add-stage">
-                      <Plus className="h-4 w-4 mr-2" /> Add Stage
-                    </Button>
-                  </div>
-                </div>
-                
-                {stages.length === 0 ? (
-                  <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
-                    <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No stages defined yet.</p>
-                    <p className="text-sm mt-1">Select a framework from the left sidebar or click "Add Stage".</p>
-                  </div>
-                ) : (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={stages.map(s => s.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <Accordion 
-                        type="multiple" 
-                        value={expandedStages}
-                        onValueChange={setExpandedStages}
-                        className="space-y-2"
-                      >
-                        {stages.map((stage, stageIndex) => (
-                          <SortableStageItem
-                            key={stage.id}
-                            stage={stage}
-                            stageIndex={stageIndex}
-                            stages={stages}
-                            setStages={setStages}
-                            milestoneOptions={milestoneOptions}
-                            teamMemberOptions={teamMemberOptions}
-                            taskTypes={taskTypes}
-                            priorityOptions={priorityOptions}
-                            addTaskToStage={addTaskToStage}
-                            removeTaskFromStage={removeTaskFromStage}
-                            updateTask={updateTask}
-                            removeStage={removeStage}
-                          />
-                        ))}
-                      </Accordion>
-                    </SortableContext>
-                  </DndContext>
-                )}
-              </>
-            )}
-
-            {activeTab === 'milestones' && (
-              <>
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <div className="flex items-center gap-2" />
-                  <div className="flex items-center gap-2">
-                    {milestones.length > 0 && (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setShowClearMilestonesConfirm(true)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" /> Clear All
-                      </Button>
-                    )}
-                    <Button size="sm" onClick={addMilestone} data-testid="button-add-milestone">
-                      <Plus className="h-4 w-4 mr-2" /> Add Milestone
-                    </Button>
-                  </div>
-                </div>
-                
-                {milestones.length === 0 ? (
-                  <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
-                    <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No milestones defined yet.</p>
-                    <p className="text-sm mt-1">Milestones are optional but help track key deliverables.</p>
-                  </div>
-                ) : (
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="grid grid-cols-[1fr_140px_80px_40px] gap-2 p-3 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase">
-                      <div>Name</div>
-                      <div>Target Date</div>
-                      <div className="text-center">Billing Gate</div>
-                      <div></div>
+            
+            {/* Content area */}
+            <div className="flex-1 overflow-auto p-4">
+              {activeTab === 'stages' && (
+                <>
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <div className="flex items-center gap-2">
+                      {stageTemplateOptions.length > 0 && (
+                        <SearchableSelect
+                          onValueChange={(id) => {
+                            applyStageTemplate(id);
+                            if (selectedFrameworkId && selectedFrameworkId !== 'custom') {
+                              markAsCustomized();
+                            }
+                          }}
+                          placeholder="Add from template..."
+                          options={stageTemplateOptions}
+                          triggerClassName="w-48"
+                        />
+                      )}
                     </div>
-                    <div className="divide-y">
-                      {milestones.map((milestone, index) => (
-                        <div 
-                          key={milestone.id} 
-                          className="grid grid-cols-[1fr_140px_80px_40px] gap-2 p-2 items-center hover:bg-muted/30"
+                    <div className="flex items-center gap-2">
+                      {stages.length > 0 && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setShowClearStagesConfirm(true)}
                         >
-                          <Input
-                            value={milestone.name}
-                            onChange={(e) => updateMilestone(index, { name: e.target.value })}
-                            className="h-8 text-sm"
-                            placeholder="Milestone name..."
-                          />
-                          <Input
-                            type="date"
-                            value={milestone.targetDate}
-                            onChange={(e) => updateMilestone(index, { targetDate: e.target.value })}
-                            className="h-8 text-sm"
-                          />
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={milestone.isBillingGate}
-                              onChange={(e) => updateMilestone(index, { isBillingGate: e.target.checked })}
-                              className="h-4 w-4"
-                            />
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => removeMilestone(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                          <Trash2 className="h-4 w-4 mr-2" /> Clear All
+                        </Button>
+                      )}
+                      <Button size="sm" onClick={addStage} data-testid="button-add-stage">
+                        <Plus className="h-4 w-4 mr-2" /> Add Stage
+                      </Button>
                     </div>
                   </div>
-                )}
-              </>
-            )}
-          </div>
+                  
+                  {stages.length === 0 ? (
+                    <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
+                      <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No stages defined yet.</p>
+                      <p className="text-sm mt-1">Select a framework above or click "Add Stage".</p>
+                    </div>
+                  ) : (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={stages.map(s => s.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <Accordion 
+                          type="multiple" 
+                          value={expandedStages}
+                          onValueChange={setExpandedStages}
+                          className="space-y-2"
+                        >
+                          {stages.map((stage, stageIndex) => (
+                            <SortableStageItem
+                              key={stage.id}
+                              stage={stage}
+                              stageIndex={stageIndex}
+                              stages={stages}
+                              setStages={setStages}
+                              milestoneOptions={milestoneOptions}
+                              teamMemberOptions={teamMemberOptions}
+                              taskTypes={taskTypes}
+                              priorityOptions={priorityOptions}
+                              addTaskToStage={addTaskToStage}
+                              removeTaskFromStage={removeTaskFromStage}
+                              updateTask={updateTask}
+                              removeStage={removeStage}
+                              onStageNameChange={switchToCustom}
+                            />
+                          ))}
+                        </Accordion>
+                      </SortableContext>
+                    </DndContext>
+                  )}
+                </>
+              )}
 
-          {/* Footer */}
-          <div className="border-t p-4 bg-background">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <div className="flex gap-4">
-                <span>{stages.length} stage{stages.length !== 1 ? 's' : ''}</span>
-                <span>{stages.reduce((acc, s) => acc + s.tasks.length, 0)} task draft{stages.reduce((acc, s) => acc + s.tasks.length, 0) !== 1 ? 's' : ''}</span>
-                <span>{milestones.length} milestone{milestones.length !== 1 ? 's' : ''}</span>
-              </div>
-              <div className="text-xs">
-                Tasks will be created based on scope (Once vs Per Epic) when the project is finalized.
+              {activeTab === 'milestones' && (
+                <>
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <div className="flex items-center gap-2" />
+                    <div className="flex items-center gap-2">
+                      {milestones.length > 0 && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setShowClearMilestonesConfirm(true)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" /> Clear All
+                        </Button>
+                      )}
+                      <Button size="sm" onClick={addMilestone} data-testid="button-add-milestone">
+                        <Plus className="h-4 w-4 mr-2" /> Add Milestone
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {milestones.length === 0 ? (
+                    <div className="text-center p-8 border-2 border-dashed rounded-lg text-muted-foreground">
+                      <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No milestones defined yet.</p>
+                      <p className="text-sm mt-1">Milestones are optional but help track key deliverables.</p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="grid grid-cols-[1fr_140px_80px_40px] gap-2 p-3 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase">
+                        <div>Name</div>
+                        <div>Target Date</div>
+                        <div className="text-center">Billing Gate</div>
+                        <div></div>
+                      </div>
+                      <div className="divide-y">
+                        {milestones.map((milestone, index) => (
+                          <div 
+                            key={milestone.id} 
+                            className="grid grid-cols-[1fr_140px_80px_40px] gap-2 p-2 items-center hover:bg-muted/30"
+                          >
+                            <Input
+                              value={milestone.name}
+                              onChange={(e) => updateMilestone(index, { name: e.target.value })}
+                              className="h-8 text-sm"
+                              placeholder="Milestone name..."
+                            />
+                            <Input
+                              type="date"
+                              value={milestone.targetDate}
+                              onChange={(e) => updateMilestone(index, { targetDate: e.target.value })}
+                              className="h-8 text-sm"
+                            />
+                            <div className="flex justify-center">
+                              <input
+                                type="checkbox"
+                                checked={milestone.isBillingGate}
+                                onChange={(e) => updateMilestone(index, { isBillingGate: e.target.checked })}
+                                className="h-4 w-4"
+                              />
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => removeMilestone(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t p-4 bg-background">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex gap-4">
+                  <span>{stages.length} stage{stages.length !== 1 ? 's' : ''}</span>
+                  <span>{stages.reduce((acc, s) => acc + s.tasks.length, 0)} task draft{stages.reduce((acc, s) => acc + s.tasks.length, 0) !== 1 ? 's' : ''}</span>
+                  <span>{milestones.length} milestone{milestones.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="text-xs">
+                  Tasks will be created based on scope (Once vs Per Epic) when the project is finalized.
+                </div>
               </div>
             </div>
           </div>
