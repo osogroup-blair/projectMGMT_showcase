@@ -148,10 +148,6 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
       setError("Please select an epic");
       return;
     }
-    if (!stageId) {
-      setError("Please select a stage");
-      return;
-    }
 
     const selectedProject = projects.find((p: any) => p.id === projectId);
     const projectName = defaultProjectName || selectedProject?.name || "Unknown Project";

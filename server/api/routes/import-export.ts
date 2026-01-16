@@ -435,12 +435,9 @@ export function registerImportExportRoutes(
       // Validate with schema
       const validated = insertTaskSchema.parse(subtaskData);
       
-      // Server-side validation: Epic and Stage are required, TaskType is optional
+      // Server-side validation: Epic is required, Stage and TaskType are optional
       if (!validated.epicId) {
         return res.status(400).json({ error: "Epic is required for subtask creation" });
-      }
-      if (!validated.stageId) {
-        return res.status(400).json({ error: "Stage is required for subtask creation" });
       }
       
       const subtask = await storage.createTask(validated);

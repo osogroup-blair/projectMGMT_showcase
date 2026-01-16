@@ -23,12 +23,9 @@ export function registerTaskRoutes(
       const userId = getAuthUserId(req);
       const validated = insertTaskSchema.parse(req.body);
       
-      // Server-side validation: Epic, Stage, and TaskType are required for task creation
+      // Server-side validation: Epic and TaskType are required for task creation (Stage is optional)
       if (!validated.epicId) {
         return res.status(400).json({ error: "Epic is required for task creation" });
-      }
-      if (!validated.stageId) {
-        return res.status(400).json({ error: "Stage is required for task creation" });
       }
       if (!validated.taskTypeId) {
         return res.status(400).json({ error: "Task type is required for task creation" });
@@ -63,9 +60,6 @@ export function registerTaskRoutes(
       }
       if (!epicId) {
         return res.status(400).json({ error: "Epic is required" });
-      }
-      if (!stageId) {
-        return res.status(400).json({ error: "Stage is required" });
       }
       if (!deadline) {
         return res.status(400).json({ error: "Deadline is required" });

@@ -309,10 +309,10 @@ export default function TaskBoard() {
   };
 
   const handleSave = () => {
-    if (!formData.title || !formData.stageId || !formData.epicId) {
+    if (!formData.title || !formData.epicId) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (Title, Stage, and Epic are required).",
+        description: "Please fill in all required fields (Title and Epic are required).",
         variant: "destructive"
       });
       return;
