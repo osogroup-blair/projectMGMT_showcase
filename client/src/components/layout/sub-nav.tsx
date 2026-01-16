@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/context/current-user-context";
+import { useAuth } from "@/hooks/use-auth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const NAV_ITEMS = [
@@ -21,6 +22,7 @@ interface FavoriteProject {
 export function SubNav() {
   const [location] = useLocation();
   const { currentUser } = useCurrentUser();
+  const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -157,42 +159,46 @@ export function SubNav() {
         )}
 
         <div className={cn("border-t border-border mt-auto", isCollapsed ? "p-2" : "p-4")}>
-          {!isCollapsed && (
-            <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Admin
-            </div>
+          {isAdmin && (
+            <>
+              {!isCollapsed && (
+                <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Admin
+                </div>
+              )}
+              {isCollapsed && (
+                <div className="flex justify-center py-1 mb-1">
+                  <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+              )}
+              <NavButton
+                href="/admin/templates"
+                icon={LayoutTemplate}
+                label="Templates"
+                isActive={location === "/admin/templates"}
+              />
+              <NavButton
+                href="/admin/defaults"
+                icon={Settings}
+                label="App Defaults"
+                isActive={location === "/admin/defaults"}
+              />
+              <NavButton
+                href="/admin/users"
+                icon={Users}
+                label="User Management"
+                isActive={location === "/admin/users"}
+              />
+              <NavButton
+                href="/admin/import-export"
+                icon={Download}
+                label="Import & Export"
+                isActive={location === "/admin/import-export"}
+              />
+            </>
           )}
-          {isCollapsed && (
-            <div className="flex justify-center py-1 mb-1">
-              <Settings className="h-3.5 w-3.5 text-muted-foreground" />
-            </div>
-          )}
-          <NavButton
-            href="/admin/templates"
-            icon={LayoutTemplate}
-            label="Templates"
-            isActive={location === "/admin/templates"}
-          />
-          <NavButton
-            href="/admin/defaults"
-            icon={Settings}
-            label="App Defaults"
-            isActive={location === "/admin/defaults"}
-          />
-          <NavButton
-            href="/admin/users"
-            icon={Users}
-            label="User Management"
-            isActive={location === "/admin/users"}
-          />
-          <NavButton
-            href="/admin/import-export"
-            icon={Download}
-            label="Import & Export"
-            isActive={location === "/admin/import-export"}
-          />
           
-          <div className="mt-2 pt-2 border-t border-border">
+          <div className={cn(isAdmin && "mt-2 pt-2 border-t border-border")}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
