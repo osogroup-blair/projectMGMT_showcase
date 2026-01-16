@@ -110,7 +110,8 @@ function RoleCheckboxGroup({ mapping, currentOwner, currentManager, onRolesChang
     let newRoles: ProjectRoleType[];
     
     if (checked) {
-      newRoles = [...currentRoles.filter(r => r !== 'none'), role];
+      const filtered = currentRoles.filter(r => r !== 'none' && r !== role);
+      newRoles = [...filtered, role];
     } else {
       newRoles = currentRoles.filter(r => r !== role);
     }
