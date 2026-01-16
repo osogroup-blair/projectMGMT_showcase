@@ -491,6 +491,8 @@ export const stageTemplates = pgTable("stage_templates", {
   entryCriteria: text("entry_criteria"),
   exitCriteria: text("exit_criteria"),
   allowedTaskStatuses: text("allowed_task_statuses").array().default([]),
+  startPercent: integer("start_percent").default(0),
+  endPercent: integer("end_percent").default(100),
 });
 
 // Project Templates
