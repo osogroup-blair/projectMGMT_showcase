@@ -1705,35 +1705,66 @@ export function registerImportExportRoutes(
       const defaultTaskStatus = await storage.getDefaultStatusByType("task");
       
       // 2. Create team members with high-level and execution roles (BEFORE stages so assignees exist)
-      // First, collect all unique task assignees from the payload to ensure they become team members
-      const taskAssignees = new Set<string>();
+      // First, collect all tasks to validate and resolve their assignee IDs
+      const allTasksForValidation: Array<{ id: string; title: string; assigneeId?: string | null }> = [];
+      
       (payload.stages || []).forEach((stage: any) => {
         (stage.tasks || []).forEach((task: any) => {
-          if (task.assigneeId) taskAssignees.add(task.assigneeId);
+          allTasksForValidation.push({
+            id: task.id,
+            title: task.title,
+            assigneeId: task.assigneeId || null
+          });
         });
       });
       (payload.deliverables || []).forEach((del: any) => {
         (del.epics || []).forEach((epic: any) => {
           (epic.tasks || []).forEach((task: any) => {
-            if (task.assigneeId) taskAssignees.add(task.assigneeId);
+            allTasksForValidation.push({
+              id: task.id,
+              title: task.title,
+              assigneeId: task.assigneeId || null
+            });
           });
         });
       });
       
-      // Merge task assignees with roles - add any missing as 'member' roles
+      // Validate and resolve all assignee IDs using userMappings
+      const { resolvedTasks, warnings: assigneeWarnings, validUserIds } = await validateAndResolveAssignees(
+        allTasksForValidation,
+        payload.userMappings,
+        storage
+      );
+      
+      // Track unresolved assignee warnings
+      const unresolvedAssignees: UnresolvedAssigneeWarning[] = assigneeWarnings;
+      
+      if (assigneeWarnings.length > 0) {
+        console.log(`[FULL-CREATE] ${assigneeWarnings.length} unresolved assignees found:`, 
+          assigneeWarnings.map(w => `${w.taskTitle}: ${w.originalAssigneeId} (${w.reason})`));
+      }
+      
+      // Merge validated task assignees with roles - add any missing as 'member' roles
       const roles = payload.roles || [];
       const rolesUserIds = new Set(roles.filter((r: any) => r.userId).map((r: any) => r.userId));
-      taskAssignees.forEach(assigneeId => {
-        if (!rolesUserIds.has(assigneeId)) {
-          roles.push({
-            id: `role-auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            roleType: 'member',
-            roleTypeId: null,
-            userId: assigneeId,
-            allocation: 100
-          });
-          console.log(`[FULL-CREATE] Auto-adding task assignee ${assigneeId} as team member`);
+      
+      // De-duplicate by userId before creating team members
+      const userIdsToAdd = new Set<string>();
+      validUserIds.forEach(assigneeId => {
+        if (!rolesUserIds.has(assigneeId) && !userIdsToAdd.has(assigneeId)) {
+          userIdsToAdd.add(assigneeId);
         }
+      });
+      
+      userIdsToAdd.forEach(assigneeId => {
+        roles.push({
+          id: `role-auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          roleType: 'member',
+          roleTypeId: null,
+          userId: assigneeId,
+          allocation: 100
+        });
+        console.log(`[FULL-CREATE] Auto-adding validated task assignee ${assigneeId} as team member`);
       });
       
       const addedUserIds = new Set<string>();
@@ -2088,6 +2119,8 @@ export function registerImportExportRoutes(
                       const resolvedSprintId = epicTask.sprintId 
                         ? sprintIdMap.get(epicTask.sprintId) || epicTask.sprintId 
                         : null;
+                      // Resolve assignee ID using validated user mappings
+                      const resolvedAssigneeId = resolvedTasks.get(epicTask.id) ?? null;
                       await storage.createTask({
                         id: epicTaskId,
                         project: projectName,
@@ -2103,7 +2136,7 @@ export function registerImportExportRoutes(
                         effort: 1,
                         deadline: payload.project.deadline,
                         estimateHours: epicTask.estimateHours || 0,
-                        assigneeId: epicTask.assigneeId || null,
+                        assigneeId: resolvedAssigneeId,
                         taskTypeId: epicTask.taskTypeId || null,
                         tags: epicTask.tags || []
                       } as any);
@@ -2204,7 +2237,7 @@ export function registerImportExportRoutes(
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
-                  assigneeId: taskDraft.assigneeId || null,
+                  assigneeId: resolvedTasks.get(taskDraft.id) ?? null,
                   taskTypeId: taskDraft.taskTypeId || null,
                   tags: taskDraft.tags || []
                 } as any);
@@ -2256,7 +2289,7 @@ export function registerImportExportRoutes(
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
-                  assigneeId: taskDraft.assigneeId || null,
+                  assigneeId: resolvedTasks.get(taskDraft.id) ?? null,
                   taskTypeId: taskDraft.taskTypeId || null,
                   tags: taskDraft.tags || []
                 } as any);
@@ -2308,7 +2341,7 @@ export function registerImportExportRoutes(
                     effort: 1,
                     deadline: taskDeadline,
                     estimateHours: taskDraft.estimateHours || 0,
-                    assigneeId: taskDraft.assigneeId || null,
+                    assigneeId: resolvedTasks.get(taskDraft.id) ?? null,
                     taskTypeId: taskDraft.taskTypeId || null,
                     tags: taskDraft.tags || []
                   } as any);
@@ -2351,7 +2384,7 @@ export function registerImportExportRoutes(
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
-                  assigneeId: taskDraft.assigneeId || null,
+                  assigneeId: resolvedTasks.get(taskDraft.id) ?? null,
                   taskTypeId: taskDraft.taskTypeId || null,
                   tags: taskDraft.tags || []
                 } as any);
@@ -2404,7 +2437,7 @@ export function registerImportExportRoutes(
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
-                  assigneeId: taskDraft.assigneeId || null,
+                  assigneeId: resolvedTasks.get(taskDraft.id) ?? null,
                   taskTypeId: taskDraft.taskTypeId || null,
                   tags: taskDraft.tags || []
                 } as any);
@@ -2461,7 +2494,8 @@ export function registerImportExportRoutes(
           failed
         },
         entityResults,
-        breakdownByType
+        breakdownByType,
+        unresolvedAssignees: unresolvedAssignees.length > 0 ? unresolvedAssignees : undefined
       };
       
       res.status(201).json(report);
