@@ -1,3 +1,7 @@
+import type { TaskMappingStatus as SharedTaskMappingStatus } from '@shared/import-types';
+
+export type TaskMappingStatus = SharedTaskMappingStatus;
+
 export interface ProjectData {
   name: string;
   description: string;
@@ -46,8 +50,6 @@ export interface WizardEpic {
   epicTypeId?: string;
   tasks?: WizardEpicTask[];
 }
-
-export type TaskMappingStatus = 'mapped' | 'orphaned' | 'manual' | 'skipped';
 
 export interface WizardTaskDraft {
   id: string;
