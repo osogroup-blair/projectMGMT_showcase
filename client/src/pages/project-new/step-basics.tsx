@@ -2,13 +2,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StepProps, getDefaultDueDate, DEFAULT_SPRINT_DURATION, DEFAULT_PROJECT_DURATION_WEEKS } from "./types";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { Download, Upload } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface ProjectBasicsData {
+  name: string;
+  description: string;
+  startDate: string;
+  dueDate: string;
+  client: string;
+  sprintDurationWeeks: number;
+}
 
 export function StepBasics({
   projectData,
   setProjectData,
 }: StepProps) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (projectData.startDate && !projectData.dueDate) {
       setProjectData(prev => ({
@@ -26,6 +41,53 @@ export function StepBasics({
     }));
   };
 
+  const handleExport = () => {
+    const exportData: ProjectBasicsData = {
+      name: projectData.name,
+      description: projectData.description || "",
+      startDate: projectData.startDate,
+      dueDate: projectData.dueDate,
+      client: projectData.client || "",
+      sprintDurationWeeks: projectData.sprintDurationWeeks,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `project-basics-${projectData.name || "new"}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "Project settings exported successfully." });
+  };
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string) as Partial<ProjectBasicsData>;
+        setProjectData(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          description: data.description || prev.description,
+          startDate: data.startDate || prev.startDate,
+          dueDate: data.dueDate || prev.dueDate,
+          client: data.client || prev.client,
+          sprintDurationWeeks: data.sprintDurationWeeks ?? prev.sprintDurationWeeks,
+        }));
+        toast({ title: "Imported", description: "Project settings imported successfully." });
+      } catch {
+        toast({ title: "Import Failed", description: "Invalid file format.", variant: "destructive" });
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const sprintDurationOptions = [
     { value: "0", label: "No Sprints" },
     { value: "1", label: "1 Week" },
@@ -36,6 +98,51 @@ export function StepBasics({
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end gap-1">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleImport}
+          className="hidden"
+        />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="button-import-basics"
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">Import project settings</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={handleExport}
+                data-testid="button-export-basics"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">Export project settings</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div className="space-y-2">
