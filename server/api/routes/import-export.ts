@@ -17,7 +17,124 @@ import {
   insertTaskDependencySchema,
   insertTaskSchema,
 } from "@shared/schema";
-import { fullProjectCreatePayloadSchema, type EntityType } from "@shared/creation-result-types";
+import { fullProjectCreatePayloadSchema, type EntityType, type UnresolvedAssigneeWarning } from "@shared/creation-result-types";
+
+interface UserMappingEntry {
+  sourceId: string;
+  sourceName?: string;
+  sourceEmail?: string;
+  mappedToId?: string;
+  mappedToName?: string;
+  confidence: 'high' | 'medium' | 'low' | 'unmapped';
+  action: 'map' | 'create' | 'skip' | 'unassigned';
+}
+
+interface AssigneeResolutionResult {
+  resolvedAssigneeId: string | null;
+  warning?: UnresolvedAssigneeWarning;
+}
+
+async function validateAndResolveAssignees(
+  tasks: Array<{ id: string; title: string; assigneeId?: string | null }>,
+  userMappings: UserMappingEntry[] | undefined,
+  storage: any
+): Promise<{
+  resolvedTasks: Map<string, string | null>;
+  warnings: UnresolvedAssigneeWarning[];
+  validUserIds: Set<string>;
+}> {
+  const resolvedTasks = new Map<string, string | null>();
+  const warnings: UnresolvedAssigneeWarning[] = [];
+  const validUserIds = new Set<string>();
+  const userExistenceCache = new Map<string, boolean>();
+  
+  const userMappingsBySourceId = new Map<string, UserMappingEntry>();
+  if (userMappings) {
+    for (const mapping of userMappings) {
+      userMappingsBySourceId.set(mapping.sourceId, mapping);
+    }
+  }
+  
+  async function checkUserExists(userId: string): Promise<boolean> {
+    if (userExistenceCache.has(userId)) {
+      return userExistenceCache.get(userId)!;
+    }
+    try {
+      const user = await storage.getUserById(userId);
+      const exists = !!user;
+      userExistenceCache.set(userId, exists);
+      return exists;
+    } catch {
+      userExistenceCache.set(userId, false);
+      return false;
+    }
+  }
+  
+  for (const task of tasks) {
+    if (!task.assigneeId) {
+      resolvedTasks.set(task.id, null);
+      continue;
+    }
+    
+    let finalAssigneeId: string | null = task.assigneeId;
+    let warningReason: 'not_found' | 'not_mapped' | 'skipped' | 'invalid' | null = null;
+    
+    const mapping = userMappingsBySourceId.get(task.assigneeId);
+    
+    if (mapping) {
+      switch (mapping.action) {
+        case 'map':
+          if (mapping.mappedToId) {
+            const mappedUserExists = await checkUserExists(mapping.mappedToId);
+            if (mappedUserExists) {
+              finalAssigneeId = mapping.mappedToId;
+              validUserIds.add(finalAssigneeId);
+            } else {
+              warningReason = 'not_found';
+              finalAssigneeId = null;
+            }
+          } else {
+            warningReason = 'not_mapped';
+            finalAssigneeId = null;
+          }
+          break;
+          
+        case 'skip':
+        case 'unassigned':
+          warningReason = 'skipped';
+          finalAssigneeId = null;
+          break;
+          
+        case 'create':
+          warningReason = 'not_found';
+          finalAssigneeId = null;
+          break;
+      }
+    } else {
+      const userExists = await checkUserExists(task.assigneeId);
+      if (userExists) {
+        validUserIds.add(task.assigneeId);
+      } else {
+        warningReason = 'not_found';
+        finalAssigneeId = null;
+      }
+    }
+    
+    resolvedTasks.set(task.id, finalAssigneeId);
+    
+    if (warningReason) {
+      warnings.push({
+        taskId: task.id,
+        taskTitle: task.title,
+        originalAssigneeId: task.assigneeId,
+        reason: warningReason,
+        resolution: finalAssigneeId ? 'kept_original' : 'cleared'
+      });
+    }
+  }
+  
+  return { resolvedTasks, warnings, validUserIds };
+}
 
 export function registerImportExportRoutes(
   app: Express,
