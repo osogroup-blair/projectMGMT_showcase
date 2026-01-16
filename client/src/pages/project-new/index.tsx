@@ -52,7 +52,8 @@ import {
   toWizardDeliverables, 
   toWizardStages, 
   toWizardMilestones,
-  toWizardRoles
+  toWizardRoles,
+  toWizardSprints
 } from "@/lib/import-to-wizard-adapter";
 import { ImportSummaryBanner } from "@/components/import/ImportFieldIndicator";
 import type { CreationReport, FullProjectCreatePayload } from "@shared/creation-result-types";
@@ -161,6 +162,15 @@ export default function ProjectWizard() {
   const [stages, setStagesRaw] = useState<WizardStage[]>([]);
   const [roles, setRoles] = useState<WizardRole[]>([]);
   const [milestones, setMilestones] = useState<WizardMilestone[]>([]);
+  const [sprints, setSprints] = useState<Array<{
+    id: string;
+    name: string;
+    goal?: string | null;
+    startDate: string;
+    endDate: string;
+    status?: string;
+    capacityHours?: number | null;
+  }>>([]);
 
   // Wrapper to auto-apply proportional dates when stages change
   const setStages = (newStages: WizardStage[] | ((prev: WizardStage[]) => WizardStage[])) => {
@@ -280,6 +290,12 @@ export default function ProjectWizard() {
       const importedRoles = toWizardRoles(adapter.roles);
       if (importedRoles.length > 0) {
         setRoles(importedRoles);
+      }
+      
+      // Initialize sprints from import data
+      if (adapter.sprints && adapter.sprints.length > 0) {
+        const importedSprints = toWizardSprints(adapter.sprints);
+        setSprints(importedSprints);
       }
       
       setImportInitialized(true);
@@ -1255,6 +1271,15 @@ export default function ProjectWizard() {
           userId: r.assigneeId || null,
           allocation: 100
         })),
+        sprints: sprints.length > 0 ? sprints.map(s => ({
+          id: s.id,
+          name: s.name,
+          goal: s.goal || null,
+          startDate: s.startDate,
+          endDate: s.endDate,
+          status: s.status || 'planned',
+          capacityHours: s.capacityHours || null
+        })) : undefined,
         importMetadata: isImportMode && importContext?.state?.sourceFileName ? {
           source: importContext.state.sourceFileName || 'imported',
           importedAt: new Date().toISOString()

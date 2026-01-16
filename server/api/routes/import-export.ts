@@ -1504,36 +1504,28 @@ export function registerImportExportRoutes(
           success: true
         });
         
-        // Auto-generate sprints if configured
-        if (project.sprintDurationWeeks && project.sprintDurationWeeks > 0 && project.startDate && project.deadline) {
-          const startDate = new Date(project.startDate);
-          const endDate = new Date(project.deadline);
-          const durationMs = project.sprintDurationWeeks * 7 * 24 * 60 * 60 * 1000;
-          const totalMs = endDate.getTime() - startDate.getTime();
-          const sprintCount = Math.max(1, Math.ceil(totalMs / durationMs));
-          
-          for (let i = 0; i < sprintCount; i++) {
-            const sprintStart = new Date(startDate.getTime() + (i * durationMs));
-            let sprintEnd = new Date(sprintStart.getTime() + durationMs - (24 * 60 * 60 * 1000));
-            if (sprintEnd > endDate || i === sprintCount - 1) {
-              sprintEnd = endDate;
-            }
-            
+        // Create sprints from payload (imported sprints) instead of auto-generating
+        const payloadSprints = payload.sprints || [];
+        if (payloadSprints.length > 0) {
+          console.log(`[FULL-CREATE] Creating ${payloadSprints.length} imported sprints`);
+          for (const sprint of payloadSprints) {
             try {
               await storage.createSprint({
                 projectId: project.id,
-                name: `Sprint ${i + 1}`,
-                goal: null,
-                startDate: sprintStart.toISOString().split('T')[0],
-                endDate: sprintEnd.toISOString().split('T')[0],
-                status: 'Planned',
-                capacityHours: null
+                name: sprint.name,
+                goal: sprint.goal || null,
+                startDate: sprint.startDate,
+                endDate: sprint.endDate,
+                status: sprint.status || 'Planned',
+                capacityHours: sprint.capacityHours || null
               });
+              console.log(`[FULL-CREATE] Created sprint: ${sprint.name}`);
             } catch (e: any) {
-              // Sprint creation is non-critical, log but continue
-              console.log(`Sprint ${i + 1} creation failed: ${e.message}`);
+              console.log(`Sprint "${sprint.name}" creation failed: ${e.message}`);
             }
           }
+        } else {
+          console.log(`[FULL-CREATE] No sprints in payload - skipping sprint creation`);
         }
       } catch (e: any) {
         entityResults.push({

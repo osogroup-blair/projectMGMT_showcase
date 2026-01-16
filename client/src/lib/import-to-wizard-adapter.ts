@@ -70,6 +70,19 @@ export interface ImportedMilestone extends WizardMilestone {
   warnings: string[];
 }
 
+export interface ImportedSprint {
+  id: string;
+  name: string;
+  goal?: string | null;
+  startDate: string;
+  endDate: string;
+  status?: string;
+  capacityHours?: number | null;
+  sourceId?: string;
+  confidence: ConfidenceLevel;
+  warnings: string[];
+}
+
 export interface ImportedRole extends WizardRole {
   sourceId?: string;
   confidence: ConfidenceLevel;
@@ -134,6 +147,7 @@ export interface ImportAdapterResult {
   deliverables: ImportedDeliverable[];
   stages: ImportedStage[];
   milestones: ImportedMilestone[];
+  sprints: ImportedSprint[];
   roles: ImportedRole[];
   userMappings: UserMappingEntry[];
   statusMappings: StatusMappingEntry[];
@@ -147,6 +161,7 @@ export interface ImportAdapterResult {
     epicsFound: number;
     tasksFound: number;
     milestonesFound: number;
+    sprintsFound: number;
     usersFound: number;
     stagesFound: number;
   };
@@ -1098,6 +1113,40 @@ export function convertImportToWizardData(
     );
   }
   
+  // Extract sprints from parsed data
+  const sprintsEntity = parseResult.entities.find(e => e.entityType === 'Sprints');
+  const sprints: ImportedSprint[] = [];
+  if (sprintsEntity && sprintsEntity.rows.length > 0) {
+    for (const row of sprintsEntity.rows) {
+      const sprintName = getFieldValue(row, ['name', 'sprintName', 'title'], `Sprint ${sprints.length + 1}`);
+      const sprintGoal = getFieldValue(row, ['goal', 'description', 'objective'], null);
+      const sprintStartDate = getFieldValue(row, ['startDate', 'start_date', 'start'], null);
+      const sprintEndDate = getFieldValue(row, ['endDate', 'end_date', 'end', 'dueDate'], null);
+      const sprintStatus = getFieldValue(row, ['status', 'state'], 'Planned');
+      const sprintCapacity = getFieldValue(row, ['capacityHours', 'capacity', 'capacity_hours'], null);
+      
+      const parsedStartDate = parseDate(sprintStartDate.value);
+      const parsedEndDate = parseDate(sprintEndDate.value);
+      
+      if (parsedStartDate && parsedEndDate) {
+        sprints.push({
+          id: generateId('sprint'),
+          name: sprintName.value,
+          goal: sprintGoal.value,
+          startDate: parsedStartDate,
+          endDate: parsedEndDate,
+          status: sprintStatus.value || 'Planned',
+          capacityHours: typeof sprintCapacity.value === 'number' ? sprintCapacity.value : null,
+          sourceId: row.id || row.sprintId,
+          confidence: calculateConfidence(!!sprintName.sourceField, sprintName.sourceField ? 'exact' : 'inferred'),
+          warnings: []
+        });
+      } else {
+        warnings.push(`Sprint "${sprintName.value}" skipped: missing start or end date`);
+      }
+    }
+  }
+  
   const stats = {
     totalEntitiesFound: parseResult.entities.reduce((sum, e) => sum + e.rowCount, 0),
     projectsFound: parseResult.entities.find(e => e.entityType === 'Projects')?.rowCount || 0,
@@ -1105,6 +1154,7 @@ export function convertImportToWizardData(
     epicsFound: parseResult.entities.find(e => e.entityType === 'Epics')?.rowCount || 0,
     tasksFound: parseResult.entities.find(e => e.entityType === 'Tasks')?.rowCount || 0,
     milestonesFound: parseResult.entities.find(e => e.entityType === 'Milestones')?.rowCount || 0,
+    sprintsFound: sprints.length,
     usersFound: parseResult.entities.find(e => e.entityType === 'Users')?.rowCount || 0,
     stagesFound: parseResult.entities.find(e => e.entityType === 'ProjectStages' || e.entityType === 'Stages')?.rowCount || 0
   };
@@ -1114,6 +1164,7 @@ export function convertImportToWizardData(
     deliverables,
     stages,
     milestones,
+    sprints,
     roles: [],
     userMappings,
     statusMappings,
@@ -1212,7 +1263,6 @@ export function toWizardMilestones(imported: ImportedMilestone[]): WizardMilesto
     id: m.id,
     name: m.name,
     description: m.description,
-    phase: m.phase,
     targetDate: m.targetDate,
     ownerId: m.ownerId,
     isBillingGate: m.isBillingGate,
@@ -1229,5 +1279,25 @@ export function toWizardRoles(imported: ImportedRole[]): WizardRole[] {
     templateId: r.templateId,
     isCore: r.isCore,
     assigneeId: r.assigneeId
+  }));
+}
+
+export function toWizardSprints(imported: ImportedSprint[]): Array<{
+  id: string;
+  name: string;
+  goal?: string | null;
+  startDate: string;
+  endDate: string;
+  status?: string;
+  capacityHours?: number | null;
+}> {
+  return imported.map(s => ({
+    id: s.id,
+    name: s.name,
+    goal: s.goal,
+    startDate: s.startDate,
+    endDate: s.endDate,
+    status: s.status,
+    capacityHours: s.capacityHours
   }));
 }

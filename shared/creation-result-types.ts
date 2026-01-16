@@ -96,6 +96,15 @@ export interface FullProjectCreatePayload {
     userId?: string | null;
     allocation?: number;
   }>;
+  sprints?: Array<{
+    id: string;
+    name: string;
+    goal?: string | null;
+    startDate: string;
+    endDate: string;
+    status?: string;
+    capacityHours?: number | null;
+  }>;
   importMetadata?: {
     source: string;
     importedAt: string;
