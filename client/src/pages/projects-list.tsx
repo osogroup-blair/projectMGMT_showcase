@@ -48,15 +48,6 @@ import { Link } from "wouter";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -216,7 +207,6 @@ export default function ProjectsList() {
 
   // Dialog & Form State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState<ExtendedProject | null>(null);
   
@@ -432,18 +422,6 @@ export default function ProjectsList() {
     resetForm();
   };
 
-  const handleUpdate = () => {
-    if (!currentProject) return;
-
-    updateProject({
-      id: currentProject.id,
-      updates: { ...formData }
-    });
-
-    setIsEditOpen(false);
-    setCurrentProject(null);
-    resetForm();
-  };
 
   const handleDelete = () => {
     if (!currentProject) return;
@@ -454,22 +432,6 @@ export default function ProjectsList() {
   };
 
 
-  const openEditDialog = (project: ExtendedProject) => {
-    setCurrentProject(project);
-    setFormData({
-      name: project.name,
-      client: project.client,
-      status: project.status,
-      ownerId: project.ownerId,
-      startDate: project.startDate,
-      endDate: project.endDate,
-      riskLevel: project.riskLevel,
-      description: project.description,
-      progress: project.progress,
-      frameworkId: project.frameworkId
-    });
-    setIsEditOpen(true);
-  };
 
   const openDeleteDialog = (project: ExtendedProject) => {
     setCurrentProject(project);
@@ -555,71 +517,108 @@ export default function ProjectsList() {
           </div>
         </div>
 
-        {/* Filters & Search */}
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 rounded-lg border border-border shadow-sm">
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search projects..." 
-              className="pl-9 bg-background"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          
-          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            <SearchableSelect 
-              value={filterStatus} 
-              onValueChange={setFilterStatus}
-              className="w-[140px]"
-              placeholder="Status"
-              options={[
-                { value: "all", label: "All Statuses" },
-                { value: "In Progress", label: "In Progress" },
-                { value: "Upcoming", label: "Upcoming" },
-                { value: "Completed", label: "Completed" },
-                { value: "On Hold", label: "On Hold" },
-                { value: "Overdue", label: "Overdue" }
-              ]}
-            />
-
-            <SearchableSelect 
-              value={filterRisk} 
-              onValueChange={setFilterRisk}
-              className="w-[140px]"
-              placeholder="Risk Level"
-              options={[
-                { value: "all", label: "All Risks" },
-                { value: "Low", label: "Low Risk" },
-                { value: "Medium", label: "Medium Risk" },
-                { value: "High", label: "High Risk" }
-              ]}
-            />
-
-            <SearchableSelect 
-              value={filterRole} 
-              onValueChange={setFilterRole}
-              className="w-[150px]"
-              placeholder="My Role"
-              options={[
-                { value: "my", label: "My Projects" },
-                { value: "owner", label: "As Owner" },
-                { value: "stakeholder", label: "As Stakeholder" },
-                { value: "member", label: "As Member" },
-                { value: "all", label: "All Projects" }
-              ]}
-            />
-
-            <Button
-              variant={filterFavorites ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterFavorites(!filterFavorites)}
-              className="gap-2"
-              data-testid="filter-favorites-toggle"
+        {/* View Toggle & Filters */}
+        <div className="flex flex-col gap-4">
+          {/* Primary Toggle - My Projects vs All Projects */}
+          <div className="flex items-center justify-between bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+            <button
+              onClick={() => setFilterRole("my")}
+              className={cn(
+                "flex-1 py-3 px-6 text-sm font-medium transition-colors text-center",
+                filterRole !== "all" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="toggle-my-projects"
             >
-              <Star className={cn("h-3.5 w-3.5", filterFavorites && "fill-current")} />
-              Favorites
-            </Button>
+              My Projects
+            </button>
+            <div className="w-px h-8 bg-border" />
+            <button
+              onClick={() => setFilterRole("all")}
+              className={cn(
+                "flex-1 py-3 px-6 text-sm font-medium transition-colors text-center",
+                filterRole === "all" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+              data-testid="toggle-all-projects"
+            >
+              All Projects
+            </button>
+          </div>
+
+          {/* Filters Row */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 rounded-lg border border-border shadow-sm">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search projects..." 
+                className="pl-9 bg-background"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search-projects"
+              />
+            </div>
+            
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <SearchableSelect 
+                value={filterStatus} 
+                onValueChange={setFilterStatus}
+                className="w-[140px]"
+                placeholder="Status"
+                options={[
+                  { value: "all", label: "All Statuses" },
+                  { value: "In Progress", label: "In Progress" },
+                  { value: "Upcoming", label: "Upcoming" },
+                  { value: "Completed", label: "Completed" },
+                  { value: "On Hold", label: "On Hold" },
+                  { value: "Overdue", label: "Overdue" }
+                ]}
+                data-testid="filter-status"
+              />
+
+              <SearchableSelect 
+                value={filterRisk} 
+                onValueChange={setFilterRisk}
+                className="w-[140px]"
+                placeholder="Risk Level"
+                options={[
+                  { value: "all", label: "All Risks" },
+                  { value: "Low", label: "Low Risk" },
+                  { value: "Medium", label: "Medium Risk" },
+                  { value: "High", label: "High Risk" }
+                ]}
+                data-testid="filter-risk"
+              />
+
+              {filterRole !== "all" && (
+                <SearchableSelect 
+                  value={filterRole} 
+                  onValueChange={setFilterRole}
+                  className="w-[150px]"
+                  placeholder="My Role"
+                  options={[
+                    { value: "my", label: "All My Roles" },
+                    { value: "owner", label: "As Owner" },
+                    { value: "stakeholder", label: "As Stakeholder" },
+                    { value: "member", label: "As Member" }
+                  ]}
+                  data-testid="filter-role"
+                />
+              )}
+
+              <Button
+                variant={filterFavorites ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterFavorites(!filterFavorites)}
+                className="gap-2"
+                data-testid="filter-favorites-toggle"
+              >
+                <Star className={cn("h-3.5 w-3.5", filterFavorites && "fill-current")} />
+                Favorites
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -763,7 +762,29 @@ export default function ProjectsList() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{project.client}</TableCell>
+                  {/* Inline Editable Client */}
+                  <TableCell>
+                    {editingId === project.id && editingField === "client" ? (
+                      <Input
+                        value={editingValue as string}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onKeyDown={(e) => handleInlineKeyDown(e, project.id)}
+                        onBlur={() => saveInlineEdit(project.id)}
+                        className="h-7 text-sm w-32"
+                        autoFocus
+                        placeholder="Client name"
+                        data-testid={`input-inline-client-${project.id}`}
+                      />
+                    ) : (
+                      <span 
+                        className="text-muted-foreground cursor-pointer hover:text-foreground hover:underline"
+                        onClick={() => startInlineEdit(project.id, "client", project.client || "")}
+                        data-testid={`text-client-${project.id}`}
+                      >
+                        {project.client || "—"}
+                      </span>
+                    )}
+                  </TableCell>
                   {/* Inline Editable Status */}
                   <TableCell>
                     {editingId === project.id && editingField === "status" ? (
@@ -802,31 +823,120 @@ export default function ProjectsList() {
                       </Badge>
                     )}
                   </TableCell>
+                  {/* Inline Editable Owner */}
                   <TableCell>
-                    <span className="text-sm text-muted-foreground">{project.owner || '—'}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {project.startDate}
+                    {editingId === project.id && editingField === "ownerId" ? (
+                      <SearchableSelect
+                        value={editingValue as string}
+                        onValueChange={(val) => {
+                          setEditingValue(val);
+                          updateProject({ id: project.id, updates: { ownerId: val || null } });
+                          toast({ title: "Updated", description: "Project owner has been updated." });
+                          cancelInlineEdit();
+                        }}
+                        className="h-7 w-[140px] text-xs"
+                        placeholder="Select owner"
+                        options={[
+                          { value: "", label: "No owner" },
+                          ...(usersData || []).map((u: any) => ({ value: u.id, label: u.name }))
+                        ]}
+                        data-testid={`select-inline-owner-${project.id}`}
+                      />
+                    ) : (
+                      <span 
+                        className="text-sm text-muted-foreground cursor-pointer hover:text-foreground hover:underline"
+                        onClick={() => startInlineEdit(project.id, "ownerId", project.ownerId || "")}
+                        data-testid={`text-owner-${project.id}`}
+                      >
+                        {project.owner || '—'}
                       </span>
-                      <span>to {project.endDate}</span>
-                    </div>
+                    )}
                   </TableCell>
+                  {/* Inline Editable Timeline */}
                   <TableCell>
-                    <div className={cn(
-                      "flex items-center gap-1.5 text-xs font-medium",
-                      project.riskLevel === "High" ? "text-red-600" :
-                      project.riskLevel === "Medium" ? "text-amber-600" : "text-green-600"
-                    )}>
-                      <div className={cn(
-                        "h-2 w-2 rounded-full",
-                        project.riskLevel === "High" ? "bg-red-500" :
-                        project.riskLevel === "Medium" ? "bg-amber-500" : "bg-green-500"
-                      )} />
-                      {project.riskLevel}
-                    </div>
+                    {editingId === project.id && editingField === "startDate" ? (
+                      <div className="flex flex-col gap-1">
+                        <Input
+                          type="date"
+                          value={editingValue as string}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={(e) => handleInlineKeyDown(e, project.id)}
+                          onBlur={() => saveInlineEdit(project.id)}
+                          className="h-7 text-xs w-32"
+                          autoFocus
+                          data-testid={`input-inline-startDate-${project.id}`}
+                        />
+                      </div>
+                    ) : editingId === project.id && editingField === "deadline" ? (
+                      <div className="flex flex-col gap-1">
+                        <Input
+                          type="date"
+                          value={editingValue as string}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={(e) => handleInlineKeyDown(e, project.id)}
+                          onBlur={() => saveInlineEdit(project.id)}
+                          className="h-7 text-xs w-32"
+                          autoFocus
+                          data-testid={`input-inline-deadline-${project.id}`}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col text-xs text-muted-foreground">
+                        <span 
+                          className="flex items-center gap-1 cursor-pointer hover:text-foreground"
+                          onClick={() => startInlineEdit(project.id, "startDate", project.startDate || "")}
+                          data-testid={`text-startDate-${project.id}`}
+                        >
+                          <Calendar className="h-3 w-3" />
+                          {project.startDate || "Set start"}
+                        </span>
+                        <span 
+                          className="cursor-pointer hover:text-foreground"
+                          onClick={() => startInlineEdit(project.id, "deadline", project.endDate || "")}
+                          data-testid={`text-endDate-${project.id}`}
+                        >
+                          to {project.endDate || "Set end"}
+                        </span>
+                      </div>
+                    )}
+                  </TableCell>
+                  {/* Inline Editable Risk */}
+                  <TableCell>
+                    {editingId === project.id && editingField === "riskLevel" ? (
+                      <SearchableSelect
+                        value={editingValue as string}
+                        onValueChange={(val) => {
+                          setEditingValue(val);
+                          updateProject({ id: project.id, updates: { riskLevel: val } });
+                          toast({ title: "Updated", description: "Project risk level has been updated." });
+                          cancelInlineEdit();
+                        }}
+                        className="h-7 w-[100px] text-xs"
+                        options={[
+                          { value: "Low", label: "Low" },
+                          { value: "Medium", label: "Medium" },
+                          { value: "High", label: "High" }
+                        ]}
+                        data-testid={`select-inline-risk-${project.id}`}
+                      />
+                    ) : (
+                      <div 
+                        className={cn(
+                          "flex items-center gap-1.5 text-xs font-medium cursor-pointer hover:opacity-70",
+                          project.riskLevel === "High" ? "text-red-600" :
+                          project.riskLevel === "Medium" ? "text-amber-600" : "text-green-600"
+                        )}
+                        onClick={() => startInlineEdit(project.id, "riskLevel", project.riskLevel || "Low")}
+                        data-testid={`text-risk-${project.id}`}
+                      >
+                        <div className={cn(
+                          "h-2 w-2 rounded-full",
+                          project.riskLevel === "High" ? "bg-red-500" :
+                          project.riskLevel === "Medium" ? "bg-amber-500" : "bg-green-500"
+                        )} />
+                        {project.riskLevel}
+                      </div>
+                    )}
                   </TableCell>
                   {/* Inline Editable Progress */}
                   <TableCell>
@@ -873,18 +983,9 @@ export default function ProjectsList() {
                       </span>
                     </Link>
                   </TableCell>
-                  {/* Visible Action Buttons */}
+                  {/* Action Buttons */}
                   <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        onClick={() => openEditDialog(project)}
-                        data-testid={`button-edit-${project.id}`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-center justify-end">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -917,115 +1018,6 @@ export default function ProjectsList() {
           </div>
         </div>
       </div>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Project</DialogTitle>
-            <DialogDescription>
-              Update the project details below.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Project Name</Label>
-                <Input 
-                  id="edit-name" 
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-client">Client</Label>
-                <Input 
-                  id="edit-client" 
-                  value={formData.client}
-                  onChange={(e) => setFormData({...formData, client: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-status">Status</Label>
-                <SearchableSelect 
-                  value={formData.status} 
-                  onValueChange={(val) => setFormData({...formData, status: val as any})}
-                  placeholder="Select status"
-                  options={[
-                    { value: "Upcoming", label: "Upcoming" },
-                    { value: "In Progress", label: "In Progress" },
-                    { value: "On Hold", label: "On Hold" },
-                    { value: "Completed", label: "Completed" }
-                  ]}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-owner">Project Owner</Label>
-                <SearchableSelect 
-                  value={formData.ownerId || "unassigned"} 
-                  onValueChange={(val) => setFormData({...formData, ownerId: val === "unassigned" ? undefined : val})}
-                  placeholder="Select owner"
-                  options={[
-                    { value: "unassigned", label: "Unassigned" },
-                    ...(usersData || []).map((user: any) => ({ value: user.id, label: user.name }))
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-startDate">Start Date</Label>
-                <Input 
-                  id="edit-startDate" 
-                  type="date" 
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({...formData, startDate: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-endDate">End Date</Label>
-                <Input 
-                  id="edit-endDate" 
-                  type="date" 
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({...formData, endDate: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-risk">Risk Level</Label>
-              <SearchableSelect 
-                value={formData.riskLevel} 
-                onValueChange={(val) => setFormData({...formData, riskLevel: val as any})}
-                placeholder="Select risk level"
-                options={[
-                  { value: "Low", label: "Low" },
-                  { value: "Medium", label: "Medium" },
-                  { value: "High", label: "High" }
-                ]}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea 
-                id="edit-description" 
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleUpdate}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
