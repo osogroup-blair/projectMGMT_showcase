@@ -783,6 +783,49 @@ function normalizeSprintStatus(rawStatus: string | null | undefined): { status: 
   return { status: 'Planned', normalized: true };
 }
 
+function validateSprintDates(sprints: ImportedSprint[]): ImportedSprint[] {
+  if (sprints.length === 0) return sprints;
+  
+  // Sort sprints by start date for overlap detection
+  const sortedSprints = [...sprints].sort((a, b) => 
+    new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  );
+  
+  const validatedSprints = sortedSprints.map((sprint, index) => {
+    const warnings = [...(sprint.warnings || [])];
+    const startDate = new Date(sprint.startDate);
+    const endDate = new Date(sprint.endDate);
+    
+    // Check for invalid date range (end before start)
+    if (endDate < startDate) {
+      warnings.push(`Invalid date range: end date (${sprint.endDate}) is before start date (${sprint.startDate})`);
+    }
+    
+    // Check for very long sprints (> 6 weeks)
+    const durationDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (durationDays > 42) {
+      warnings.push(`Sprint duration is ${durationDays} days (${Math.round(durationDays / 7)} weeks) - unusually long`);
+    }
+    
+    // Check for overlap with next sprint
+    if (index < sortedSprints.length - 1) {
+      const nextSprint = sortedSprints[index + 1];
+      const nextStartDate = new Date(nextSprint.startDate);
+      
+      if (endDate > nextStartDate) {
+        warnings.push(`Overlaps with sprint "${nextSprint.name}" (${nextSprint.startDate})`);
+      }
+    }
+    
+    return {
+      ...sprint,
+      warnings
+    };
+  });
+  
+  return validatedSprints;
+}
+
 function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
   const sprintsEntity = entities.find(e => e.entityType === 'Sprints');
   if (!sprintsEntity || sprintsEntity.rows.length === 0) return [];
@@ -823,7 +866,8 @@ function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
     }
   }
   
-  return sprints;
+  // Validate sprint dates and detect overlaps
+  return validateSprintDates(sprints);
 }
 
 function normalizeString(s: string | undefined | null): string {
