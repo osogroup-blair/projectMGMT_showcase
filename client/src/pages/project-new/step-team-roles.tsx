@@ -162,21 +162,26 @@ export function StepTeamRoles({
     mappedUsers.forEach(mapping => {
       if (!mapping.mappedToId) return;
       
-      const projectRole = mapping.projectRole || 'none';
+      const projectRoles = mapping.projectRoles || [];
       
-      if (projectRole === 'owner' && !newOwnerUserId) {
+      if (projectRoles.includes('owner') && !newOwnerUserId) {
         newOwnerUserId = mapping.mappedToId;
         console.log('[TEAM-ROLES] Set owner from import:', mapping.mappedToName);
-      } else if (projectRole === 'manager' && !newManagerUserId) {
+      }
+      
+      if (projectRoles.includes('manager') && !newManagerUserId) {
         newManagerUserId = mapping.mappedToId;
         console.log('[TEAM-ROLES] Set manager from import:', mapping.mappedToName);
-      } else if (projectRole === 'stakeholder') {
+      }
+      
+      if (projectRoles.includes('stakeholder')) {
         if (!newStakeholderUserIds.includes(mapping.mappedToId)) {
           newStakeholderUserIds.push(mapping.mappedToId);
           console.log('[TEAM-ROLES] Added stakeholder from import:', mapping.mappedToName);
         }
-      } else if (projectRole === 'member') {
-        // Only add users who are explicitly assigned as team members
+      }
+      
+      if (projectRoles.includes('member')) {
         const userTaskRoleIds: string[] = [];
         stages.forEach(stage => {
           stage.tasks?.forEach(task => {
@@ -191,13 +196,14 @@ export function StepTeamRoles({
         
         const executionRoleId = userTaskRoleIds.length > 0 ? userTaskRoleIds[0] : undefined;
         
-        importedTeamMembers.push({
-          userId: mapping.mappedToId,
-          executionRoleId
-        });
-        console.log('[TEAM-ROLES] Added team member from import:', mapping.mappedToName);
+        if (!importedTeamMembers.find(m => m.userId === mapping.mappedToId)) {
+          importedTeamMembers.push({
+            userId: mapping.mappedToId,
+            executionRoleId
+          });
+          console.log('[TEAM-ROLES] Added team member from import:', mapping.mappedToName);
+        }
       }
-      // Users with projectRole === 'none' are not added to the team
     });
     
     if (newOwnerUserId !== ownerUserId) {
