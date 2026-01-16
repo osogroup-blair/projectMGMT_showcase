@@ -867,8 +867,10 @@ export function StepWorkBreakdown({
                                         key={task.id} 
                                         className="group/task bg-muted/30 rounded-md p-2 space-y-2"
                                       >
-                                        <div className="flex items-center gap-2">
-                                          <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                        <div className="flex items-center gap-2 group/task mb-1">
+                                          <div className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground opacity-30">
+                                            <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                          </div>
                                           <Input
                                             value={task.title}
                                             onChange={(e) => {
@@ -882,40 +884,6 @@ export function StepWorkBreakdown({
                                             placeholder="Task title..."
                                             data-testid={`input-task-title-${dIndex}-${eIndex}-${tIndex}`}
                                           />
-                                          <Select
-                                            value={task.priority || "medium"}
-                                            onValueChange={(value) => {
-                                              const newD = [...deliverables];
-                                              if (newD[dIndex].epics[eIndex].tasks) {
-                                                newD[dIndex].epics[eIndex].tasks![tIndex].priority = value;
-                                              }
-                                              setDeliverables(newD);
-                                            }}
-                                          >
-                                            <SelectTrigger className="h-7 w-24 text-xs">
-                                              <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="low">Low</SelectItem>
-                                              <SelectItem value="medium">Medium</SelectItem>
-                                              <SelectItem value="high">High</SelectItem>
-                                              <SelectItem value="urgent">Urgent</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                          <Input
-                                            type="number"
-                                            value={task.estimateHours || ""}
-                                            onChange={(e) => {
-                                              const newD = [...deliverables];
-                                              if (newD[dIndex].epics[eIndex].tasks) {
-                                                newD[dIndex].epics[eIndex].tasks![tIndex].estimateHours = Number(e.target.value);
-                                              }
-                                              setDeliverables(newD);
-                                            }}
-                                            className="h-7 w-16 text-xs"
-                                            placeholder="Hrs"
-                                            min={0}
-                                          />
                                           <Button
                                             variant="ghost"
                                             size="icon"
@@ -925,122 +893,177 @@ export function StepWorkBreakdown({
                                             <Trash2 className="h-3 w-3 text-muted-foreground" />
                                           </Button>
                                         </div>
-                                        <div className="flex items-center gap-2 ml-5">
-                                          <Select
-                                            value={task.stageId || ""}
-                                            onValueChange={(value) => {
-                                              const newD = [...deliverables];
-                                              if (newD[dIndex].epics[eIndex].tasks) {
-                                                newD[dIndex].epics[eIndex].tasks![tIndex].stageId = value || undefined;
-                                              }
-                                              setDeliverables(newD);
-                                            }}
-                                          >
-                                            <SelectTrigger className={`h-6 w-28 text-xs ${!task.stageId ? 'border-destructive' : ''}`} data-testid={`select-task-stage-${dIndex}-${eIndex}-${tIndex}`}>
-                                              <SelectValue placeholder="Stage *" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {stages.map((stage: any) => (
-                                                <SelectItem key={stage.id} value={stage.id}>
-                                                  {stage.name}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                          {sprints.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-2 ml-5">
+                                          <div className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Stage</span>
                                             <Select
-                                              value={task.sprintId || "none"}
+                                              value={task.stageId || ""}
                                               onValueChange={(value) => {
                                                 const newD = [...deliverables];
                                                 if (newD[dIndex].epics[eIndex].tasks) {
-                                                  newD[dIndex].epics[eIndex].tasks![tIndex].sprintId = value === "none" ? undefined : value;
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].stageId = value || undefined;
                                                 }
                                                 setDeliverables(newD);
                                               }}
                                             >
-                                              <SelectTrigger className="h-6 w-28 text-xs" data-testid={`select-task-sprint-${dIndex}-${eIndex}-${tIndex}`}>
-                                                <SelectValue placeholder="Sprint" />
+                                              <SelectTrigger className={`h-6 w-28 text-xs ${!task.stageId ? 'border-destructive' : ''}`} data-testid={`select-task-stage-${dIndex}-${eIndex}-${tIndex}`}>
+                                                <SelectValue placeholder="Stage *" />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value="none">No sprint</SelectItem>
-                                                {sprints.map((sprint: any) => (
-                                                  <SelectItem key={sprint.id} value={sprint.id}>
-                                                    {sprint.name}
+                                                {stages.map((stage: any) => (
+                                                  <SelectItem key={stage.id} value={stage.id}>
+                                                    {stage.name}
                                                   </SelectItem>
                                                 ))}
                                               </SelectContent>
                                             </Select>
+                                          </div>
+                                          {sprints.length > 0 && (
+                                            <div className="flex flex-col gap-0.5">
+                                              <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Sprint</span>
+                                              <Select
+                                                value={task.sprintId || "none"}
+                                                onValueChange={(value) => {
+                                                  const newD = [...deliverables];
+                                                  if (newD[dIndex].epics[eIndex].tasks) {
+                                                    newD[dIndex].epics[eIndex].tasks![tIndex].sprintId = value === "none" ? undefined : value;
+                                                  }
+                                                  setDeliverables(newD);
+                                                }}
+                                              >
+                                                <SelectTrigger className="h-6 w-28 text-xs" data-testid={`select-task-sprint-${dIndex}-${eIndex}-${tIndex}`}>
+                                                  <SelectValue placeholder="Sprint" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="none">No sprint</SelectItem>
+                                                  {sprints.map((sprint: any) => (
+                                                    <SelectItem key={sprint.id} value={sprint.id}>
+                                                      {sprint.name}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
                                           )}
                                           {milestones.length > 0 && (
-                                            <Select
-                                              value={task.milestoneId || "none"}
-                                              onValueChange={(value) => {
-                                                const newD = [...deliverables];
-                                                if (newD[dIndex].epics[eIndex].tasks) {
-                                                  newD[dIndex].epics[eIndex].tasks![tIndex].milestoneId = value === "none" ? undefined : value;
-                                                }
-                                                setDeliverables(newD);
-                                              }}
-                                            >
-                                              <SelectTrigger className="h-6 w-32 text-xs">
-                                                <SelectValue placeholder="Milestone" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="none">No milestone</SelectItem>
-                                                {milestones.map((ms: any) => (
-                                                  <SelectItem key={ms.id} value={ms.id}>
-                                                    {ms.title}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
+                                            <div className="flex flex-col gap-0.5">
+                                              <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Milestone</span>
+                                              <Select
+                                                value={task.milestoneId || "none"}
+                                                onValueChange={(value) => {
+                                                  const newD = [...deliverables];
+                                                  if (newD[dIndex].epics[eIndex].tasks) {
+                                                    newD[dIndex].epics[eIndex].tasks![tIndex].milestoneId = value === "none" ? undefined : value;
+                                                  }
+                                                  setDeliverables(newD);
+                                                }}
+                                              >
+                                                <SelectTrigger className="h-6 w-32 text-xs">
+                                                  <SelectValue placeholder="Milestone" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="none">No milestone</SelectItem>
+                                                  {milestones.map((ms: any) => (
+                                                    <SelectItem key={ms.id} value={ms.id}>
+                                                      {ms.name}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
                                           )}
-                                          {teamMemberOptions.length > 0 && (
+                                          <div className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Priority</span>
                                             <Select
-                                              value={task.assigneeId || "none"}
+                                              value={task.priority || "medium"}
                                               onValueChange={(value) => {
                                                 const newD = [...deliverables];
                                                 if (newD[dIndex].epics[eIndex].tasks) {
-                                                  newD[dIndex].epics[eIndex].tasks![tIndex].assigneeId = value === "none" ? undefined : value;
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].priority = value;
                                                 }
                                                 setDeliverables(newD);
                                               }}
                                             >
-                                              <SelectTrigger className="h-6 w-32 text-xs">
-                                                <SelectValue placeholder="Assignee" />
+                                              <SelectTrigger className="h-6 w-24 text-xs">
+                                                <SelectValue placeholder="Priority" />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value="none">Unassigned</SelectItem>
-                                                {teamMemberOptions.map((member) => (
-                                                  <SelectItem key={member.id} value={member.id}>
-                                                    {member.name}
-                                                  </SelectItem>
-                                                ))}
+                                                <SelectItem value="low">Low</SelectItem>
+                                                <SelectItem value="medium">Medium</SelectItem>
+                                                <SelectItem value="high">High</SelectItem>
+                                                <SelectItem value="urgent">Urgent</SelectItem>
                                               </SelectContent>
                                             </Select>
+                                          </div>
+                                          <div className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Effort</span>
+                                            <Input
+                                              type="number"
+                                              value={task.estimateHours || ""}
+                                              onChange={(e) => {
+                                                const newD = [...deliverables];
+                                                if (newD[dIndex].epics[eIndex].tasks) {
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].estimateHours = Number(e.target.value);
+                                                }
+                                                setDeliverables(newD);
+                                              }}
+                                              className="h-6 w-16 text-xs"
+                                              placeholder="Hrs"
+                                              min={0}
+                                            />
+                                          </div>
+                                          {teamMemberOptions.length > 0 && (
+                                            <div className="flex flex-col gap-0.5">
+                                              <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Owner</span>
+                                              <Select
+                                                value={task.assigneeId || "none"}
+                                                onValueChange={(value) => {
+                                                  const newD = [...deliverables];
+                                                  if (newD[dIndex].epics[eIndex].tasks) {
+                                                    newD[dIndex].epics[eIndex].tasks![tIndex].assigneeId = value === "none" ? undefined : value;
+                                                  }
+                                                  setDeliverables(newD);
+                                                }}
+                                              >
+                                                <SelectTrigger className="h-6 w-32 text-xs">
+                                                  <SelectValue placeholder="Assignee" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="none">Unassigned</SelectItem>
+                                                  {teamMemberOptions.map((member) => (
+                                                    <SelectItem key={member.id} value={member.id}>
+                                                      {member.name}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
                                           )}
                                           {taskTypes.length > 0 && (
-                                            <Select
-                                              value={task.taskTypeId || ""}
-                                              onValueChange={(value) => {
-                                                const newD = [...deliverables];
-                                                if (newD[dIndex].epics[eIndex].tasks) {
-                                                  newD[dIndex].epics[eIndex].tasks![tIndex].taskTypeId = value || undefined;
-                                                }
-                                                setDeliverables(newD);
-                                              }}
-                                            >
-                                              <SelectTrigger className="h-6 w-28 text-xs">
-                                                <SelectValue placeholder="Type" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {taskTypes.map((type: any) => (
-                                                  <SelectItem key={type.id} value={type.id}>
-                                                    {type.label || type.name}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
+                                            <div className="flex flex-col gap-0.5">
+                                              <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Type</span>
+                                              <Select
+                                                value={task.taskTypeId || ""}
+                                                onValueChange={(value) => {
+                                                  const newD = [...deliverables];
+                                                  if (newD[dIndex].epics[eIndex].tasks) {
+                                                    newD[dIndex].epics[eIndex].tasks![tIndex].taskTypeId = value || undefined;
+                                                  }
+                                                  setDeliverables(newD);
+                                                }}
+                                              >
+                                                <SelectTrigger className="h-6 w-28 text-xs">
+                                                  <SelectValue placeholder="Type" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  {taskTypes.map((type: any) => (
+                                                    <SelectItem key={type.id} value={type.id}>
+                                                      {type.label || type.name}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
                                           )}
                                         </div>
                                       </div>
