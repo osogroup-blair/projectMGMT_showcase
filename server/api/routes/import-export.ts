@@ -1498,6 +1498,9 @@ export function registerImportExportRoutes(
       const stageIdMap = new Map<string, string>();
       const createdStages: Array<{ templateId: string; createdStageId: string }> = [];
       
+      // Track sprint ID mappings (payload sprint ID -> created sprint ID)
+      const sprintIdMap = new Map<string, string>();
+      
       // 1. Create the project
       const newProjectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       try {
@@ -1540,7 +1543,12 @@ export function registerImportExportRoutes(
                 status: sprint.status || 'Planned',
                 capacityHours: sprint.capacityHours || null
               });
-              console.log(`[FULL-CREATE] Created sprint: ${sprint.name}`);
+              
+              // Map payload sprint ID to created sprint ID for task linkage
+              if (sprint.id) {
+                sprintIdMap.set(sprint.id, createdSprint.id);
+              }
+              console.log(`[FULL-CREATE] Created sprint: ${sprint.name} (${sprint.id} -> ${createdSprint.id})`);
               
               entityResults.push({
                 entityType: 'sprint',
@@ -1553,7 +1561,7 @@ export function registerImportExportRoutes(
               console.log(`Sprint "${sprint.name}" creation failed: ${e.message}`);
               entityResults.push({
                 entityType: 'sprint',
-                id: sprint.id || 'error',
+                id: sprint.id || 'unknown',
                 name: sprint.name,
                 success: false,
                 error: e.message,
@@ -1959,6 +1967,10 @@ export function registerImportExportRoutes(
                       const resolvedMilestoneId = epicTask.milestoneId 
                         ? milestoneIdMap.get(epicTask.milestoneId) || epicTask.milestoneId 
                         : null;
+                      // Resolve sprint ID from payload ID to created ID
+                      const resolvedSprintId = epicTask.sprintId 
+                        ? sprintIdMap.get(epicTask.sprintId) || epicTask.sprintId 
+                        : null;
                       await storage.createTask({
                         id: epicTaskId,
                         project: projectName,
@@ -1970,7 +1982,7 @@ export function registerImportExportRoutes(
                         stageId: resolvedStageId,
                         epicId: newEpic.id,
                         milestoneId: resolvedMilestoneId,
-                        sprintId: epicTask.sprintId || null,
+                        sprintId: resolvedSprintId,
                         effort: 1,
                         deadline: payload.project.deadline,
                         estimateHours: epicTask.estimateHours || 0,
@@ -2055,6 +2067,11 @@ export function registerImportExportRoutes(
                   ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
                   : null;
                 
+                // Resolve sprint ID from payload ID to created ID
+                const resolvedSprintId = taskDraft.sprintId 
+                  ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId 
+                  : null;
+                
                 await storage.createTask({
                   id: taskId,
                   project: projectName,
@@ -2066,7 +2083,7 @@ export function registerImportExportRoutes(
                   stageId: createdStage.createdStageId,
                   epicId: resolvedEpicId,
                   milestoneId: resolvedMilestoneId,
-                  sprintId: taskDraft.sprintId || null,
+                  sprintId: resolvedSprintId,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
@@ -2103,6 +2120,9 @@ export function registerImportExportRoutes(
               const resolvedMilestoneId = taskDraft.milestoneId 
                 ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
                 : null;
+              const resolvedSprintId = taskDraft.sprintId 
+                ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId 
+                : null;
               try {
                 await storage.createTask({
                   id: taskId,
@@ -2115,7 +2135,7 @@ export function registerImportExportRoutes(
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
                   milestoneId: resolvedMilestoneId,
-                  sprintId: taskDraft.sprintId || null,
+                  sprintId: resolvedSprintId,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
@@ -2147,6 +2167,9 @@ export function registerImportExportRoutes(
             const resolvedMilestoneId = taskDraft.milestoneId 
               ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
               : null;
+            const resolvedSprintId = taskDraft.sprintId 
+              ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId 
+              : null;
             
             // If there are business epics, create a task for each one
             if (businessEpics.length > 0) {
@@ -2164,7 +2187,7 @@ export function registerImportExportRoutes(
                     stageId: createdStage.createdStageId,
                     epicId: businessEpic.id,
                     milestoneId: resolvedMilestoneId,
-                    sprintId: taskDraft.sprintId || null,
+                    sprintId: resolvedSprintId,
                     effort: 1,
                     deadline: taskDeadline,
                     estimateHours: taskDraft.estimateHours || 0,
@@ -2207,7 +2230,7 @@ export function registerImportExportRoutes(
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
                   milestoneId: resolvedMilestoneId,
-                  sprintId: taskDraft.sprintId || null,
+                  sprintId: resolvedSprintId,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
@@ -2245,6 +2268,9 @@ export function registerImportExportRoutes(
               const resolvedMilestoneId = taskDraft.milestoneId 
                 ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
                 : null;
+              const resolvedSprintId = taskDraft.sprintId 
+                ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId 
+                : null;
               try {
                 await storage.createTask({
                   id: taskId,
@@ -2257,7 +2283,7 @@ export function registerImportExportRoutes(
                   stageId: createdStage.createdStageId,
                   epicId: productManagementEpicId,
                   milestoneId: resolvedMilestoneId,
-                  sprintId: taskDraft.sprintId || null,
+                  sprintId: resolvedSprintId,
                   effort: 1,
                   deadline: taskDeadline,
                   estimateHours: taskDraft.estimateHours || 0,
