@@ -79,6 +79,7 @@ export interface ImportedSprint {
   status?: string;
   capacityHours?: number | null;
   sourceId?: string;
+  taskIds: string[];
   confidence: ConfidenceLevel;
   warnings: string[];
 }
@@ -860,6 +861,7 @@ function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
         status: normalizedStatus,
         capacityHours: typeof sprintCapacity.value === 'number' ? sprintCapacity.value : null,
         sourceId: row.id || row.sprintId,
+        taskIds: [],
         confidence: calculateConfidence(!!sprintName.sourceField, sprintName.sourceField ? 'exact' : 'inferred'),
         warnings
       });
@@ -1260,10 +1262,21 @@ export function convertImportToWizardData(
   const userMappings = extractUsers(resolvedParseResult.entities, systemUsers, userIdentities);
   const statusMappings = extractStatuses(resolvedParseResult.entities, systemStatuses);
   
+  // Associate tasks with stages
   tasks.forEach(task => {
     const stage = stages.find(s => s.id === task.stageId);
     if (stage) {
       stage.tasks.push(task);
+    }
+  });
+  
+  // Populate taskIds array on each sprint for bidirectional relationship
+  tasks.forEach(task => {
+    if (task.sprintId) {
+      const sprint = sprints.find(s => s.id === task.sprintId);
+      if (sprint && !sprint.taskIds.includes(task.id)) {
+        sprint.taskIds.push(task.id);
+      }
     }
   });
   
