@@ -633,6 +633,9 @@ export function StepStageConfig({
     const framework = frameworkTemplates?.find((f: any) => f.id === frameworkId);
     if (!framework) return;
 
+    console.log('[APPLY-FRAMEWORK] Framework:', framework.name, 'ID:', frameworkId);
+    console.log('[APPLY-FRAMEWORK] Task templates available:', taskTemplates?.length || 0);
+    
     const stageTemplateIds = framework.defaultStages || [];
     const stageIdMap: Record<string, string> = {};
 
@@ -644,6 +647,28 @@ export function StepStageConfig({
         const stageUniqueId = `stage-${Date.now()}-${idx}`;
         stageIdMap[stageId] = stageUniqueId;
         
+        console.log('[APPLY-FRAMEWORK] Stage:', stageTemplate.name, 'defaultTasks:', stageTemplate.defaultTasks);
+        
+        const tasks = (stageTemplate.defaultTasks || []).map((taskId: string, taskIdx: number) => {
+          const taskTemplate = taskTemplates.find((t: any) => t.id === taskId);
+          console.log('[APPLY-FRAMEWORK] Looking for task ID:', taskId, 'Found:', taskTemplate ? taskTemplate.title : 'NOT FOUND');
+          if (!taskTemplate) return null;
+          return {
+            id: `task-${Date.now()}-${idx}-${taskIdx}`,
+            templateId: taskTemplate.id,
+            title: taskTemplate.title,
+            description: taskTemplate.description || "",
+            priority: taskTemplate.defaultPriority || "Medium",
+            estimateHours: taskTemplate.defaultEstimateHours || 2,
+            scope: taskTemplate.scope || 'per_epic',
+            assigneeRoleTypeId: taskTemplate.assigneeRoleTypeId,
+            stageId: stageUniqueId,
+            order: taskIdx
+          };
+        }).filter(Boolean);
+        
+        console.log('[APPLY-FRAMEWORK] Stage', stageTemplate.name, 'created with', tasks.length, 'tasks');
+        
         return {
           id: stageUniqueId,
           name: stageTemplate.name,
@@ -652,25 +677,13 @@ export function StepStageConfig({
           defaultTasks: stageTemplate.defaultTasks || [],
           defaultRoles: stageTemplate.defaultRoles || [],
           type: stageTemplate.type || 'standard',
-          tasks: (stageTemplate.defaultTasks || []).map((taskId: string, taskIdx: number) => {
-            const taskTemplate = taskTemplates.find((t: any) => t.id === taskId);
-            if (!taskTemplate) return null;
-            return {
-              id: `task-${Date.now()}-${idx}-${taskIdx}`,
-              templateId: taskTemplate.id,
-              title: taskTemplate.title,
-              description: taskTemplate.description || "",
-              priority: taskTemplate.defaultPriority || "Medium",
-              estimateHours: taskTemplate.defaultEstimateHours || 2,
-              scope: taskTemplate.scope || 'per_epic',
-              assigneeRoleTypeId: taskTemplate.assigneeRoleTypeId,
-              stageId: stageUniqueId,
-              order: taskIdx
-            };
-          }).filter(Boolean)
+          tasks
         };
       })
       .filter(Boolean) as WizardStage[];
+    
+    console.log('[APPLY-FRAMEWORK] Total stages created:', frameworkStages.length);
+    console.log('[APPLY-FRAMEWORK] Total tasks:', frameworkStages.reduce((sum, s) => sum + s.tasks.length, 0));
 
     const frameworkMilestones: WizardMilestone[] = milestoneTemplates
       .filter((mt: any) => stageTemplateIds.includes(mt.stageTemplateId))
