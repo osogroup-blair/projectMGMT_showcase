@@ -1,7 +1,7 @@
 import { 
   Project
 } from "@/lib/mock-data";
-import { useProjects, useUsers, useTasks } from "@/hooks/use-nexus-data";
+import { useUsers, useTasks } from "@/hooks/use-nexus-data";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/context/current-user-context";
 import { 
@@ -18,6 +18,8 @@ import {
   User as UserIcon,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Pencil,
   Trash2,
   X,
@@ -45,8 +47,9 @@ import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Shell } from "@/components/layout/shell";
 import { Link } from "wouter";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,11 +83,122 @@ interface ExtendedProject extends Project {
 
 export default function ProjectsList() {
   const { toast } = useToast();
-  const { data: projectsData, isLoading, create: createProject, update: updateProject, remove: deleteProject } = useProjects();
   const { data: usersData } = useUsers();
   const { data: tasksData } = useTasks();
   const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  
+  // Filters State (moved up for use in query)
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterRisk, setFilterRisk] = useState<string>("all");
+  const [filterFavorites, setFilterFavorites] = useState<boolean>(false);
+  const [filterRole, setFilterRole] = useState<string>("my");
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
+  
+  // Sorting State
+  type SortField = "name" | "client" | "status" | "owner" | "startDate" | "riskLevel" | "progress" | "teamSize";
+  type SortDirection = "asc" | "desc";
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filterStatus, filterRisk, filterFavorites, filterRole, sortField, sortDirection]);
+  
+  // Paginated projects query with server-side filtering
+  const { 
+    data: paginatedData, 
+    isLoading 
+  } = useQuery({
+    queryKey: [
+      'projects-paginated', 
+      page, 
+      pageSize, 
+      debouncedSearch, 
+      filterStatus, 
+      filterRisk, 
+      filterRole, 
+      filterFavorites, 
+      sortField, 
+      sortDirection,
+      currentUser?.id
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set('limit', pageSize.toString());
+      params.set('offset', ((page - 1) * pageSize).toString());
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (filterStatus !== 'all') params.set('status', filterStatus);
+      if (filterRisk !== 'all') params.set('riskLevel', filterRisk);
+      if (filterRole !== 'all') params.set('role', filterRole);
+      if (filterFavorites) params.set('favoriteOnly', 'true');
+      if (currentUser?.id) params.set('userId', currentUser.id);
+      if (sortField !== 'teamSize' && sortField !== 'owner') {
+        params.set('sortField', sortField);
+        params.set('sortDirection', sortDirection);
+      }
+      
+      const res = await fetch(`/api/projects/paginated?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch projects');
+      return res.json() as Promise<{ data: any[]; total: number; limit: number; offset: number }>;
+    },
+    enabled: !!currentUser?.id,
+  });
+  
+  const projectsData = paginatedData?.data || [];
+  const totalProjects = paginatedData?.total || 0;
+  const totalPages = Math.ceil(totalProjects / pageSize);
+  
+  // Project mutations
+  const createProjectMutation = useMutation({
+    mutationFn: async (project: any) => {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(project),
+      });
+      if (!res.ok) throw new Error('Failed to create project');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects-paginated'] });
+    },
+  });
+  
+  const updateProjectMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error('Failed to update project');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects-paginated'] });
+    },
+  });
+  
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete project');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects-paginated'] });
+    },
+  });
+  
+  const createProject = (project: any) => createProjectMutation.mutate(project);
+  const updateProject = (params: { id: string; updates: any }) => updateProjectMutation.mutate(params);
+  const deleteProject = (id: string) => deleteProjectMutation.mutate(id);
   
   // Favorites
   const { data: favorites = [] } = useQuery<{ projectId: string }[]>({
@@ -187,19 +301,6 @@ export default function ProjectsList() {
   }, [userMemberships]);
 
   const userProjectIds = useMemo(() => new Set(userMemberships.map(m => m.projectId)), [userMemberships]);
-  
-  // Filters State
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterRisk, setFilterRisk] = useState<string>("all");
-  const [filterFavorites, setFilterFavorites] = useState<boolean>(false);
-  const [filterRole, setFilterRole] = useState<string>("my"); // "my", "owner", "stakeholder", "member", "all"
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Sorting State
-  type SortField = "name" | "client" | "status" | "owner" | "startDate" | "riskLevel" | "progress" | "teamSize";
-  type SortDirection = "asc" | "desc";
-  const [sortField, setSortField] = useState<SortField>("name");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   // Selection State for Bulk Actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -260,83 +361,32 @@ export default function ProjectsList() {
     })) as ExtendedProject[];
   }, [projectsData, usersData]);
 
-  // Filter Logic
+  // Server handles filtering - only apply client-side sorting for owner/teamSize columns
   const filteredProjects = useMemo(() => {
-    let result = projects.filter(project => {
-      const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            project.client.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = filterStatus === "all" || project.status === filterStatus;
-      const matchesRisk = filterRisk === "all" || project.riskLevel === filterRisk;
-      const matchesFavorites = !filterFavorites || favoriteProjectIds.has(project.id);
-      
-      // Role-based filter
-      let matchesRole = true;
-      const projectRoles = userProjectRoles[project.id] || [];
-      const isOwnerByOwnerId = project.ownerId === currentUser?.id;
-      
-      if (filterRole === "my") {
-        // Show projects where user is owner, stakeholder, or member
-        matchesRole = userProjectIds.has(project.id) || isOwnerByOwnerId;
-      } else if (filterRole === "owner") {
-        matchesRole = projectRoles.includes('owner') || isOwnerByOwnerId;
-      } else if (filterRole === "stakeholder") {
-        matchesRole = projectRoles.includes('stakeholder');
-      } else if (filterRole === "member") {
-        matchesRole = projectRoles.includes('member');
-      }
-      // filterRole === "all" shows everything
-      
-      return matchesSearch && matchesStatus && matchesRisk && matchesFavorites && matchesRole;
-    });
-
-    // Apply sorting
-    result.sort((a, b) => {
-      let aVal: string | number = "";
-      let bVal: string | number = "";
-
-      switch (sortField) {
-        case "name":
-          aVal = a.name.toLowerCase();
-          bVal = b.name.toLowerCase();
-          break;
-        case "client":
-          aVal = a.client.toLowerCase();
-          bVal = b.client.toLowerCase();
-          break;
-        case "status":
-          aVal = a.status.toLowerCase();
-          bVal = b.status.toLowerCase();
-          break;
-        case "owner":
+    let result = [...projects];
+    
+    // Client-side sorting only for fields the server can't sort (owner name, teamSize)
+    if (sortField === 'owner' || sortField === 'teamSize') {
+      result.sort((a, b) => {
+        let aVal: string | number = "";
+        let bVal: string | number = "";
+        
+        if (sortField === "owner") {
           aVal = a.owner.toLowerCase();
           bVal = b.owner.toLowerCase();
-          break;
-        case "startDate":
-          aVal = a.startDate || "";
-          bVal = b.startDate || "";
-          break;
-        case "riskLevel":
-          const riskOrder = { Low: 1, Medium: 2, High: 3 };
-          aVal = riskOrder[a.riskLevel] || 0;
-          bVal = riskOrder[b.riskLevel] || 0;
-          break;
-        case "progress":
-        aVal = a.progress || 0;
-        bVal = b.progress || 0;
-        break;
-      case "teamSize":
-        aVal = teamSizeByProject[a.id] || 0;
-        bVal = teamSizeByProject[b.id] || 0;
-        break;
+        } else if (sortField === "teamSize") {
+          aVal = teamSizeByProject[a.id] || 0;
+          bVal = teamSizeByProject[b.id] || 0;
+        }
+        
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
     }
-
-      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-
+    
     return result;
-  }, [projects, searchQuery, filterStatus, filterRisk, filterFavorites, filterRole, favoriteProjectIds, userProjectRoles, userProjectIds, currentUser?.id, sortField, sortDirection]);
+  }, [projects, sortField, sortDirection, teamSizeByProject]);
 
   // Toggle sort for a column
   const toggleSort = (field: SortField) => {
@@ -1004,15 +1054,71 @@ export default function ProjectsList() {
           
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-4 border-t">
-            <div className="text-xs text-muted-foreground">
-              Showing <strong>1-{filteredProjects.length}</strong> of <strong>{projects.length}</strong> projects
+            <div className="flex items-center gap-4">
+              <div className="text-xs text-muted-foreground">
+                Showing <strong>{totalProjects > 0 ? ((page - 1) * pageSize) + 1 : 0}-{Math.min(page * pageSize, totalProjects)}</strong> of <strong>{totalProjects}</strong> projects
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Per page:</Label>
+                <select 
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="h-8 rounded border border-input bg-background px-2 py-1 text-xs"
+                  data-testid="select-page-size"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled className="h-8 w-8 p-0">
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={page === 1} 
+                onClick={() => setPage(1)}
+                className="h-8 w-8 p-0"
+                data-testid="button-first-page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={page === 1} 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="h-8 w-8 p-0"
+                data-testid="button-prev-page"
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+              <span className="text-xs text-muted-foreground px-2">
+                Page {page} of {totalPages || 1}
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="h-8 w-8 p-0"
+                data-testid="button-next-page"
+              >
                 <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+                className="h-8 w-8 p-0"
+                data-testid="button-last-page"
+              >
+                <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
           </div>
