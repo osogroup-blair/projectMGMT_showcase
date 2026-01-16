@@ -71,8 +71,10 @@ export interface WizardTaskDraft {
   taskTypeId?: string;
   assigneeId?: string;
   milestoneId?: string;
+  sprintId?: string;
   isFromImport?: boolean;
   sourceAssigneeId?: string;
+  sourceSprintId?: string;
 }
 
 export interface WizardStage {

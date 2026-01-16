@@ -539,7 +539,8 @@ function extractStages(entities: ParsedEntity[]): ImportedStage[] {
 function extractTasks(
   entities: ParsedEntity[],
   stages: ImportedStage[],
-  deliverables: ImportedDeliverable[]
+  deliverables: ImportedDeliverable[],
+  sprints: ImportedSprint[]
 ): ImportedTask[] {
   const taskEntity = entities.find(e => e.entityType === 'Tasks');
   if (!taskEntity) return [];
@@ -549,6 +550,14 @@ function extractTasks(
   stages.forEach(s => {
     stageByName.set(s.name.toLowerCase(), s);
     if (s.sourceId) stageBySourceId.set(s.sourceId, s);
+  });
+  
+  // Build sprint lookup maps for task-sprint mapping
+  const sprintBySourceId = new Map<string, ImportedSprint>();
+  const sprintByName = new Map<string, ImportedSprint>();
+  sprints.forEach(sp => {
+    if (sp.sourceId) sprintBySourceId.set(sp.sourceId, sp);
+    sprintByName.set(sp.name.toLowerCase(), sp);
   });
   
   const epicBySourceId = new Map<string, { id: string; title: string }>();
@@ -632,6 +641,27 @@ function extractTasks(
       }
     }
     
+    // Map sprint ID from import
+    const sourceSprintId = row.sprintId || row.sprint_id || row.sprintName;
+    let sprintId: string | undefined;
+    
+    if (sourceSprintId) {
+      // First try to match by source ID
+      const sprintMatch = sprintBySourceId.get(sourceSprintId);
+      if (sprintMatch) {
+        sprintId = sprintMatch.id;
+      } else {
+        // Try to match by sprint name (case-insensitive)
+        const normalizedSprintName = String(sourceSprintId).toLowerCase();
+        const sprintByNameMatch = sprintByName.get(normalizedSprintName);
+        if (sprintByNameMatch) {
+          sprintId = sprintByNameMatch.id;
+        } else {
+          warnings.push(`Sprint "${sourceSprintId}" not found - task sprint assignment skipped`);
+        }
+      }
+    }
+    
     return {
       id: generateId('t'),
       title: titleField.value,
@@ -651,6 +681,8 @@ function extractTasks(
       mappingStatus,
       startDate: parseDate(startDateField.value) || undefined,
       deadline: parseDate(deadlineField.value) || undefined,
+      sprintId,
+      sourceSprintId,
       confidence: titleField.sourceField ? 'high' : 'medium',
       warnings
     };
@@ -688,6 +720,42 @@ function extractMilestones(entities: ParsedEntity[]): ImportedMilestone[] {
       warnings: []
     };
   });
+}
+
+function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
+  const sprintsEntity = entities.find(e => e.entityType === 'Sprints');
+  if (!sprintsEntity || sprintsEntity.rows.length === 0) return [];
+  
+  const sprints: ImportedSprint[] = [];
+  
+  for (const row of sprintsEntity.rows) {
+    const sprintName = getFieldValue(row, ['name', 'sprintName', 'title'], `Sprint ${sprints.length + 1}`);
+    const sprintGoal = getFieldValue(row, ['goal', 'description', 'objective'], null);
+    const sprintStartDate = getFieldValue(row, ['startDate', 'start_date', 'start'], null);
+    const sprintEndDate = getFieldValue(row, ['endDate', 'end_date', 'end', 'dueDate'], null);
+    const sprintStatus = getFieldValue(row, ['status', 'state'], 'Planned');
+    const sprintCapacity = getFieldValue(row, ['capacityHours', 'capacity', 'capacity_hours'], null);
+    
+    const parsedStartDate = parseDate(sprintStartDate.value);
+    const parsedEndDate = parseDate(sprintEndDate.value);
+    
+    if (parsedStartDate && parsedEndDate) {
+      sprints.push({
+        id: generateId('sprint'),
+        name: sprintName.value,
+        goal: sprintGoal.value,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        status: sprintStatus.value || 'Planned',
+        capacityHours: typeof sprintCapacity.value === 'number' ? sprintCapacity.value : null,
+        sourceId: row.id || row.sprintId,
+        confidence: calculateConfidence(!!sprintName.sourceField, sprintName.sourceField ? 'exact' : 'inferred'),
+        warnings: []
+      });
+    }
+  }
+  
+  return sprints;
 }
 
 function normalizeString(s: string | undefined | null): string {
@@ -1071,7 +1139,11 @@ export function convertImportToWizardData(
   let deliverables = extractDeliverables(resolvedParseResult.entities);
   deliverables = extractEpics(resolvedParseResult.entities, deliverables);
   const stages = extractStages(resolvedParseResult.entities);
-  const tasks = extractTasks(resolvedParseResult.entities, stages, deliverables);
+  
+  // Extract sprints BEFORE tasks so we can map task-sprint associations
+  const sprints = extractSprints(resolvedParseResult.entities);
+  
+  const tasks = extractTasks(resolvedParseResult.entities, stages, deliverables, sprints);
   const milestones = extractMilestones(resolvedParseResult.entities);
   const userMappings = extractUsers(resolvedParseResult.entities, systemUsers, userIdentities);
   const statusMappings = extractStatuses(resolvedParseResult.entities, systemStatuses);
@@ -1113,37 +1185,13 @@ export function convertImportToWizardData(
     );
   }
   
-  // Extract sprints from parsed data
-  const sprintsEntity = parseResult.entities.find(e => e.entityType === 'Sprints');
-  const sprints: ImportedSprint[] = [];
-  if (sprintsEntity && sprintsEntity.rows.length > 0) {
-    for (const row of sprintsEntity.rows) {
-      const sprintName = getFieldValue(row, ['name', 'sprintName', 'title'], `Sprint ${sprints.length + 1}`);
-      const sprintGoal = getFieldValue(row, ['goal', 'description', 'objective'], null);
-      const sprintStartDate = getFieldValue(row, ['startDate', 'start_date', 'start'], null);
-      const sprintEndDate = getFieldValue(row, ['endDate', 'end_date', 'end', 'dueDate'], null);
-      const sprintStatus = getFieldValue(row, ['status', 'state'], 'Planned');
-      const sprintCapacity = getFieldValue(row, ['capacityHours', 'capacity', 'capacity_hours'], null);
-      
-      const parsedStartDate = parseDate(sprintStartDate.value);
-      const parsedEndDate = parseDate(sprintEndDate.value);
-      
-      if (parsedStartDate && parsedEndDate) {
-        sprints.push({
-          id: generateId('sprint'),
-          name: sprintName.value,
-          goal: sprintGoal.value,
-          startDate: parsedStartDate,
-          endDate: parsedEndDate,
-          status: sprintStatus.value || 'Planned',
-          capacityHours: typeof sprintCapacity.value === 'number' ? sprintCapacity.value : null,
-          sourceId: row.id || row.sprintId,
-          confidence: calculateConfidence(!!sprintName.sourceField, sprintName.sourceField ? 'exact' : 'inferred'),
-          warnings: []
-        });
-      } else {
-        warnings.push(`Sprint "${sprintName.value}" skipped: missing start or end date`);
-      }
+  // Check for skipped sprints (those with missing dates)
+  const sprintsEntity = resolvedParseResult.entities.find(e => e.entityType === 'Sprints');
+  if (sprintsEntity) {
+    const totalSprintRows = sprintsEntity.rows.length;
+    const extractedCount = sprints.length;
+    if (extractedCount < totalSprintRows) {
+      warnings.push(`${totalSprintRows - extractedCount} sprint(s) skipped: missing start or end date`);
     }
   }
   
