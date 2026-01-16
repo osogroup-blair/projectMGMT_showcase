@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Plus, 
   Trash2, 
@@ -28,11 +29,21 @@ import {
   Crown,
   Briefcase,
   Eye,
-  User
+  User,
+  Download,
+  Upload
 } from "lucide-react";
 import { StepProps, WizardRole, WizardStage, WizardTaskDraft, CORE_PROJECT_ROLES } from "./types";
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useImportOptional } from "@/context/import-context";
+import { useToast } from "@/hooks/use-toast";
+
+interface TeamExportData {
+  owner: { userId: string; userName?: string } | null;
+  manager: { userId: string; userName?: string } | null;
+  stakeholders: { userId: string; userName?: string }[];
+  members: { userId: string; userName?: string; executionRoleId?: string; executionRoleName?: string }[];
+}
 
 interface TaskAssignmentStats {
   totalTasks: number;
@@ -60,6 +71,8 @@ export function StepTeamRoles({
   setStages,
   deliverables,
 }: StepProps) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['owner', 'manager', 'stakeholder', 'member']));
   
   const [ownerUserId, setOwnerUserIdState] = useState<string>("");
@@ -419,11 +432,130 @@ export function StepTeamRoles({
     return user?.name || user?.email || userId;
   };
 
+  const handleExport = () => {
+    const exportData: TeamExportData = {
+      owner: ownerUserId ? { userId: ownerUserId, userName: getUserName(ownerUserId) } : null,
+      manager: managerUserId ? { userId: managerUserId, userName: getUserName(managerUserId) } : null,
+      stakeholders: stakeholderUserIds.filter(id => id).map(id => ({
+        userId: id,
+        userName: getUserName(id)
+      })),
+      members: teamMembers.filter(m => m.userId).map(m => ({
+        userId: m.userId,
+        userName: getUserName(m.userId),
+        executionRoleId: m.executionRoleId,
+        executionRoleName: m.executionRoleId ? roleTypes.find(rt => rt.id === m.executionRoleId)?.label : undefined
+      }))
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "team-assignment.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: "Team assignment exported successfully." });
+  };
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string) as Partial<TeamExportData>;
+        
+        if (data.owner?.userId) {
+          const userExists = users.some((u: any) => u.id === data.owner?.userId);
+          if (userExists) setOwnerUserId(data.owner.userId);
+        }
+        
+        if (data.manager?.userId) {
+          const userExists = users.some((u: any) => u.id === data.manager?.userId);
+          if (userExists) setManagerUserId(data.manager.userId);
+        }
+        
+        if (data.stakeholders?.length) {
+          const validStakeholders = data.stakeholders
+            .filter(s => users.some((u: any) => u.id === s.userId))
+            .map(s => s.userId);
+          if (validStakeholders.length) setStakeholderUserIds(validStakeholders);
+        }
+        
+        if (data.members?.length) {
+          const validMembers = data.members
+            .filter(m => users.some((u: any) => u.id === m.userId))
+            .map(m => ({
+              userId: m.userId,
+              executionRoleId: m.executionRoleId && roleTypes.some(rt => rt.id === m.executionRoleId) 
+                ? m.executionRoleId 
+                : undefined
+            }));
+          if (validMembers.length) setTeamMembers(validMembers);
+        }
+        
+        toast({ title: "Imported", description: "Team assignment imported successfully." });
+      } catch {
+        toast({ title: "Import Failed", description: "Invalid file format.", variant: "destructive" });
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const assignedCount = getAllAssignedUserIds().filter(id => id).length;
   const totalAssignable = 1 + 1 + stakeholderUserIds.length + teamMembers.length;
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end gap-1">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleImport}
+          className="hidden"
+        />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="button-import-team"
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">Import team assignment</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={handleExport}
+                data-testid="button-export-team"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">Export team assignment</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       {taskAssignmentStats.totalTasks > 0 && (
         <Card className="border-2 border-primary/20">
           <CardHeader className="pb-3">
