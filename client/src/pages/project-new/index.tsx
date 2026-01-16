@@ -1127,6 +1127,38 @@ export default function ProjectWizard() {
     
     setIsCreating(true);
     
+    const taskAssignees = new Set<string>();
+    stages.forEach(stage => {
+      (stage.tasks || []).forEach(task => {
+        if (task.assigneeId) taskAssignees.add(task.assigneeId);
+      });
+    });
+    deliverables.forEach(del => {
+      (del.epics || []).forEach(epic => {
+        (epic.tasks || []).forEach(task => {
+          if (task.assigneeId) taskAssignees.add(task.assigneeId);
+        });
+      });
+    });
+    
+    const rolesWithAssignees = [...roles];
+    const existingUserIds = new Set(roles.filter(r => r.assigneeId).map(r => r.assigneeId));
+    
+    let autoRoleCounter = 0;
+    taskAssignees.forEach(assigneeId => {
+      if (!existingUserIds.has(assigneeId)) {
+        rolesWithAssignees.push({
+          id: `role-auto-${Date.now()}-${autoRoleCounter++}`,
+          name: "Team Member",
+          description: "Auto-assigned based on task assignment",
+          roleType: "member",
+          roleTypeId: null,
+          isCore: false,
+          assigneeId
+        });
+      }
+    });
+    
     const totalEpics = deliverables.reduce((sum, d) => sum + (d.epics?.length || 0), 0);
     const stageTasks = stages.reduce((sum, s) => sum + (s.tasks?.length || 0), 0);
     const epicTasks = deliverables.reduce((sum, d) => 
@@ -1141,7 +1173,7 @@ export default function ProjectWizard() {
         epics: totalEpics,
         tasks: totalTasks,
         milestones: milestones.length,
-        roles: roles.length
+        roles: rolesWithAssignees.length
       }
     });
     
@@ -1216,7 +1248,7 @@ export default function ProjectWizard() {
           isBillingGate: m.isBillingGate || false,
           rule: m.rule
         })),
-        roles: roles.map(r => ({
+        roles: rolesWithAssignees.map(r => ({
           id: r.id,
           roleType: r.roleType || 'member',
           roleTypeId: r.roleTypeId || null,
