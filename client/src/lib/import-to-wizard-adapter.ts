@@ -722,6 +722,67 @@ function extractMilestones(entities: ParsedEntity[]): ImportedMilestone[] {
   });
 }
 
+type SprintStatus = 'Planned' | 'Active' | 'Completed' | 'Cancelled';
+
+const SPRINT_STATUS_MAPPING: Record<string, SprintStatus> = {
+  'planned': 'Planned',
+  'plan': 'Planned',
+  'not started': 'Planned',
+  'notstarted': 'Planned',
+  'upcoming': 'Planned',
+  'pending': 'Planned',
+  'future': 'Planned',
+  'backlog': 'Planned',
+  
+  'active': 'Active',
+  'in progress': 'Active',
+  'inprogress': 'Active',
+  'in-progress': 'Active',
+  'current': 'Active',
+  'running': 'Active',
+  'started': 'Active',
+  'open': 'Active',
+  
+  'completed': 'Completed',
+  'complete': 'Completed',
+  'done': 'Completed',
+  'finished': 'Completed',
+  'closed': 'Completed',
+  'ended': 'Completed',
+  
+  'cancelled': 'Cancelled',
+  'canceled': 'Cancelled',
+  'abandoned': 'Cancelled',
+  'aborted': 'Cancelled'
+};
+
+function normalizeSprintStatus(rawStatus: string | null | undefined): { status: SprintStatus; normalized: boolean } {
+  if (!rawStatus) {
+    return { status: 'Planned', normalized: false };
+  }
+  
+  const cleanStatus = rawStatus.toString().toLowerCase().trim();
+  const mappedStatus = SPRINT_STATUS_MAPPING[cleanStatus];
+  
+  if (mappedStatus) {
+    return { status: mappedStatus, normalized: cleanStatus !== mappedStatus.toLowerCase() };
+  }
+  
+  // Try partial matching for common patterns
+  if (cleanStatus.includes('progress') || cleanStatus.includes('active') || cleanStatus.includes('current')) {
+    return { status: 'Active', normalized: true };
+  }
+  if (cleanStatus.includes('complet') || cleanStatus.includes('done') || cleanStatus.includes('finish')) {
+    return { status: 'Completed', normalized: true };
+  }
+  if (cleanStatus.includes('cancel') || cleanStatus.includes('abort')) {
+    return { status: 'Cancelled', normalized: true };
+  }
+  
+  // Default to Planned for unknown statuses
+  return { status: 'Planned', normalized: true };
+}
+
 function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
   const sprintsEntity = entities.find(e => e.entityType === 'Sprints');
   if (!sprintsEntity || sprintsEntity.rows.length === 0) return [];
@@ -733,24 +794,31 @@ function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
     const sprintGoal = getFieldValue(row, ['goal', 'description', 'objective'], null);
     const sprintStartDate = getFieldValue(row, ['startDate', 'start_date', 'start'], null);
     const sprintEndDate = getFieldValue(row, ['endDate', 'end_date', 'end', 'dueDate'], null);
-    const sprintStatus = getFieldValue(row, ['status', 'state'], 'Planned');
+    const sprintStatusRaw = getFieldValue(row, ['status', 'state'], null);
     const sprintCapacity = getFieldValue(row, ['capacityHours', 'capacity', 'capacity_hours'], null);
     
     const parsedStartDate = parseDate(sprintStartDate.value);
     const parsedEndDate = parseDate(sprintEndDate.value);
     
     if (parsedStartDate && parsedEndDate) {
+      const warnings: string[] = [];
+      const { status: normalizedStatus, normalized } = normalizeSprintStatus(sprintStatusRaw.value);
+      
+      if (normalized && sprintStatusRaw.value) {
+        warnings.push(`Status normalized from "${sprintStatusRaw.value}" to "${normalizedStatus}"`);
+      }
+      
       sprints.push({
         id: generateId('sprint'),
         name: sprintName.value,
         goal: sprintGoal.value,
         startDate: parsedStartDate,
         endDate: parsedEndDate,
-        status: sprintStatus.value || 'Planned',
+        status: normalizedStatus,
         capacityHours: typeof sprintCapacity.value === 'number' ? sprintCapacity.value : null,
         sourceId: row.id || row.sprintId,
         confidence: calculateConfidence(!!sprintName.sourceField, sprintName.sourceField ? 'exact' : 'inferred'),
-        warnings: []
+        warnings
       });
     }
   }
