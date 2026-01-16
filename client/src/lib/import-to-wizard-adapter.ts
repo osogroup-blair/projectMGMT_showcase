@@ -554,11 +554,15 @@ function extractTasks(
   });
   
   // Build sprint lookup maps for task-sprint mapping
+  // Normalize all IDs to trimmed strings for consistent matching
   const sprintBySourceId = new Map<string, ImportedSprint>();
   const sprintByName = new Map<string, ImportedSprint>();
   sprints.forEach(sp => {
-    if (sp.sourceId) sprintBySourceId.set(sp.sourceId, sp);
-    sprintByName.set(sp.name.toLowerCase(), sp);
+    if (sp.sourceId) {
+      // Normalize to string and trim for consistent matching
+      sprintBySourceId.set(String(sp.sourceId).trim(), sp);
+    }
+    sprintByName.set(sp.name.toLowerCase().trim(), sp);
   });
   
   const epicBySourceId = new Map<string, { id: string; title: string }>();
@@ -642,25 +646,39 @@ function extractTasks(
       }
     }
     
-    // Map sprint ID from import
-    const sourceSprintId = row.sprintId || row.sprint_id || row.sprintName;
+    // Map sprint ID from import - try ID fields first, then name fields
+    const sourceSprintIdField = row.sprintId || row.sprint_id;
+    const sourceSprintNameField = row.sprintName || row.sprint_name;
     let sprintId: string | undefined;
+    let sourceSprintRef: string | undefined = sourceSprintIdField || sourceSprintNameField;
     
-    if (sourceSprintId) {
-      // First try to match by source ID
-      const sprintMatch = sprintBySourceId.get(sourceSprintId);
+    if (sourceSprintIdField) {
+      // First try to match by source ID (normalized to string)
+      const normalizedId = String(sourceSprintIdField).trim();
+      const sprintMatch = sprintBySourceId.get(normalizedId);
       if (sprintMatch) {
         sprintId = sprintMatch.id;
-      } else {
-        // Try to match by sprint name (case-insensitive)
-        const normalizedSprintName = String(sourceSprintId).toLowerCase();
-        const sprintByNameMatch = sprintByName.get(normalizedSprintName);
-        if (sprintByNameMatch) {
-          sprintId = sprintByNameMatch.id;
-        } else {
-          warnings.push(`Sprint "${sourceSprintId}" not found - task sprint assignment skipped`);
+      }
+    }
+    
+    // If ID match failed, try name match (either from ID field value or explicit name field)
+    if (!sprintId && sourceSprintRef) {
+      const normalizedSprintName = String(sourceSprintRef).toLowerCase().trim();
+      const sprintByNameMatch = sprintByName.get(normalizedSprintName);
+      if (sprintByNameMatch) {
+        sprintId = sprintByNameMatch.id;
+      } else if (sourceSprintNameField && sourceSprintIdField !== sourceSprintNameField) {
+        // Try the explicit name field if different from ID field
+        const altNormalizedName = String(sourceSprintNameField).toLowerCase().trim();
+        const altMatch = sprintByName.get(altNormalizedName);
+        if (altMatch) {
+          sprintId = altMatch.id;
         }
       }
+    }
+    
+    if (sourceSprintRef && !sprintId) {
+      warnings.push(`Sprint "${sourceSprintRef}" not found - task sprint assignment skipped`);
     }
     
     return {
@@ -787,12 +805,34 @@ function normalizeSprintStatus(rawStatus: string | null | undefined): { status: 
 function validateSprintDates(sprints: ImportedSprint[]): ImportedSprint[] {
   if (sprints.length === 0) return sprints;
   
-  // Sort sprints by start date for overlap detection
-  const sortedSprints = [...sprints].sort((a, b) => 
+  // Create sorted view for overlap detection (preserves original order in result)
+  const sortedByDate = [...sprints].sort((a, b) => 
     new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
   );
   
-  const validatedSprints = sortedSprints.map((sprint, index) => {
+  // Build a map of sprint ID to warnings from overlap detection
+  const overlapWarnings = new Map<string, string[]>();
+  
+  for (let i = 0; i < sortedByDate.length - 1; i++) {
+    const current = sortedByDate[i];
+    const next = sortedByDate[i + 1];
+    const currentEnd = new Date(current.endDate);
+    const nextStart = new Date(next.startDate);
+    
+    if (currentEnd > nextStart) {
+      // Add warning to both sprints involved in the overlap
+      const currentWarnings = overlapWarnings.get(current.id) || [];
+      currentWarnings.push(`Overlaps with sprint "${next.name}" (${next.startDate})`);
+      overlapWarnings.set(current.id, currentWarnings);
+      
+      const nextWarnings = overlapWarnings.get(next.id) || [];
+      nextWarnings.push(`Overlaps with sprint "${current.name}" (ends ${current.endDate})`);
+      overlapWarnings.set(next.id, nextWarnings);
+    }
+  }
+  
+  // Validate each sprint in original order and merge warnings
+  return sprints.map(sprint => {
     const warnings = [...(sprint.warnings || [])];
     const startDate = new Date(sprint.startDate);
     const endDate = new Date(sprint.endDate);
@@ -808,23 +848,15 @@ function validateSprintDates(sprints: ImportedSprint[]): ImportedSprint[] {
       warnings.push(`Sprint duration is ${durationDays} days (${Math.round(durationDays / 7)} weeks) - unusually long`);
     }
     
-    // Check for overlap with next sprint
-    if (index < sortedSprints.length - 1) {
-      const nextSprint = sortedSprints[index + 1];
-      const nextStartDate = new Date(nextSprint.startDate);
-      
-      if (endDate > nextStartDate) {
-        warnings.push(`Overlaps with sprint "${nextSprint.name}" (${nextSprint.startDate})`);
-      }
-    }
+    // Add any overlap warnings for this sprint
+    const sprintOverlapWarnings = overlapWarnings.get(sprint.id) || [];
+    warnings.push(...sprintOverlapWarnings);
     
     return {
       ...sprint,
       warnings
     };
   });
-  
-  return validatedSprints;
 }
 
 function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
