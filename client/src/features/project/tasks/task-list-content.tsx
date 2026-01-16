@@ -1341,7 +1341,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="task-stage">Stage *</Label>
+                <Label htmlFor="task-stage">Stage</Label>
                 <SearchableSelect
                   value={newTaskStageId}
                   onValueChange={setNewTaskStageId}

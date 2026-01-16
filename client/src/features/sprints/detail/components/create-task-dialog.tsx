@@ -80,7 +80,7 @@ export function CreateTaskDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Stage *</Label>
+            <Label>Stage</Label>
             <SearchableSelect
               value={newTaskStageId}
               onValueChange={setNewTaskStageId}
@@ -99,7 +99,7 @@ export function CreateTaskDialog({
           </Button>
           <Button 
             onClick={handleCreate} 
-            disabled={!newTaskTitle.trim() || !newTaskEpicId || !newTaskStageId}
+            disabled={!newTaskTitle.trim() || !newTaskEpicId}
             data-testid="button-confirm-create-task"
           >
             Create Task

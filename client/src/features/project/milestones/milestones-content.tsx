@@ -1268,7 +1268,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Stage <span className="text-red-500">*</span></Label>
+                    <Label>Stage</Label>
                     <SearchableSelect 
                       value={selectedStageId} 
                       onValueChange={setSelectedStageId}

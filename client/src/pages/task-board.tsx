@@ -724,7 +724,7 @@ export default function TaskBoard() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="stage">Stage <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="stage">Stage</Label>
                   <SearchableSelect
                     value={formData.stageId}
                     onValueChange={(v) => setFormData({ ...formData, stageId: v })}
@@ -1290,7 +1290,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="stage">Stage <span className="text-destructive">*</span></Label>
+                <Label htmlFor="stage">Stage</Label>
                 <SearchableSelect
                   value={formData.stageId}
                   onValueChange={(v) => setFormData({ ...formData, stageId: v })}

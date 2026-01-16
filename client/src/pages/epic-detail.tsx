@@ -918,7 +918,7 @@ export default function EpicDetail() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Stage *</Label>
+                <Label>Stage</Label>
                 <SearchableSelect
                   value={formData.stageId}
                   onValueChange={(value) => setFormData({ ...formData, stageId: value })}
