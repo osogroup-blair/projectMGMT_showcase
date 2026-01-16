@@ -1280,6 +1280,17 @@ export default function ProjectWizard() {
           status: s.status || 'planned',
           capacityHours: s.capacityHours || null
         })) : undefined,
+        userMappings: isImportMode && importContext?.state?.userMappings && importContext.state.userMappings.length > 0 
+          ? importContext.state.userMappings.map(m => ({
+              sourceId: m.sourceId,
+              sourceName: m.sourceName,
+              sourceEmail: m.sourceEmail,
+              mappedToId: m.mappedToId,
+              mappedToName: m.mappedToName,
+              confidence: m.confidence,
+              action: m.action
+            }))
+          : undefined,
         importMetadata: isImportMode && importContext?.state?.sourceFileName ? {
           source: importContext.state.sourceFileName || 'imported',
           importedAt: new Date().toISOString()
