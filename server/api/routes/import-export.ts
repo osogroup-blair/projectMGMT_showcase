@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../../data/storage";
+import { db } from "../../db";
 import { 
   insertActivitySchema,
   insertCommentSchema,
@@ -1530,7 +1531,7 @@ export function registerImportExportRoutes(
           console.log(`[FULL-CREATE] Creating ${payloadSprints.length} imported sprints`);
           for (const sprint of payloadSprints) {
             try {
-              await storage.createSprint({
+              const createdSprint = await storage.createSprint({
                 projectId: project.id,
                 name: sprint.name,
                 goal: sprint.goal || null,
@@ -1540,8 +1541,24 @@ export function registerImportExportRoutes(
                 capacityHours: sprint.capacityHours || null
               });
               console.log(`[FULL-CREATE] Created sprint: ${sprint.name}`);
+              
+              entityResults.push({
+                entityType: 'sprint',
+                id: createdSprint.id,
+                name: sprint.name,
+                success: true,
+                parentId: project.id
+              });
             } catch (e: any) {
               console.log(`Sprint "${sprint.name}" creation failed: ${e.message}`);
+              entityResults.push({
+                entityType: 'sprint',
+                id: sprint.id || 'error',
+                name: sprint.name,
+                success: false,
+                error: e.message,
+                parentId: project.id
+              });
             }
           }
         } else {

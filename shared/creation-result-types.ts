@@ -10,7 +10,17 @@ export const stageTaskSchema = z.object({
   priority: z.string().optional(),
   estimateHours: z.number().optional(),
   scope: z.enum(['once', 'per_epic']),
-  order: z.number()
+  order: z.number(),
+  // Extended task fields for import
+  deadline: z.string().optional(),
+  status: z.string().optional(),
+  milestoneId: z.string().optional(),
+  sprintId: z.string().optional(),
+  assigneeId: z.string().optional(),
+  taskTypeId: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  assignedEpicId: z.string().optional(),
+  mappingStatus: z.enum(['mapped', 'orphaned']).optional()
 });
 
 export const stageSchema = z.object({
@@ -19,13 +29,31 @@ export const stageSchema = z.object({
   description: z.string().optional(),
   order: z.number(),
   type: z.string(),
+  endDate: z.string().optional(),
   tasks: z.array(stageTaskSchema).default([])
+});
+
+export const epicTaskSchema = z.object({
+  id: z.string().min(1, 'Task ID is required'),
+  title: z.string().min(1, 'Task title is required'),
+  description: z.string().optional(),
+  priority: z.string().optional(),
+  estimateHours: z.number().optional(),
+  deadline: z.string().optional(),
+  status: z.string().optional(),
+  milestoneId: z.string().optional(),
+  sprintId: z.string().optional(),
+  assigneeId: z.string().optional(),
+  taskTypeId: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  stageId: z.string().optional()
 });
 
 export const epicSchema = z.object({
   id: z.string().min(1, 'Epic ID is required'),
   title: z.string().min(1, 'Epic title is required'),
-  description: z.string().optional()
+  description: z.string().optional(),
+  tasks: z.array(epicTaskSchema).default([])
 });
 
 export const deliverableSchema = z.object({
