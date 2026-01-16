@@ -912,7 +912,7 @@ export function StepTeamRoles({
         </Alert>
       )}
 
-      <div className="absolute bottom-0 right-0 flex gap-1 translate-y-full pt-2">
+      <div className="absolute bottom-0 left-0 flex gap-1 translate-y-full pt-2 -ml-20">
         <input
           ref={fileInputRef}
           type="file"
