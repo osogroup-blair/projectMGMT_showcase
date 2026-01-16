@@ -677,8 +677,8 @@ export default function ProjectWizard() {
       projectName: projectData.name,
       expectedCounts: {
         stages: 0,
-        deliverables: 0,
-        epics: 0,
+        deliverables: 1,
+        epics: 3,
         tasks: 0,
         milestones: 0,
         roles: 0

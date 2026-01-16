@@ -1798,6 +1798,29 @@ export function registerImportExportRoutes(
           success: true,
           parentId: mgmtDeliverableId
         });
+        
+        // Create Client Management epic
+        const clientEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        await storage.createEpic({
+          id: clientEpicId,
+          deliverableId: mgmtDeliverableId,
+          title: "Client Management",
+          description: "Client communication, stakeholder management, and relationship activities",
+          status: "Active",
+          ownerId: payload.project.ownerId || "1",
+          startDate: payload.project.startDate,
+          endDate: payload.project.deadline,
+          progress: 0,
+          stageIds: allStageIds
+        } as any);
+        
+        entityResults.push({
+          entityType: 'epic',
+          id: clientEpicId,
+          name: 'Client Management',
+          success: true,
+          parentId: mgmtDeliverableId
+        });
       } catch (e: any) {
         entityResults.push({
           entityType: 'deliverable',
