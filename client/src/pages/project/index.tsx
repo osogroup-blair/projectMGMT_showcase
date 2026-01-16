@@ -851,11 +851,6 @@ export default function ProjectOverview() {
                 )}
 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                  <span className="flex items-center gap-1.5" data-testid="text-framework-name">
-                    <Briefcase className="h-4 w-4" />
-                    {frameworkName}
-                  </span>
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
                   {isEditingStartDate ? (
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
