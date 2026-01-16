@@ -59,16 +59,6 @@ export function StepBasics({
               data-testid="input-project-description"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="client">Client (Optional)</Label>
-            <Input 
-              id="client" 
-              placeholder="e.g. Acme Corporation" 
-              value={projectData.client || ""}
-              onChange={(e) => setProjectData({...projectData, client: e.target.value})}
-              data-testid="input-project-client"
-            />
-          </div>
         </div>
 
         <div className="space-y-4">
@@ -98,21 +88,34 @@ export function StepBasics({
               </p>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Sprint Duration</Label>
-            <SearchableSelect 
-              value={String(projectData.sprintDurationWeeks)} 
-              onValueChange={(v) => setProjectData({...projectData, sprintDurationWeeks: parseInt(v)})}
-              placeholder="Select sprint length..."
-              options={sprintDurationOptions}
-              data-testid="select-sprint-duration"
-            />
-            <p className="text-xs text-muted-foreground">
-              {projectData.sprintDurationWeeks > 0 
-                ? `Sprints will be automatically created based on project dates.`
-                : `You can create sprints manually later.`}
-            </p>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="client">Client (Optional)</Label>
+              <Input 
+                id="client" 
+                placeholder="e.g. Acme Corporation" 
+                value={projectData.client || ""}
+                onChange={(e) => setProjectData({...projectData, client: e.target.value})}
+                data-testid="input-project-client"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Sprint Duration</Label>
+              <SearchableSelect 
+                value={String(projectData.sprintDurationWeeks)} 
+                onValueChange={(v) => setProjectData({...projectData, sprintDurationWeeks: parseInt(v)})}
+                placeholder="Select sprint length..."
+                options={sprintDurationOptions}
+                data-testid="select-sprint-duration"
+              />
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            {projectData.sprintDurationWeeks > 0 
+              ? `Sprints will be automatically created based on project dates.`
+              : `You can create sprints manually later.`}
+          </p>
         </div>
       </div>
 
