@@ -50,14 +50,6 @@ import type { ConfidenceLevel, UserMappingEntry, StatusMappingEntry, ProjectRole
 import type { ReferenceMappingEntry } from '@/lib/import-reference-resolver';
 import { useQuery } from '@tanstack/react-query';
 
-const PROJECT_ROLE_OPTIONS: { value: ProjectRoleType; label: string }[] = [
-  { value: 'none', label: 'No Project Role' },
-  { value: 'owner', label: 'Project Owner' },
-  { value: 'manager', label: 'Project Manager' },
-  { value: 'stakeholder', label: 'Stakeholder' },
-  { value: 'member', label: 'Team Member' },
-];
-
 function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
   const config = {
     high: { label: 'High', className: 'bg-green-100 text-green-700 border-green-200' },
@@ -77,7 +69,7 @@ function ConfidenceIcon({ confidence }: { confidence: ConfidenceLevel }) {
 
 export default function ImportSummary() {
   const [, setLocation] = useLocation();
-  const { state, updateUserMapping, updateUserProjectRole, updateStatusMapping, updateReferenceMapping, setDefaultUnassignedTo } = useImport();
+  const { state, updateUserMapping, updateStatusMapping, updateReferenceMapping, setDefaultUnassignedTo } = useImport();
   const { data: allUsers } = useAllUsersForAssignment();
   const { data: statusOptionsData } = useStatusOptions();
   
@@ -307,10 +299,17 @@ export default function ImportSummary() {
     };
     
     mappedUsers.forEach(m => {
-      const role = m.projectRole || 'none';
-      if (byRole[role]) {
-        byRole[role].users.push(m);
-        byRole[role].count++;
+      const roles = m.projectRoles || [];
+      if (roles.length === 0) {
+        byRole.none.users.push(m);
+        byRole.none.count++;
+      } else {
+        roles.forEach(role => {
+          if (byRole[role]) {
+            byRole[role].users.push(m);
+            byRole[role].count++;
+          }
+        });
       }
     });
     
@@ -699,14 +698,12 @@ export default function ImportSummary() {
                               size="sm" 
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                teamAssignmentSummary.byRole.none.users.forEach(u => {
-                                  updateUserProjectRole(u.sourceId, 'member');
-                                });
+                                setLocation('/projects/import/team');
                               }}
-                              data-testid="assign-all-as-members-btn"
+                              data-testid="assign-roles-btn"
                             >
                               <Users className="h-4 w-4 mr-2" />
-                              Assign All as Members
+                              Assign Roles
                             </Button>
                           )}
                         </div>
@@ -717,8 +714,6 @@ export default function ImportSummary() {
                           <TableHead>Imported User</TableHead>
                           <TableHead>Confidence</TableHead>
                           <TableHead>Map To</TableHead>
-                          <TableHead>Project Role</TableHead>
-                          <TableHead>Suggested Role</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -749,32 +744,6 @@ export default function ImportSummary() {
                                 className="w-[220px]"
                                 data-testid={`user-select-${mapping.sourceId}`}
                               />
-                            </TableCell>
-                            <TableCell>
-                              <SearchableSelect
-                                value={mapping.projectRole || 'none'}
-                                onValueChange={(val) => updateUserProjectRole(mapping.sourceId, val as ProjectRoleType)}
-                                options={PROJECT_ROLE_OPTIONS}
-                                placeholder="Select role..."
-                                className="w-[160px]"
-                                data-testid={`project-role-select-${mapping.sourceId}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              {mapping.suggestedExecutionRoleName ? (
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="secondary" className="text-xs">
-                                    {mapping.suggestedExecutionRoleName}
-                                  </Badge>
-                                  {mapping.suggestedExecutionRoleConfidence !== undefined && mapping.suggestedExecutionRoleConfidence > 0.5 && (
-                                    <span className="text-xs text-muted-foreground">
-                                      ({Math.round(mapping.suggestedExecutionRoleConfidence * 100)}%)
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
-                              )}
                             </TableCell>
                           </TableRow>
                         ))}
