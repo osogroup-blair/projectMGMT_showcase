@@ -1,4 +1,4 @@
-export type EntityType = 'project' | 'stage' | 'deliverable' | 'epic' | 'task' | 'milestone' | 'role';
+export type EntityType = 'project' | 'stage' | 'deliverable' | 'epic' | 'task' | 'milestone' | 'role' | 'sprint' | 'team_member';
 
 export interface EntityResult {
   entityType: EntityType;
