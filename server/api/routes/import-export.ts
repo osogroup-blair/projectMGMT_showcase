@@ -2533,6 +2533,7 @@ export function registerImportExportRoutes(
         },
         entityResults,
         breakdownByType,
+        unresolvedAssignees: unresolvedAssignees.length > 0 ? unresolvedAssignees : undefined,
         fatalError: error.message
       });
     }
