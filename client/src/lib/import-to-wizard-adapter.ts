@@ -754,6 +754,27 @@ function matchUserByNameOrEmail(
   return { confidence: 'low' };
 }
 
+function splitMultipleAssignees(assigneeString: string): string[] {
+  if (!assigneeString || typeof assigneeString !== 'string') return [];
+  
+  let parts = assigneeString
+    .split(/[,;]/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  
+  const finalParts: string[] = [];
+  for (const part of parts) {
+    const andSplit = part.split(/\s+and\s+/i);
+    if (andSplit.length > 1) {
+      finalParts.push(...andSplit.map(s => s.trim()).filter(Boolean));
+    } else {
+      finalParts.push(part);
+    }
+  }
+  
+  return finalParts;
+}
+
 function extractUsers(
   entities: ParsedEntity[],
   systemUsers: SystemUser[] = [],
@@ -762,48 +783,92 @@ function extractUsers(
   const userEntity = entities.find(e => e.entityType === 'Users');
   const userRefs = new Map<string, { name?: string; email?: string; externalId?: string; taskCount: number }>();
   
+  const addUserRef = (
+    key: string, 
+    info: { name?: string; email?: string; externalId?: string }, 
+    incrementTaskCount: boolean
+  ) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) return;
+    
+    const existing = userRefs.get(normalizedKey);
+    userRefs.set(normalizedKey, {
+      name: existing?.name || info.name,
+      email: existing?.email || info.email,
+      externalId: existing?.externalId || info.externalId,
+      taskCount: (existing?.taskCount || 0) + (incrementTaskCount ? 1 : 0)
+    });
+  };
+  
   const extractUserFromRow = (row: any, isTask: boolean = false) => {
     if (row.assigneeId) {
-      const existing = userRefs.get(row.assigneeId);
-      userRefs.set(row.assigneeId, {
-        name: existing?.name || row.assigneeName || row.assignee,
-        email: existing?.email || row.assigneeEmail,
-        externalId: row.assigneeId,
-        taskCount: (existing?.taskCount || 0) + (isTask ? 1 : 0)
-      });
-    }
-    if (row.ownerId) {
-      const existing = userRefs.get(row.ownerId);
-      userRefs.set(row.ownerId, {
-        name: existing?.name || row.ownerName || row.owner,
-        email: existing?.email || row.ownerEmail,
-        externalId: row.ownerId,
-        taskCount: existing?.taskCount || 0
-      });
-    }
-    if (row.managerId) {
-      const existing = userRefs.get(row.managerId);
-      userRefs.set(row.managerId, {
-        name: existing?.name || row.managerName || row.manager,
-        email: existing?.email || row.managerEmail,
-        externalId: row.managerId,
-        taskCount: existing?.taskCount || 0
-      });
-    }
-    if (row.assignee && typeof row.assignee === 'string' && !row.assigneeId) {
-      const existing = userRefs.get(row.assignee);
-      userRefs.set(row.assignee, { 
-        name: row.assignee, 
-        taskCount: (existing?.taskCount || 0) + (isTask ? 1 : 0) 
-      });
-    }
-    if (Array.isArray(row.assigneeIds)) {
-      row.assigneeIds.forEach((id: string) => {
-        const existing = userRefs.get(id);
-        userRefs.set(id, { 
-          externalId: id, 
-          taskCount: (existing?.taskCount || 0) + (isTask ? 1 : 0) 
+      const assigneeIdStr = String(row.assigneeId);
+      const individuals = splitMultipleAssignees(assigneeIdStr);
+      
+      if (individuals.length > 1) {
+        individuals.forEach((individual, idx) => {
+          const isPrimaryOwner = idx === individuals.length - 1;
+          addUserRef(individual, {
+            name: individual,
+            externalId: individual
+          }, isTask && isPrimaryOwner);
         });
+        
+        row.multipleAssignees = individuals;
+        row.primaryAssignee = individuals[individuals.length - 1];
+      } else {
+        addUserRef(row.assigneeId, {
+          name: row.assigneeName || row.assignee,
+          email: row.assigneeEmail,
+          externalId: row.assigneeId
+        }, isTask);
+      }
+    }
+    
+    if (row.assignee && typeof row.assignee === 'string' && !row.assigneeId) {
+      const individuals = splitMultipleAssignees(row.assignee);
+      
+      if (individuals.length > 1) {
+        individuals.forEach((individual, idx) => {
+          const isPrimaryOwner = idx === individuals.length - 1;
+          addUserRef(individual, { name: individual }, isTask && isPrimaryOwner);
+        });
+        
+        row.multipleAssignees = individuals;
+        row.primaryAssignee = individuals[individuals.length - 1];
+      } else if (individuals.length === 1) {
+        addUserRef(individuals[0], { name: individuals[0] }, isTask);
+      }
+    }
+    
+    if (row.ownerId) {
+      const individuals = splitMultipleAssignees(String(row.ownerId));
+      individuals.forEach((individual, idx) => {
+        const isPrimary = idx === individuals.length - 1;
+        addUserRef(individual, {
+          name: isPrimary ? (row.ownerName || row.owner || individual) : individual,
+          email: isPrimary ? row.ownerEmail : undefined,
+          externalId: individual
+        }, false);
+      });
+    }
+    
+    if (row.managerId) {
+      const individuals = splitMultipleAssignees(String(row.managerId));
+      individuals.forEach((individual, idx) => {
+        const isPrimary = idx === individuals.length - 1;
+        addUserRef(individual, {
+          name: isPrimary ? (row.managerName || row.manager || individual) : individual,
+          email: isPrimary ? row.managerEmail : undefined,
+          externalId: individual
+        }, false);
+      });
+    }
+    
+    if (Array.isArray(row.assigneeIds)) {
+      row.assigneeIds.forEach((id: string, idx: number) => {
+        const isPrimaryOwner = idx === row.assigneeIds.length - 1;
+        addUserRef(id, { externalId: id }, isTask && isPrimaryOwner);
       });
     }
   };
