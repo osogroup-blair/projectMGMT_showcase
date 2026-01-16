@@ -165,6 +165,44 @@ export interface CreationReport {
   fatalError?: string;
 }
 
+// Base task fields for stage tasks (from wizard or import)
+export interface StageTask {
+  id: string;
+  title: string;
+  description?: string;
+  priority?: string;
+  estimateHours?: number;
+  scope: 'once' | 'per_epic';
+  order: number;
+  // Extended import fields
+  deadline?: string;
+  status?: string;
+  milestoneId?: string;
+  sprintId?: string;
+  assigneeId?: string;
+  taskTypeId?: string;
+  tags?: string[];
+  assignedEpicId?: string;
+  mappingStatus?: 'mapped' | 'orphaned';
+}
+
+// Task fields for epic tasks (from import)
+export interface EpicTask {
+  id: string;
+  title: string;
+  description?: string;
+  priority?: string;
+  estimateHours?: number;
+  deadline?: string;
+  status?: string;
+  milestoneId?: string;
+  sprintId?: string;
+  assigneeId?: string;
+  taskTypeId?: string;
+  tags?: string[];
+  stageId?: string;
+}
+
 export interface FullProjectCreatePayload {
   project: {
     name: string;
@@ -184,15 +222,8 @@ export interface FullProjectCreatePayload {
     description?: string;
     order: number;
     type: string;
-    tasks: Array<{
-      id: string;
-      title: string;
-      description?: string;
-      priority?: string;
-      estimateHours?: number;
-      scope: 'once' | 'per_epic';
-      order: number;
-    }>;
+    endDate?: string;
+    tasks: StageTask[];
   }>;
   deliverables: Array<{
     id: string;
@@ -202,6 +233,7 @@ export interface FullProjectCreatePayload {
       id: string;
       title: string;
       description?: string;
+      tasks?: EpicTask[];
     }>;
   }>;
   milestones: Array<{
