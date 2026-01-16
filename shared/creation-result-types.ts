@@ -1,47 +1,50 @@
 import { z } from 'zod';
 
-export {
+export type {
   ConfidenceLevel,
   UserMappingAction,
   TaskMappingStatus,
   TaskScope,
   ProjectRoleType,
+  UserMappingEntry,
+  EpicTask,
+  StageTask,
+  Epic,
+  Deliverable,
+  Stage,
+  MilestoneRule,
+  Milestone,
+  Role,
+  Sprint,
+  ProjectData,
+  ImportMetadata,
+  FullProjectCreatePayload,
+  FieldMapping,
+  SystemUser,
+  SystemUserIdentity
+} from './import-types';
+
+export {
   confidenceLevelSchema,
   userMappingActionSchema,
   taskMappingScopeSchema,
   taskMappingStatusSchema,
   projectRoleTypeSchema,
   userMappingEntrySchema,
-  UserMappingEntry,
   epicTaskSchema,
-  EpicTask,
   stageTaskSchema,
-  StageTask,
   epicSchema,
-  Epic,
   deliverableSchema,
-  Deliverable,
   stageSchema,
-  Stage,
   milestoneRuleSchema,
-  MilestoneRule,
   milestoneSchema,
-  Milestone,
   roleSchema,
-  Role,
   sprintSchema,
-  Sprint,
   projectDataSchema,
-  ProjectData,
   importMetadataSchema,
-  ImportMetadata,
   fullProjectCreatePayloadSchema,
-  FullProjectCreatePayload,
   validateFullProjectPayload,
-  validateUserMappings,
-  FieldMapping,
-  SystemUser,
-  SystemUserIdentity
+  validateUserMappings
 } from './import-types';
 
 export type EntityType = 'project' | 'stage' | 'deliverable' | 'epic' | 'task' | 'milestone' | 'role' | 'sprint' | 'team_member';

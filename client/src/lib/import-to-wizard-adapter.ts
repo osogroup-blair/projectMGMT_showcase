@@ -13,8 +13,15 @@ import {
   type ReferenceMappingEntry,
   type ResolveAllReferencesResult
 } from './import-reference-resolver';
+import type {
+  ConfidenceLevel,
+  ProjectRoleType,
+  UserMappingEntry as SharedUserMappingEntry,
+  SystemUser as SharedSystemUser,
+  SystemUserIdentity as SharedSystemUserIdentity
+} from '@shared/import-types';
 
-export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'unmapped';
+export type { ConfidenceLevel, ProjectRoleType };
 
 export interface FieldMapping<T = any> {
   value: T;
@@ -91,21 +98,11 @@ export interface ImportedRole extends WizardRole {
   sourceUserId?: string;
 }
 
-export type ProjectRoleType = 'none' | 'owner' | 'manager' | 'stakeholder' | 'member';
-
-export interface UserMappingEntry {
-  sourceId: string;
-  sourceName?: string;
-  sourceEmail?: string;
-  mappedToId?: string;
-  mappedToName?: string;
-  confidence: ConfidenceLevel;
-  action: 'map' | 'create' | 'skip' | 'unassigned';
+export interface UserMappingEntry extends SharedUserMappingEntry {
   projectRoles?: ProjectRoleType[];
   suggestedExecutionRoleId?: string;
   suggestedExecutionRoleName?: string;
   suggestedExecutionRoleConfidence?: number;
-  taskCount?: number;
 }
 
 export interface StatusMappingEntry {
@@ -115,19 +112,13 @@ export interface StatusMappingEntry {
   confidence: ConfidenceLevel;
 }
 
-export interface SystemUser {
-  id: string;
-  name?: string;
-  email?: string;
+export interface SystemUser extends SharedSystemUser {
   username?: string;
 }
 
-export interface SystemUserIdentity {
-  userId: string;
+export interface SystemUserIdentity extends SharedSystemUserIdentity {
   externalSystem: string;
-  externalUserId: string;
   externalDisplayName?: string;
-  externalEmail?: string;
 }
 
 export interface SystemStatus {
