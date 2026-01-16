@@ -311,8 +311,22 @@ export function StepTeamRoles({
     }));
   }, [roleTypes]);
 
-  const getAvailableUsersForRole = (excludeUserIds: string[]) => {
-    return userOptions.filter(opt => !excludeUserIds.includes(opt.value));
+  const getAvailableUsersForOwner = () => {
+    return userOptions;
+  };
+
+  const getAvailableUsersForManager = () => {
+    return userOptions;
+  };
+
+  const getAvailableUsersForStakeholder = (currentStakeholderUserId: string) => {
+    const otherStakeholders = stakeholderUserIds.filter(id => id && id !== currentStakeholderUserId);
+    return userOptions.filter(opt => !otherStakeholders.includes(opt.value));
+  };
+
+  const getAvailableUsersForMember = (currentMemberUserId: string) => {
+    const otherMembers = teamMembers.filter(m => m.userId && m.userId !== currentMemberUserId).map(m => m.userId);
+    return userOptions.filter(opt => !otherMembers.includes(opt.value));
   };
 
   const getAllAssignedUserIds = () => {
@@ -321,7 +335,16 @@ export function StepTeamRoles({
     if (managerUserId) ids.push(managerUserId);
     ids.push(...stakeholderUserIds);
     ids.push(...teamMembers.map(m => m.userId));
-    return ids;
+    return [...new Set(ids)];
+  };
+
+  const getUserOtherRoles = (userId: string) => {
+    const roles: string[] = [];
+    if (ownerUserId === userId) roles.push('Owner');
+    if (managerUserId === userId) roles.push('Manager');
+    if (stakeholderUserIds.includes(userId)) roles.push('Stakeholder');
+    if (teamMembers.some(m => m.userId === userId)) roles.push('Member');
+    return roles;
   };
 
   const addStakeholder = () => {
@@ -473,10 +496,15 @@ export function StepTeamRoles({
                   <SearchableSelect
                     value={ownerUserId}
                     onValueChange={setOwnerUserId}
-                    options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== ownerUserId))}
+                    options={getAvailableUsersForOwner()}
                     placeholder="Select owner..."
                     data-testid="select-owner"
                   />
+                  {ownerUserId && getUserOtherRoles(ownerUserId).filter(r => r !== 'Owner').length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Also assigned as: {getUserOtherRoles(ownerUserId).filter(r => r !== 'Owner').join(', ')}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     The owner has ultimate responsibility and approval authority for the project.
                   </p>
@@ -518,10 +546,15 @@ export function StepTeamRoles({
                   <SearchableSelect
                     value={managerUserId}
                     onValueChange={setManagerUserId}
-                    options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== managerUserId))}
+                    options={getAvailableUsersForManager()}
                     placeholder="Select manager..."
                     data-testid="select-manager"
                   />
+                  {managerUserId && getUserOtherRoles(managerUserId).filter(r => r !== 'Manager').length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Also assigned as: {getUserOtherRoles(managerUserId).filter(r => r !== 'Manager').join(', ')}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     The manager oversees execution, coordinates team activities, and reports to stakeholders.
                   </p>
@@ -572,10 +605,15 @@ export function StepTeamRoles({
                               <SearchableSelect
                                 value={member.userId}
                                 onValueChange={(val) => updateTeamMember(idx, 'userId', val)}
-                                options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== member.userId))}
+                                options={getAvailableUsersForMember(member.userId)}
                                 placeholder="Select team member..."
                                 data-testid={`select-member-${idx}`}
                               />
+                              {member.userId && getUserOtherRoles(member.userId).filter(r => r !== 'Member').length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  Also: {getUserOtherRoles(member.userId).filter(r => r !== 'Member').join(', ')}
+                                </p>
+                              )}
                             </div>
                             <div className="space-y-1.5">
                               <Label className="text-xs">Execution Role (from templates)</Label>
@@ -688,23 +726,30 @@ export function StepTeamRoles({
           <CollapsibleContent>
             <CardContent className="pt-0 space-y-4">
               {stakeholderUserIds.map((userId, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <SearchableSelect
-                    value={userId}
-                    onValueChange={(val) => updateStakeholder(idx, val)}
-                    options={getAvailableUsersForRole(getAllAssignedUserIds().filter(id => id !== userId))}
-                    placeholder="Select stakeholder..."
-                    className="flex-1"
-                    data-testid={`select-stakeholder-${idx}`}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeStakeholder(idx)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <SearchableSelect
+                      value={userId}
+                      onValueChange={(val) => updateStakeholder(idx, val)}
+                      options={getAvailableUsersForStakeholder(userId)}
+                      placeholder="Select stakeholder..."
+                      className="flex-1"
+                      data-testid={`select-stakeholder-${idx}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeStakeholder(idx)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {userId && getUserOtherRoles(userId).filter(r => r !== 'Stakeholder').length > 0 && (
+                    <p className="text-xs text-muted-foreground ml-1">
+                      Also: {getUserOtherRoles(userId).filter(r => r !== 'Stakeholder').join(', ')}
+                    </p>
+                  )}
                 </div>
               ))}
               <Button
