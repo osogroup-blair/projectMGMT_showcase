@@ -96,7 +96,8 @@ import { StepTaskAlignment } from "./step-task-alignment";
 import { StepStageConfig } from "./step-stage-config";
 import { StepTeamRoles } from "./step-team-roles";
 import { StepReview } from "./step-review";
-import { Link2 } from "lucide-react";
+import { Link2, Download, Upload } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const STEP_ICONS = [Settings, Users, Layers, Package, Link2, Check];
 
@@ -1440,6 +1441,25 @@ export default function ProjectWizard() {
     onResetStageConfiguration: handleResetStageConfiguration,
   };
 
+  const basicsRef = useRef<any>(null);
+  const teamRef = useRef<any>(null);
+
+  const handleExport = () => {
+    if (currentStep === 1 && basicsRef.current?.handleExport) {
+      basicsRef.current.handleExport();
+    } else if (currentStep === 2 && teamRef.current?.handleExport) {
+      teamRef.current.handleExport();
+    }
+  };
+
+  const handleImportTrigger = () => {
+    if (currentStep === 1 && basicsRef.current?.fileInputRef?.current) {
+      basicsRef.current.fileInputRef.current.click();
+    } else if (currentStep === 2 && teamRef.current?.fileInputRef?.current) {
+      teamRef.current.fileInputRef.current.click();
+    }
+  };
+
   return (
     <Shell>
       <div className="py-6">
@@ -1610,18 +1630,58 @@ export default function ProjectWizard() {
         <Card className="flex flex-col">
             <CardHeader className="sticky top-[88px] z-30 bg-muted/50 border-b py-4">
               <div className="flex items-center justify-between gap-4">
-                {currentStep > 1 ? (
-                  <Button 
-                      variant="outline" 
-                      onClick={handleBack} 
-                      disabled={isCreating}
-                      data-testid="button-back"
-                  >
-                      <ChevronLeft className="h-4 w-4 mr-2" /> Back
-                  </Button>
-                ) : (
-                  <div className="w-[100px]" /> 
-                )}
+                <div className="flex items-center gap-2">
+                  {currentStep > 1 && (
+                    <Button 
+                        variant="outline" 
+                        onClick={handleBack} 
+                        disabled={isCreating}
+                        data-testid="button-back"
+                    >
+                        <ChevronLeft className="h-4 w-4 mr-2" /> Back
+                    </Button>
+                  )}
+                  {(currentStep === 1 || currentStep === 2) && (
+                    <div className="flex items-center gap-1 ml-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={handleImportTrigger}
+                              disabled={isCreating}
+                            >
+                              <Upload className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <p className="text-xs">Import {currentStep === 1 ? 'settings' : 'team'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={handleExport}
+                              disabled={isCreating}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <p className="text-xs">Export {currentStep === 1 ? 'settings' : 'team'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
+                </div>
                 
                 <div className="flex-1 flex justify-center">
                   <Select 
@@ -1693,8 +1753,8 @@ export default function ProjectWizard() {
                     </div>
                 ) : (
                   <>
-                    {currentStep === 1 && <StepBasics {...stepProps} />}
-                    {currentStep === 2 && <StepTeamRoles {...stepProps} />}
+                    {currentStep === 1 && <StepBasics {...stepProps} ref={basicsRef} />}
+                    {currentStep === 2 && <StepTeamRoles {...stepProps} ref={teamRef} />}
                     {currentStep === 3 && <StepStageConfig {...stepProps} />}
                     {currentStep === 4 && <StepWorkBreakdown {...stepProps} />}
                     {currentStep === 5 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}

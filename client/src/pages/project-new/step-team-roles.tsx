@@ -60,7 +60,9 @@ interface ProjectRoleAssignment {
   executionRoleId?: string;
 }
 
-export function StepTeamRoles({
+import { forwardRef, useImperativeHandle } from "react";
+
+export const StepTeamRoles = forwardRef(({
   roles,
   setRoles,
   roleTypes,
@@ -70,9 +72,14 @@ export function StepTeamRoles({
   stages,
   setStages,
   deliverables,
-}: StepProps) {
+}: StepProps, ref) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    handleExport,
+    fileInputRef
+  }));
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['owner', 'manager', 'stakeholder', 'member']));
   
   const [ownerUserId, setOwnerUserIdState] = useState<string>("");
@@ -510,7 +517,7 @@ export function StepTeamRoles({
   const totalAssignable = 1 + 1 + stakeholderUserIds.length + teamMembers.length;
 
   return (
-    <div className="space-y-6 relative pb-10">
+    <div className="space-y-6">
       {taskAssignmentStats.totalTasks > 0 && (
         <Card className="border-2 border-primary/20">
           <CardHeader className="pb-3">
@@ -911,52 +918,6 @@ export function StepTeamRoles({
           </AlertDescription>
         </Alert>
       )}
-
-      <div className="absolute bottom-0 left-0 flex gap-1 translate-y-full pt-2 -ml-20">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleImport}
-          className="hidden"
-        />
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="button-import-team"
-              >
-                <Upload className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="text-xs">Import team assignment</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={handleExport}
-                data-testid="button-export-team"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="text-xs">Export team assignment</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
     </div>
   );
-}
+});

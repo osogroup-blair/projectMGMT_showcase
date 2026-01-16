@@ -18,12 +18,19 @@ interface ProjectBasicsData {
   sprintDurationWeeks: number;
 }
 
-export function StepBasics({
+import { forwardRef, useImperativeHandle } from "react";
+
+export const StepBasics = forwardRef(({
   projectData,
   setProjectData,
-}: StepProps) {
+}: StepProps, ref) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    handleExport,
+    fileInputRef
+  }));
   useEffect(() => {
     if (projectData.startDate && !projectData.dueDate) {
       setProjectData(prev => ({
@@ -97,7 +104,7 @@ export function StepBasics({
   ];
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div className="space-y-2">
@@ -188,52 +195,6 @@ export function StepBasics({
           and define deliverables and epics. You can apply templates in Stage Configuration or build everything from scratch.
         </p>
       </div>
-
-      <div className="absolute bottom-0 left-0 flex gap-1 translate-y-full pt-2 -ml-20">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleImport}
-          className="hidden"
-        />
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="button-import-basics"
-              >
-                <Upload className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="text-xs">Import project settings</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={handleExport}
-                data-testid="button-export-basics"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="text-xs">Export project settings</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
     </div>
   );
-}
+});
