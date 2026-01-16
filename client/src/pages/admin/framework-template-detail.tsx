@@ -989,6 +989,52 @@ export default function FrameworkTemplateDetail() {
               </div>
             </div>
 
+            {/* Timeline Percentage Range */}
+            <Separator />
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Workflow className="h-4 w-4" />
+                Project Timeline Percentage
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Define when this stage occurs within the project timeframe. Used to calculate stage start/end dates based on project dates.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start-percent">Start %</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="start-percent"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={currentStage?.startPercent ?? 0}
+                      onChange={(e) => setCurrentStage(prev => ({ ...prev, startPercent: parseInt(e.target.value) || 0 }))}
+                      className="w-20"
+                      data-testid="input-stage-start-percent"
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-percent">End %</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="end-percent"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={currentStage?.endPercent ?? 100}
+                      onChange={(e) => setCurrentStage(prev => ({ ...prev, endPercent: e.target.value === "" ? 100 : parseInt(e.target.value) }))}
+                      className="w-20"
+                      data-testid="input-stage-end-percent"
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Default Tasks Section */}
             <Separator />
             <div className="space-y-3">
