@@ -118,6 +118,16 @@ export const importMetadataSchema = z.object({
   fieldMappings: z.record(z.object({ confidence: z.string() })).optional()
 });
 
+export const userMappingEntrySchema = z.object({
+  sourceId: z.string().min(1, 'Source user ID is required'),
+  sourceName: z.string().optional(),
+  sourceEmail: z.string().optional(),
+  mappedToId: z.string().optional(),
+  mappedToName: z.string().optional(),
+  confidence: z.enum(['high', 'medium', 'low', 'unmapped']),
+  action: z.enum(['map', 'create', 'skip', 'unassigned'])
+});
+
 export const fullProjectCreatePayloadSchema = z.object({
   project: projectSchema,
   stages: z.array(stageSchema).default([]),
@@ -125,6 +135,7 @@ export const fullProjectCreatePayloadSchema = z.object({
   milestones: z.array(milestoneSchema).default([]),
   roles: z.array(roleSchema).default([]),
   sprints: z.array(sprintSchema).optional(),
+  userMappings: z.array(userMappingEntrySchema).optional(),
   importMetadata: importMetadataSchema.optional()
 });
 
@@ -141,6 +152,14 @@ export interface EntityResult {
     confidence: 'high' | 'medium' | 'low' | 'unmapped';
     originalField?: string;
   };
+}
+
+export interface UnresolvedAssigneeWarning {
+  taskId: string;
+  taskTitle: string;
+  originalAssigneeId: string;
+  reason: 'not_found' | 'not_mapped' | 'skipped' | 'invalid';
+  resolution: 'cleared' | 'kept_original';
 }
 
 export interface CreationReport {
@@ -162,6 +181,7 @@ export interface CreationReport {
       failed: number;
     };
   };
+  unresolvedAssignees?: UnresolvedAssigneeWarning[];
   fatalError?: string;
 }
 
@@ -266,6 +286,15 @@ export interface FullProjectCreatePayload {
     endDate: string;
     status?: string;
     capacityHours?: number | null;
+  }>;
+  userMappings?: Array<{
+    sourceId: string;
+    sourceName?: string;
+    sourceEmail?: string;
+    mappedToId?: string;
+    mappedToName?: string;
+    confidence: 'high' | 'medium' | 'low' | 'unmapped';
+    action: 'map' | 'create' | 'skip' | 'unassigned';
   }>;
   importMetadata?: {
     source: string;

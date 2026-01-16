@@ -701,7 +701,7 @@ function extractTasks(
       startDate: parseDate(startDateField.value) || undefined,
       deadline: parseDate(deadlineField.value) || undefined,
       sprintId,
-      sourceSprintId,
+      sourceSprintId: sourceSprintRef,
       confidence: titleField.sourceField ? 'high' : 'medium',
       warnings
     };
