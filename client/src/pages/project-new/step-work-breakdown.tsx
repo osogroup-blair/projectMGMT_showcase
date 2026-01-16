@@ -945,33 +945,31 @@ export function StepWorkBreakdown({
                                               </Select>
                                             </div>
                                           )}
-                                          {milestones.length > 0 && (
-                                            <div className="flex flex-col gap-0.5">
-                                              <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Milestone</span>
-                                              <Select
-                                                value={task.milestoneId || "none"}
-                                                onValueChange={(value) => {
-                                                  const newD = [...deliverables];
-                                                  if (newD[dIndex].epics[eIndex].tasks) {
-                                                    newD[dIndex].epics[eIndex].tasks![tIndex].milestoneId = value === "none" ? undefined : value;
-                                                  }
-                                                  setDeliverables(newD);
-                                                }}
-                                              >
-                                                <SelectTrigger className="h-6 w-32 text-xs">
-                                                  <SelectValue placeholder="Milestone" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="none">No milestone</SelectItem>
-                                                  {milestones.map((ms: any) => (
-                                                    <SelectItem key={ms.id} value={ms.id}>
-                                                      {ms.name}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                            </div>
-                                          )}
+                                          <div className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Milestone</span>
+                                            <Select
+                                              value={task.milestoneId || "none"}
+                                              onValueChange={(value) => {
+                                                const newD = [...deliverables];
+                                                if (newD[dIndex].epics[eIndex].tasks) {
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].milestoneId = value === "none" ? undefined : value;
+                                                }
+                                                setDeliverables(newD);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-6 w-32 text-xs">
+                                                <SelectValue placeholder="Milestone" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="none">No milestone</SelectItem>
+                                                {milestones.map((ms: any) => (
+                                                  <SelectItem key={ms.id} value={ms.id}>
+                                                    {ms.title || ms.name}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
                                           <div className="flex flex-col gap-0.5">
                                             <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Priority</span>
                                             <Select
@@ -1012,33 +1010,31 @@ export function StepWorkBreakdown({
                                               min={0}
                                             />
                                           </div>
-                                          {teamMemberOptions.length > 0 && (
-                                            <div className="flex flex-col gap-0.5">
-                                              <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Owner</span>
-                                              <Select
-                                                value={task.assigneeId || "none"}
-                                                onValueChange={(value) => {
-                                                  const newD = [...deliverables];
-                                                  if (newD[dIndex].epics[eIndex].tasks) {
-                                                    newD[dIndex].epics[eIndex].tasks![tIndex].assigneeId = value === "none" ? undefined : value;
-                                                  }
-                                                  setDeliverables(newD);
-                                                }}
-                                              >
-                                                <SelectTrigger className="h-6 w-32 text-xs">
-                                                  <SelectValue placeholder="Assignee" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="none">Unassigned</SelectItem>
-                                                  {teamMemberOptions.map((member) => (
-                                                    <SelectItem key={member.id} value={member.id}>
-                                                      {member.name}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                            </div>
-                                          )}
+                                          <div className="flex flex-col gap-0.5">
+                                            <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Owner</span>
+                                            <Select
+                                              value={task.assigneeId || "none"}
+                                              onValueChange={(value) => {
+                                                const newD = [...deliverables];
+                                                if (newD[dIndex].epics[eIndex].tasks) {
+                                                  newD[dIndex].epics[eIndex].tasks![tIndex].assigneeId = value === "none" ? undefined : value;
+                                                }
+                                                setDeliverables(newD);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-6 w-32 text-xs">
+                                                <SelectValue placeholder="Owner" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="none">Unassigned</SelectItem>
+                                                {users.map((user: any) => (
+                                                  <SelectItem key={user.id} value={user.id}>
+                                                    {user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email)}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
                                           {taskTypes.length > 0 && (
                                             <div className="flex flex-col gap-0.5">
                                               <span className="text-[9px] text-muted-foreground uppercase px-1 font-semibold leading-none">Type</span>
