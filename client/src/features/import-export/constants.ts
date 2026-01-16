@@ -169,14 +169,19 @@ export const IMPORT_ORDER = [
   "TaskTypes",
   "EpicTypes",
   "DeliverableTypes",
-  "FrameworkTemplates",
-  "StageTemplates",
+  // Templates must be imported in dependency order:
+  // TaskTemplates & RoleTemplates have no dependencies
+  // StageTemplates references TaskTemplates and RoleTemplates
+  // MilestoneTemplates may reference stages
+  // FrameworkTemplates references StageTemplates
   "TaskTemplates",
   "RoleTemplates",
+  "StageTemplates",
   "MilestoneTemplates",
   "DeliverableTemplates",
   "EpicTemplates",
   "ProjectTemplates",
+  "FrameworkTemplates",
   "TemplateSnippets",
   "MappingTemplates",
   "GuidanceItems",
