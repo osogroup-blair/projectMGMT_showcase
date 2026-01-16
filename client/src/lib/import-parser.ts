@@ -42,7 +42,7 @@ export const NYMBL_SCHEMA: NymblSchema = {
   Deliverables: ['id', 'projectId', 'title', 'description', 'status', 'ownerId', 'dueDate', 'startDate', 'progress', 'externalRefs'],
   Epics: ['id', 'deliverableId', 'title', 'description', 'status', 'ownerId', 'startDate', 'endDate', 'progress', 'stageIds', 'externalRefs'],
   Tasks: ['id', 'projectId', 'epicId', 'title', 'description', 'status', 'stageId', 'assigneeId', 'priority', 'deadline', 'tags', 'estimateHours', 'effort', 'blocked', 'blockerReason', 'sprintId', 'milestoneId', 'project', 'externalRefs'],
-  Milestones: ['id', 'projectId', 'name', 'description', 'targetDate', 'status', 'phase', 'ownerId', 'scopeType', 'completionMode'],
+  Milestones: ['id', 'projectId', 'name', 'description', 'targetDate', 'status', 'ownerId', 'scopeType', 'completionMode'],
   Users: ['id', 'name', 'email', 'role', 'status', 'avatar'],
   Sprints: ['id', 'projectId', 'name', 'startDate', 'endDate', 'status', 'goal', 'capacity']
 };

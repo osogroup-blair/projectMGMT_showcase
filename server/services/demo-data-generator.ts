@@ -526,7 +526,7 @@ interface SprintData {
 interface MilestoneData {
   id: string;
   name: string;
-  phase: string;
+  stageName: string;
   stageId: string;
   targetDate: string;
   status: string;
@@ -808,7 +808,7 @@ async function createSprintsForProject(
 
 async function createMilestonesForProject(
   projectId: string,
-  milestoneConfigs: Array<{ name: string; description: string; phase: string; targetOffset: number; status: string; ownerIndex: number }>,
+  milestoneConfigs: Array<{ name: string; description: string; stageName: string; targetOffset: number; status: string; ownerIndex: number }>,
   projectStartDate: Date,
   stageIds: Record<string, string>,
   demoUsers: User[],
@@ -819,14 +819,13 @@ async function createMilestonesForProject(
   for (const config of milestoneConfigs) {
     const milestoneId = generateId("ms");
     const targetDate = addDays(projectStartDate, config.targetOffset);
-    const stageId = stageIds[config.phase];
+    const stageId = stageIds[config.stageName];
 
     await storage.createMilestone({
       id: milestoneId,
       projectId,
       name: config.name,
       description: config.description,
-      phase: config.phase,
       stageId,
       targetDate: toDateString(targetDate),
       status: config.status,
@@ -838,8 +837,8 @@ async function createMilestonesForProject(
       scopeRules: [
         {
           id: `rule-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-          label: `${config.phase} Tasks`,
-          stageFilter: config.phase,
+          label: `${config.stageName} Tasks`,
+          stageFilter: config.stageName,
           epicTypeFilter: "",
           taskTemplateFilter: "",
           isActive: true,
@@ -851,7 +850,7 @@ async function createMilestonesForProject(
     milestones.push({
       id: milestoneId,
       name: config.name,
-      phase: config.phase,
+      stageName: config.stageName,
       stageId,
       targetDate: toDateString(targetDate),
       status: config.status,
@@ -905,7 +904,7 @@ async function createDeliverablesWithEpicsAndTasks(
   }
 
   function findMilestoneForStage(stageName: string): string | undefined {
-    const milestone = milestones.find(m => m.phase === stageName);
+    const milestone = milestones.find(m => m.stageName === stageName);
     return milestone?.id;
   }
 
@@ -1195,10 +1194,10 @@ async function createCRMImplementation(
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
 
   const milestoneConfigs = [
-    { name: "Requirements Complete", description: "All requirements documented and approved", phase: "Requirements", targetOffset: 18, status: "completed", ownerIndex: 1 },
-    { name: "Design Sign-off", description: "All designs approved by stakeholders", phase: "Design", targetOffset: 36, status: "completed", ownerIndex: 2 },
-    { name: "Beta Release", description: "Internal beta testing ready", phase: "Development", targetOffset: 67, status: "on-track", ownerIndex: 3 },
-    { name: "Go Live", description: "Production release", phase: "Documentation", targetOffset: 90, status: "pending", ownerIndex: 5 },
+    { name: "Requirements Complete", description: "All requirements documented and approved", stageName: "Requirements", targetOffset: 18, status: "completed", ownerIndex: 1 },
+    { name: "Design Sign-off", description: "All designs approved by stakeholders", stageName: "Design", targetOffset: 36, status: "completed", ownerIndex: 2 },
+    { name: "Beta Release", description: "Internal beta testing ready", stageName: "Development", targetOffset: 67, status: "on-track", ownerIndex: 3 },
+    { name: "Go Live", description: "Production release", stageName: "Documentation", targetOffset: 90, status: "pending", ownerIndex: 5 },
   ];
   const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
@@ -1292,10 +1291,10 @@ async function createDataWarehouseProject(
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
 
   const milestoneConfigs = [
-    { name: "Data Discovery Complete", description: "All source systems documented", phase: "Requirements", targetOffset: 14, status: "completed", ownerIndex: 1 },
-    { name: "Data Model Approved", description: "Dimensional model approved", phase: "Design", targetOffset: 28, status: "on-track", ownerIndex: 2 },
-    { name: "ETL Pipeline Complete", description: "All ETL jobs operational", phase: "Development", targetOffset: 56, status: "pending", ownerIndex: 3 },
-    { name: "BI Go-Live", description: "Dashboard deployment", phase: "Documentation", targetOffset: 75, status: "pending", ownerIndex: 5 },
+    { name: "Data Discovery Complete", description: "All source systems documented", stageName: "Requirements", targetOffset: 14, status: "completed", ownerIndex: 1 },
+    { name: "Data Model Approved", description: "Dimensional model approved", stageName: "Design", targetOffset: 28, status: "on-track", ownerIndex: 2 },
+    { name: "ETL Pipeline Complete", description: "All ETL jobs operational", stageName: "Development", targetOffset: 56, status: "pending", ownerIndex: 3 },
+    { name: "BI Go-Live", description: "Dashboard deployment", stageName: "Documentation", targetOffset: 75, status: "pending", ownerIndex: 5 },
   ];
   const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
@@ -1386,10 +1385,10 @@ async function createCaseManagementProject(
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
 
   const milestoneConfigs = [
-    { name: "Requirements Kickoff", description: "Project kickoff complete", phase: "Requirements", targetOffset: 3, status: "completed", ownerIndex: 0 },
-    { name: "Requirements Sign-off", description: "All requirements approved", phase: "Requirements", targetOffset: 28, status: "on-track", ownerIndex: 1 },
-    { name: "Design Complete", description: "UI/UX finalized", phase: "Design", targetOffset: 45, status: "pending", ownerIndex: 2 },
-    { name: "MVP Delivery", description: "Core functionality delivered", phase: "Development", targetOffset: 70, status: "pending", ownerIndex: 3 },
+    { name: "Requirements Kickoff", description: "Project kickoff complete", stageName: "Requirements", targetOffset: 3, status: "completed", ownerIndex: 0 },
+    { name: "Requirements Sign-off", description: "All requirements approved", stageName: "Requirements", targetOffset: 28, status: "on-track", ownerIndex: 1 },
+    { name: "Design Complete", description: "UI/UX finalized", stageName: "Design", targetOffset: 45, status: "pending", ownerIndex: 2 },
+    { name: "MVP Delivery", description: "Core functionality delivered", stageName: "Development", targetOffset: 70, status: "pending", ownerIndex: 3 },
   ];
   const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
@@ -1483,10 +1482,10 @@ async function createServiceNowAllianceProject(
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
 
   const milestoneConfigs = [
-    { name: "Partner Alignment", description: "Strategic alignment confirmed", phase: "Discovery", targetOffset: 14, status: "completed", ownerIndex: 0 },
-    { name: "Technical Assessment Complete", description: "Certification requirements mapped", phase: "Evaluation", targetOffset: 28, status: "on-track", ownerIndex: 1 },
-    { name: "Partnership Agreement", description: "Terms agreed", phase: "Negotiation", targetOffset: 50, status: "pending", ownerIndex: 0 },
-    { name: "Partnership Launch", description: "Public announcement", phase: "Launch", targetOffset: 70, status: "pending", ownerIndex: 5 },
+    { name: "Partner Alignment", description: "Strategic alignment confirmed", stageName: "Discovery", targetOffset: 14, status: "completed", ownerIndex: 0 },
+    { name: "Technical Assessment Complete", description: "Certification requirements mapped", stageName: "Evaluation", targetOffset: 28, status: "on-track", ownerIndex: 1 },
+    { name: "Partnership Agreement", description: "Terms agreed", stageName: "Negotiation", targetOffset: 50, status: "pending", ownerIndex: 0 },
+    { name: "Partnership Launch", description: "Public announcement", stageName: "Launch", targetOffset: 70, status: "pending", ownerIndex: 5 },
   ];
   const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
@@ -1591,9 +1590,9 @@ async function createWebinarExecutionProject(
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
 
   const milestoneConfigs = [
-    { name: "Content Ready", description: "All webinar content finalized", phase: "Plan", targetOffset: 14, status: "completed", ownerIndex: 5 },
-    { name: "Webinar Executed", description: "Live webinar completed", phase: "Execute", targetOffset: 21, status: "on-track", ownerIndex: 5 },
-    { name: "Follow-up Complete", description: "Post-event tasks done", phase: "Deliver", targetOffset: 28, status: "pending", ownerIndex: 5 },
+    { name: "Content Ready", description: "All webinar content finalized", stageName: "Plan", targetOffset: 14, status: "completed", ownerIndex: 5 },
+    { name: "Webinar Executed", description: "Live webinar completed", stageName: "Execute", targetOffset: 21, status: "on-track", ownerIndex: 5 },
+    { name: "Follow-up Complete", description: "Post-event tasks done", stageName: "Deliver", targetOffset: 28, status: "pending", ownerIndex: 5 },
   ];
   const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
@@ -1683,9 +1682,9 @@ async function createEmployeeOnsiteProject(
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
 
   const milestoneConfigs = [
-    { name: "Venue Confirmed", description: "Venue booked", phase: "Discover", targetOffset: 14, status: "on-track", ownerIndex: 0 },
-    { name: "Agenda Finalized", description: "Full agenda set", phase: "Plan", targetOffset: 28, status: "pending", ownerIndex: 0 },
-    { name: "Event Complete", description: "Onsite executed", phase: "Deliver", targetOffset: 50, status: "pending", ownerIndex: 0 },
+    { name: "Venue Confirmed", description: "Venue booked", stageName: "Discover", targetOffset: 14, status: "on-track", ownerIndex: 0 },
+    { name: "Agenda Finalized", description: "Full agenda set", stageName: "Plan", targetOffset: 28, status: "pending", ownerIndex: 0 },
+    { name: "Event Complete", description: "Onsite executed", stageName: "Deliver", targetOffset: 50, status: "pending", ownerIndex: 0 },
   ];
   const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 
@@ -1778,10 +1777,10 @@ async function createClientSupportOpsProject(
   const sprints = await createSprintsForProject(projectId, sprintConfigs, startDate, demoUsers, result);
 
   const milestoneConfigs = [
-    { name: "Ops Baseline Established", description: "Normal operations documented", phase: "Normal Operations", targetOffset: 14, status: "completed", ownerIndex: 7 },
-    { name: "v2.5 Stable", description: "Release confirmed stable", phase: "Release Support", targetOffset: 28, status: "completed", ownerIndex: 7 },
-    { name: "Incident Resolved", description: "Major incident closed", phase: "Incident Response", targetOffset: 35, status: "completed", ownerIndex: 7 },
-    { name: "Q1 Improvement Complete", description: "Process improvements done", phase: "Stabilization", targetOffset: 60, status: "on-track", ownerIndex: 7 },
+    { name: "Ops Baseline Established", description: "Normal operations documented", stageName: "Normal Operations", targetOffset: 14, status: "completed", ownerIndex: 7 },
+    { name: "v2.5 Stable", description: "Release confirmed stable", stageName: "Release Support", targetOffset: 28, status: "completed", ownerIndex: 7 },
+    { name: "Incident Resolved", description: "Major incident closed", stageName: "Incident Response", targetOffset: 35, status: "completed", ownerIndex: 7 },
+    { name: "Q1 Improvement Complete", description: "Process improvements done", stageName: "Stabilization", targetOffset: 60, status: "on-track", ownerIndex: 7 },
   ];
   const milestones = await createMilestonesForProject(projectId, milestoneConfigs, startDate, stageIds, demoUsers, result);
 

@@ -436,7 +436,7 @@ export default function StageTemplateDesigner() {
                             <Flag className="h-4 w-4 text-primary" />
                             <div>
                               <p className="font-medium text-sm">{milestone.name}</p>
-                              <p className="text-xs text-muted-foreground">{milestone.phase} • {milestone.completionTargetPercent}% target</p>
+                              <p className="text-xs text-muted-foreground">{milestone.completionTargetPercent}% target</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">

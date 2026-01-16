@@ -366,10 +366,12 @@ async function generateTaskData(
   const allMilestones = await storage.getMilestones();
   const projectMilestones = allMilestones.filter(m => m.projectId === SAMPLE_PROJECT_ID);
   
-  // Map stage name to milestone (milestones have a 'phase' field that matches stage names)
+  // Map stage name to milestone by finding milestone linked to the same stage
   function findMilestoneForStage(stageName: string | undefined): string | undefined {
     if (!stageName) return undefined;
-    const milestone = projectMilestones.find(m => m.phase === stageName);
+    const stage = projectStages.find(s => s.name === stageName);
+    if (!stage) return undefined;
+    const milestone = projectMilestones.find(m => m.stageId === stage.id);
     return milestone?.id;
   }
   

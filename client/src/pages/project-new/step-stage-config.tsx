@@ -689,7 +689,6 @@ export function StepStageConfig({
       id: `ms-${Date.now()}`,
       name: "",
       description: "",
-      phase: "delivery",
       targetDate: "",
       ownerId: users[0]?.id || "",
       isBillingGate: false,
@@ -844,7 +843,6 @@ export function StepStageConfig({
           id: `ms-${Date.now()}-${idx}`,
           name: mt.name,
           description: mt.description || "",
-          phase: mt.phase || "delivery",
           targetDate: "",
           ownerId: users[0]?.id || "",
           isBillingGate: mt.isBillingGate || false,
@@ -1320,10 +1318,9 @@ export function StepStageConfig({
               </div>
             ) : (
               <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_140px_100px_80px_40px] gap-2 p-3 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase">
+                <div className="grid grid-cols-[1fr_140px_80px_40px] gap-2 p-3 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase">
                   <div>Name</div>
                   <div>Target Date</div>
-                  <div>Phase</div>
                   <div className="text-center">Billing Gate</div>
                   <div></div>
                 </div>
@@ -1331,7 +1328,7 @@ export function StepStageConfig({
                   {milestones.map((milestone, index) => (
                     <div 
                       key={milestone.id} 
-                      className="grid grid-cols-[1fr_140px_100px_80px_40px] gap-2 p-2 items-center hover:bg-muted/30"
+                      className="grid grid-cols-[1fr_140px_80px_40px] gap-2 p-2 items-center hover:bg-muted/30"
                     >
                       <Input
                         value={milestone.name}
@@ -1344,16 +1341,6 @@ export function StepStageConfig({
                         value={milestone.targetDate}
                         onChange={(e) => updateMilestone(index, { targetDate: e.target.value })}
                         className="h-8 text-sm"
-                      />
-                      <SearchableSelect
-                        value={milestone.phase}
-                        onValueChange={(v) => updateMilestone(index, { phase: v })}
-                        options={[
-                          { value: "planning", label: "Planning" },
-                          { value: "delivery", label: "Delivery" },
-                          { value: "closure", label: "Closure" }
-                        ]}
-                        triggerClassName="h-8 text-xs"
                       />
                       <div className="flex justify-center">
                         <input

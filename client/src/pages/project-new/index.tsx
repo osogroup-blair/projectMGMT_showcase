@@ -957,7 +957,6 @@ export default function ProjectWizard() {
               id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
               name: mt.name,
               description: mt.description || '',
-              phase: mt.phase || 'delivery',
               targetDate: linkedStage?.endDate || projectData.dueDate || '',
               isBillingGate: mt.isBillingGate || false,
               ownerId: projectData.ownerId || '',
@@ -1061,7 +1060,6 @@ export default function ProjectWizard() {
             id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
             name: mt.name,
             description: mt.description || '',
-            phase: mt.phase || 'delivery',
             targetDate: linkedStage?.endDate || projectData.dueDate || '',
             isBillingGate: mt.isBillingGate || false,
             ownerId: projectData.ownerId || '',
@@ -1229,7 +1227,6 @@ export default function ProjectWizard() {
           name: m.name,
           description: m.description || '',
           targetDate: m.targetDate,
-          phase: m.phase || 'plan_strategy',
           ownerId: m.ownerId,
           isBillingGate: m.isBillingGate || false,
           rule: m.rule

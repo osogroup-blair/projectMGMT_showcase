@@ -125,7 +125,6 @@ export function StepReview({
       projectId,
       name: milestone.name,
       description: milestone.description || "",
-      phase: milestone.phase || null,
       targetDate: milestone.targetDate || null,
       isBillingGate: milestone.isBillingGate || false,
       status: (milestone as any).status || "Pending",

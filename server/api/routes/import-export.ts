@@ -1693,7 +1693,6 @@ export function registerImportExportRoutes(
             projectId: projectId!,
             name: milestone.name,
             description: milestone.description || "",
-            phase: milestone.phase || "plan_strategy",
             stageId: resolvedStageId,
             targetDate: milestone.targetDate,
             status: "planned",

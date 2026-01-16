@@ -147,7 +147,6 @@ export interface WizardMilestone {
   id: string;
   name: string;
   description: string;
-  phase: string;
   targetDate: string;
   ownerId: string;
   isBillingGate: boolean;

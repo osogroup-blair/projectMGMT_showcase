@@ -369,7 +369,6 @@ export default function FrameworkTemplateDetail() {
     setCurrentMilestone({
       name: "",
       description: "",
-      phase: "delivery",
       scopeType: "deliverable",
       completionMode: "percentage",
       completionTargetPercent: 100,
@@ -884,9 +883,6 @@ export default function FrameworkTemplateDetail() {
                                               <div>
                                                 <p className="font-medium text-sm">{milestone.name}</p>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                  <Badge variant="outline" className="text-xs">
-                                                    {milestone.phase}
-                                                  </Badge>
                                                   {milestone.isBillingGate && (
                                                     <Badge variant="secondary" className="text-xs">
                                                       Billing Gate
@@ -1161,32 +1157,17 @@ export default function FrameworkTemplateDetail() {
                 data-testid="input-milestone-description"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="milestone-phase">Phase</Label>
-                <SearchableSelect
-                  value={currentMilestone?.phase || "delivery"}
-                  onValueChange={(v) => setCurrentMilestone(prev => ({ ...prev, phase: v }))}
-                  options={[
-                    { value: "discovery", label: "Discovery" },
-                    { value: "planning", label: "Planning" },
-                    { value: "delivery", label: "Delivery" },
-                    { value: "closure", label: "Closure" }
-                  ]}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="milestone-scope">Scope Type</Label>
-                <SearchableSelect
-                  value={currentMilestone?.scopeType || "deliverable"}
-                  onValueChange={(v) => setCurrentMilestone(prev => ({ ...prev, scopeType: v }))}
-                  options={[
-                    { value: "project", label: "Project" },
-                    { value: "deliverable", label: "Deliverable" },
-                    { value: "epic", label: "Epic" }
-                  ]}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="milestone-scope">Scope Type</Label>
+              <SearchableSelect
+                value={currentMilestone?.scopeType || "deliverable"}
+                onValueChange={(v) => setCurrentMilestone(prev => ({ ...prev, scopeType: v }))}
+                options={[
+                  { value: "project", label: "Project" },
+                  { value: "deliverable", label: "Deliverable" },
+                  { value: "epic", label: "Epic" }
+                ]}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
