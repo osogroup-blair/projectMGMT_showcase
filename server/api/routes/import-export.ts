@@ -16,6 +16,7 @@ import {
   insertTaskDependencySchema,
   insertTaskSchema,
 } from "@shared/schema";
+import { fullProjectCreatePayloadSchema, type EntityType } from "@shared/creation-result-types";
 
 export function registerImportExportRoutes(
   app: Express,
@@ -1432,7 +1433,7 @@ export function registerImportExportRoutes(
   app.post("/api/projects/full-create", async (req, res) => {
     const startedAt = new Date().toISOString();
     const entityResults: Array<{
-      entityType: string;
+      entityType: EntityType;
       id: string;
       name: string;
       success: boolean;
@@ -1443,9 +1444,28 @@ export function registerImportExportRoutes(
     let projectId: string | null = null;
     let projectName = '';
     
+    // Validate payload with Zod schema
+    const validationResult = fullProjectCreatePayloadSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      const validationErrors = validationResult.error.errors.map(e => 
+        `${e.path.join('.')}: ${e.message}`
+      );
+      console.error('[FULL-CREATE] Validation failed:', validationErrors);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payload',
+        validationErrors,
+        projectId: null,
+        projectName: req.body?.project?.name || 'Unknown',
+        startedAt,
+        completedAt: new Date().toISOString()
+      });
+    }
+    
+    const payload = validationResult.data;
+    
     try {
-      const payload = req.body;
-      projectName = payload.project?.name || 'Untitled Project';
+      projectName = payload.project.name;
       
       // Debug logging for import flow
       console.log('[FULL-CREATE] Received payload:', {
