@@ -336,6 +336,16 @@ function SortableStageItem({
                         triggerClassName="h-7 text-xs w-28"
                       />
                     )}
+                    <SearchableSelect
+                      value=""
+                      onValueChange={(v) => { if (v) bulkUpdateTasks({ scope: v as 'once' | 'per_epic' }); }}
+                      placeholder="Set Mode"
+                      options={[
+                        { value: "once", label: "Once" },
+                        { value: "per_epic", label: "Per Epic" }
+                      ]}
+                      triggerClassName="h-7 text-xs w-28"
+                    />
                     <Button 
                       size="sm" 
                       variant="ghost" 
@@ -357,145 +367,138 @@ function SortableStageItem({
               <div className="space-y-2">
                 {stage.tasks.map((task, taskIndex) => (
                   <Card key={task.id} className={`${task.isFromImport ? 'bg-blue-50/50 border-blue-200' : 'bg-background'} ${selectedTaskIds.has(task.id) ? 'ring-2 ring-primary/50' : ''}`}>
-                    <CardContent className="p-3">
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedTaskIds.has(task.id)}
-                          onChange={() => toggleTaskSelection(task.id)}
-                          className="h-4 w-4 mt-2 shrink-0"
-                        />
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={task.title}
-                              onChange={(e) => updateTask(stageIndex, taskIndex, { title: e.target.value })}
-                              className="h-8 flex-1"
-                              placeholder="Task title..."
-                            />
-                            {task.isFromImport && (
-                              <Badge variant="secondary" className="shrink-0 bg-blue-100 text-blue-700 border-blue-200 text-xs">
-                                <Upload className="h-2.5 w-2.5 mr-1" />
-                                Imported
-                              </Badge>
-                            )}
-                          </div>
-                          <div className={`grid gap-2 ${taskTypes.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                            <SearchableSelect
-                              value={task.priority}
-                              onValueChange={(v) => updateTask(stageIndex, taskIndex, { priority: v })}
-                              options={priorityOptions}
-                              triggerClassName="h-8"
-                            />
-                            {taskTypes.length > 0 && (
-                              <SearchableSelect
-                                value={task.taskTypeId || ""}
-                                onValueChange={(v) => updateTask(stageIndex, taskIndex, { taskTypeId: v || undefined })}
-                                placeholder="Type"
-                                options={taskTypes.map((type: any) => ({
-                                  value: type.id,
-                                  label: type.label || type.name
-                                }))}
-                                triggerClassName="h-8"
+                    <CardContent className="p-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedTaskIds.has(task.id)}
+                            onChange={() => toggleTaskSelection(task.id)}
+                            className="h-4 w-4 shrink-0"
+                          />
+                          <Input
+                            value={task.title}
+                            onChange={(e) => updateTask(stageIndex, taskIndex, { title: e.target.value })}
+                            className="h-8 flex-1"
+                            placeholder="Task title..."
+                          />
+                          {task.isFromImport && (
+                            <Badge variant="secondary" className="shrink-0 bg-blue-100 text-blue-700 border-blue-200 text-xs">
+                              <Upload className="h-2.5 w-2.5 mr-1" />
+                              Imported
+                            </Badge>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 shrink-0"
+                            onClick={() => removeTaskFromStage(stageIndex, taskIndex)}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-1 border rounded px-2 py-1">
+                            <span className="text-xs text-muted-foreground">Mode:</span>
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="radio"
+                                name={`task-scope-${task.id}`}
+                                checked={task.scope === 'once'}
+                                onChange={() => updateTask(stageIndex, taskIndex, { scope: 'once' })}
+                                className="h-3 w-3"
                               />
-                            )}
+                              <span className="text-xs">Once</span>
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="radio"
+                                name={`task-scope-${task.id}`}
+                                checked={task.scope === 'per_epic' || !task.scope}
+                                onChange={() => updateTask(stageIndex, taskIndex, { scope: 'per_epic' })}
+                                className="h-3 w-3"
+                              />
+                              <span className="text-xs">Per Epic</span>
+                            </label>
+                          </div>
+                          <SearchableSelect
+                            value={task.priority}
+                            onValueChange={(v) => updateTask(stageIndex, taskIndex, { priority: v })}
+                            options={priorityOptions}
+                            triggerClassName="h-7 text-xs w-24"
+                          />
+                          {taskTypes.length > 0 && (
+                            <SearchableSelect
+                              value={task.taskTypeId || ""}
+                              onValueChange={(v) => updateTask(stageIndex, taskIndex, { taskTypeId: v || undefined })}
+                              placeholder="Type"
+                              options={taskTypes.map((type: any) => ({
+                                value: type.id,
+                                label: type.label || type.name
+                              }))}
+                              triggerClassName="h-7 text-xs w-24"
+                            />
+                          )}
+                          <div className="flex items-center gap-1">
                             <Input
                               type="number"
                               value={task.estimateHours}
                               onChange={(e) => updateTask(stageIndex, taskIndex, { estimateHours: parseInt(e.target.value) || 0 })}
-                              className="h-8"
-                              placeholder="Hours"
+                              className="h-7 text-xs w-16"
+                              placeholder="Hrs"
+                            />
+                            <span className="text-xs text-muted-foreground">hrs</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <User className="h-3.5 w-3.5 text-muted-foreground" />
+                            <SearchableSelect
+                              value={task.assigneeId || ""}
+                              onValueChange={(v) => updateTask(stageIndex, taskIndex, { assigneeId: v || undefined })}
+                              placeholder="Assignee"
+                              options={teamMemberOptions}
+                              triggerClassName="h-7 text-xs w-32"
+                              data-testid={`select-task-assignee-${stageIndex}-${taskIndex}`}
                             />
                           </div>
-                          <div className="flex items-center gap-4 pt-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">Scope:</span>
-                              <div className="flex items-center gap-2">
-                                <label className="flex items-center gap-1 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`task-scope-${task.id}`}
-                                    checked={task.scope === 'once'}
-                                    onChange={() => updateTask(stageIndex, taskIndex, { scope: 'once' })}
-                                    className="h-3 w-3"
-                                  />
-                                  <span className="text-xs">Once</span>
-                                </label>
-                                <label className="flex items-center gap-1 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`task-scope-${task.id}`}
-                                    checked={task.scope === 'per_epic' || !task.scope}
-                                    onChange={() => updateTask(stageIndex, taskIndex, { scope: 'per_epic' })}
-                                    className="h-3 w-3"
-                                  />
-                                  <span className="text-xs">Per Epic</span>
-                                </label>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <User className="h-3.5 w-3.5 text-muted-foreground" />
-                              <SearchableSelect
-                                value={task.assigneeId || ""}
-                                onValueChange={(v) => updateTask(stageIndex, taskIndex, { assigneeId: v || undefined })}
-                                placeholder="Assign to..."
-                                options={teamMemberOptions}
-                                triggerClassName="h-7 text-xs w-40"
-                                data-testid={`select-task-assignee-${stageIndex}-${taskIndex}`}
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Target className="h-3.5 w-3.5 text-muted-foreground" />
-                              <SearchableSelect
-                                value={task.milestoneId || ""}
-                                onValueChange={(v) => updateTask(stageIndex, taskIndex, { milestoneId: v || undefined })}
-                                placeholder="Link to milestone..."
-                                options={[{ value: "", label: "No Milestone" }, ...milestoneOptions]}
-                                triggerClassName="h-7 text-xs w-40"
-                                data-testid={`select-task-milestone-${stageIndex}-${taskIndex}`}
-                              />
-                            </div>
+                          <div className="flex items-center gap-1">
+                            <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                            <SearchableSelect
+                              value={task.milestoneId || ""}
+                              onValueChange={(v) => updateTask(stageIndex, taskIndex, { milestoneId: v || undefined })}
+                              placeholder="Milestone"
+                              options={[{ value: "", label: "No Milestone" }, ...milestoneOptions]}
+                              triggerClassName="h-7 text-xs w-32"
+                              data-testid={`select-task-milestone-${stageIndex}-${taskIndex}`}
+                            />
                           </div>
-                          <div className="flex items-center gap-2 pt-1">
+                          <div className="flex items-center gap-1">
                             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                            <div className="flex items-center gap-2 flex-1">
-                              <span className="text-xs text-muted-foreground">Due:</span>
-                              <Input
-                                type="date"
-                                value={task.deadline || ""}
-                                onChange={(e) => updateTask(stageIndex, taskIndex, { 
-                                  deadline: e.target.value,
-                                  datesInheritedFromStage: false 
-                                })}
-                                className="h-7 text-xs w-36"
-                                data-testid={`input-task-deadline-${stageIndex}-${taskIndex}`}
-                              />
-                              {task.datesInheritedFromStage && (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Badge variant="secondary" className="text-xs gap-1 cursor-help">
-                                        <Info className="h-3 w-3" />
-                                        Inherited
-                                      </Badge>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="max-w-[200px]">
-                                      <p className="text-xs">Date inherited from stage. Edit to override.</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              )}
-                            </div>
+                            <Input
+                              type="date"
+                              value={task.deadline || ""}
+                              onChange={(e) => updateTask(stageIndex, taskIndex, { 
+                                deadline: e.target.value,
+                                datesInheritedFromStage: false 
+                              })}
+                              className="h-7 text-xs w-32"
+                              data-testid={`input-task-deadline-${stageIndex}-${taskIndex}`}
+                            />
+                            {task.datesInheritedFromStage && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="secondary" className="text-xs gap-1 cursor-help px-1">
+                                      <Info className="h-3 w-3" />
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px]">
+                                    <p className="text-xs">Date inherited from stage. Edit to override.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => removeTaskFromStage(stageIndex, taskIndex)}
-                        >
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
                       </div>
                     </CardContent>
                   </Card>
