@@ -1551,7 +1551,37 @@ export function registerImportExportRoutes(
       const defaultTaskStatus = await storage.getDefaultStatusByType("task");
       
       // 2. Create team members with high-level and execution roles (BEFORE stages so assignees exist)
+      // First, collect all unique task assignees from the payload to ensure they become team members
+      const taskAssignees = new Set<string>();
+      (payload.stages || []).forEach((stage: any) => {
+        (stage.tasks || []).forEach((task: any) => {
+          if (task.assigneeId) taskAssignees.add(task.assigneeId);
+        });
+      });
+      (payload.deliverables || []).forEach((del: any) => {
+        (del.epics || []).forEach((epic: any) => {
+          (epic.tasks || []).forEach((task: any) => {
+            if (task.assigneeId) taskAssignees.add(task.assigneeId);
+          });
+        });
+      });
+      
+      // Merge task assignees with roles - add any missing as 'member' roles
       const roles = payload.roles || [];
+      const rolesUserIds = new Set(roles.filter((r: any) => r.userId).map((r: any) => r.userId));
+      taskAssignees.forEach(assigneeId => {
+        if (!rolesUserIds.has(assigneeId)) {
+          roles.push({
+            id: `role-auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            roleType: 'member',
+            roleTypeId: null,
+            userId: assigneeId,
+            allocation: 100
+          });
+          console.log(`[FULL-CREATE] Auto-adding task assignee ${assigneeId} as team member`);
+        }
+      });
+      
       const addedUserIds = new Set<string>();
       const teamMemberMap = new Map<string, string>(); // userId -> teamMemberId
       
