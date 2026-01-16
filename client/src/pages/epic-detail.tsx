@@ -278,15 +278,6 @@ export default function EpicDetail() {
       return;
     }
 
-    if (!formData.stageId) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a stage.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     if (editingTaskId) {
       updateTask({
         id: editingTaskId,

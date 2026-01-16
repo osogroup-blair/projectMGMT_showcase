@@ -569,10 +569,6 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
       return;
     }
-    if (!newTaskStageId) {
-      toast({ title: "Error", description: "Stage is required.", variant: "destructive" });
-      return;
-    }
     if (!newTaskTypeId) {
       toast({ title: "Error", description: "Task type is required.", variant: "destructive" });
       return;

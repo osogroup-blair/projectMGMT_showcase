@@ -954,10 +954,6 @@ function TasksTab({
       toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
       return;
     }
-    if (!selectedStageId) {
-      toast({ title: "Error", description: "Stage is required.", variant: "destructive" });
-      return;
-    }
     if (!newTaskEffort) {
       toast({ title: "Error", description: "Effort is required.", variant: "destructive" });
       return;
