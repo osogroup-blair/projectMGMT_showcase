@@ -285,82 +285,86 @@ function SortableStageItem({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm flex items-center gap-2">
-                <ListTodo className="h-4 w-4" /> Tasks ({stage.tasks.length})
-              </Label>
+              <div className="flex items-center gap-4">
+                <Label className="text-sm flex items-center gap-2">
+                  <ListTodo className="h-4 w-4" /> Tasks ({stage.tasks.length})
+                </Label>
+                {stage.tasks.length > 0 && (
+                  <div className="flex items-center gap-2 px-2 py-1 bg-muted/50 border rounded-md">
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.size === stage.tasks.length && stage.tasks.length > 0}
+                      onChange={(e) => e.target.checked ? selectAllTasks() : clearSelection()}
+                      className="h-3.5 w-3.5"
+                      id={`select-all-${stage.id}`}
+                    />
+                    <Label htmlFor={`select-all-${stage.id}`} className="text-xs font-normal cursor-pointer text-muted-foreground whitespace-nowrap">
+                      {selectedTaskIds.size > 0 ? `${selectedTaskIds.size} selected` : 'Select all'}
+                    </Label>
+                  </div>
+                )}
+              </div>
               <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
                 <Plus className="h-3 w-3 mr-1" /> Add Task
               </Button>
             </div>
 
             {/* Bulk Edit Bar */}
-            {stage.tasks.length > 0 && (
+            {stage.tasks.length > 0 && selectedTaskIds.size > 0 && (
               <div className="flex items-center gap-2 p-2 bg-background border rounded-lg">
-                <input
-                  type="checkbox"
-                  checked={selectedTaskIds.size === stage.tasks.length && stage.tasks.length > 0}
-                  onChange={(e) => e.target.checked ? selectAllTasks() : clearSelection()}
-                  className="h-4 w-4"
-                />
-                <span className="text-xs text-muted-foreground">
-                  {selectedTaskIds.size > 0 ? `${selectedTaskIds.size} selected` : 'Select all'}
-                </span>
-                {selectedTaskIds.size > 0 && (
-                  <>
-                    <div className="h-4 border-l mx-1" />
+                <div className="flex items-center gap-2 flex-1">
+                  <SearchableSelect
+                    value=""
+                    onValueChange={(v) => bulkUpdateTasks({ assigneeId: v || undefined })}
+                    placeholder="Set Assignee"
+                    options={teamMemberOptions}
+                    triggerClassName="h-7 text-xs w-32"
+                  />
+                  <SearchableSelect
+                    value=""
+                    onValueChange={(v) => bulkUpdateTasks({ milestoneId: v || undefined })}
+                    placeholder="Set Milestone"
+                    options={[{ value: "", label: "No Milestone" }, ...milestoneOptions]}
+                    triggerClassName="h-7 text-xs w-32"
+                  />
+                  <SearchableSelect
+                    value=""
+                    onValueChange={(v) => { if (v) bulkUpdateTasks({ priority: v }); }}
+                    placeholder="Set Priority"
+                    options={priorityOptions}
+                    triggerClassName="h-7 text-xs w-28"
+                  />
+                  {taskTypes.length > 0 && (
                     <SearchableSelect
                       value=""
-                      onValueChange={(v) => bulkUpdateTasks({ assigneeId: v || undefined })}
-                      placeholder="Set Assignee"
-                      options={teamMemberOptions}
-                      triggerClassName="h-7 text-xs w-32"
-                    />
-                    <SearchableSelect
-                      value=""
-                      onValueChange={(v) => bulkUpdateTasks({ milestoneId: v || undefined })}
-                      placeholder="Set Milestone"
-                      options={[{ value: "", label: "No Milestone" }, ...milestoneOptions]}
-                      triggerClassName="h-7 text-xs w-32"
-                    />
-                    <SearchableSelect
-                      value=""
-                      onValueChange={(v) => { if (v) bulkUpdateTasks({ priority: v }); }}
-                      placeholder="Set Priority"
-                      options={priorityOptions}
+                      onValueChange={(v) => { if (v) bulkUpdateTasks({ taskTypeId: v || undefined }); }}
+                      placeholder="Set Type"
+                      options={taskTypes.map((type: any) => ({
+                        value: type.id,
+                        label: type.label || type.name
+                      }))}
                       triggerClassName="h-7 text-xs w-28"
                     />
-                    {taskTypes.length > 0 && (
-                      <SearchableSelect
-                        value=""
-                        onValueChange={(v) => { if (v) bulkUpdateTasks({ taskTypeId: v || undefined }); }}
-                        placeholder="Set Type"
-                        options={taskTypes.map((type: any) => ({
-                          value: type.id,
-                          label: type.label || type.name
-                        }))}
-                        triggerClassName="h-7 text-xs w-28"
-                      />
-                    )}
-                    <SearchableSelect
-                      value=""
-                      onValueChange={(v) => { if (v) bulkUpdateTasks({ scope: v as 'once' | 'per_epic' }); }}
-                      placeholder="Set Mode"
-                      options={[
-                        { value: "once", label: "Once" },
-                        { value: "per_epic", label: "Per Epic" }
-                      ]}
-                      triggerClassName="h-7 text-xs w-28"
-                    />
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-7 text-xs"
-                      onClick={clearSelection}
-                    >
-                      Clear
-                    </Button>
-                  </>
-                )}
+                  )}
+                  <SearchableSelect
+                    value=""
+                    onValueChange={(v) => { if (v) bulkUpdateTasks({ scope: v as 'once' | 'per_epic' }); }}
+                    placeholder="Set Mode"
+                    options={[
+                      { value: "once", label: "Once" },
+                      { value: "per_epic", label: "Per Epic" }
+                    ]}
+                    triggerClassName="h-7 text-xs w-28"
+                  />
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-7 text-xs"
+                  onClick={clearSelection}
+                >
+                  Clear
+                </Button>
               </div>
             )}
 
