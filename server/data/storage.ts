@@ -573,43 +573,48 @@ export class DatabaseStorage implements IStorage {
         const ownedProjects = await db.select({ id: schema.projects.id })
           .from(schema.projects)
           .where(eq(schema.projects.ownerId, params.userId));
-        const ownerRoles = await db.select({ projectId: schema.projectHighLevelRoles.projectId })
+        // Get owner roles via team members join
+        const ownerRoles = await db.select({ projectId: schema.projectTeamMembers.projectId })
           .from(schema.projectHighLevelRoles)
+          .innerJoin(schema.projectTeamMembers, eq(schema.projectHighLevelRoles.teamMemberId, schema.projectTeamMembers.id))
           .where(and(
-            eq(schema.projectHighLevelRoles.userId, params.userId),
-            eq(schema.projectHighLevelRoles.role, 'owner')
+            eq(schema.projectTeamMembers.userId, params.userId),
+            eq(schema.projectHighLevelRoles.roleType, 'owner')
           ));
         projectIds = [...new Set([
           ...ownedProjects.map(p => p.id),
           ...ownerRoles.map(r => r.projectId)
         ])];
       } else if (params.role === 'stakeholder') {
-        const stakeholderRoles = await db.select({ projectId: schema.projectHighLevelRoles.projectId })
+        const stakeholderRoles = await db.select({ projectId: schema.projectTeamMembers.projectId })
           .from(schema.projectHighLevelRoles)
+          .innerJoin(schema.projectTeamMembers, eq(schema.projectHighLevelRoles.teamMemberId, schema.projectTeamMembers.id))
           .where(and(
-            eq(schema.projectHighLevelRoles.userId, params.userId),
-            eq(schema.projectHighLevelRoles.role, 'stakeholder')
+            eq(schema.projectTeamMembers.userId, params.userId),
+            eq(schema.projectHighLevelRoles.roleType, 'stakeholder')
           ));
         projectIds = stakeholderRoles.map(r => r.projectId);
       } else if (params.role === 'member') {
-        const memberRoles = await db.select({ projectId: schema.projectHighLevelRoles.projectId })
+        const memberRoles = await db.select({ projectId: schema.projectTeamMembers.projectId })
           .from(schema.projectHighLevelRoles)
+          .innerJoin(schema.projectTeamMembers, eq(schema.projectHighLevelRoles.teamMemberId, schema.projectTeamMembers.id))
           .where(and(
-            eq(schema.projectHighLevelRoles.userId, params.userId),
-            eq(schema.projectHighLevelRoles.role, 'member')
+            eq(schema.projectTeamMembers.userId, params.userId),
+            eq(schema.projectHighLevelRoles.roleType, 'member')
           ));
         projectIds = memberRoles.map(r => r.projectId);
       } else if (params.role === 'my') {
-        // Any involvement: owner, stakeholder, or member
+        // Any involvement: project owner, team member, or has any high-level role
         const ownedProjects = await db.select({ id: schema.projects.id })
           .from(schema.projects)
           .where(eq(schema.projects.ownerId, params.userId));
-        const allRoles = await db.select({ projectId: schema.projectHighLevelRoles.projectId })
-          .from(schema.projectHighLevelRoles)
-          .where(eq(schema.projectHighLevelRoles.userId, params.userId));
+        // Get all projects where user is a team member
+        const teamMemberProjects = await db.select({ projectId: schema.projectTeamMembers.projectId })
+          .from(schema.projectTeamMembers)
+          .where(eq(schema.projectTeamMembers.userId, params.userId));
         projectIds = [...new Set([
           ...ownedProjects.map(p => p.id),
-          ...allRoles.map(r => r.projectId)
+          ...teamMemberProjects.map(r => r.projectId)
         ])];
       }
       
