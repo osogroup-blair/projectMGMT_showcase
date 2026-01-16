@@ -510,52 +510,7 @@ export function StepTeamRoles({
   const totalAssignable = 1 + 1 + stakeholderUserIds.length + teamMembers.length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-end gap-1">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleImport}
-          className="hidden"
-        />
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="button-import-team"
-              >
-                <Upload className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p className="text-xs">Import team assignment</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={handleExport}
-                data-testid="button-export-team"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p className="text-xs">Export team assignment</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+    <div className="space-y-6 relative pb-10">
       {taskAssignmentStats.totalTasks > 0 && (
         <Card className="border-2 border-primary/20">
           <CardHeader className="pb-3">
