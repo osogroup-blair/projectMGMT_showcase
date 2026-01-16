@@ -21,7 +21,8 @@ export const userMappingEntrySchema = z.object({
   confidence: confidenceLevelSchema,
   action: userMappingActionSchema,
   taskCount: z.number().optional(),
-  projectRole: projectRoleTypeSchema.optional()
+  projectRole: projectRoleTypeSchema.optional(),
+  projectRoles: z.array(projectRoleTypeSchema).optional()
 });
 
 export type UserMappingEntry = z.infer<typeof userMappingEntrySchema>;
@@ -229,21 +230,27 @@ export interface FieldMapping<T = any> {
   value: T;
   confidence: ConfidenceLevel;
   source?: string;
+  sourceField?: string;
   originalField?: string;
+  sourceValue?: any;
+  warning?: string;
 }
 
 export interface SystemUser {
   id: string;
-  name: string;
+  name?: string;
   email?: string;
   role?: string;
   avatarUrl?: string;
+  username?: string;
 }
 
 export interface SystemUserIdentity {
-  id: string;
+  id?: string;
   userId: string;
-  systemId: string;
+  systemId?: string;
+  externalSystem?: string;
   externalUserId: string;
   externalEmail?: string;
+  externalDisplayName?: string;
 }

@@ -17,19 +17,12 @@ import type {
   ConfidenceLevel,
   ProjectRoleType,
   UserMappingEntry as SharedUserMappingEntry,
-  SystemUser as SharedSystemUser,
-  SystemUserIdentity as SharedSystemUserIdentity
+  SystemUser,
+  SystemUserIdentity,
+  FieldMapping
 } from '@shared/import-types';
 
-export type { ConfidenceLevel, ProjectRoleType };
-
-export interface FieldMapping<T = any> {
-  value: T;
-  confidence: ConfidenceLevel;
-  sourceField?: string;
-  sourceValue?: any;
-  warning?: string;
-}
+export type { ConfidenceLevel, ProjectRoleType, FieldMapping, SystemUser, SystemUserIdentity };
 
 export interface ImportedProjectData {
   name: FieldMapping<string>;
@@ -99,7 +92,6 @@ export interface ImportedRole extends WizardRole {
 }
 
 export interface UserMappingEntry extends SharedUserMappingEntry {
-  projectRoles?: ProjectRoleType[];
   suggestedExecutionRoleId?: string;
   suggestedExecutionRoleName?: string;
   suggestedExecutionRoleConfidence?: number;
@@ -110,15 +102,6 @@ export interface StatusMappingEntry {
   mappedStatus: string;
   mappedStatusId?: string;
   confidence: ConfidenceLevel;
-}
-
-export interface SystemUser extends SharedSystemUser {
-  username?: string;
-}
-
-export interface SystemUserIdentity extends SharedSystemUserIdentity {
-  externalSystem: string;
-  externalDisplayName?: string;
 }
 
 export interface SystemStatus {
