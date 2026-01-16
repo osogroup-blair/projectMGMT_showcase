@@ -127,13 +127,7 @@ export function SubNav() {
                     <Link key={project.projectId} href={`/projects/${project.projectId}`}>
                       <Button
                         variant="ghost"
-                        className={cn(
-                          "w-full h-8 font-normal text-xs",
-                          isCollapsed ? "justify-center px-2" : "justify-start px-2",
-                          isActive 
-                            ? "bg-secondary text-primary font-medium shadow-xs" 
-                            : "text-foreground/70 hover:text-foreground hover:bg-secondary/50"
-                        )}
+                        className="inline-flex items-center gap-2 whitespace-nowrap rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover-elevate active-elevate-2 border border-transparent min-h-9 py-2 w-full h-8 font-normal text-xs justify-start px-2 text-foreground/70 hover:text-foreground hover:bg-secondary/50 mt-[-5px] mb-[-5px]"
                         data-testid={`nav-favorite-${project.projectId}`}
                       >
                         {isCollapsed ? (
