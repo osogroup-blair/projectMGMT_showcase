@@ -78,6 +78,18 @@ export interface IStorage {
 
   // Projects
   getProjects(): Promise<Project[]>;
+  getProjectsPaginated(params: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    status?: string;
+    riskLevel?: string;
+    userId?: string;
+    role?: string;
+    favoriteOnly?: boolean;
+    sortField?: string;
+    sortDirection?: 'asc' | 'desc';
+  }): Promise<{ data: Project[]; total: number; limit: number; offset: number }>;
   getProjectById(id: string): Promise<Project | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<Project>): Promise<Project>;
@@ -513,6 +525,165 @@ export class DatabaseStorage implements IStorage {
   async getProjects(): Promise<Project[]> {
     return await db.select().from(schema.projects);
   }
+  
+  async getProjectsPaginated(params: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    status?: string;
+    riskLevel?: string;
+    userId?: string;
+    role?: string;
+    favoriteOnly?: boolean;
+    sortField?: string;
+    sortDirection?: 'asc' | 'desc';
+  }): Promise<{ data: Project[]; total: number; limit: number; offset: number }> {
+    const limit = params.limit || 25;
+    const offset = params.offset || 0;
+    const conditions: any[] = [];
+    
+    // Text search on name and client
+    if (params.search) {
+      const searchPattern = `%${params.search.toLowerCase()}%`;
+      conditions.push(
+        or(
+          sql`LOWER(${schema.projects.name}) LIKE ${searchPattern}`,
+          sql`LOWER(${schema.projects.client}) LIKE ${searchPattern}`
+        )
+      );
+    }
+    
+    // Status filter
+    if (params.status && params.status !== 'all') {
+      conditions.push(eq(schema.projects.status, params.status));
+    }
+    
+    // Risk level filter
+    if (params.riskLevel && params.riskLevel !== 'all') {
+      conditions.push(eq(schema.projects.riskLevel, params.riskLevel));
+    }
+    
+    // User role filter (my projects / owner / stakeholder / member)
+    if (params.userId && params.role && params.role !== 'all') {
+      // Get project IDs where user has the specified role
+      let projectIds: string[] = [];
+      
+      if (params.role === 'owner') {
+        // User is the project owner OR has owner high-level role
+        const ownedProjects = await db.select({ id: schema.projects.id })
+          .from(schema.projects)
+          .where(eq(schema.projects.ownerId, params.userId));
+        const ownerRoles = await db.select({ projectId: schema.projectHighLevelRoles.projectId })
+          .from(schema.projectHighLevelRoles)
+          .where(and(
+            eq(schema.projectHighLevelRoles.userId, params.userId),
+            eq(schema.projectHighLevelRoles.role, 'owner')
+          ));
+        projectIds = [...new Set([
+          ...ownedProjects.map(p => p.id),
+          ...ownerRoles.map(r => r.projectId)
+        ])];
+      } else if (params.role === 'stakeholder') {
+        const stakeholderRoles = await db.select({ projectId: schema.projectHighLevelRoles.projectId })
+          .from(schema.projectHighLevelRoles)
+          .where(and(
+            eq(schema.projectHighLevelRoles.userId, params.userId),
+            eq(schema.projectHighLevelRoles.role, 'stakeholder')
+          ));
+        projectIds = stakeholderRoles.map(r => r.projectId);
+      } else if (params.role === 'member') {
+        const memberRoles = await db.select({ projectId: schema.projectHighLevelRoles.projectId })
+          .from(schema.projectHighLevelRoles)
+          .where(and(
+            eq(schema.projectHighLevelRoles.userId, params.userId),
+            eq(schema.projectHighLevelRoles.role, 'member')
+          ));
+        projectIds = memberRoles.map(r => r.projectId);
+      } else if (params.role === 'my') {
+        // Any involvement: owner, stakeholder, or member
+        const ownedProjects = await db.select({ id: schema.projects.id })
+          .from(schema.projects)
+          .where(eq(schema.projects.ownerId, params.userId));
+        const allRoles = await db.select({ projectId: schema.projectHighLevelRoles.projectId })
+          .from(schema.projectHighLevelRoles)
+          .where(eq(schema.projectHighLevelRoles.userId, params.userId));
+        projectIds = [...new Set([
+          ...ownedProjects.map(p => p.id),
+          ...allRoles.map(r => r.projectId)
+        ])];
+      }
+      
+      if (projectIds.length > 0) {
+        conditions.push(inArray(schema.projects.id, projectIds));
+      } else {
+        // No projects match the role filter
+        return { data: [], total: 0, limit, offset };
+      }
+    }
+    
+    // Favorites filter
+    if (params.favoriteOnly && params.userId) {
+      const favorites = await db.select({ projectId: schema.projectFavorites.projectId })
+        .from(schema.projectFavorites)
+        .where(eq(schema.projectFavorites.userId, params.userId));
+      const favoriteProjectIds = favorites.map(f => f.projectId);
+      
+      if (favoriteProjectIds.length > 0) {
+        conditions.push(inArray(schema.projects.id, favoriteProjectIds));
+      } else {
+        return { data: [], total: 0, limit, offset };
+      }
+    }
+    
+    // Build where clause
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    // Get total count
+    const [{ count: totalCount }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(schema.projects)
+      .where(whereClause);
+    
+    // Build query with sorting
+    let query = db.select().from(schema.projects).where(whereClause);
+    
+    // Apply sorting
+    const sortField = params.sortField || 'name';
+    const sortDir = params.sortDirection || 'asc';
+    
+    if (sortField === 'name') {
+      query = sortDir === 'asc' 
+        ? query.orderBy(sql`${schema.projects.name} ASC`)
+        : query.orderBy(sql`${schema.projects.name} DESC`);
+    } else if (sortField === 'status') {
+      query = sortDir === 'asc'
+        ? query.orderBy(sql`${schema.projects.status} ASC`)
+        : query.orderBy(sql`${schema.projects.status} DESC`);
+    } else if (sortField === 'startDate') {
+      query = sortDir === 'asc'
+        ? query.orderBy(sql`${schema.projects.startDate} ASC NULLS LAST`)
+        : query.orderBy(sql`${schema.projects.startDate} DESC NULLS LAST`);
+    } else if (sortField === 'riskLevel') {
+      // Custom order: Low=1, Medium=2, High=3
+      query = sortDir === 'asc'
+        ? query.orderBy(sql`CASE ${schema.projects.riskLevel} WHEN 'Low' THEN 1 WHEN 'Medium' THEN 2 WHEN 'High' THEN 3 ELSE 4 END ASC`)
+        : query.orderBy(sql`CASE ${schema.projects.riskLevel} WHEN 'Low' THEN 1 WHEN 'Medium' THEN 2 WHEN 'High' THEN 3 ELSE 4 END DESC`);
+    } else if (sortField === 'progress') {
+      query = sortDir === 'asc'
+        ? query.orderBy(sql`${schema.projects.progress} ASC NULLS LAST`)
+        : query.orderBy(sql`${schema.projects.progress} DESC NULLS LAST`);
+    } else if (sortField === 'client') {
+      query = sortDir === 'asc'
+        ? query.orderBy(sql`${schema.projects.client} ASC NULLS LAST`)
+        : query.orderBy(sql`${schema.projects.client} DESC NULLS LAST`);
+    }
+    
+    // Apply pagination
+    const data = await query.limit(limit).offset(offset);
+    
+    return { data, total: totalCount, limit, offset };
+  }
+  
   async getProjectById(id: string): Promise<Project | undefined> {
     const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id));
     return project;

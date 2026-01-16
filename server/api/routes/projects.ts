@@ -20,6 +20,29 @@ export function registerProjectRoutes(
     const projects = await storage.getProjects();
     res.json(projects);
   });
+  
+  // Paginated projects with server-side filtering
+  app.get("/api/projects/paginated", async (req, res) => {
+    try {
+      const userId = getAuthUserId(req);
+      const result = await storage.getProjectsPaginated({
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 25,
+        offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+        search: req.query.search as string | undefined,
+        status: req.query.status as string | undefined,
+        riskLevel: req.query.riskLevel as string | undefined,
+        userId: req.query.userId as string || userId || undefined,
+        role: req.query.role as string | undefined,
+        favoriteOnly: req.query.favoriteOnly === 'true',
+        sortField: req.query.sortField as string | undefined,
+        sortDirection: req.query.sortDirection as 'asc' | 'desc' | undefined,
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching paginated projects:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   app.get("/api/projects/:id", async (req, res) => {
     const project = await storage.getProjectById(req.params.id);
