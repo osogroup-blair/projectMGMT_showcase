@@ -306,6 +306,31 @@ function SortableStageItem({
                           </div>
                           <div className="flex items-center gap-4 pt-1">
                             <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Scope:</span>
+                              <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`task-scope-${task.id}`}
+                                    checked={task.scope === 'once'}
+                                    onChange={() => updateTask(stageIndex, taskIndex, { scope: 'once' })}
+                                    className="h-3 w-3"
+                                  />
+                                  <span className="text-xs">Once</span>
+                                </label>
+                                <label className="flex items-center gap-1 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`task-scope-${task.id}`}
+                                    checked={task.scope === 'per_epic' || !task.scope}
+                                    onChange={() => updateTask(stageIndex, taskIndex, { scope: 'per_epic' })}
+                                    className="h-3 w-3"
+                                  />
+                                  <span className="text-xs">Per Epic</span>
+                                </label>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
                               <User className="h-3.5 w-3.5 text-muted-foreground" />
                               <SearchableSelect
                                 value={task.assigneeId || ""}
