@@ -26,13 +26,25 @@ import {
   Wand2,
   ChevronsDownUp,
   ChevronsUpDown,
-  ArrowRightLeft
+  ArrowRightLeft,
+  RotateCcw,
+  AlertTriangle
 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { StepProps, WizardEpic, WizardEpicTask, WizardDeliverable, WizardStage } from "./types";
 import { useRef, useCallback, useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +62,8 @@ export function StepWorkBreakdown({
   sprints = [],
   roles = [],
   users = [],
+  isImportMode = false,
+  onResetStageConfiguration,
 }: StepProps) {
   const epicInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const { toast } = useToast();
@@ -57,6 +71,7 @@ export function StepWorkBreakdown({
   const [expandedDeliverables, setExpandedDeliverables] = useState<Set<string>>(() => 
     new Set(deliverables.map(d => d.id))
   );
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
 
   const teamMemberOptions = useMemo(() => {
     const assigneeIds = roles
@@ -391,6 +406,21 @@ export function StepWorkBreakdown({
     });
   };
 
+  // Count total tasks for reset warning
+  const totalTaskCount = useMemo(() => {
+    return deliverables.reduce((total, d) => 
+      total + d.epics.reduce((epicTotal, e) => epicTotal + (e.tasks?.length || 0), 0), 0
+    );
+  }, [deliverables]);
+
+  const handleResetClick = () => {
+    if (totalTaskCount > 0) {
+      setShowResetConfirmation(true);
+    } else if (onResetStageConfiguration) {
+      onResetStageConfiguration();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -399,6 +429,26 @@ export function StepWorkBreakdown({
           <p className="text-sm text-muted-foreground">Define deliverables, epics, and optionally add tasks</p>
         </div>
         <div className="flex gap-2">
+          {onResetStageConfiguration && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleResetClick}
+                    data-testid="button-reset-stage-config"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset Configuration
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isImportMode ? 'Regenerate tasks from import file' : 'Regenerate tasks from stage templates'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {deliverables.length > 0 && (
             <>
               <Popover>
@@ -1029,6 +1079,39 @@ export function StepWorkBreakdown({
           </div>
         )}
       </div>
+
+      {/* Reset Configuration Confirmation Dialog */}
+      <AlertDialog open={showResetConfirmation} onOpenChange={setShowResetConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Reset Stage Configuration?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                This will remove <strong>{totalTaskCount} task{totalTaskCount !== 1 ? 's' : ''}</strong> and regenerate them 
+                {isImportMode ? ' from the original import file' : ' from stage template rules'}.
+              </p>
+              <p className="text-amber-600 dark:text-amber-400">
+                All manually created tasks will be lost. This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                onResetStageConfiguration?.();
+                setShowResetConfirmation(false);
+              }}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Reset Configuration
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

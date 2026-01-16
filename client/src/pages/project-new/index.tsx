@@ -1350,6 +1350,64 @@ export default function ProjectWizard() {
     });
   };
 
+  // Reset Stage Configuration - regenerates tasks from import data or stage templates
+  const handleResetStageConfiguration = () => {
+    if (isImportMode && importContext?.state?.adapterResult) {
+      // Re-import from the original adapter result
+      const adapter = importContext.state.adapterResult;
+      
+      // Regenerate deliverables with tasks
+      const importedDeliverables = toWizardDeliverables(adapter.deliverables);
+      if (importedDeliverables.length > 0) {
+        setDeliverables(importedDeliverables);
+      }
+      
+      // Regenerate stages with tasks
+      const importedStages = toWizardStages(
+        adapter.stages, 
+        importContext.state.userMappings,
+        importContext.state.defaultUnassignedTo?.userId
+      );
+      if (importedStages.length > 0) {
+        setStagesRaw(importedStages);
+      }
+      
+      toast({
+        title: "Configuration Reset",
+        description: "Tasks have been regenerated from the original import file.",
+      });
+    } else {
+      // Non-import mode: regenerate tasks from stage templates
+      const resetDeliverables = deliverables.map(d => ({
+        ...d,
+        epics: d.epics.map(e => ({
+          ...e,
+          tasks: stages.flatMap((stage: WizardStage) => 
+            stage.tasks
+              .filter(t => t.scope === 'per_epic')
+              .map(task => ({
+                id: `t-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                title: task.title,
+                description: task.description,
+                priority: task.priority?.toLowerCase() || 'medium',
+                estimateHours: task.estimateHours || 0,
+                stageId: stage.id,
+                milestoneId: task.milestoneId,
+                assigneeId: task.assigneeId,
+                taskTypeId: task.taskTypeId
+              }))
+          )
+        }))
+      }));
+      setDeliverables(resetDeliverables);
+      
+      toast({
+        title: "Configuration Reset",
+        description: "Tasks have been regenerated from stage templates.",
+      });
+    }
+  };
+
   const stepProps = {
     projectData,
     setProjectData,
@@ -1381,6 +1439,8 @@ export default function ProjectWizard() {
     onFileUpload: handleFileUpload,
     onSnippetApply: handleSnippetApply,
     onSkipWizard: handleSkipWizard,
+    isImportMode,
+    onResetStageConfiguration: handleResetStageConfiguration,
   };
 
   return (

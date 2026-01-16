@@ -222,6 +222,8 @@ export interface StepProps {
   onSnippetApply: (snippetId: string) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSkipWizard?: () => void;
+  isImportMode?: boolean;
+  onResetStageConfiguration?: () => void;
 }
 
 export const STEPS = [
