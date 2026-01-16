@@ -100,6 +100,35 @@ function SortableStageItem({
   removeStage,
 }: SortableStageItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: stage.id });
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllTasks = () => {
+    setSelectedTaskIds(new Set(stage.tasks.map(t => t.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedTaskIds(new Set());
+  };
+
+  const bulkUpdateTasks = (updates: Partial<WizardTaskDraft>) => {
+    const newStages = [...stages];
+    newStages[stageIndex].tasks = newStages[stageIndex].tasks.map(task => 
+      selectedTaskIds.has(task.id) ? { ...task, ...updates } : task
+    );
+    setStages(newStages);
+  };
   
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -113,7 +142,7 @@ function SortableStageItem({
       value={stage.id}
       ref={setNodeRef}
       style={style}
-      className="border rounded-lg px-4"
+      className="border rounded-lg px-4 bg-muted/40"
     >
       <AccordionTrigger className="hover:no-underline py-3">
         <div className="flex items-center gap-3 flex-1 mr-4">
@@ -252,12 +281,73 @@ function SortableStageItem({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm flex items-center gap-2">
-                <ListTodo className="h-4 w-4" /> Tasks
+                <ListTodo className="h-4 w-4" /> Tasks ({stage.tasks.length})
               </Label>
               <Button size="sm" variant="outline" onClick={() => addTaskToStage(stageIndex)}>
                 <Plus className="h-3 w-3 mr-1" /> Add Task
               </Button>
             </div>
+
+            {/* Bulk Edit Bar */}
+            {stage.tasks.length > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-background border rounded-lg">
+                <input
+                  type="checkbox"
+                  checked={selectedTaskIds.size === stage.tasks.length && stage.tasks.length > 0}
+                  onChange={(e) => e.target.checked ? selectAllTasks() : clearSelection()}
+                  className="h-4 w-4"
+                />
+                <span className="text-xs text-muted-foreground">
+                  {selectedTaskIds.size > 0 ? `${selectedTaskIds.size} selected` : 'Select all'}
+                </span>
+                {selectedTaskIds.size > 0 && (
+                  <>
+                    <div className="h-4 border-l mx-1" />
+                    <SearchableSelect
+                      value=""
+                      onValueChange={(v) => bulkUpdateTasks({ assigneeId: v || undefined })}
+                      placeholder="Set Assignee"
+                      options={teamMemberOptions}
+                      triggerClassName="h-7 text-xs w-32"
+                    />
+                    <SearchableSelect
+                      value=""
+                      onValueChange={(v) => bulkUpdateTasks({ milestoneId: v || undefined })}
+                      placeholder="Set Milestone"
+                      options={[{ value: "", label: "No Milestone" }, ...milestoneOptions]}
+                      triggerClassName="h-7 text-xs w-32"
+                    />
+                    <SearchableSelect
+                      value=""
+                      onValueChange={(v) => { if (v) bulkUpdateTasks({ priority: v }); }}
+                      placeholder="Set Priority"
+                      options={priorityOptions}
+                      triggerClassName="h-7 text-xs w-28"
+                    />
+                    {taskTypes.length > 0 && (
+                      <SearchableSelect
+                        value=""
+                        onValueChange={(v) => { if (v) bulkUpdateTasks({ taskTypeId: v || undefined }); }}
+                        placeholder="Set Type"
+                        options={taskTypes.map((type: any) => ({
+                          value: type.id,
+                          label: type.label || type.name
+                        }))}
+                        triggerClassName="h-7 text-xs w-28"
+                      />
+                    )}
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-7 text-xs"
+                      onClick={clearSelection}
+                    >
+                      Clear
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
 
             {stage.tasks.length === 0 ? (
               <div className="text-center p-4 border border-dashed rounded text-muted-foreground text-sm">
@@ -266,9 +356,15 @@ function SortableStageItem({
             ) : (
               <div className="space-y-2">
                 {stage.tasks.map((task, taskIndex) => (
-                  <Card key={task.id} className={`${task.isFromImport ? 'bg-blue-50/50 border-blue-200' : 'bg-muted/30'}`}>
+                  <Card key={task.id} className={`${task.isFromImport ? 'bg-blue-50/50 border-blue-200' : 'bg-background'} ${selectedTaskIds.has(task.id) ? 'ring-2 ring-primary/50' : ''}`}>
                     <CardContent className="p-3">
                       <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedTaskIds.has(task.id)}
+                          onChange={() => toggleTaskSelection(task.id)}
+                          className="h-4 w-4 mt-2 shrink-0"
+                        />
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-2">
                             <Input
@@ -414,6 +510,7 @@ function SortableStageItem({
 }
 
 export function StepStageConfig({
+  projectData,
   stages,
   setStages,
   milestones,
@@ -429,6 +526,8 @@ export function StepStageConfig({
   const [activeTab, setActiveTab] = useState<'stages' | 'milestones'>('milestones');
   const [expandedStages, setExpandedStages] = useState<string[]>([]);
   const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
+  const [showClearStagesConfirm, setShowClearStagesConfirm] = useState(false);
+  const [showClearMilestonesConfirm, setShowClearMilestonesConfirm] = useState(false);
   const [showFrameworkConfirm, setShowFrameworkConfirm] = useState(false);
   const [pendingFrameworkId, setPendingFrameworkId] = useState<string | null>(null);
   const [frameworkAction, setFrameworkAction] = useState<'replace' | 'merge'>('replace');
@@ -611,6 +710,26 @@ export function StepStageConfig({
     setMilestones(newMilestones);
   };
 
+  const clearAllStages = () => {
+    setStages([]);
+    setExpandedStages([]);
+    setSelectedFrameworkId(null);
+    setIsCustomized(false);
+    setShowClearStagesConfirm(false);
+  };
+
+  const clearAllMilestones = () => {
+    setMilestones([]);
+    setExpandedMilestones([]);
+    setShowClearMilestonesConfirm(false);
+  };
+
+  const updateMilestone = (index: number, updates: Partial<WizardMilestone>) => {
+    const newMilestones = [...milestones];
+    newMilestones[index] = { ...newMilestones[index], ...updates };
+    setMilestones(newMilestones);
+  };
+
   const applyStageTemplate = (templateId: string) => {
     const template = stageTemplates.find((t: any) => t.id === templateId);
     if (!template) return;
@@ -738,22 +857,78 @@ export function StepStageConfig({
         };
       });
 
+    // Calculate stage dates based on project timeline
+    const projectStart = projectData?.startDate ? new Date(projectData.startDate) : new Date();
+    const projectEnd = projectData?.dueDate ? new Date(projectData.dueDate) : new Date(projectStart.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const totalDays = Math.max(frameworkStages.length, Math.floor((projectEnd.getTime() - projectStart.getTime()) / (1000 * 60 * 60 * 24)));
+    const stageCount = Math.max(1, frameworkStages.length);
+    const baseDaysPerStage = Math.floor(totalDays / stageCount);
+    const extraDays = totalDays % stageCount;
+    
+    // Set stage dates and task deadlines
+    let currentStartDay = 0;
+    frameworkStages.forEach((stage, idx) => {
+      // Distribute extra days to earlier stages
+      const stageDays = baseDaysPerStage + (idx < extraDays ? 1 : 0);
+      
+      const stageStart = new Date(projectStart);
+      stageStart.setDate(stageStart.getDate() + currentStartDay);
+      
+      const stageEnd = new Date(projectStart);
+      if (idx === frameworkStages.length - 1) {
+        stageEnd.setTime(projectEnd.getTime());
+      } else {
+        stageEnd.setDate(stageEnd.getDate() + currentStartDay + Math.max(0, stageDays - 1));
+      }
+      
+      // Ensure end date is at least equal to start date
+      if (stageEnd < stageStart) {
+        stageEnd.setTime(stageStart.getTime());
+      }
+      
+      stage.startDate = stageStart.toISOString().split('T')[0];
+      stage.endDate = stageEnd.toISOString().split('T')[0];
+      
+      currentStartDay += stageDays;
+      
+      // Set task deadlines to stage end date
+      stage.tasks.forEach(task => {
+        task.deadline = stage.endDate;
+        task.datesInheritedFromStage = true;
+      });
+    });
+    
+    // Calculate milestone target dates - sequence them across project timeline
+    const milestonesCount = frameworkMilestones.length;
+    if (milestonesCount > 0) {
+      const daysPerMilestone = Math.floor(totalDays / milestonesCount);
+      frameworkMilestones.forEach((milestone, idx) => {
+        const targetDate = new Date(projectStart);
+        targetDate.setDate(targetDate.getDate() + ((idx + 1) * daysPerMilestone));
+        // Ensure last milestone is on project end date
+        if (idx === milestonesCount - 1) {
+          targetDate.setTime(projectEnd.getTime());
+        }
+        milestone.targetDate = targetDate.toISOString().split('T')[0];
+      });
+    }
+
     if (mode === 'merge') {
       const importedStages = stages.filter(s => s.isFromImport);
       const importedMilestones = milestones.filter(m => m.isFromImport);
       const mergedStages = [...importedStages, ...frameworkStages];
       setStages(mergedStages);
       setMilestones([...importedMilestones, ...frameworkMilestones]);
-      setExpandedStages(mergedStages.map(s => s.id));
+      setExpandedStages([]); // Collapse all stage accordions
     } else {
       setStages(frameworkStages);
       setMilestones(frameworkMilestones);
-      setExpandedStages(frameworkStages.map(s => s.id));
+      setExpandedStages([]); // Collapse all stage accordions
     }
     setExpandedMilestones([]);
     setSelectedFrameworkId(frameworkId);
     setIsCustomized(false);
-    setActiveTab('stages');
+    setActiveTab('milestones'); // Switch to milestones tab
   };
 
   const stageTemplateOptions = stageTemplates.map((template: any) => ({
@@ -1019,21 +1194,6 @@ export function StepStageConfig({
               </Card>
             </div>
 
-            {stageTemplateOptions.length > 0 && (
-              <div className="pt-4 mt-4 border-t">
-                <p className="text-sm text-muted-foreground mb-2">Add individual stage templates:</p>
-                <SearchableSelect
-                  onValueChange={(id) => {
-                    applyStageTemplate(id);
-                    if (selectedFrameworkId && selectedFrameworkId !== 'custom') {
-                      markAsCustomized();
-                    }
-                  }}
-                  placeholder="Select a stage template..."
-                  options={stageTemplateOptions}
-                />
-              </div>
-            )}
           </AccordionContent>
         </AccordionItem>
       </Accordion>
@@ -1049,10 +1209,37 @@ export function StepStageConfig({
         </TabsList>
 
         <TabsContent value="stages" className="mt-0">
-          <div className="flex justify-end mb-3">
-            <Button size="sm" onClick={addStage} data-testid="button-add-stage">
-              <Plus className="h-4 w-4 mr-2" /> Add Stage
-            </Button>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="flex items-center gap-2">
+              {stageTemplateOptions.length > 0 && (
+                <SearchableSelect
+                  onValueChange={(id) => {
+                    applyStageTemplate(id);
+                    if (selectedFrameworkId && selectedFrameworkId !== 'custom') {
+                      markAsCustomized();
+                    }
+                  }}
+                  placeholder="Add from template..."
+                  options={stageTemplateOptions}
+                  triggerClassName="w-48"
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {stages.length > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setShowClearStagesConfirm(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Clear All
+                </Button>
+              )}
+              <Button size="sm" onClick={addStage} data-testid="button-add-stage">
+                <Plus className="h-4 w-4 mr-2" /> Add Stage
+              </Button>
+            </div>
           </div>
           
           <div className="pr-4">
@@ -1103,10 +1290,25 @@ export function StepStageConfig({
         </TabsContent>
 
         <TabsContent value="milestones" className="mt-0">
-          <div className="flex justify-end mb-3">
-            <Button size="sm" onClick={addMilestone} data-testid="button-add-milestone">
-              <Plus className="h-4 w-4 mr-2" /> Add Milestone
-            </Button>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="flex items-center gap-2">
+              {/* Placeholder for future milestone template selector */}
+            </div>
+            <div className="flex items-center gap-2">
+              {milestones.length > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setShowClearMilestonesConfirm(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Clear All
+                </Button>
+              )}
+              <Button size="sm" onClick={addMilestone} data-testid="button-add-milestone">
+                <Plus className="h-4 w-4 mr-2" /> Add Milestone
+              </Button>
+            </div>
           </div>
           
           <div className="pr-4">
@@ -1117,102 +1319,108 @@ export function StepStageConfig({
                 <p className="text-sm mt-1">Milestones are optional but help track key deliverables.</p>
               </div>
             ) : (
-              <Accordion 
-                type="multiple" 
-                value={expandedMilestones}
-                onValueChange={setExpandedMilestones}
-                className="space-y-2"
-              >
-                {milestones.map((milestone, index) => (
-                  <AccordionItem 
-                    key={milestone.id} 
-                    value={milestone.id}
-                    className="border rounded-lg px-4"
-                  >
-                    <AccordionTrigger className="hover:no-underline py-3">
-                      <div className="flex items-center gap-3 flex-1 mr-4">
-                        <Target className="h-4 w-4 text-primary shrink-0" />
-                        <span className="font-medium text-left flex-1">
-                          {milestone.name || `Milestone ${index + 1}`}
-                        </span>
-                        {milestone.isBillingGate && (
-                          <Badge variant="secondary" className="shrink-0">
-                            Billing Gate
-                          </Badge>
-                        )}
-                        {milestone.targetDate && (
-                          <Badge variant="outline" className="shrink-0">
-                            {new Date(milestone.targetDate).toLocaleDateString()}
-                          </Badge>
-                        )}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-[1fr_140px_100px_80px_40px] gap-2 p-3 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase">
+                  <div>Name</div>
+                  <div>Target Date</div>
+                  <div>Phase</div>
+                  <div className="text-center">Billing Gate</div>
+                  <div></div>
+                </div>
+                <div className="divide-y">
+                  {milestones.map((milestone, index) => (
+                    <div 
+                      key={milestone.id} 
+                      className="grid grid-cols-[1fr_140px_100px_80px_40px] gap-2 p-2 items-center hover:bg-muted/30"
+                    >
+                      <Input
+                        value={milestone.name}
+                        onChange={(e) => updateMilestone(index, { name: e.target.value })}
+                        className="h-8 text-sm"
+                        placeholder="Milestone name..."
+                      />
+                      <Input
+                        type="date"
+                        value={milestone.targetDate}
+                        onChange={(e) => updateMilestone(index, { targetDate: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                      <SearchableSelect
+                        value={milestone.phase}
+                        onValueChange={(v) => updateMilestone(index, { phase: v })}
+                        options={[
+                          { value: "planning", label: "Planning" },
+                          { value: "delivery", label: "Delivery" },
+                          { value: "closure", label: "Closure" }
+                        ]}
+                        triggerClassName="h-8 text-xs"
+                      />
+                      <div className="flex justify-center">
+                        <input
+                          type="checkbox"
+                          checked={milestone.isBillingGate}
+                          onChange={(e) => updateMilestone(index, { isBillingGate: e.target.checked })}
+                          className="h-4 w-4"
+                        />
                       </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-4">
-                      <div className="space-y-4 pt-2">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-sm">Milestone Name</Label>
-                            <Input
-                              value={milestone.name}
-                              onChange={(e) => {
-                                const newMs = [...milestones];
-                                newMs[index].name = e.target.value;
-                                setMilestones(newMs);
-                              }}
-                              className="h-9"
-                              placeholder="Enter milestone name..."
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-sm">Target Date</Label>
-                            <Input
-                              type="date"
-                              value={milestone.targetDate}
-                              onChange={(e) => {
-                                const newMs = [...milestones];
-                                newMs[index].targetDate = e.target.value;
-                                setMilestones(newMs);
-                              }}
-                              className="h-9"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between pt-2">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              id={`billing-gate-${milestone.id}`}
-                              checked={milestone.isBillingGate}
-                              onChange={(e) => {
-                                const newMs = [...milestones];
-                                newMs[index].isBillingGate = e.target.checked;
-                                setMilestones(newMs);
-                              }}
-                              className="h-4 w-4"
-                            />
-                            <Label htmlFor={`billing-gate-${milestone.id}`} className="text-sm cursor-pointer">
-                              Billing Gate
-                            </Label>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => removeMilestone(index)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" /> Remove Milestone
-                          </Button>
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeMilestone(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Clear Stages Confirmation Dialog */}
+      <AlertDialog open={showClearStagesConfirm} onOpenChange={setShowClearStagesConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Clear All Stages?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all {stages.length} stages and {stages.reduce((acc, s) => acc + s.tasks.length, 0)} task drafts. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={clearAllStages} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Clear All Stages
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Milestones Confirmation Dialog */}
+      <AlertDialog open={showClearMilestonesConfirm} onOpenChange={setShowClearMilestonesConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Clear All Milestones?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all {milestones.length} milestones. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={clearAllMilestones} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Clear All Milestones
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="sticky bottom-0 z-10 bg-background pt-4 border-t mt-4">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
