@@ -335,7 +335,7 @@ export function StepTeamRoles({
     if (managerUserId) ids.push(managerUserId);
     ids.push(...stakeholderUserIds);
     ids.push(...teamMembers.map(m => m.userId));
-    return [...new Set(ids)];
+    return Array.from(new Set(ids));
   };
 
   const getUserOtherRoles = (userId: string) => {
