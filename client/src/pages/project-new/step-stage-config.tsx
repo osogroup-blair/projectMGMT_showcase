@@ -230,6 +230,13 @@ function SortableStageItem({
                     onChange={() => {
                       const newStages = [...stages];
                       newStages[stageIndex].taskCreationMode = mode;
+                      // Update all existing tasks in this stage to match the new scope
+                      if (mode === 'once' || mode === 'per_epic') {
+                        newStages[stageIndex].tasks = newStages[stageIndex].tasks.map(task => ({
+                          ...task,
+                          scope: mode
+                        }));
+                      }
                       setStages(newStages);
                     }}
                     className="h-4 w-4"
