@@ -1128,6 +1128,7 @@ export function StepStageConfig({
                     size="icon"
                     className="h-6 w-6"
                     onClick={() => setNavSidebarCollapsed(!navSidebarCollapsed)}
+                    data-testid="toggle-subnav"
                   >
                     {navSidebarCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
                   </Button>
