@@ -401,27 +401,77 @@ function suggestEntityType(key: string, rows: any[]): string {
 export async function parseFile(file: File): Promise<ParseResult> {
   const format = detectFileFormat(file);
   
+  if (file.size === 0) {
+    return {
+      format,
+      fileName: file.name,
+      entities: [],
+      rawData: null,
+      errors: ['The file is empty. Please upload a file with data to import.'],
+      warnings: []
+    };
+  }
+  
   let result: ParseResult;
   
   switch (format) {
     case 'json': {
       const content = await file.text();
-      result = await parseJSON(content);
+      if (content.trim() === '' || content.trim() === '{}' || content.trim() === '[]') {
+        result = {
+          format: 'json',
+          fileName: file.name,
+          entities: [],
+          rawData: null,
+          errors: ['The JSON file is empty or contains no data. Please provide a file with project data.'],
+          warnings: []
+        };
+      } else {
+        result = await parseJSON(content);
+      }
       break;
     }
     case 'excel': {
       const buffer = await file.arrayBuffer();
       result = await parseExcel(buffer);
+      if (result.entities.length === 0 && result.errors.length === 0) {
+        result.errors.push('The Excel file contains no data sheets or all sheets are empty.');
+      }
       break;
     }
     case 'csv': {
       const content = await file.text();
-      result = await parseCSV(content);
+      if (content.trim() === '') {
+        result = {
+          format: 'csv',
+          fileName: file.name,
+          entities: [],
+          rawData: null,
+          errors: ['The CSV file is empty. Please provide a file with data rows.'],
+          warnings: []
+        };
+      } else {
+        result = await parseCSV(content);
+        if (result.entities.length > 0 && result.entities[0].rowCount === 0) {
+          result.errors.push('The CSV file contains only headers but no data rows.');
+        }
+      }
       break;
     }
     case 'yaml': {
       const content = await file.text();
-      result = await parseYAML(content);
+      if (content.trim() === '') {
+        result = {
+          format: 'yaml',
+          fileName: file.name,
+          entities: [],
+          rawData: null,
+          errors: ['The YAML file is empty. Please provide a file with project data.'],
+          warnings: []
+        };
+      } else {
+        result = await parseYAML(content);
+      }
       break;
     }
     default:
@@ -430,7 +480,7 @@ export async function parseFile(file: File): Promise<ParseResult> {
         fileName: file.name,
         entities: [],
         rawData: null,
-        errors: [`Unsupported file format: ${file.name}`],
+        errors: [`Unsupported file format: ${file.name}. Supported formats: JSON, Excel (.xlsx), CSV, YAML.`],
         warnings: []
       };
   }

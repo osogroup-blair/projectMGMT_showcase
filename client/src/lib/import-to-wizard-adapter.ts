@@ -21,8 +21,19 @@ import type {
   SystemUserIdentity,
   FieldMapping
 } from '@shared/import-types';
+import {
+  validateParseResult,
+  detectAndResolveDuplicateIds,
+  collectDateParseWarnings,
+  formatValidationErrorsForUser,
+  formatValidationWarningsForUser,
+  type ImportValidationResult,
+  type ImportError,
+  type ImportWarning
+} from './import-validation';
 
 export type { ConfidenceLevel, ProjectRoleType, FieldMapping, SystemUser, SystemUserIdentity };
+export type { ImportValidationResult, ImportError, ImportWarning };
 
 export interface ImportedProjectData {
   name: FieldMapping<string>;
@@ -129,6 +140,7 @@ export interface ImportAdapterResult {
   referenceMappings: ReferenceMappingEntry[];
   warnings: string[];
   errors: string[];
+  validation: ImportValidationResult;
   stats: {
     totalEntitiesFound: number;
     projectsFound: number;
@@ -1238,19 +1250,33 @@ export function convertImportToWizardData(
   const warnings: string[] = [...parseResult.warnings];
   const errors: string[] = [...parseResult.errors];
   
-  // First, resolve all name-based references to IDs
+  const validation = validateParseResult(parseResult);
+  
+  if (!validation.isValid) {
+    errors.push(...formatValidationErrorsForUser(validation.errors));
+  }
+  warnings.push(...formatValidationWarningsForUser(validation.warnings));
+  
+  const duplicateResults = detectAndResolveDuplicateIds(parseResult.entities);
+  for (const result of duplicateResults) {
+    warnings.push(...result.warnings.map(w => w.message));
+  }
+  
+  const dateResults = collectDateParseWarnings(parseResult.entities);
+  warnings.push(...dateResults.warnings.map(w => w.message));
+  
+  const entitiesWithDates = dateResults.parsedEntities;
+  
   const referenceResolution = resolveAllReferences(
-    parseResult.entities.map(e => ({ entityType: e.entityType, rows: e.rows }))
+    entitiesWithDates.map(e => ({ entityType: e.entityType, rows: e.rows }))
   );
   
-  // Add reference resolution warnings
   warnings.push(...referenceResolution.warnings);
   
-  // Use resolved entities for further processing
   const resolvedParseResult: ParseResult = {
     ...parseResult,
     entities: referenceResolution.resolvedEntities.map((e, i) => ({
-      ...parseResult.entities[i],
+      ...entitiesWithDates[i],
       rows: e.rows
     }))
   };
@@ -1350,6 +1376,7 @@ export function convertImportToWizardData(
     referenceMappings: referenceResolution.referenceMappings,
     warnings,
     errors,
+    validation,
     stats,
     referenceStats: referenceResolution.stats
   };
