@@ -93,6 +93,30 @@ const sprintSchema = z.object({
   status: z.string().optional()
 });
 
+const projectSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Project name is required'),
+  description: z.string().optional(),
+  startDate: z.string().optional(),
+  deadline: z.string().optional()
+});
+
+const milestoneSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, 'Milestone name is required'),
+  description: z.string().optional(),
+  targetDate: z.string().optional()
+});
+
+const ENTITY_SCHEMAS: Record<string, z.ZodSchema> = {
+  Tasks: taskSchema,
+  Epics: epicSchema,
+  Deliverables: deliverableSchema,
+  Sprints: sprintSchema,
+  Projects: projectSchema,
+  Milestones: milestoneSchema
+};
+
 export function validateEmptyFile(parseResult: ParseResult): ImportError | null {
   const totalRows = parseResult.entities.reduce((sum, e) => sum + e.rowCount, 0);
   
@@ -119,7 +143,7 @@ export function validateEmptyFile(parseResult: ParseResult): ImportError | null 
 export interface DuplicateIdResult {
   entityType: string;
   duplicates: Map<string, number[]>;
-  renamedIds: Map<string, string>;
+  renamedIds: Map<string, string[]>;
   warnings: ImportWarning[];
 }
 
@@ -130,7 +154,7 @@ export function detectAndResolveDuplicateIds(
   
   for (const entity of entities) {
     const idOccurrences = new Map<string, number[]>();
-    const renamedIds = new Map<string, string>();
+    const renamedIds = new Map<string, string[]>();
     const warnings: ImportWarning[] = [];
     
     entity.rows.forEach((row, index) => {
@@ -147,10 +171,11 @@ export function detectAndResolveDuplicateIds(
       if (indices.length > 1) {
         duplicates.set(id, indices);
         
+        const newIds: string[] = [];
         indices.slice(1).forEach((rowIndex, dupIndex) => {
           const newId = `${id}_dup${dupIndex + 1}`;
           entity.rows[rowIndex].id = newId;
-          renamedIds.set(`${id}@${rowIndex}`, newId);
+          newIds.push(newId);
           
           warnings.push({
             code: 'DUPLICATE_ID_RENAMED',
@@ -162,6 +187,7 @@ export function detectAndResolveDuplicateIds(
             resolvedValue: newId
           });
         });
+        renamedIds.set(id, newIds);
       }
     });
     
@@ -266,29 +292,59 @@ export function validateRequiredFields(
   const warnings: ImportWarning[] = [];
   
   for (const entity of entities) {
+    const schema = ENTITY_SCHEMAS[entity.entityType];
     const required = REQUIRED_FIELDS[entity.entityType] || [];
     
     entity.rows.forEach((row, index) => {
-      for (const field of required) {
-        const value = row[field];
-        if (value === undefined || value === null || value === '') {
-          if (field === 'title' || field === 'name') {
-            errors.push({
-              code: 'MISSING_REQUIRED_FIELD',
-              message: `${entity.entityType} row ${index + 1}: Missing required field "${field}".`,
-              entityType: entity.entityType,
-              field,
-              rowIndex: index,
-              suggestion: `Please provide a ${field} for this ${entity.entityType.slice(0, -1).toLowerCase()}.`
-            });
-          } else {
-            warnings.push({
-              code: 'MISSING_OPTIONAL_IMPORTANT_FIELD',
-              message: `${entity.entityType} row ${index + 1}: Missing field "${field}" - using default value.`,
-              entityType: entity.entityType,
-              field,
-              rowIndex: index
-            });
+      if (schema) {
+        const result = schema.safeParse(row);
+        if (!result.success) {
+          for (const issue of result.error.issues) {
+            const field = issue.path.join('.');
+            const isRequired = required.includes(field) || issue.code === 'too_small';
+            
+            if (isRequired && (field === 'title' || field === 'name')) {
+              errors.push({
+                code: 'ZOD_VALIDATION_ERROR',
+                message: `${entity.entityType} row ${index + 1}: ${issue.message}`,
+                entityType: entity.entityType,
+                field,
+                rowIndex: index,
+                suggestion: `Please provide a valid ${field} for this ${entity.entityType.slice(0, -1).toLowerCase()}.`
+              });
+            } else if (isRequired) {
+              warnings.push({
+                code: 'ZOD_VALIDATION_WARNING',
+                message: `${entity.entityType} row ${index + 1}: ${issue.message} - will use default.`,
+                entityType: entity.entityType,
+                field,
+                rowIndex: index
+              });
+            }
+          }
+        }
+      } else {
+        for (const field of required) {
+          const value = row[field];
+          if (value === undefined || value === null || value === '') {
+            if (field === 'title' || field === 'name') {
+              errors.push({
+                code: 'MISSING_REQUIRED_FIELD',
+                message: `${entity.entityType} row ${index + 1}: Missing required field "${field}".`,
+                entityType: entity.entityType,
+                field,
+                rowIndex: index,
+                suggestion: `Please provide a ${field} for this ${entity.entityType.slice(0, -1).toLowerCase()}.`
+              });
+            } else {
+              warnings.push({
+                code: 'MISSING_OPTIONAL_IMPORTANT_FIELD',
+                message: `${entity.entityType} row ${index + 1}: Missing field "${field}" - using default value.`,
+                entityType: entity.entityType,
+                field,
+                rowIndex: index
+              });
+            }
           }
         }
       }

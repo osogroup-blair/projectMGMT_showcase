@@ -24,9 +24,11 @@ import type {
 import {
   validateParseResult,
   detectAndResolveDuplicateIds,
+  detectCircularDependencies,
   collectDateParseWarnings,
   formatValidationErrorsForUser,
   formatValidationWarningsForUser,
+  parseDateWithWarning,
   type ImportValidationResult,
   type ImportError,
   type ImportWarning
@@ -1261,6 +1263,9 @@ export function convertImportToWizardData(
   for (const result of duplicateResults) {
     warnings.push(...result.warnings.map(w => w.message));
   }
+  
+  const circularWarnings = detectCircularDependencies(parseResult.entities);
+  warnings.push(...circularWarnings.map(w => w.message));
   
   const dateResults = collectDateParseWarnings(parseResult.entities);
   warnings.push(...dateResults.warnings.map(w => w.message));
