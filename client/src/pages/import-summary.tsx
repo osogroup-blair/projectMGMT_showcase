@@ -49,6 +49,8 @@ import { useAllUsersForAssignment } from '@/features/user-management';
 import type { ConfidenceLevel, UserMappingEntry, StatusMappingEntry, ProjectRoleType } from '@/lib/import-to-wizard-adapter';
 import type { ReferenceMappingEntry } from '@/lib/import-reference-resolver';
 import { useQuery } from '@tanstack/react-query';
+import { validateTaskEpicAssignments } from '@/lib/import-validation';
+import { TaskValidationPanel } from '@/components/import/task-validation-panel';
 
 function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
   const config = {
@@ -168,6 +170,12 @@ export default function ImportSummary() {
       isReady: !hasIssues || (unmappedUsers.length === 0)
     };
   }, [userMappings, statusMappings, referenceMappings]);
+
+  const taskValidationSummary = useMemo(() => {
+    if (!state.adapterResult?.stages) return null;
+    const stageMap = new Map(state.adapterResult.stages.map(s => [s.id, s.name]));
+    return validateTaskEpicAssignments(state.adapterResult.stages, stageMap);
+  }, [state.adapterResult?.stages]);
 
   const handleAutoMapUsers = useCallback(() => {
     const normalizeString = (str: string): string => {
@@ -978,6 +986,10 @@ export default function ImportSummary() {
                 </CollapsibleContent>
               </Card>
             </Collapsible>
+          )}
+
+          {taskValidationSummary && taskValidationSummary.totalTasks > 0 && (
+            <TaskValidationPanel summary={taskValidationSummary} />
           )}
 
           {unassignedTaskCount > 0 && (
