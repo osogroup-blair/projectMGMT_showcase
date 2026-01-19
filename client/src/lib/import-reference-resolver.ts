@@ -217,7 +217,7 @@ export function resolveEntityReferences(
   entityType: ReferenceMappingEntry['entityType']
 ): { 
   resolvedRows: Record<string, any>[];
-  mappingEntry: ReferenceMappingEntry | null;
+  mappingEntries: ReferenceMappingEntry[];
 } {
   const valueCount = new Map<string, number>();
   const resolutions = new Map<string, EntityReference>();
@@ -235,7 +235,7 @@ export function resolveEntityReferences(
   }
 
   if (resolutions.size === 0) {
-    return { resolvedRows: rows, mappingEntry: null };
+    return { resolvedRows: rows, mappingEntries: [] };
   }
 
   const resolvedRows = rows.map(row => {
@@ -251,33 +251,25 @@ export function resolveEntityReferences(
     return row;
   });
 
-  let totalAffected = 0;
-  let resolvedCount = 0;
+  const mappingEntries: ReferenceMappingEntry[] = [];
   
-  Array.from(valueCount.entries()).forEach(([value, count]) => {
-    totalAffected += count;
-    const resolution = resolutions.get(value);
-    if (resolution?.resolvedId) {
-      resolvedCount += count;
-    }
+  Array.from(resolutions.entries()).forEach(([sourceValue, resolution]) => {
+    const count = valueCount.get(sourceValue) || 0;
+    mappingEntries.push({
+      entityType,
+      sourceValue: resolution.sourceValue,
+      sourceName: resolution.sourceName,
+      resolvedId: resolution.resolvedId,
+      resolvedName: resolution.resolvedName,
+      confidence: resolution.confidence,
+      resolutionMethod: resolution.resolutionMethod,
+      affectedRows: count
+    });
   });
 
-  const firstUnresolved = Array.from(resolutions.values()).find(r => !r.resolvedId);
-  const firstResolved = Array.from(resolutions.values()).find(r => r.resolvedId);
-  const primary = firstResolved || firstUnresolved;
+  mappingEntries.sort((a, b) => b.affectedRows - a.affectedRows);
 
-  const mappingEntry: ReferenceMappingEntry = {
-    entityType,
-    sourceValue: primary?.sourceValue || '',
-    sourceName: primary?.sourceName,
-    resolvedId: primary?.resolvedId,
-    resolvedName: primary?.resolvedName,
-    confidence: primary?.confidence || 'unmapped',
-    resolutionMethod: primary?.resolutionMethod || 'unresolved',
-    affectedRows: totalAffected
-  };
-
-  return { resolvedRows, mappingEntry };
+  return { resolvedRows, mappingEntries };
 }
 
 export function buildProjectLookupFromEntities(
@@ -459,32 +451,32 @@ export function resolveAllReferences(
     if (entity.entityType === 'Epics') {
       const deliverableResult = resolveEntityReferences(rows, 'deliverableId', lookups.deliverables, 'deliverable');
       rows = deliverableResult.resolvedRows;
-      if (deliverableResult.mappingEntry) {
-        referenceMappings.push(deliverableResult.mappingEntry);
-        updateStats(stats, deliverableResult.mappingEntry.resolutionMethod);
+      for (const entry of deliverableResult.mappingEntries) {
+        referenceMappings.push(entry);
+        updateStats(stats, entry.resolutionMethod);
       }
     }
     
     if (entity.entityType === 'Tasks') {
       const epicResult = resolveEntityReferences(rows, 'epicId', lookups.epics, 'epic');
       rows = epicResult.resolvedRows;
-      if (epicResult.mappingEntry) {
-        referenceMappings.push(epicResult.mappingEntry);
-        updateStats(stats, epicResult.mappingEntry.resolutionMethod);
+      for (const entry of epicResult.mappingEntries) {
+        referenceMappings.push(entry);
+        updateStats(stats, entry.resolutionMethod);
       }
       
       const stageResult = resolveEntityReferences(rows, 'stageId', lookups.stages, 'stage');
       rows = stageResult.resolvedRows;
-      if (stageResult.mappingEntry) {
-        referenceMappings.push(stageResult.mappingEntry);
-        updateStats(stats, stageResult.mappingEntry.resolutionMethod);
+      for (const entry of stageResult.mappingEntries) {
+        referenceMappings.push(entry);
+        updateStats(stats, entry.resolutionMethod);
       }
       
       const milestoneResult = resolveEntityReferences(rows, 'milestoneId', lookups.milestones, 'milestone');
       rows = milestoneResult.resolvedRows;
-      if (milestoneResult.mappingEntry) {
-        referenceMappings.push(milestoneResult.mappingEntry);
-        updateStats(stats, milestoneResult.mappingEntry.resolutionMethod);
+      for (const entry of milestoneResult.mappingEntries) {
+        referenceMappings.push(entry);
+        updateStats(stats, entry.resolutionMethod);
       }
     }
     
