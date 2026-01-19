@@ -100,6 +100,12 @@ A repository pattern is used in `server/data/repositories/` for data access, wit
         - Zod schema validation for required fields (Tasks, Epics, Deliverables, Sprints, Projects, Milestones)
         - Date parsing with multi-format support (ISO, MM/DD/YYYY, DD-MM-YYYY, Excel serial numbers) and warning collection
         - Chunked processing utility for large files (CHUNK_SIZE=500, LARGE_FILE_THRESHOLD=5000)
+    -   **Task-Epic Validation Panel** (`client/src/components/import/task-validation-panel.tsx`): Visual diagnostic tool in the Import Summary step that shows task-to-epic assignment status. Features:
+        - Summary header with assigned/orphaned task counts
+        - Collapsible error type sections grouping orphaned tasks by cause (no epic reference, epic ID not found, epic name not found, fuzzy match failed)
+        - Detailed table showing each orphaned task with its source epic reference and specific error message
+        - Export Problems button to download orphaned tasks as CSV for fixing source import files
+        - Help text explaining how to fix orphaned tasks (add epicId/epicName columns, verify matches)
 -   **Homepage Current Projects Kanban**: An interactive Kanban board on the homepage displaying tasks for projects with user involvement, supporting filtering by Assignee, Epic, Milestone, and Sprint.
 -   **Identity Linking System**: Allows users to link multiple external accounts (e.g., ClickUp, Jira, Asana, Google) to their Nymbl profile, managed via the profile page or by administrators. Supports user merging.
 -   **Milestone Template Scope Rules**: Milestone templates support rule-based scoping to automatically match tasks when applied to projects. Rules can filter by stage, epic type, and task template. Scope rules are defined in framework editor and stored in `defaultScopeRules` JSONB field with typed `MilestoneScopeRule` interface.
