@@ -268,11 +268,7 @@ export default function ProjectWizard() {
         }));
       }
       
-      const importedDeliverables = toWizardDeliverables(adapter.deliverables);
-      if (importedDeliverables.length > 0) {
-        setDeliverables(importedDeliverables);
-      }
-      
+      // Convert stages first (now returns empty tasks array - just stage metadata)
       const importedStages = toWizardStages(
         adapter.stages, 
         importContext.state.userMappings,
@@ -280,6 +276,18 @@ export default function ProjectWizard() {
       );
       if (importedStages.length > 0) {
         setStagesRaw(importedStages);
+      }
+      
+      // Convert deliverables with imported tasks placed directly into epic.tasks
+      // This prevents task duplication: imported tasks go to epics, template tasks go to stages
+      const importedDeliverables = toWizardDeliverables(
+        adapter.deliverables,
+        adapter.stages,
+        importContext.state.userMappings,
+        importContext.state.defaultUnassignedTo?.userId
+      );
+      if (importedDeliverables.length > 0) {
+        setDeliverables(importedDeliverables);
       }
       
       const importedMilestones = toWizardMilestones(adapter.milestones);
@@ -1406,13 +1414,7 @@ export default function ProjectWizard() {
       // Re-import from the original adapter result
       const adapter = importContext.state.adapterResult;
       
-      // Regenerate deliverables with tasks
-      const importedDeliverables = toWizardDeliverables(adapter.deliverables);
-      if (importedDeliverables.length > 0) {
-        setDeliverables(importedDeliverables);
-      }
-      
-      // Regenerate stages with tasks
+      // Regenerate stages (now returns empty tasks array - just stage metadata)
       const importedStages = toWizardStages(
         adapter.stages, 
         importContext.state.userMappings,
@@ -1420,6 +1422,17 @@ export default function ProjectWizard() {
       );
       if (importedStages.length > 0) {
         setStagesRaw(importedStages);
+      }
+      
+      // Regenerate deliverables with imported tasks placed directly into epic.tasks
+      const importedDeliverables = toWizardDeliverables(
+        adapter.deliverables,
+        adapter.stages,
+        importContext.state.userMappings,
+        importContext.state.defaultUnassignedTo?.userId
+      );
+      if (importedDeliverables.length > 0) {
+        setDeliverables(importedDeliverables);
       }
       
       toast({

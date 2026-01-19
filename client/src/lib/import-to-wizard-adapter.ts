@@ -1399,24 +1399,13 @@ export function toWizardProjectData(imported: ImportedProjectData): ProjectData 
   };
 }
 
-export function toWizardDeliverables(imported: ImportedDeliverable[]): WizardDeliverable[] {
-  return imported.map(d => ({
-    id: d.id,
-    title: d.title,
-    description: d.description,
-    epics: d.epics.map(e => ({
-      id: e.id,
-      title: e.title,
-      description: e.description
-    }))
-  }));
-}
-
-export function toWizardStages(
-  imported: ImportedStage[],
+export function toWizardDeliverables(
+  imported: ImportedDeliverable[],
+  importedStages: ImportedStage[] = [],
   userMappings: UserMappingEntry[] = [],
   defaultUnassignedTo?: string | null
-): WizardStage[] {
+): WizardDeliverable[] {
+  // Build user mapping lookup
   const userMappingLookup = new Map<string, string>();
   userMappings.forEach(m => {
     if (m.mappedToId && m.action === 'map') {
@@ -1424,44 +1413,85 @@ export function toWizardStages(
     }
   });
   
+  // Collect all imported tasks from stages and organize by assignedEpicId
+  const tasksByEpicId = new Map<string, Array<{
+    id: string;
+    title: string;
+    description?: string;
+    priority?: string;
+    estimateHours?: number;
+    stageId?: string;
+    milestoneId?: string;
+    sprintId?: string;
+    assigneeId?: string;
+    deadline?: string;
+    taskTypeId?: string;
+  }>>();
+  
+  importedStages.forEach(stage => {
+    (stage.tasks || []).forEach(task => {
+      const importedTask = task as ImportedTask;
+      if (importedTask.assignedEpicId) {
+        if (!tasksByEpicId.has(importedTask.assignedEpicId)) {
+          tasksByEpicId.set(importedTask.assignedEpicId, []);
+        }
+        
+        // Resolve assignee
+        let assigneeId: string | undefined = undefined;
+        if (importedTask.sourceAssigneeId) {
+          assigneeId = userMappingLookup.get(importedTask.sourceAssigneeId);
+        }
+        if (!assigneeId && defaultUnassignedTo) {
+          assigneeId = defaultUnassignedTo;
+        }
+        
+        tasksByEpicId.get(importedTask.assignedEpicId)!.push({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          estimateHours: task.estimateHours,
+          stageId: task.stageId,
+          milestoneId: task.milestoneId,
+          sprintId: importedTask.sprintId,
+          assigneeId,
+          deadline: task.deadline,
+          taskTypeId: task.taskTypeId
+        });
+      }
+    });
+  });
+  
+  return imported.map(d => ({
+    id: d.id,
+    title: d.title,
+    description: d.description,
+    epics: d.epics.map(e => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      tasks: tasksByEpicId.get(e.id) || []
+    }))
+  }));
+}
+
+export function toWizardStages(
+  imported: ImportedStage[],
+  _userMappings: UserMappingEntry[] = [],
+  _defaultUnassignedTo?: string | null
+): WizardStage[] {
+  // Note: Imported tasks are now handled by toWizardDeliverables and placed directly into epics.
+  // Stage.tasks should only contain template-based tasks (created in Stage Configuration).
+  // This prevents task duplication: imported tasks go to epics, template tasks go to stages.
+  
   return imported.map(s => ({
     id: s.id,
     name: s.name,
     description: s.description,
-    taskCreationMode: s.taskCreationMode || 'per_epic',
+    taskCreationMode: s.taskCreationMode || 'none', // Default to 'none' for imported stages
     defaultTasks: s.defaultTasks || [],
     defaultRoles: s.defaultRoles || [],
-    tasks: (s.tasks || []).map(t => {
-      const importedTask = t as ImportedTask;
-      let assigneeId: string | undefined = undefined;
-      
-      if (importedTask.sourceAssigneeId) {
-        assigneeId = userMappingLookup.get(importedTask.sourceAssigneeId);
-      }
-      
-      if (!assigneeId && defaultUnassignedTo) {
-        assigneeId = defaultUnassignedTo;
-      }
-      
-      return {
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        priority: t.priority,
-        estimateHours: t.estimateHours,
-        scope: t.scope,
-        stageId: t.stageId,
-        order: t.order,
-        sourceEpicId: importedTask.sourceEpicId,
-        sourceEpicTitle: importedTask.sourceEpicTitle,
-        assignedEpicId: importedTask.assignedEpicId,
-        assignedEpicTitle: importedTask.assignedEpicTitle,
-        mappingStatus: importedTask.mappingStatus,
-        assigneeId,
-        isFromImport: true,
-        sourceAssigneeId: importedTask.sourceAssigneeId
-      };
-    }),
+    tasks: [], // Empty - imported tasks are now in epic.tasks via toWizardDeliverables
     type: s.type || 'standard',
     startDate: s.startDate,
     endDate: s.endDate,

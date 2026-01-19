@@ -106,10 +106,12 @@ export function StepWorkBreakdown({
   }, [deliverables.length]);
 
   // Helper function to generate per_epic tasks from stage configuration
+  // Note: Only generates from template-based tasks (not isFromImport tasks)
+  // Imported tasks are already placed directly in epic.tasks by the import adapter
   const generatePerEpicTasks = useCallback((): WizardEpicTask[] => {
     return stages.flatMap((stage: WizardStage) => 
       stage.tasks
-        .filter(t => t.scope === 'per_epic')
+        .filter(t => t.scope === 'per_epic' && !t.isFromImport)
         .map(task => ({
           id: `t-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           title: task.title,
@@ -653,7 +655,7 @@ export function StepWorkBreakdown({
                             data-testid={`input-deliverable-title-${dIndex}`}
                           />
                           <span className="text-xs text-muted-foreground">
-                            ({deliverable.epics.length} epic{deliverable.epics.length !== 1 ? 's' : ''})
+                            ({deliverable.epics.length} epic{deliverable.epics.length !== 1 ? 's' : ''}, {deliverable.epics.reduce((sum, e) => sum + (e.tasks?.length || 0), 0)} task{deliverable.epics.reduce((sum, e) => sum + (e.tasks?.length || 0), 0) !== 1 ? 's' : ''})
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -770,6 +772,11 @@ export function StepWorkBreakdown({
                                 </Button>
                               </CollapsibleTrigger>
                               <FileBox className="h-4 w-4 text-indigo-500" />
+                              {(epic.tasks?.length || 0) > 0 && (
+                                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                                  {epic.tasks?.length} task{(epic.tasks?.length || 0) !== 1 ? 's' : ''}
+                                </span>
+                              )}
                             </div>
                           </Collapsible>
                           <div className="flex-1 space-y-2">
