@@ -254,3 +254,34 @@ export interface SystemUserIdentity {
   externalEmail?: string;
   externalDisplayName?: string;
 }
+
+export type TaskValidationErrorType = 
+  | 'no_epic_reference'
+  | 'epic_id_not_found'
+  | 'epic_name_not_found'
+  | 'epic_fuzzy_match_failed'
+  | 'unknown';
+
+export interface TaskValidationResult {
+  taskId: string;
+  taskTitle: string;
+  sourceId?: string;
+  status: 'assigned' | 'orphaned';
+  assignedEpicId?: string;
+  assignedEpicTitle?: string;
+  sourceEpicId?: string;
+  sourceEpicTitle?: string;
+  errorType?: TaskValidationErrorType;
+  errorMessage?: string;
+  warnings: string[];
+  stageId?: string;
+  stageName?: string;
+}
+
+export interface TaskValidationSummary {
+  totalTasks: number;
+  assignedTasks: number;
+  orphanedTasks: number;
+  errorsByType: Record<TaskValidationErrorType, number>;
+  results: TaskValidationResult[];
+}

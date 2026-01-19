@@ -662,3 +662,122 @@ export function formatValidationWarningsForUser(warnings: ImportWarning[]): stri
   
   return messages;
 }
+
+import type { 
+  TaskValidationResult, 
+  TaskValidationSummary, 
+  TaskValidationErrorType 
+} from '@shared/import-types';
+import type { ImportedStage, ImportedTask } from './import-to-wizard-adapter';
+
+export function validateTaskEpicAssignments(
+  stages: ImportedStage[],
+  stageMap?: Map<string, string>
+): TaskValidationSummary {
+  const results: TaskValidationResult[] = [];
+  const errorsByType: Record<TaskValidationErrorType, number> = {
+    no_epic_reference: 0,
+    epic_id_not_found: 0,
+    epic_name_not_found: 0,
+    epic_fuzzy_match_failed: 0,
+    unknown: 0
+  };
+  
+  let assignedCount = 0;
+  let orphanedCount = 0;
+  
+  stages.forEach(stage => {
+    (stage.tasks || []).forEach(task => {
+      const importedTask = task as ImportedTask;
+      const isOrphaned = importedTask.mappingStatus === 'orphaned' || !importedTask.assignedEpicId;
+      
+      let errorType: TaskValidationErrorType | undefined;
+      let errorMessage: string | undefined;
+      
+      if (isOrphaned) {
+        orphanedCount++;
+        
+        const hasEpicId = !!importedTask.sourceEpicId;
+        const hasEpicTitle = !!importedTask.sourceEpicTitle;
+        
+        if (!hasEpicId && !hasEpicTitle) {
+          errorType = 'no_epic_reference';
+          errorMessage = 'No epic ID or name provided in import file';
+        } else if (hasEpicId && importedTask.warnings?.some(w => w.includes('Epic ID') && w.includes('not found'))) {
+          errorType = 'epic_id_not_found';
+          errorMessage = `Epic ID "${importedTask.sourceEpicId}" not found in import`;
+        } else if (hasEpicTitle && importedTask.warnings?.some(w => w.includes('Epic') && w.includes('not found'))) {
+          errorType = 'epic_name_not_found';
+          errorMessage = `Epic "${importedTask.sourceEpicTitle}" not found in import`;
+        } else if (importedTask.warnings?.some(w => w.includes('needs manual assignment'))) {
+          errorType = 'epic_fuzzy_match_failed';
+          errorMessage = `Could not match epic "${importedTask.sourceEpicTitle || importedTask.sourceEpicId}" - needs manual assignment`;
+        } else {
+          errorType = 'unknown';
+          errorMessage = importedTask.warnings?.join('; ') || 'Unknown error during epic matching';
+        }
+        
+        errorsByType[errorType]++;
+      } else {
+        assignedCount++;
+      }
+      
+      results.push({
+        taskId: importedTask.id,
+        taskTitle: importedTask.title,
+        sourceId: importedTask.sourceId,
+        status: isOrphaned ? 'orphaned' : 'assigned',
+        assignedEpicId: importedTask.assignedEpicId,
+        assignedEpicTitle: importedTask.assignedEpicTitle,
+        sourceEpicId: importedTask.sourceEpicId,
+        sourceEpicTitle: importedTask.sourceEpicTitle,
+        errorType,
+        errorMessage,
+        warnings: importedTask.warnings || [],
+        stageId: stage.id,
+        stageName: stageMap?.get(stage.id) || stage.name
+      });
+    });
+  });
+  
+  return {
+    totalTasks: results.length,
+    assignedTasks: assignedCount,
+    orphanedTasks: orphanedCount,
+    errorsByType,
+    results
+  };
+}
+
+export function exportTaskValidationProblems(summary: TaskValidationSummary): string {
+  const orphanedTasks = summary.results.filter(r => r.status === 'orphaned');
+  
+  if (orphanedTasks.length === 0) {
+    return '';
+  }
+  
+  const headers = ['Task Title', 'Source ID', 'Error Type', 'Error Message', 'Source Epic ID', 'Source Epic Name', 'Stage'];
+  const rows = orphanedTasks.map(task => [
+    task.taskTitle,
+    task.sourceId || '',
+    task.errorType || '',
+    task.errorMessage || '',
+    task.sourceEpicId || '',
+    task.sourceEpicTitle || '',
+    task.stageName || ''
+  ]);
+  
+  const escapeCSV = (value: string) => {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  };
+  
+  const csvContent = [
+    headers.map(escapeCSV).join(','),
+    ...rows.map(row => row.map(escapeCSV).join(','))
+  ].join('\n');
+  
+  return csvContent;
+}
