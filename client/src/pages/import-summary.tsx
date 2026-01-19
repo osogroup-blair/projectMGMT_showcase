@@ -84,30 +84,15 @@ export default function ImportSummary() {
   const systemUsers = allUsers || [];
   const taskStatuses = (statusOptionsData || []).filter((s: any) => s.type === 'task');
 
-  const { data: projectsData } = useQuery({
-    queryKey: ['/api/projects'],
-    queryFn: () => fetch('/api/projects').then(r => r.json()),
-  });
-
-  const { data: deliverablesData } = useQuery({
-    queryKey: ['/api/deliverables'],
-    queryFn: () => fetch('/api/deliverables').then(r => r.json()),
-  });
-
-  const { data: epicsData } = useQuery({
-    queryKey: ['/api/epics'],
-    queryFn: () => fetch('/api/epics').then(r => r.json()),
-  });
-
-  const { data: milestonesData } = useQuery({
-    queryKey: ['/api/milestones'],
-    queryFn: () => fetch('/api/milestones').then(r => r.json()),
-  });
-
-  const { data: stagesData } = useQuery({
-    queryKey: ['/api/projectStages'],
-    queryFn: () => fetch('/api/projectStages').then(r => r.json()),
-  });
+  const importedEntities = useMemo(() => {
+    const entities = state.parseResult?.entities || [];
+    return {
+      deliverables: entities.find(e => e.entityType === 'Deliverables')?.rows || [],
+      epics: entities.find(e => e.entityType === 'Epics')?.rows || [],
+      milestones: entities.find(e => e.entityType === 'Milestones')?.rows || [],
+      stages: entities.find(e => e.entityType === 'ProjectStages')?.rows || [],
+    };
+  }, [state.parseResult?.entities]);
 
   const entityOptions = useMemo(() => {
     const options: Record<ReferenceMappingEntry['entityType'], SearchableSelectOption[]> = {
@@ -117,21 +102,35 @@ export default function ImportSummary() {
       stage: [{ value: '', label: 'Select stage...' }],
     };
 
-    (deliverablesData || []).forEach((d: any) => {
-      options.deliverable.push({ value: d.id, label: d.title || d.name || d.id });
+    const seenIds = new Set<string>();
+
+    importedEntities.deliverables.forEach((d: any) => {
+      if (d.id && !seenIds.has(`d-${d.id}`)) {
+        seenIds.add(`d-${d.id}`);
+        options.deliverable.push({ value: d.id, label: d.title || d.name || d.id });
+      }
     });
-    (epicsData || []).forEach((e: any) => {
-      options.epic.push({ value: e.id, label: e.title || e.name || e.id });
+    importedEntities.epics.forEach((e: any) => {
+      if (e.id && !seenIds.has(`e-${e.id}`)) {
+        seenIds.add(`e-${e.id}`);
+        options.epic.push({ value: e.id, label: e.title || e.name || e.id });
+      }
     });
-    (milestonesData || []).forEach((m: any) => {
-      options.milestone.push({ value: m.id, label: m.name || m.title || m.id });
+    importedEntities.milestones.forEach((m: any) => {
+      if (m.id && !seenIds.has(`m-${m.id}`)) {
+        seenIds.add(`m-${m.id}`);
+        options.milestone.push({ value: m.id, label: m.name || m.title || m.id });
+      }
     });
-    (stagesData || []).forEach((s: any) => {
-      options.stage.push({ value: s.id, label: s.name || s.title || s.id });
+    importedEntities.stages.forEach((s: any) => {
+      if (s.id && !seenIds.has(`s-${s.id}`)) {
+        seenIds.add(`s-${s.id}`);
+        options.stage.push({ value: s.id, label: s.name || s.title || s.id });
+      }
     });
 
     return options;
-  }, [deliverablesData, epicsData, milestonesData, stagesData]);
+  }, [importedEntities]);
 
   const handleReferenceMappingChange = useCallback((
     entityType: ReferenceMappingEntry['entityType'],
@@ -139,16 +138,16 @@ export default function ImportSummary() {
     newResolvedId: string
   ) => {
     const entityList = {
-      deliverable: deliverablesData || [],
-      epic: epicsData || [],
-      milestone: milestonesData || [],
-      stage: stagesData || [],
+      deliverable: importedEntities.deliverables,
+      epic: importedEntities.epics,
+      milestone: importedEntities.milestones,
+      stage: importedEntities.stages,
     }[entityType];
     
     const entity = entityList.find((e: any) => e.id === newResolvedId);
     const resolvedName = entity?.name || entity?.title || newResolvedId;
     updateReferenceMapping(entityType, sourceValue, newResolvedId, resolvedName);
-  }, [deliverablesData, epicsData, milestonesData, stagesData, updateReferenceMapping]);
+  }, [importedEntities, updateReferenceMapping]);
 
   const stats = state.adapterResult?.stats;
   const userMappings = state.userMappings;
