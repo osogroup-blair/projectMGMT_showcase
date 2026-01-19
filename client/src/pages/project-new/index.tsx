@@ -107,6 +107,7 @@ export default function ProjectWizard() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [importInitialized, setImportInitialized] = useState(false);
   const [pendingStepChange, setPendingStepChange] = useState<number | null>(null);
   const [showBackWarning, setShowBackWarning] = useState(false);
@@ -580,7 +581,13 @@ export default function ProjectWizard() {
         nextStep = 6;
       }
       
-      setCurrentStep(nextStep);
+      // Show transition state for user feedback
+      setIsTransitioning(true);
+      // Use setTimeout to allow UI to update before heavy render
+      setTimeout(() => {
+        setCurrentStep(nextStep);
+        setIsTransitioning(false);
+      }, 50);
     } else {
       handleCreateProject();
     }
@@ -647,8 +654,13 @@ export default function ProjectWizard() {
 
   const confirmStepChange = () => {
     if (pendingStepChange !== null) {
-      setCurrentStep(pendingStepChange);
-      setPendingStepChange(null);
+      // Show transition state for user feedback
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentStep(pendingStepChange);
+        setPendingStepChange(null);
+        setIsTransitioning(false);
+      }, 50);
     }
     setShowBackWarning(false);
   };
@@ -672,7 +684,12 @@ export default function ProjectWizard() {
         setShowBackWarning(true);
         return;
       }
-      setCurrentStep(prevStep);
+      // Show transition state for user feedback
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setCurrentStep(prevStep);
+        setIsTransitioning(false);
+      }, 50);
     }
   };
 
@@ -1700,7 +1717,8 @@ export default function ProjectWizard() {
                     <Button 
                         variant="outline" 
                         onClick={handleBack} 
-                        disabled={isCreating}
+                        disabled={isCreating || isTransitioning}
+                        loading={isTransitioning}
                         data-testid="button-back"
                     >
                         <ChevronLeft className="h-4 w-4 mr-2" /> Back
@@ -1798,13 +1816,14 @@ export default function ProjectWizard() {
                   )}
                   <Button 
                     onClick={handleNext} 
-                    loading={isCreating} 
+                    loading={isCreating || isTransitioning}
+                    disabled={isTransitioning}
                     data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}
                   >
                       {currentStep === STEPS.length ? (
                           <>{isCreating ? "Creating..." : "Create Project"} <Save className="h-4 w-4 ml-2" /></>
                       ) : (
-                          <>Next <ChevronRight className="h-4 w-4 ml-2" /></>
+                          <>{isTransitioning ? "Loading..." : "Next"} <ChevronRight className="h-4 w-4 ml-2" /></>
                       )}
                   </Button>
                 </div>

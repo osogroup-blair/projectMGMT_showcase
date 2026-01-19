@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -26,7 +25,6 @@ import {
   Wand2,
   ChevronsDownUp,
   ChevronsUpDown,
-  ArrowRightLeft,
   RotateCcw,
   AlertTriangle
 } from "lucide-react";
@@ -68,9 +66,8 @@ export function StepWorkBreakdown({
   const epicInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const { toast } = useToast();
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
-  const [expandedDeliverables, setExpandedDeliverables] = useState<Set<string>>(() => 
-    new Set(deliverables.map(d => d.id))
-  );
+  // Start with all deliverables collapsed - users can see counts in badges
+  const [expandedDeliverables, setExpandedDeliverables] = useState<Set<string>>(new Set());
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
 
   const teamMemberOptions = useMemo(() => {
@@ -89,21 +86,8 @@ export function StepWorkBreakdown({
     });
   }, [roles, users]);
 
-  // Auto-expand all deliverables and epics on mount
-  useEffect(() => {
-    if (deliverables.length > 0) {
-      setExpandedDeliverables(new Set(deliverables.map(d => d.id)));
-      const allEpicIds = deliverables.flatMap(d => d.epics.map(e => e.id));
-      setExpandedEpics(new Set(allEpicIds));
-    }
-  }, []);
-
-  // Re-expand when deliverables change (e.g., when Management Activities is added)
-  useEffect(() => {
-    setExpandedDeliverables(new Set(deliverables.map(d => d.id)));
-    const allEpicIds = deliverables.flatMap(d => d.epics.map(e => e.id));
-    setExpandedEpics(new Set(allEpicIds));
-  }, [deliverables.length]);
+  // Note: Deliverables now start collapsed since count badges show epic/task counts
+  // Users can expand individual deliverables as needed
 
   // Helper function to generate per_epic tasks from stage configuration
   // Note: Only generates from template-based tasks (not isFromImport tasks)
@@ -160,12 +144,6 @@ export function StepWorkBreakdown({
     setExpandedDeliverables(new Set());
     setExpandedEpics(new Set());
   }, []);
-
-  const togglePassThrough = useCallback((dIndex: number) => {
-    const newD = [...deliverables];
-    newD[dIndex].isPassThrough = !newD[dIndex].isPassThrough;
-    setDeliverables(newD);
-  }, [deliverables, setDeliverables]);
 
   const addEpic = useCallback((deliverableIndex: number, focusNew: boolean = false) => {
     const epicId = `e-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -659,26 +637,6 @@ export function StepWorkBreakdown({
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {!deliverable.id.startsWith('d-mgmt-') && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1">
-                                    <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
-                                    <Switch
-                                      checked={deliverable.isPassThrough || false}
-                                      onCheckedChange={() => togglePassThrough(dIndex)}
-                                      className="h-5 w-9"
-                                      data-testid={`switch-passthrough-${dIndex}`}
-                                    />
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="max-w-xs">Pass-through: When enabled, the deliverable acts as a container only. Epics will be created directly under the project.</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
                           {!deliverable.id.startsWith('d-mgmt-') ? (
                             <Button 
                               variant="ghost" 
