@@ -170,7 +170,12 @@ export default function TaskDetail() {
         description: `"${task.title}" has been deleted.`,
       });
       setDeleteConfirmOpen(false);
-      setLocation(`/projects/${projectId}/tasks`);
+      // Navigate back to the previous page instead of always going to tasks list
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        setLocation(`/projects/${projectId}/tasks`);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
