@@ -817,6 +817,44 @@ export function PortableKanban({
               data-testid="input-search-kanban"
             />
           </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2"
+                  onClick={expandAll}
+                  disabled={collapsedColumnIds.size === 0}
+                  data-testid="button-expand-all-columns"
+                >
+                  <ChevronsLeftRight className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Expand all columns</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2"
+                  onClick={() => collapseAll(columns.map(c => c.id))}
+                  disabled={collapsedColumnIds.size === columns.length}
+                  data-testid="button-collapse-all-columns"
+                >
+                  <ChevronsRightLeft className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Collapse all columns</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {projects.length > 0 && (
             <SearchableSelect
               value={projectFilter}
@@ -888,46 +926,6 @@ export function PortableKanban({
               Clear
             </Button>
           )}
-          <div className="ml-auto flex items-center gap-1">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 px-2"
-                    onClick={expandAll}
-                    disabled={collapsedColumnIds.size === 0}
-                    data-testid="button-expand-all-columns"
-                  >
-                    <ChevronsLeftRight className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Expand all columns</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 px-2"
-                    onClick={() => collapseAll(columns.map(c => c.id))}
-                    disabled={collapsedColumnIds.size === columns.length}
-                    data-testid="button-collapse-all-columns"
-                  >
-                    <ChevronsRightLeft className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Collapse all columns</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
         </div>
       )}
 
