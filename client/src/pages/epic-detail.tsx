@@ -240,11 +240,16 @@ export default function EpicDetail() {
     setFilters({ status: [], priority: [], assigneeId: [] });
   };
 
-  // Get Assigned Stages directly from the Epic
+  // Get Assigned Stages directly from the Epic (fallback to project stages if none assigned)
   const epicStages = useMemo(() => {
-    if (!epic?.stageIds || !projectStages) return [];
-    return projectStages.filter((s: any) => epic.stageIds.includes(s.id));
-  }, [epic, projectStages]);
+    if (!projectStages) return [];
+    // If epic has explicit stage assignments, use those; otherwise use all project stages
+    if (epic?.stageIds && epic.stageIds.length > 0) {
+      return projectStages.filter((s: any) => epic.stageIds.includes(s.id));
+    }
+    // Fallback to project stages filtered by projectId
+    return projectStages.filter((s: any) => s.projectId === projectId);
+  }, [epic, projectStages, projectId]);
 
   // Calculate progress from task completion (uses filtered tasks when filters active)
   const progress = useMemo(() => {
@@ -263,15 +268,6 @@ export default function EpicDetail() {
 
   // Task CRUD handlers
   const handleOpenCreate = (stageId?: string) => {
-    if (epicStages.length === 0) {
-      toast({
-        title: "Cannot Create Task",
-        description: "This epic has no stages assigned. Add stages to the epic first.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
     setEditingTaskId(null);
     setFormData({
       title: "",
