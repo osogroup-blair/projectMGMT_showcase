@@ -1924,7 +1924,9 @@ export function registerImportExportRoutes(
             description: stage.description || '',
             order: i,
             type: stage.type || 'standard',
-            status: 'pending'
+            status: 'pending',
+            startDate: stage.startDate || null,
+            endDate: stage.endDate || null
           };
           
           await storage.createProjectStage(stageData);
@@ -2135,8 +2137,8 @@ export function registerImportExportRoutes(
             description: deliverable.description || "",
             status: "Active",
             ownerId: payload.project.ownerId || "1",
-            startDate: payload.project.startDate,
-            dueDate: payload.project.deadline,
+            startDate: deliverable.startDate || payload.project.startDate,
+            dueDate: deliverable.endDate || payload.project.deadline,
             progress: 0
           } as any);
           
@@ -2161,8 +2163,8 @@ export function registerImportExportRoutes(
                   description: epic.description || "",
                   status: "Active",
                   ownerId: payload.project.ownerId || "1",
-                  startDate: payload.project.startDate,
-                  endDate: payload.project.deadline,
+                  startDate: epic.startDate || payload.project.startDate,
+                  endDate: epic.endDate || payload.project.deadline,
                   progress: 0,
                   stageIds: allStageIds
                 } as any);
