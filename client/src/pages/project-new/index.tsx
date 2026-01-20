@@ -92,15 +92,16 @@ import {
   calculateStageDates
 } from "./types";
 import { StepBasics } from "./step-basics";
+import { StepSprints } from "./step-sprints";
 import { StepWorkBreakdown } from "./step-work-breakdown";
 import { StepTaskAlignment } from "./step-task-alignment";
 import { StepStageConfig } from "./step-stage-config";
 import { StepTeamRoles } from "./step-team-roles";
 import { StepReview } from "./step-review";
-import { Link2, Download, Upload } from "lucide-react";
+import { Link2, Download, Upload, Calendar } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const STEP_ICONS = [Settings, Users, Layers, Package, Link2, Check];
+const STEP_ICONS = [Settings, Calendar, Users, Layers, Package, Link2, Check];
 
 export default function ProjectWizard() {
   const [, setLocation] = useLocation();
@@ -319,12 +320,12 @@ export default function ProjectWizard() {
 
   // No default stages - start with empty stages and let user choose a framework or build custom
 
-  // Ensure default "Management Activities" deliverable exists as the FIRST deliverable for Work Breakdown step (Step 4)
+  // Ensure default "Management Activities" deliverable exists as the FIRST deliverable for Work Breakdown step (Step 5)
   // This provides a catch-all bucket for orphan tasks with 3 standard management epics
   // This deliverable is protected - it cannot be deleted, but its name can be edited
   // Once tasks (scope: 'once') from stages are applied to the Product Management epic
   useEffect(() => {
-    if (currentStep === 4) {
+    if (currentStep === 5) {
       const hasMgmtActivities = deliverables.some(d => d.id.startsWith('d-mgmt-') || d.title === 'Management Activities');
       if (!hasMgmtActivities) {
         const timestamp = Date.now();
@@ -449,15 +450,15 @@ export default function ProjectWizard() {
       }
     }
     
-    // Step 2 is Team Assignment - sync roles from stages for team assignment dropdowns
-    if (currentStep === 2) {
+    // Step 3 is Team Assignment - sync roles from stages for team assignment dropdowns
+    if (currentStep === 3) {
       syncRolesFromStagesAndTasks();
     }
     
-    // Step 3 is Stage Configuration - no special validation needed
+    // Step 4 is Stage Configuration - no special validation needed
     
-    // Step 4 is Work Breakdown - ensure deliverables have epics
-    if (currentStep === 4) {
+    // Step 5 is Work Breakdown - ensure deliverables have epics
+    if (currentStep === 5) {
       const deliverablesWithoutEpics = deliverables.filter(d => !d.epics || d.epics.length === 0);
       
       if (deliverablesWithoutEpics.length > 0) {
@@ -495,8 +496,8 @@ export default function ProjectWizard() {
       }
     }
     
-    // Step 5 is Task Alignment - validate orphan tasks are resolved
-    if (currentStep === 5) {
+    // Step 6 is Task Alignment - validate orphan tasks are resolved
+    if (currentStep === 6) {
       const hasImportedTasks = stages.some(stage => 
         stage.tasks.some(task => 
           task.mappingStatus && ['mapped', 'orphaned', 'manual', 'skipped'].includes(task.mappingStatus)
@@ -578,8 +579,8 @@ export default function ProjectWizard() {
     if (currentStep < STEPS.length) {
       let nextStep = currentStep + 1;
       
-      if (currentStep === 4 && nextStep === 5 && !shouldShowTaskAlignment) {
-        nextStep = 6;
+      if (currentStep === 5 && nextStep === 6 && !shouldShowTaskAlignment) {
+        nextStep = 7;
       }
       
       // Show transition state for user feedback
@@ -604,13 +605,13 @@ export default function ProjectWizard() {
     
     const warnings: string[] = [];
     
-    if (toStep <= 2 && fromStep >= 4) {
+    if (toStep <= 3 && fromStep >= 5) {
       warnings.push("Stage configurations and task assignments");
     }
-    if (toStep <= 3 && fromStep >= 5) {
+    if (toStep <= 4 && fromStep >= 6) {
       warnings.push("Role assignments");
     }
-    if (toStep <= 1 && fromStep >= 2) {
+    if (toStep <= 1 && fromStep >= 3) {
       warnings.push("Work breakdown structure (deliverables and epics)");
     }
     
@@ -623,11 +624,11 @@ export default function ProjectWizard() {
     
     let targetStep = stepId;
     
-    if (stepId === 5 && !shouldShowTaskAlignment) {
-      if (currentStep < 5) {
-        targetStep = 6;
+    if (stepId === 6 && !shouldShowTaskAlignment) {
+      if (currentStep < 6) {
+        targetStep = 7;
       } else {
-        targetStep = 4;
+        targetStep = 5;
       }
     }
     
@@ -675,8 +676,8 @@ export default function ProjectWizard() {
     if (currentStep > 1) {
       let prevStep = currentStep - 1;
       
-      if (currentStep === 6 && prevStep === 5 && !shouldShowTaskAlignment) {
-        prevStep = 4;
+      if (currentStep === 7 && prevStep === 6 && !shouldShowTaskAlignment) {
+        prevStep = 5;
       }
       
       const warning = getStepResetWarning(currentStep, prevStep);
@@ -1532,7 +1533,7 @@ export default function ProjectWizard() {
   const handleExport = () => {
     if (currentStep === 1 && basicsRef.current?.handleExport) {
       basicsRef.current.handleExport();
-    } else if (currentStep === 2 && teamRef.current?.handleExport) {
+    } else if (currentStep === 3 && teamRef.current?.handleExport) {
       teamRef.current.handleExport();
     }
   };
@@ -1540,7 +1541,7 @@ export default function ProjectWizard() {
   const handleImportTrigger = () => {
     if (currentStep === 1 && basicsRef.current?.fileInputRef?.current) {
       basicsRef.current.fileInputRef.current.click();
-    } else if (currentStep === 2 && teamRef.current?.fileInputRef?.current) {
+    } else if (currentStep === 3 && teamRef.current?.fileInputRef?.current) {
       teamRef.current.fileInputRef.current.click();
     }
   };
@@ -1592,21 +1593,21 @@ export default function ProjectWizard() {
                     const isActive = currentStep === step.id;
                     const isCompleted = currentStep > step.id;
                     const Icon = STEP_ICONS[idx];
-                    const isTaskAlignmentStep = step.id === 5;
+                    const isTaskAlignmentStep = step.id === 6;
                     const willBeSkipped = isTaskAlignmentStep && !shouldShowTaskAlignment;
-                    const isSkippedAndPast = willBeSkipped && currentStep > 5;
+                    const isSkippedAndPast = willBeSkipped && currentStep > 6;
 
                     return (
                         <div key={step.id} className={cn(
                             "flex flex-col items-center gap-2 bg-background px-2",
-                            willBeSkipped && currentStep < 5 && "opacity-50"
+                            willBeSkipped && currentStep < 6 && "opacity-50"
                         )}>
                             <div 
                                 className={cn(
                                     "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
                                     isActive ? "border-primary bg-primary text-primary-foreground" : 
                                     isCompleted || isSkippedAndPast ? "border-primary bg-primary/20 text-primary" : 
-                                    willBeSkipped && currentStep < 5 ? "border-dashed border-muted" : "border-muted bg-background text-muted-foreground"
+                                    willBeSkipped && currentStep < 6 ? "border-dashed border-muted" : "border-muted bg-background text-muted-foreground"
                                 )}
                             >
                                 {isCompleted || isSkippedAndPast ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
@@ -1614,7 +1615,7 @@ export default function ProjectWizard() {
                             <div className="text-center hidden sm:block">
                                 <div className={cn("text-sm font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
                                     {step.title}
-                                    {willBeSkipped && currentStep < 5 && <span className="text-xs ml-1">(skip)</span>}
+                                    {willBeSkipped && currentStep < 6 && <span className="text-xs ml-1">(skip)</span>}
                                 </div>
                             </div>
                         </div>
@@ -1727,7 +1728,7 @@ export default function ProjectWizard() {
                         <ChevronLeft className="h-4 w-4 mr-2" /> Back
                     </Button>
                   )}
-                  {(currentStep === 1 || currentStep === 2) && (
+                  {(currentStep === 1 || currentStep === 3) && (
                     <div className="flex items-center gap-1 ml-2">
                       <TooltipProvider>
                         <Tooltip>
@@ -1841,11 +1842,12 @@ export default function ProjectWizard() {
                 ) : (
                   <>
                     {currentStep === 1 && <StepBasics {...stepProps} ref={basicsRef} />}
-                    {currentStep === 2 && <StepTeamRoles {...stepProps} ref={teamRef} />}
-                    {currentStep === 3 && <StepStageConfig {...stepProps} />}
-                    {currentStep === 4 && <StepWorkBreakdown {...stepProps} />}
-                    {currentStep === 5 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
-                    {currentStep === 6 && <StepReview {...stepProps} />}
+                    {currentStep === 2 && <StepSprints projectData={projectData} sprints={sprints} setSprints={setSprints} hasImportedSprints={isImportMode && sprints.length > 0} />}
+                    {currentStep === 3 && <StepTeamRoles {...stepProps} ref={teamRef} />}
+                    {currentStep === 4 && <StepStageConfig {...stepProps} />}
+                    {currentStep === 5 && <StepWorkBreakdown {...stepProps} />}
+                    {currentStep === 6 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
+                    {currentStep === 7 && <StepReview {...stepProps} />}
                   </>
                 )}
             </CardContent>
