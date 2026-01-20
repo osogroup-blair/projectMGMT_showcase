@@ -664,15 +664,8 @@ export function StagesContent({ projectId }: { projectId: string }) {
             <Button variant="outline" onClick={() => setAddStageDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateStage} disabled={isCreatingStage || !newStageName.trim()}>
-              {isCreatingStage ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                "Create Stage"
-              )}
+            <Button onClick={handleCreateStage} loading={isCreatingStage} disabled={!newStageName.trim()}>
+              {isCreatingStage ? "Creating..." : "Create Stage"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1407,17 +1400,10 @@ export function StagesContent({ projectId }: { projectId: string }) {
             </Button>
             <Button 
               onClick={handleCreateTask} 
-              disabled={isCreating}
+              loading={isCreating}
               data-testid="button-create-task"
             >
-              {isCreating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                "Create Task"
-              )}
+              {isCreating ? "Creating..." : "Create Task"}
             </Button>
           </DialogFooter>
         </DialogContent>

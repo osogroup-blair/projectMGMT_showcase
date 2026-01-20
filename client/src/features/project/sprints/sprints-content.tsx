@@ -901,8 +901,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
             <Button variant="outline" onClick={() => setShowCreateDialog(false)} data-testid="button-cancel-create-sprint">
               Cancel
             </Button>
-            <Button onClick={handleCreateSprint} disabled={isCreating} data-testid="button-confirm-create-sprint">
-              {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button onClick={handleCreateSprint} loading={isCreating} data-testid="button-confirm-create-sprint">
               Create Sprint
             </Button>
           </DialogFooter>

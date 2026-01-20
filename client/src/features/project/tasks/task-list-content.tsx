@@ -400,21 +400,13 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             aVal = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
             bVal = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
             break;
-          case "assignee":
-            aVal = getAssignee(a.assigneeId)?.name?.toLowerCase() || "zzz";
-            bVal = getAssignee(b.assigneeId)?.name?.toLowerCase() || "zzz";
-            break;
           case "deadline":
             aVal = a.deadline ? new Date(a.deadline).getTime() : Infinity;
             bVal = b.deadline ? new Date(b.deadline).getTime() : Infinity;
             break;
-          case "stage":
-            aVal = getStage(a.stageId)?.name?.toLowerCase() || "zzz";
-            bVal = getStage(b.stageId)?.name?.toLowerCase() || "zzz";
-            break;
-          case "sprint":
-            aVal = projectSprints.find((s: any) => s.id === a.sprintId)?.name?.toLowerCase() || "zzz";
-            bVal = projectSprints.find((s: any) => s.id === b.sprintId)?.name?.toLowerCase() || "zzz";
+          case "createdAt":
+            aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
             break;
           default:
             return 0;
@@ -1477,17 +1469,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             </Button>
             <Button 
               onClick={handleCreateTask} 
-              disabled={isCreating}
+              loading={isCreating}
               data-testid="button-submit-create-task"
             >
-              {isCreating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                "Create Task"
-              )}
+              {isCreating ? "Creating..." : "Create Task"}
             </Button>
           </DialogFooter>
         </DialogContent>

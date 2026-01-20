@@ -73,10 +73,13 @@ function useCollection<K extends keyof NexusDB>(collection: K, sortFn?: (a: any,
     isError: query.isError,
     create: create.mutate,
     createAsync: create.mutateAsync,
+    isCreating: create.isPending,
     update: update.mutate,
     updateAsync: update.mutateAsync,
+    isUpdating: update.isPending,
     remove: remove.mutate,
     removeAsync: remove.mutateAsync,
+    isRemoving: remove.isPending,
     refetch: query.refetch,
   };
 }

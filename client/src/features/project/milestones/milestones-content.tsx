@@ -1313,11 +1313,12 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                 <Button 
                   onClick={handleCreateTask}
-                  disabled={!newTaskTitle.trim() || !selectedEpicId || !selectedStageId || !newTaskEffort || isCreating}
+                  loading={isCreating}
+                  disabled={!newTaskTitle.trim() || !selectedEpicId || !selectedStageId || !newTaskEffort}
                   data-testid="button-create-task"
                 >
-                  {isCreating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                  Create & Link
+                  <Plus className="h-4 w-4 mr-2" />
+                  {isCreating ? "Creating..." : "Create & Link"}
                 </Button>
               </DialogFooter>
             </TabsContent>

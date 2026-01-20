@@ -95,8 +95,8 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: project } = useProject(projectId);
-  const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable } = useDeliverables();
-  const { data: allEpics, isLoading: isEpicsLoading, create: createEpic } = useEpics();
+  const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, isCreating: isCreatingDeliverable, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable, isRemoving: isDeletingDeliverable } = useDeliverables();
+  const { data: allEpics, isLoading: isEpicsLoading, create: createEpic, isCreating: isCreatingEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allTasks, isLoading: isTasksLoading, update: updateTask, createAsync: createTaskAsync } = useTasks();
   const { data: statusOptions = [] } = useStatusOptions();
@@ -695,6 +695,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
             size="sm"
             className="gap-1.5"
             onClick={handleCreateDeliverable}
+            loading={isCreatingDeliverable}
             data-testid="button-add-deliverable"
           >
             <Plus className="h-4 w-4" />
@@ -751,7 +752,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">
                 Start by defining the major outcomes for this project.
               </p>
-              <Button onClick={handleCreateDeliverable} data-testid="button-create-first-deliverable">Create First Deliverable</Button>
+              <Button onClick={handleCreateDeliverable} loading={isCreatingDeliverable} data-testid="button-create-first-deliverable">Create First Deliverable</Button>
             </CardContent>
           </Card>
         ) : viewMode === "card" ? (
@@ -1478,8 +1479,8 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateEpic}>Create Epic</Button>
+            <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)} disabled={isCreatingEpic}>Cancel</Button>
+            <Button onClick={handleCreateEpic} loading={isCreatingEpic}>Create Epic</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
