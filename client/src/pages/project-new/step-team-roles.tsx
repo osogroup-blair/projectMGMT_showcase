@@ -246,6 +246,74 @@ export const StepTeamRoles = forwardRef(({
     importInitializedRef.current = true;
   }, [importContext?.state?.isImportMode, importContext?.state?.userMappings, stages, buildRolesArray, ownerUserId, managerUserId, stakeholderUserIds, setRoles]);
 
+  // Initialize local state from existing roles prop (for non-import mode or when navigating back to this step)
+  // Runs on mount when roles has data and restores each field that is empty
+  const rolesInitializedRef = useRef(false);
+  useEffect(() => {
+    // Skip if already initialized from import mode
+    if (importInitializedRef.current) return;
+    // Skip if already initialized from roles prop
+    if (rolesInitializedRef.current) return;
+    // Skip if roles array is empty
+    if (!roles || roles.length === 0) return;
+    
+    console.log('[TEAM-ROLES] Initializing local state from roles prop:', roles.length, 'roles');
+    
+    // Extract owner by roleType
+    const ownerRole = roles.find(r => r.roleType === 'owner');
+    const extractedOwner = ownerRole?.assigneeId || '';
+    
+    // Extract manager by roleType
+    const managerRole = roles.find(r => r.roleType === 'manager');
+    const extractedManager = managerRole?.assigneeId || '';
+    
+    // Extract stakeholders by roleType
+    const stakeholderRoles = roles.filter(r => r.roleType === 'stakeholder');
+    const extractedStakeholders = stakeholderRoles
+      .map(r => r.assigneeId)
+      .filter((id): id is string => !!id);
+    
+    // Extract team members:
+    // - Roles with roleTypeId set (execution roles with template)
+    // - Roles with roleType === 'member' (generic team members)
+    // - Roles with non-high-level roleType (execution role labels like "Developer")
+    const memberRoles = roles.filter(r => {
+      // Skip owner and manager
+      if (r.roleType === 'owner' || r.roleType === 'manager') return false;
+      // Skip stakeholders
+      if (r.roleType === 'stakeholder') return false;
+      // Include everything else (members and execution roles)
+      return true;
+    });
+    
+    const extractedMembers = memberRoles
+      .filter(r => r.assigneeId)
+      .map(r => ({
+        userId: r.assigneeId!,
+        executionRoleId: r.roleTypeId
+      }));
+    
+    // Restore each field that is currently empty (allows partial restoration)
+    if (!ownerUserId && extractedOwner) {
+      setOwnerUserIdState(extractedOwner);
+      console.log('[TEAM-ROLES] Restored owner:', extractedOwner);
+    }
+    if (!managerUserId && extractedManager) {
+      setManagerUserIdState(extractedManager);
+      console.log('[TEAM-ROLES] Restored manager:', extractedManager);
+    }
+    if (stakeholderUserIds.length === 0 && extractedStakeholders.length > 0) {
+      setStakeholderUserIdsState(extractedStakeholders);
+      console.log('[TEAM-ROLES] Restored stakeholders:', extractedStakeholders.length);
+    }
+    if (teamMembers.length === 0 && extractedMembers.length > 0) {
+      setTeamMembersState(extractedMembers);
+      console.log('[TEAM-ROLES] Restored team members:', extractedMembers.length);
+    }
+    
+    rolesInitializedRef.current = true;
+  }, [roles, ownerUserId, managerUserId, stakeholderUserIds, teamMembers]);
+
   const taskAssignmentStats = useMemo<TaskAssignmentStats>(() => {
     let totalTasks = 0;
     let assignedTasks = 0;
