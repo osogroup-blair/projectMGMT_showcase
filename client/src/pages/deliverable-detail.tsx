@@ -40,6 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -180,6 +181,16 @@ export default function DeliverableDetail() {
       toast({
         title: "Deliverable Type Updated",
         description: typeId ? `Type set to "${deliverableTypes.find((t: any) => t.id === typeId)?.name}"` : "Type removed"
+      });
+    }
+  };
+
+  const handleUpdateDeliverableStatus = (status: string) => {
+    if (deliverable) {
+      updateDeliverable({ id: deliverable.id, updates: { status } });
+      toast({
+        title: "Status Updated",
+        description: `Deliverable status changed to "${status}"`
       });
     }
   };
@@ -385,16 +396,37 @@ export default function DeliverableDetail() {
                 <div className="flex items-center gap-3 mb-1">
                   <Package className="h-6 w-6 text-primary/70 shrink-0" />
                   <h1 className="text-2xl font-bold tracking-tight">{deliverable.title}</h1>
-                  <Badge variant="outline" className={cn(
-                    "font-normal",
-                    deliverableStatusLabels.length > 0 
-                      ? cn(getDeliverableStatusBgColor(deliverable.status), getDeliverableStatusTextColor(deliverable.status))
-                      : deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
-                        deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                        "bg-slate-50 text-slate-700 border-slate-200"
-                  )}>
-                    {deliverable.status}
-                  </Badge>
+                  <Select 
+                    value={deliverable.status} 
+                    onValueChange={handleUpdateDeliverableStatus}
+                  >
+                    <SelectTrigger className="h-7 text-xs border-none shadow-none px-2 w-auto" data-testid="select-deliverable-status">
+                      <Badge variant="outline" className={cn(
+                        "font-normal cursor-pointer",
+                        deliverableStatusLabels.length > 0 
+                          ? cn(getDeliverableStatusBgColor(deliverable.status), getDeliverableStatusTextColor(deliverable.status))
+                          : deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
+                            deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                            "bg-slate-50 text-slate-700 border-slate-200"
+                      )}>
+                        {deliverable.status}
+                      </Badge>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {deliverableStatusLabels.length > 0 ? (
+                        deliverableStatusLabels.map((status) => (
+                          <SelectItem key={status} value={status}>{status}</SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="Not Started">Not Started</SelectItem>
+                          <SelectItem value="In Progress">In Progress</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                          <SelectItem value="Blocked">Blocked</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
                   {deliverableTypes.length > 0 && (
                     <SearchableSelect
                       value={deliverable.typeId || ""}
