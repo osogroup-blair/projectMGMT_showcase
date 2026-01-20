@@ -44,11 +44,11 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { useImport } from '@/context/import-context';
 import { useStatusOptions } from '@/hooks/use-nexus-data';
 import { useAllUsersForAssignment } from '@/features/user-management';
@@ -214,10 +214,14 @@ function RelationshipHierarchyPreview({ deliverables, epics, tasks, referenceMap
     const deliverableIds = new Set(deliverables.map((d: any) => d.id));
     const epicIds = new Set(epics.map((e: any) => e.id));
     
-    const deliverableMap = new Map<string, { deliverable: any; epics: Map<string, { epic: any; tasks: any[] }> }>();
+    const deliverableMap = new Map<string, { 
+      deliverable: any; 
+      epics: Map<string, { epic: any; tasks: any[] }>;
+      taskCount: number;
+    }>();
     
     deliverables.forEach((d: any) => {
-      deliverableMap.set(d.id, { deliverable: d, epics: new Map() });
+      deliverableMap.set(d.id, { deliverable: d, epics: new Map(), taskCount: 0 });
     });
 
     epics.forEach((e: any) => {
@@ -235,6 +239,7 @@ function RelationshipHierarchyPreview({ deliverables, epics, tasks, referenceMap
         for (const [, dData] of deliverableMap) {
           if (dData.epics.has(epicId)) {
             dData.epics.get(epicId)!.tasks.push(t);
+            dData.taskCount++;
             break;
           }
         }
@@ -249,47 +254,61 @@ function RelationshipHierarchyPreview({ deliverables, epics, tasks, referenceMap
   }
 
   return (
-    <div className="space-y-4 max-h-[500px] overflow-y-auto">
+    <Accordion type="multiple" className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
       {Array.from(hierarchy.entries()).map(([dId, dData]) => (
-        <div key={dId} className="border rounded-lg p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Package className="h-4 w-4 text-primary" />
-            <span className="font-semibold">{dData.deliverable.title || dData.deliverable.name || dId}</span>
-            <Badge variant="outline" className="ml-auto">
-              {dData.epics.size} epics
-            </Badge>
-          </div>
-          <div className="ml-4 space-y-2">
-            {Array.from(dData.epics.entries()).map(([eId, eData]) => (
-              <div key={eId} className="border-l-2 border-muted pl-3">
-                <div className="flex items-center gap-2">
-                  <FileBox className="h-4 w-4 text-blue-500" />
-                  <span className="text-sm font-medium">{eData.epic.title || eData.epic.name || eId}</span>
-                  <Badge variant="secondary" className="ml-auto text-xs">
-                    {eData.tasks.length} tasks
-                  </Badge>
-                </div>
-                {eData.tasks.length > 0 && (
-                  <div className="ml-4 mt-1 space-y-1">
-                    {eData.tasks.slice(0, 3).map((t: any) => (
-                      <div key={t.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <ListTodo className="h-3 w-3" />
-                        <span className="truncate">{t.title || t.name || t.id}</span>
-                      </div>
-                    ))}
-                    {eData.tasks.length > 3 && (
-                      <div className="text-xs text-muted-foreground italic">
-                        +{eData.tasks.length - 3} more tasks
-                      </div>
-                    )}
-                  </div>
-                )}
+        <AccordionItem key={dId} value={dId} className="border rounded-lg px-3">
+          <AccordionTrigger className="hover:no-underline py-3">
+            <div className="flex items-center gap-2 flex-1">
+              <Package className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-left">{dData.deliverable.title || dData.deliverable.name || dId}</span>
+              <div className="ml-auto flex gap-2 mr-4">
+                <Badge variant="outline">
+                  {dData.epics.size} epics
+                </Badge>
+                <Badge variant="secondary">
+                  {dData.taskCount} tasks
+                </Badge>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-2 pb-4">
+            <div className="ml-4 space-y-2 border-l-2 border-muted pl-4">
+              {Array.from(dData.epics.entries()).map(([eId, eData]) => (
+                <div key={eId} className="py-2">
+                  <div className="flex items-center gap-2">
+                    <FileBox className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium">{eData.epic.title || eData.epic.name || eId}</span>
+                    <Badge variant="outline" className="ml-auto text-xs bg-blue-50/50">
+                      {eData.tasks.length} tasks
+                    </Badge>
+                  </div>
+                  {eData.tasks.length > 0 && (
+                    <div className="ml-4 mt-1 space-y-1">
+                      {eData.tasks.slice(0, 3).map((t: any) => (
+                        <div key={t.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <ListTodo className="h-3 w-3" />
+                          <span className="truncate">{t.title || t.name || t.id}</span>
+                        </div>
+                      ))}
+                      {eData.tasks.length > 3 && (
+                        <div className="text-xs text-muted-foreground italic">
+                          +{eData.tasks.length - 3} more tasks
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {dData.epics.size === 0 && (
+                <div className="text-sm text-muted-foreground italic py-2">
+                  No epics assigned to this deliverable
+                </div>
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
       ))}
-    </div>
+    </Accordion>
   );
 }
 
@@ -342,37 +361,47 @@ function EntityTaskPreview({ entities, tasks, entityType, entityLabel, fieldName
   const unassignedCount = groupedTasks.get('unassigned')?.tasks.length || 0;
 
   return (
-    <div className="space-y-4 max-h-[500px] overflow-y-auto">
-      {Array.from(groupedTasks.entries())
-        .filter(([id]) => id !== 'unassigned')
-        .map(([eId, data]) => (
-          <div key={eId} className="border rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              {entityType === 'stage' && <Layers className="h-4 w-4 text-orange-500" />}
-              {entityType === 'sprint' && <ArrowRightLeft className="h-4 w-4 text-purple-500" />}
-              {entityType === 'milestone' && <Target className="h-4 w-4 text-green-500" />}
-              <span className="font-semibold">{data.entity?.title || data.entity?.name || eId}</span>
-              <Badge variant="secondary" className="ml-auto">
-                {data.tasks.length} tasks
-              </Badge>
-            </div>
-            {data.tasks.length > 0 && (
-              <div className="ml-6 space-y-1">
-                {data.tasks.slice(0, 5).map((t: any) => (
-                  <div key={t.id} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ListTodo className="h-3 w-3" />
-                    <span className="truncate">{t.title || t.name || t.id}</span>
+    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+      <Accordion type="multiple" className="space-y-4">
+        {Array.from(groupedTasks.entries())
+          .filter(([id]) => id !== 'unassigned')
+          .map(([eId, data]) => (
+            <AccordionItem key={eId} value={eId} className="border rounded-lg px-3">
+              <AccordionTrigger className="hover:no-underline py-3">
+                <div className="flex items-center gap-2 flex-1">
+                  {entityType === 'stage' && <Layers className="h-4 w-4 text-orange-500" />}
+                  {entityType === 'sprint' && <ArrowRightLeft className="h-4 w-4 text-purple-500" />}
+                  {entityType === 'milestone' && <Target className="h-4 w-4 text-green-500" />}
+                  <span className="font-semibold text-left">{data.entity?.title || data.entity?.name || eId}</span>
+                  <Badge variant="secondary" className="ml-auto mr-4">
+                    {data.tasks.length} tasks
+                  </Badge>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4">
+                {data.tasks.length > 0 ? (
+                  <div className="ml-6 space-y-1">
+                    {data.tasks.slice(0, 10).map((t: any) => (
+                      <div key={t.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ListTodo className="h-3 w-3" />
+                        <span className="truncate">{t.title || t.name || t.id}</span>
+                      </div>
+                    ))}
+                    {data.tasks.length > 10 && (
+                      <div className="text-xs text-muted-foreground italic">
+                        +{data.tasks.length - 10} more tasks
+                      </div>
+                    )}
                   </div>
-                ))}
-                {data.tasks.length > 5 && (
-                  <div className="text-xs text-muted-foreground italic">
-                    +{data.tasks.length - 5} more tasks
+                ) : (
+                  <div className="ml-6 text-sm text-muted-foreground italic">
+                    No tasks assigned
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-        ))}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+      </Accordion>
       
       {unassignedCount > 0 && (
         <div className="border border-dashed border-amber-300 rounded-lg p-3 bg-amber-50/30">
