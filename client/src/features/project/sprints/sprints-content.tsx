@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useSprints, useTasks, useProject } from "@/hooks/use-nexus-data";
@@ -36,7 +37,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TabToolbar, ViewMode } from "@/components/ui/tab-toolbar";
-import { computeSprintStatus } from "@/lib/constants";
 
 const STATUS_CONFIG: Record<string, { icon: typeof Circle; color: string; bgColor: string; label: string }> = {
   "planned": { icon: Circle, color: "text-slate-500", bgColor: "bg-slate-100", label: "Planned" },
@@ -170,11 +170,9 @@ export function SprintsContent({ projectId }: { projectId: string }) {
           bVal = b.name?.toLowerCase() || "";
           break;
         case "status":
-          const statusOrder = { active: 0, planned: 1, closed: 2 };
-          const aStatus = computeSprintStatus(a);
-          const bStatus = computeSprintStatus(b);
-          aVal = statusOrder[aStatus] ?? 999;
-          bVal = statusOrder[bStatus] ?? 999;
+          const statusOrder: Record<string, number> = { active: 0, planned: 1, closed: 2 };
+          aVal = statusOrder[a.status] ?? 999;
+          bVal = statusOrder[b.status] ?? 999;
           break;
         case "startDate":
           aVal = a.startDate || "";
@@ -265,11 +263,39 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   };
 
   const handleInlineStatusChange = async (sprintId: string, newStatus: string) => {
-    // Status is now computed from dates - inform user and don't allow manual changes
-    toast({ 
-      title: "Status is date-driven", 
-      description: "Sprint status is automatically set based on dates. Adjust the start/end dates to change status.",
-    });
+    // Don't allow changing to active if another sprint is already active
+    if (newStatus === "active") {
+      const hasActive = sprints.some((s: any) => s.status === "active" && s.id !== sprintId);
+      if (hasActive) {
+        toast({ title: "Another sprint is already active", description: "Close the active sprint first.", variant: "destructive" });
+        return;
+      }
+      try {
+        const response = await fetch(`/api/sprints/${sprintId}/start`, { method: "POST" });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error);
+        }
+        updateSprint({ id: sprintId, updates: { status: "active" } });
+        toast({ title: "Sprint started" });
+      } catch (error: any) {
+        toast({ title: "Failed to start sprint", description: error.message, variant: "destructive" });
+      }
+    } else if (newStatus === "closed") {
+      try {
+        const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error);
+        }
+        updateSprint({ id: sprintId, updates: { status: "closed" } });
+        toast({ title: "Sprint closed" });
+      } catch (error: any) {
+        toast({ title: "Failed to close sprint", description: error.message, variant: "destructive" });
+      }
+    } else {
+      updateSprint({ id: sprintId, updates: { status: newStatus } });
+    }
   };
 
   // Bulk action handlers
@@ -481,8 +507,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
               <TableBody>
                 {sortedSprints.map((sprint: any) => {
                   const stats = getSprintStats(sprint.id);
-                  const computedStatus = computeSprintStatus(sprint);
-                  const statusConfig = STATUS_CONFIG[computedStatus] || STATUS_CONFIG["planned"];
+                  const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
                   const StatusIcon = statusConfig.icon;
                   const isSelected = selectedSprintIds.has(sprint.id);
                   const isEditingName = editingCell?.sprintId === sprint.id && editingCell?.field === "name";
@@ -544,10 +569,39 @@ export function SprintsContent({ projectId }: { projectId: string }) {
                         </div>
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0 text-xs")}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig.label}
-                        </Badge>
+                        <Select
+                          value={sprint.status}
+                          onValueChange={(value) => handleInlineStatusChange(sprint.id, value)}
+                        >
+                          <SelectTrigger className="h-7 w-[110px] border-0 bg-transparent focus:ring-0" data-testid={`select-status-${sprint.id}`}>
+                            <SelectValue>
+                              <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0 text-xs")}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {statusConfig.label}
+                              </Badge>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="planned">
+                              <div className="flex items-center">
+                                <Circle className="h-3 w-3 mr-2 text-slate-500" />
+                                Planned
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="active">
+                              <div className="flex items-center">
+                                <Play className="h-3 w-3 mr-2 text-blue-500" />
+                                Active
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="closed">
+                              <div className="flex items-center">
+                                <CheckCircle2 className="h-3 w-3 mr-2 text-green-500" />
+                                Closed
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {sprint.startDate ? (
@@ -600,8 +654,7 @@ export function SprintsContent({ projectId }: { projectId: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedSprints.map((sprint: any) => {
               const stats = getSprintStats(sprint.id);
-              const computedStatus = computeSprintStatus(sprint);
-              const statusConfig = STATUS_CONFIG[computedStatus] || STATUS_CONFIG["planned"];
+              const statusConfig = STATUS_CONFIG[sprint.status] || STATUS_CONFIG["planned"];
               const StatusIcon = statusConfig.icon;
               const isSelected = selectedSprintIds.has(sprint.id);
               const isEditingName = editingCell?.sprintId === sprint.id && editingCell?.field === "name";
@@ -667,10 +720,39 @@ export function SprintsContent({ projectId }: { projectId: string }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0")}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {statusConfig.label}
-                        </Badge>
+                        <Select
+                          value={sprint.status}
+                          onValueChange={(value) => handleInlineStatusChange(sprint.id, value)}
+                        >
+                          <SelectTrigger className="h-7 w-[110px] border-0 bg-transparent focus:ring-0" data-testid={`select-card-status-${sprint.id}`}>
+                            <SelectValue>
+                              <Badge variant="outline" className={cn(statusConfig.bgColor, statusConfig.color, "border-0")}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {statusConfig.label}
+                              </Badge>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="planned">
+                              <div className="flex items-center">
+                                <Circle className="h-3 w-3 mr-2 text-slate-500" />
+                                Planned
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="active">
+                              <div className="flex items-center">
+                                <Play className="h-3 w-3 mr-2 text-blue-500" />
+                                Active
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="closed">
+                              <div className="flex items-center">
+                                <CheckCircle2 className="h-3 w-3 mr-2 text-green-500" />
+                                Closed
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" data-testid={`button-sprint-menu-${sprint.id}`}>

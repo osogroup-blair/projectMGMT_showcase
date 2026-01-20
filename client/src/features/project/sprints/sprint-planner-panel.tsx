@@ -8,7 +8,6 @@ import { Zap, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { computeSprintStatus } from "@/lib/constants";
 import { PlanTab } from "@/features/sprints/detail/tabs/plan-tab";
 import { useSprintData } from "@/features/sprints/detail/hooks/use-sprint-data";
 import { AddTasksDialog, CreateTaskDialog } from "@/features/sprints/detail";
@@ -37,9 +36,9 @@ export function SprintPlannerPanel({
     if (initialSprintId && sprints.some(s => s.id === initialSprintId)) {
       return initialSprintId;
     }
-    const activeSprint = sprints.find(s => computeSprintStatus(s) === "active");
+    const activeSprint = sprints.find(s => s.status === "active");
     if (activeSprint) return activeSprint.id;
-    const plannedSprints = sortedSprints.filter(s => computeSprintStatus(s) === "planned");
+    const plannedSprints = sortedSprints.filter(s => s.status === "planned");
     if (plannedSprints.length > 0) return plannedSprints[0].id;
     return sortedSprints[0]?.id || "";
   });
