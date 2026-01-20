@@ -9,8 +9,8 @@ function invalidateCollectionQueries(queryClient: ReturnType<typeof useQueryClie
     predicate: (query) => {
       const key = query.queryKey;
       if (Array.isArray(key) && key[0] === collection) return true;
-      // Also invalidate paginated task queries when tasks are modified
-      if (collection === 'tasks' && Array.isArray(key) && key[0] === 'projectTasksPaginated') return true;
+      // Also invalidate paginated and all-project task queries when tasks are modified
+      if (collection === 'tasks' && Array.isArray(key) && (key[0] === 'projectTasksPaginated' || key[0] === 'allProjectTasks')) return true;
       // Also invalidate related collections for nested data
       if (collection === 'projects') {
         return key[0] === 'deliverables' || key[0] === 'epics' || key[0] === 'tasks' || key[0] === 'milestones' || key[0] === 'projectTasksPaginated';
