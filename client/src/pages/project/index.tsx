@@ -59,6 +59,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { computeSprintStatus } from "@/lib/constants";
 import { UnifiedTimeline } from "@/features/project/timeline/unified-timeline";
 import { useMemo, useState, useEffect } from "react";
 import { ProjectDashboard } from "@/features/project/dashboard/types";
@@ -511,8 +512,8 @@ export default function ProjectOverview() {
       return startDate <= today && (!endDate || endDate >= today);
     });
     if (activeSprint) return activeSprint.id;
-    // Fall back to any active sprint
-    const anyActive = projectSprints.find((s: any) => s.status === "active");
+    // Fall back to any sprint with computed status "active"
+    const anyActive = projectSprints.find((s: any) => computeSprintStatus(s) === "active");
     if (anyActive) return anyActive.id;
     // Fall back to first sprint
     return projectSprints[0]?.id || null;
@@ -552,12 +553,13 @@ export default function ProjectOverview() {
     return allTasks.filter((t: any) => t.sprintId === selectedSprint.id);
   }, [selectedSprint, allTasks]);
 
-  // Find the next sprint (first planned/upcoming sprint after active)
+  // Find the next sprint (first planned sprint after active)
   const nextSprint = useMemo(() => {
     if (!projectSprints || projectSprints.length === 0) return null;
-    const plannedSprints = projectSprints.filter((s: any) => 
-      s.status === "planned" || s.status === "upcoming"
-    );
+    const plannedSprints = projectSprints.filter((s: any) => {
+      const status = computeSprintStatus(s);
+      return status === "planned";
+    });
     if (plannedSprints.length === 0) return null;
     return plannedSprints.sort((a: any, b: any) => {
       if (!a.startDate || !b.startDate) return 0;
