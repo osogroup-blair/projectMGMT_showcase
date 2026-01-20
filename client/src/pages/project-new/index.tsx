@@ -1193,7 +1193,7 @@ export default function ProjectWizard() {
           name: "Team Member",
           description: "Auto-assigned based on task assignment",
           roleType: "member",
-          roleTypeId: null,
+          roleTypeId: undefined,
           isCore: false,
           assigneeId
         });
@@ -1240,8 +1240,8 @@ export default function ProjectWizard() {
           description: stage.description || '',
           order: index,
           type: stage.type || 'standard',
-          startDate: stage.startDate || null,
-          endDate: stage.endDate || null,
+          startDate: stage.startDate || undefined,
+          endDate: stage.endDate || undefined,
           tasks: (stage.tasks || []).map((task, taskIndex) => ({
             id: task.id || `task-${Date.now()}-${taskIndex}`,
             title: task.title,
@@ -1253,9 +1253,9 @@ export default function ProjectWizard() {
             assignedEpicId: task.assignedEpicId,
             assignedEpicTitle: task.assignedEpicTitle,
             mappingStatus: task.mappingStatus,
-            assigneeId: task.assigneeId || null,
-            startDate: task.startDate || stage.startDate || null,
-            deadline: task.deadline || stage.endDate || null
+            assigneeId: task.assigneeId || undefined,
+            startDate: task.startDate || stage.startDate || undefined,
+            deadline: task.deadline || stage.endDate || undefined
           }))
         })),
         deliverables: deliverables.map(del => ({
@@ -1272,10 +1272,10 @@ export default function ProjectWizard() {
               description: task.description || '',
               priority: task.priority || 'Medium',
               estimateHours: task.estimateHours || 0,
-              stageId: task.stageId || null,
-              milestoneId: task.milestoneId || null,
-              assigneeId: task.assigneeId || null,
-              taskTypeId: task.taskTypeId || null,
+              stageId: task.stageId || undefined,
+              milestoneId: task.milestoneId || undefined,
+              assigneeId: task.assigneeId || undefined,
+              taskTypeId: task.taskTypeId || undefined,
               order: taskIndex
             }))
           }))
@@ -1292,18 +1292,18 @@ export default function ProjectWizard() {
         roles: rolesWithAssignees.map(r => ({
           id: r.id,
           roleType: r.roleType || 'member',
-          roleTypeId: r.roleTypeId || null,
-          userId: r.assigneeId || null,
+          roleTypeId: r.roleTypeId || undefined,
+          userId: r.assigneeId || undefined,
           allocation: 100
         })),
         sprints: sprints.length > 0 ? sprints.map(s => ({
           id: s.id,
           name: s.name,
-          goal: s.goal || null,
+          goal: s.goal || undefined,
           startDate: s.startDate,
           endDate: s.endDate,
           status: s.status || 'planned',
-          capacityHours: s.capacityHours || null
+          capacityHours: s.capacityHours || undefined
         })) : undefined,
         userMappings: isImportMode && importContext?.state?.userMappings && importContext.state.userMappings.length > 0 
           ? importContext.state.userMappings.map(m => ({
