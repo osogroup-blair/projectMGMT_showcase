@@ -35,7 +35,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useProjectTasksPaginated, useAllProjectTasks } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useProjectTasksPaginated, useAllProjectTasks, useProjectTeam } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -112,6 +112,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allSprints } = useSprints();
+  const { data: projectTeam = [] } = useProjectTeam(projectId);
   const { statuses: taskStatuses, statusLabels, getStatusColor, defaultStatus } = useTaskStatuses();
 
   const addCommentMutation = useMutation({
@@ -264,6 +265,37 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const getAssignee = (id?: string) => (users || []).find((u: any) => u.id === id);
   const getEpic = (id?: string) => projectEpics.find((e: any) => e.id === id);
   const getStage = (id?: string) => stages.find((s: any) => s.id === id);
+  const getMilestone = (id?: string) => (milestones || []).find((m: any) => m.id === id);
+
+  // Get project team member user IDs for scoping assignee dropdown
+  const projectTeamUserIds = useMemo(() => {
+    if (!projectTeam || projectTeam.length === 0) return new Set<string>();
+    return new Set(projectTeam.map((tm: any) => tm.userId));
+  }, [projectTeam]);
+
+  // Filter users to only project team members
+  const projectTeamUsers = useMemo(() => {
+    if (!users || projectTeamUserIds.size === 0) return users || [];
+    return (users || []).filter((u: any) => projectTeamUserIds.has(u.id));
+  }, [users, projectTeamUserIds]);
+
+  // Format sprint options with dates
+  const formatSprintLabel = (sprint: any) => {
+    if (sprint.startDate && sprint.endDate) {
+      const start = formatDate(new Date(sprint.startDate), "MMM d");
+      const end = formatDate(new Date(sprint.endDate), "MMM d");
+      return `${sprint.name} (${start} - ${end})`;
+    } else if (sprint.startDate) {
+      return `${sprint.name} (${formatDate(new Date(sprint.startDate), "MMM d")})`;
+    }
+    return sprint.name;
+  };
+
+  // Get project milestones
+  const projectMilestones = useMemo(() => {
+    if (!milestones) return [];
+    return (milestones || []).filter((m: any) => m.projectId === projectId);
+  }, [milestones, projectId]);
   const getTaskType = (id?: string) => (taskTypes || []).find((tt: any) => tt.id === id);
 
   // Handle column sorting
@@ -904,7 +936,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                   </div>
                 </TableHead>
                 <TableHead 
-                  style={{ width: "12%" }}
+                  style={{ width: "10%" }}
                   data-testid="col-assignee"
                 >
                   <div className="flex items-center">
@@ -912,7 +944,23 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                   </div>
                 </TableHead>
                 <TableHead 
-                  style={{ width: "10%" }} 
+                  style={{ width: "10%" }}
+                  data-testid="col-milestone"
+                >
+                  <div className="flex items-center">
+                    Milestone
+                  </div>
+                </TableHead>
+                <TableHead 
+                  style={{ width: "6%" }}
+                  data-testid="col-effort"
+                >
+                  <div className="flex items-center">
+                    Effort
+                  </div>
+                </TableHead>
+                <TableHead 
+                  style={{ width: "8%" }} 
                   className="text-right cursor-pointer select-none hover:bg-muted/50"
                   onClick={() => handleSort("deadline")}
                   data-testid="sort-deadline"
@@ -1028,7 +1076,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                       />
                     </TableCell>
 
-                    {/* Sprint - Inline Dropdown (already working) */}
+                    {/* Sprint - Inline Dropdown with dates */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <SearchableSelect
                         value={task.sprintId || "backlog"}
@@ -1036,7 +1084,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                         placeholder="Backlog"
                         options={[
                           { value: "backlog", label: "Backlog" },
-                          ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                          ...projectSprints.map((s: any) => ({ value: s.id, label: formatSprintLabel(s) }))
                         ]}
                         triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
                         data-testid={`select-sprint-${task.id}`}
@@ -1055,7 +1103,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                       />
                     </TableCell>
 
-                    {/* Assignee - Inline Dropdown */}
+                    {/* Assignee - Inline Dropdown (scoped to project team) */}
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <SearchableSelect
                         value={task.assigneeId || "unassigned"}
@@ -1063,10 +1111,40 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                         placeholder="—"
                         options={[
                           { value: "unassigned", label: "Unassigned" },
-                          ...(users || []).map((u: any) => ({ value: u.id, label: u.name }))
+                          ...(projectTeamUsers.length > 0 ? projectTeamUsers : users || []).map((u: any) => ({ value: u.id, label: u.name }))
                         ]}
                         triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
                         data-testid={`select-assignee-${task.id}`}
+                      />
+                    </TableCell>
+
+                    {/* Milestone - Inline Dropdown */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <SearchableSelect
+                        value={task.milestoneId || "none"}
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { milestoneId: v === "none" ? null : v } })}
+                        placeholder="—"
+                        options={[
+                          { value: "none", label: "—" },
+                          ...projectMilestones.map((m: any) => ({ value: m.id, label: m.name }))
+                        ]}
+                        triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
+                        data-testid={`select-milestone-${task.id}`}
+                      />
+                    </TableCell>
+
+                    {/* Effort - Inline Dropdown */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <SearchableSelect
+                        value={String(task.effort || "")}
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { effort: v ? Number(v) : null } })}
+                        placeholder="—"
+                        options={[
+                          { value: "", label: "—" },
+                          ...EFFORT_VALUES.map((e) => ({ value: String(e), label: String(e) }))
+                        ]}
+                        triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2"
+                        data-testid={`select-effort-${task.id}`}
                       />
                     </TableCell>
 
