@@ -43,6 +43,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useImport } from '@/context/import-context';
 import { useStatusOptions } from '@/hooks/use-nexus-data';
 import { useAllUsersForAssignment } from '@/features/user-management';
@@ -67,6 +73,113 @@ function ConfidenceIcon({ confidence }: { confidence: ConfidenceLevel }) {
   if (confidence === 'high') return <CheckCircle2 className="h-4 w-4 text-green-600" />;
   if (confidence === 'medium') return <HelpCircle className="h-4 w-4 text-amber-500" />;
   return <XCircle className="h-4 w-4 text-red-500" />;
+}
+
+interface ReferenceMappingTableProps {
+  mappings: ReferenceMappingEntry[];
+  entityOptions: Record<ReferenceMappingEntry['entityType'], { value: string; label: string }[]>;
+  onMappingChange: (entityType: ReferenceMappingEntry['entityType'], sourceValue: string, newResolvedId: string) => void;
+}
+
+function ReferenceMappingTable({ mappings, entityOptions, onMappingChange }: ReferenceMappingTableProps) {
+  const typeLabels: Record<string, string> = {
+    deliverable: 'Deliverable',
+    epic: 'Epic',
+    stage: 'Stage',
+    milestone: 'Milestone'
+  };
+  const methodLabels: Record<string, string> = {
+    id_match: 'ID Match',
+    exact_name: 'Exact Name',
+    partial_name: 'Partial Match',
+    fuzzy_name: 'Fuzzy Match',
+    unresolved: 'Unresolved'
+  };
+
+  if (mappings.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        No reference mappings in this category.
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Field</TableHead>
+          <TableHead>Target Type</TableHead>
+          <TableHead>Source Value</TableHead>
+          <TableHead></TableHead>
+          <TableHead>Resolved To</TableHead>
+          <TableHead>Confidence</TableHead>
+          <TableHead>Rows</TableHead>
+          <TableHead>Manual Override</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {mappings.map((mapping, idx) => {
+          const options = entityOptions[mapping.entityType] || [];
+          return (
+            <TableRow key={`${mapping.entityType}-${mapping.sourceValue}-${idx}`} data-testid={`reference-mapping-row-${mapping.entityType}-${idx}`}>
+              <TableCell>
+                <Badge variant="outline" className="font-mono text-xs">
+                  {mapping.fieldName}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant="secondary" className="font-normal">
+                  {typeLabels[mapping.entityType] || mapping.entityType}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div>
+                  <p className="font-medium font-mono text-sm">{mapping.sourceValue}</p>
+                  {mapping.sourceName && mapping.sourceName !== mapping.sourceValue && (
+                    <p className="text-xs text-muted-foreground">{mapping.sourceName}</p>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell className="text-center">
+                <ArrowRight className="h-4 w-4 text-muted-foreground inline" />
+              </TableCell>
+              <TableCell>
+                {mapping.resolvedId ? (
+                  <div>
+                    <p className="font-medium text-primary">{mapping.resolvedName || mapping.resolvedId}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{methodLabels[mapping.resolutionMethod]}</p>
+                  </div>
+                ) : (
+                  <Badge variant="outline" className="text-red-600 border-red-200">
+                    Not Resolved
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell>
+                <ConfidenceBadge confidence={mapping.confidence} />
+              </TableCell>
+              <TableCell>
+                <Badge variant="secondary">{mapping.affectedRows}</Badge>
+              </TableCell>
+              <TableCell>
+                <SearchableSelect
+                  value={mapping.resolvedId || ''}
+                  onValueChange={(val) => onMappingChange(mapping.entityType, mapping.sourceValue, val)}
+                  options={options}
+                  placeholder={`Select ${typeLabels[mapping.entityType] || 'entity'}...`}
+                  searchPlaceholder="Search..."
+                  emptyMessage="No matches found."
+                  className="w-[200px]"
+                  data-testid={`reference-select-${mapping.entityType}-${idx}`}
+                />
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
 }
 
 export default function ImportSummary() {
@@ -870,7 +983,7 @@ export default function ImportSummary() {
                       {referenceMappingOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </div>
                     <CardDescription>
-                      Name-based references (like project names, epic titles) were automatically matched to existing entities. Review the mappings below.
+                      Entity references were automatically matched to imported entities. Review the mappings below organized by source type.
                     </CardDescription>
                   </CardHeader>
                 </CollapsibleTrigger>
@@ -900,87 +1013,36 @@ export default function ImportSummary() {
                         </div>
                       </div>
                     )}
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Source Value</TableHead>
-                          <TableHead></TableHead>
-                          <TableHead>Resolved To</TableHead>
-                          <TableHead>Confidence</TableHead>
-                          <TableHead>Rows</TableHead>
-                          <TableHead>Manual Override</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {referenceMappings.map((mapping, idx) => {
-                          const typeLabels: Record<string, string> = {
-                            deliverable: 'Deliverable',
-                            epic: 'Epic',
-                            stage: 'Stage',
-                            milestone: 'Milestone'
-                          };
-                          const methodLabels: Record<string, string> = {
-                            id_match: 'ID Match',
-                            exact_name: 'Exact Name',
-                            partial_name: 'Partial Match',
-                            fuzzy_name: 'Fuzzy Match',
-                            unresolved: 'Unresolved'
-                          };
-                          const options = entityOptions[mapping.entityType] || [];
-                          return (
-                            <TableRow key={`${mapping.entityType}-${mapping.sourceValue}-${idx}`} data-testid={`reference-mapping-row-${mapping.entityType}-${idx}`}>
-                              <TableCell>
-                                <Badge variant="secondary" className="font-normal">
-                                  {typeLabels[mapping.entityType] || mapping.entityType}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div>
-                                  <p className="font-medium font-mono text-sm">{mapping.sourceValue}</p>
-                                  {mapping.sourceName && mapping.sourceName !== mapping.sourceValue && (
-                                    <p className="text-xs text-muted-foreground">{mapping.sourceName}</p>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <ArrowRight className="h-4 w-4 text-muted-foreground inline" />
-                              </TableCell>
-                              <TableCell>
-                                {mapping.resolvedId ? (
-                                  <div>
-                                    <p className="font-medium text-primary">{mapping.resolvedName || mapping.resolvedId}</p>
-                                    <p className="text-xs text-muted-foreground font-mono">{methodLabels[mapping.resolutionMethod]}</p>
-                                  </div>
-                                ) : (
-                                  <Badge variant="outline" className="text-red-600 border-red-200">
-                                    Not Resolved
-                                  </Badge>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <ConfidenceBadge confidence={mapping.confidence} />
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="secondary">{mapping.affectedRows}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                <SearchableSelect
-                                  value={mapping.resolvedId || ''}
-                                  onValueChange={(val) => handleReferenceMappingChange(mapping.entityType, mapping.sourceValue, val)}
-                                  options={options}
-                                  placeholder={`Select ${typeLabels[mapping.entityType] || 'entity'}...`}
-                                  searchPlaceholder="Search..."
-                                  emptyMessage="No matches found."
-                                  className="w-[200px]"
-                                  data-testid={`reference-select-${mapping.entityType}-${idx}`}
-                                />
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                    <Tabs defaultValue="epics" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="epics" className="flex items-center gap-2">
+                          Epic References
+                          <Badge variant="secondary" className="ml-1">
+                            {referenceMappings.filter(m => m.sourceEntityType === 'Epic').length}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="tasks" className="flex items-center gap-2">
+                          Task References
+                          <Badge variant="secondary" className="ml-1">
+                            {referenceMappings.filter(m => m.sourceEntityType === 'Task').length}
+                          </Badge>
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="epics" className="mt-4">
+                        <ReferenceMappingTable
+                          mappings={referenceMappings.filter(m => m.sourceEntityType === 'Epic')}
+                          entityOptions={entityOptions}
+                          onMappingChange={handleReferenceMappingChange}
+                        />
+                      </TabsContent>
+                      <TabsContent value="tasks" className="mt-4">
+                        <ReferenceMappingTable
+                          mappings={referenceMappings.filter(m => m.sourceEntityType === 'Task')}
+                          entityOptions={entityOptions}
+                          onMappingChange={handleReferenceMappingChange}
+                        />
+                      </TabsContent>
+                    </Tabs>
                   </CardContent>
                 </CollapsibleContent>
               </Card>

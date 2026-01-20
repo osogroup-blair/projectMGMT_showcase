@@ -21,6 +21,8 @@ export interface EntityLookupMap {
 
 export interface ReferenceMappingEntry {
   entityType: 'deliverable' | 'epic' | 'stage' | 'milestone';
+  sourceEntityType: 'Epic' | 'Task';
+  fieldName: string;
   sourceValue: string;
   sourceName?: string;
   resolvedId?: string;
@@ -214,7 +216,8 @@ export function resolveEntityReferences(
   rows: Record<string, any>[],
   fieldName: string,
   lookupMap: EntityLookupMap,
-  entityType: ReferenceMappingEntry['entityType']
+  entityType: ReferenceMappingEntry['entityType'],
+  sourceEntityType: ReferenceMappingEntry['sourceEntityType']
 ): { 
   resolvedRows: Record<string, any>[];
   mappingEntries: ReferenceMappingEntry[];
@@ -257,6 +260,8 @@ export function resolveEntityReferences(
     const count = valueCount.get(sourceValue) || 0;
     mappingEntries.push({
       entityType,
+      sourceEntityType,
+      fieldName,
       sourceValue: resolution.sourceValue,
       sourceName: resolution.sourceName,
       resolvedId: resolution.resolvedId,
@@ -449,7 +454,7 @@ export function resolveAllReferences(
     let rows = [...entity.rows];
     
     if (entity.entityType === 'Epics') {
-      const deliverableResult = resolveEntityReferences(rows, 'deliverableId', lookups.deliverables, 'deliverable');
+      const deliverableResult = resolveEntityReferences(rows, 'deliverableId', lookups.deliverables, 'deliverable', 'Epic');
       rows = deliverableResult.resolvedRows;
       for (const entry of deliverableResult.mappingEntries) {
         referenceMappings.push(entry);
@@ -458,21 +463,21 @@ export function resolveAllReferences(
     }
     
     if (entity.entityType === 'Tasks') {
-      const epicResult = resolveEntityReferences(rows, 'epicId', lookups.epics, 'epic');
+      const epicResult = resolveEntityReferences(rows, 'epicId', lookups.epics, 'epic', 'Task');
       rows = epicResult.resolvedRows;
       for (const entry of epicResult.mappingEntries) {
         referenceMappings.push(entry);
         updateStats(stats, entry.resolutionMethod);
       }
       
-      const stageResult = resolveEntityReferences(rows, 'stageId', lookups.stages, 'stage');
+      const stageResult = resolveEntityReferences(rows, 'stageId', lookups.stages, 'stage', 'Task');
       rows = stageResult.resolvedRows;
       for (const entry of stageResult.mappingEntries) {
         referenceMappings.push(entry);
         updateStats(stats, entry.resolutionMethod);
       }
       
-      const milestoneResult = resolveEntityReferences(rows, 'milestoneId', lookups.milestones, 'milestone');
+      const milestoneResult = resolveEntityReferences(rows, 'milestoneId', lookups.milestones, 'milestone', 'Task');
       rows = milestoneResult.resolvedRows;
       for (const entry of milestoneResult.mappingEntries) {
         referenceMappings.push(entry);
