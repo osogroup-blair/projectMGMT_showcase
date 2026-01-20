@@ -34,7 +34,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useRoute, Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints, useEpicTypes } from "@/hooks/use-nexus-data";
-import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useTaskStatuses, useEpicStatuses } from "@/hooks/use-task-statuses";
 import {
   Dialog,
   DialogContent,
@@ -97,6 +97,7 @@ export default function EpicDetail() {
   const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
   const { data: epicTypes = [], isLoading: isEpicTypesLoading } = useEpicTypes();
   const { statusLabels, defaultStatus, isCompletedStatus } = useTaskStatuses();
+  const { statusLabels: epicStatusLabels, getStatusBgColor: getEpicStatusBgColor, getStatusTextColor: getEpicStatusTextColor, defaultStatus: defaultEpicStatus } = useEpicStatuses();
 
   // View mode state (stage, sprint, or status)
   const [viewMode, setViewMode] = useState<"stage" | "sprint" | "status">("stage");
@@ -374,9 +375,11 @@ export default function EpicDetail() {
                     <span>•</span>
                     <Badge variant="outline" className={cn(
                       "font-normal text-xs",
-                      epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                      epic.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
-                      "bg-slate-50 text-slate-700 border-slate-200"
+                      epicStatusLabels.length > 0 
+                        ? cn(getEpicStatusBgColor(epic.status), getEpicStatusTextColor(epic.status))
+                        : epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                          epic.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
+                          "bg-slate-50 text-slate-700 border-slate-200"
                     )}>
                       {epic.status}
                     </Badge>

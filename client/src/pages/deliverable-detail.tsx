@@ -27,6 +27,7 @@ import { useRoute, Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useDeliverables, useEpics, useUsers, useTasks, useProjectStages, useDeliverableTypes, useEpicTypes, useProject } from "@/hooks/use-nexus-data";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
+import { useDeliverableStatuses, useEpicStatuses } from "@/hooks/use-task-statuses";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,8 @@ export default function DeliverableDetail() {
   const { data: project } = useProject(projectId);
   const { toast } = useToast();
   const { isTaskComplete } = useCompletedStatuses();
+  const { statusLabels: deliverableStatusLabels, getStatusBgColor: getDeliverableStatusBgColor, getStatusTextColor: getDeliverableStatusTextColor, defaultStatus: defaultDeliverableStatus } = useDeliverableStatuses();
+  const { statusLabels: epicStatusLabels, getStatusBgColor: getEpicStatusBgColor, getStatusTextColor: getEpicStatusTextColor, defaultStatus: defaultEpicStatus } = useEpicStatuses();
 
   // Edit dates state
   const [editingDates, setEditingDates] = useState({
@@ -370,9 +373,11 @@ export default function DeliverableDetail() {
             <div className="flex items-start gap-4">
               <div className={cn(
                 "p-3 rounded-lg",
-                deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
-                deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                "bg-slate-100 text-slate-700"
+                deliverableStatusLabels.length > 0 
+                  ? cn(getDeliverableStatusBgColor(deliverable.status), getDeliverableStatusTextColor(deliverable.status))
+                  : deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                    deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                    "bg-slate-100 text-slate-700"
               )}>
                 <Package className="h-6 w-6" />
               </div>
@@ -382,9 +387,11 @@ export default function DeliverableDetail() {
                   <h1 className="text-2xl font-bold tracking-tight">{deliverable.title}</h1>
                   <Badge variant="outline" className={cn(
                     "font-normal",
-                    deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
-                    deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                    "bg-slate-50 text-slate-700 border-slate-200"
+                    deliverableStatusLabels.length > 0 
+                      ? cn(getDeliverableStatusBgColor(deliverable.status), getDeliverableStatusTextColor(deliverable.status))
+                      : deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
+                        deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                        "bg-slate-50 text-slate-700 border-slate-200"
                   )}>
                     {deliverable.status}
                   </Badge>
@@ -823,11 +830,14 @@ export default function DeliverableDetail() {
                   onValueChange={(value) => setNewEpicData(prev => ({ ...prev, status: value }))}
                   data-testid="select-epic-status"
                   placeholder="Select status"
-                  options={[
-                    { value: "Not Started", label: "Not Started" },
-                    { value: "In Progress", label: "In Progress" },
-                    { value: "Completed", label: "Completed" },
-                  ]}
+                  options={epicStatusLabels.length > 0 
+                    ? epicStatusLabels.map(s => ({ value: s, label: s }))
+                    : [
+                        { value: "Not Started", label: "Not Started" },
+                        { value: "In Progress", label: "In Progress" },
+                        { value: "Completed", label: "Completed" },
+                      ]
+                  }
                 />
               </div>
               <div />

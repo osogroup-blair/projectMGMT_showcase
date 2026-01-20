@@ -53,7 +53,7 @@ import { STAGE_TEMPLATES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages, useResolvedTaskTypes, useDeliverableTypes } from "@/hooks/use-nexus-data";
-import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useTaskStatuses, useDeliverableStatuses, useEpicStatuses } from "@/hooks/use-task-statuses";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -106,6 +106,8 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { data: resolvedTaskTypes = [] } = useResolvedTaskTypes(projectId);
   const { data: deliverableTypes = [] } = useDeliverableTypes();
   const { statuses: taskStatuses, statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor, defaultStatus } = useTaskStatuses();
+  const { statusLabels: deliverableStatusLabels, getStatusBgColor: getDeliverableStatusBgColor, getStatusTextColor: getDeliverableStatusTextColor, defaultStatus: defaultDeliverableStatus } = useDeliverableStatuses();
+  const { statusLabels: epicStatusLabels, getStatusBgColor: getEpicStatusBgColor, getStatusTextColor: getEpicStatusTextColor } = useEpicStatuses();
   const { updateAsync: updateEpicAsync } = useEpics();
   const { isTaskComplete } = useCompletedStatuses();
 
@@ -774,9 +776,11 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         <div className={cn(
                           "p-2 rounded-lg shrink-0",
-                          deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
-                          deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                          "bg-slate-100 text-slate-700"
+                          deliverableStatusLabels.length > 0 
+                            ? cn(getDeliverableStatusBgColor(deliverable.status), getDeliverableStatusTextColor(deliverable.status))
+                            : deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                              deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                              "bg-slate-100 text-slate-700"
                         )}>
                           <Package className="h-4 w-4" />
                         </div>
@@ -807,9 +811,11 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                           variant="secondary"
                           className={cn(
                             "text-[10px]",
-                            deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
-                            deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                            "bg-slate-100 text-slate-700"
+                            deliverableStatusLabels.length > 0 
+                              ? cn(getDeliverableStatusBgColor(deliverable.status), getDeliverableStatusTextColor(deliverable.status))
+                              : deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                                deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                                "bg-slate-100 text-slate-700"
                           )}
                         >
                           {deliverable.status}
@@ -919,9 +925,11 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                             <div className="flex items-center gap-2">
                               <div className={cn(
                                 "p-1.5 rounded shrink-0",
-                                deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
-                                deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
-                                "bg-slate-100 text-slate-700"
+                                deliverableStatusLabels.length > 0 
+                                  ? cn(getDeliverableStatusBgColor(deliverable.status), getDeliverableStatusTextColor(deliverable.status))
+                                  : deliverable.status === "Completed" ? "bg-green-100 text-green-700" :
+                                    deliverable.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                                    "bg-slate-100 text-slate-700"
                               )}>
                                 <Package className="h-3.5 w-3.5" />
                               </div>
@@ -964,9 +972,11 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                 variant="outline" 
                                 className={cn(
                                   "text-[10px] cursor-pointer",
-                                  deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
-                                  deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                  "bg-slate-50 text-slate-700 border-slate-200"
+                                  deliverableStatusLabels.length > 0 
+                                    ? cn(getDeliverableStatusBgColor(deliverable.status), getDeliverableStatusTextColor(deliverable.status))
+                                    : deliverable.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
+                                      deliverable.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                      "bg-slate-50 text-slate-700 border-slate-200"
                                 )}
                               >
                                 <StatusIcon className="h-3 w-3 mr-1" />
@@ -974,10 +984,18 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                               </Badge>
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Not Started">Not Started</SelectItem>
-                              <SelectItem value="In Progress">In Progress</SelectItem>
-                              <SelectItem value="Completed">Completed</SelectItem>
-                              <SelectItem value="Blocked">Blocked</SelectItem>
+                              {deliverableStatusLabels.length > 0 ? (
+                                deliverableStatusLabels.map((status) => (
+                                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                                ))
+                              ) : (
+                                <>
+                                  <SelectItem value="Not Started">Not Started</SelectItem>
+                                  <SelectItem value="In Progress">In Progress</SelectItem>
+                                  <SelectItem value="Completed">Completed</SelectItem>
+                                  <SelectItem value="Blocked">Blocked</SelectItem>
+                                </>
+                              )}
                             </SelectContent>
                           </Select>
                         </TableCell>
@@ -1135,9 +1153,11 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                               variant="outline" 
                                               className={cn(
                                                 "text-[10px]",
-                                                epic.status === "Completed" || epic.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
-                                                epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                                "bg-slate-50 text-slate-700 border-slate-200"
+                                                epicStatusLabels.length > 0 
+                                                  ? cn(getEpicStatusBgColor(epic.status), getEpicStatusTextColor(epic.status))
+                                                  : epic.status === "Completed" || epic.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
+                                                    epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                                    "bg-slate-50 text-slate-700 border-slate-200"
                                               )}
                                             >
                                               <EpicStatusIcon className="h-2.5 w-2.5 mr-1" />

@@ -43,12 +43,36 @@ export function registerConfigRoutes(
   });
 
   app.get("/api/deliverableStatuses", async (req, res) => {
-    const options = await storage.getStatusOptionsByType("deliverable");
+    let options = await storage.getStatusOptionsByType("deliverable");
+    if (options.length === 0) {
+      const defaultDeliverableStatuses = [
+        { label: "Not Started", color: "bg-slate-100 text-slate-700", isDefault: true, type: "deliverable" as const, order: 0 },
+        { label: "In Progress", color: "bg-blue-50 text-blue-700", isDefault: false, type: "deliverable" as const, order: 1 },
+        { label: "Blocked", color: "bg-red-50 text-red-700", isDefault: false, type: "deliverable" as const, order: 2 },
+        { label: "Completed", color: "bg-green-50 text-green-700", isDefault: false, type: "deliverable" as const, order: 3 },
+      ];
+      for (const status of defaultDeliverableStatuses) {
+        await storage.createStatusOption(status);
+      }
+      options = await storage.getStatusOptionsByType("deliverable");
+    }
     res.json(options);
   });
 
   app.get("/api/epicStatuses", async (req, res) => {
-    const options = await storage.getStatusOptionsByType("epic");
+    let options = await storage.getStatusOptionsByType("epic");
+    if (options.length === 0) {
+      const defaultEpicStatuses = [
+        { label: "Not Started", color: "bg-slate-100 text-slate-700", isDefault: true, type: "epic" as const, order: 0 },
+        { label: "In Progress", color: "bg-blue-50 text-blue-700", isDefault: false, type: "epic" as const, order: 1 },
+        { label: "Blocked", color: "bg-red-50 text-red-700", isDefault: false, type: "epic" as const, order: 2 },
+        { label: "Completed", color: "bg-green-50 text-green-700", isDefault: false, type: "epic" as const, order: 3 },
+      ];
+      for (const status of defaultEpicStatuses) {
+        await storage.createStatusOption(status);
+      }
+      options = await storage.getStatusOptionsByType("epic");
+    }
     res.json(options);
   });
 

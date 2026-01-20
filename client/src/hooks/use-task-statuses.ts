@@ -166,3 +166,159 @@ export function useTaskStatusOptions() {
     return statuses.map(s => ({ value: s.label, label: s.label }));
   }, [statuses]);
 }
+
+export interface DeliverableStatus {
+  id: string;
+  label: string;
+  color: string;
+  order: number;
+  isDefault?: boolean;
+}
+
+interface DeliverableStatusUtils {
+  statuses: DeliverableStatus[];
+  statusLabels: string[];
+  defaultStatus: string;
+  isLoading: boolean;
+  getStatusColor: (status: string) => string;
+  getStatusBgColor: (status: string) => string;
+  getStatusTextColor: (status: string) => string;
+}
+
+export function useDeliverableStatuses(): DeliverableStatusUtils {
+  const { data: allStatusOptions = [], isLoading } = useStatusOptions();
+
+  const deliverableStatuses = useMemo(() => {
+    const filtered = allStatusOptions
+      .filter((s: any) => s.type === "deliverable")
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+      .map((s: any) => ({
+        id: s.id,
+        label: s.label,
+        color: s.color || "bg-slate-100 text-slate-700",
+        order: s.order ?? 0,
+        isDefault: s.isDefault,
+      }));
+    return filtered as DeliverableStatus[];
+  }, [allStatusOptions]);
+
+  const statusLabels = useMemo(() => {
+    return deliverableStatuses.map(s => s.label);
+  }, [deliverableStatuses]);
+
+  const defaultStatus = useMemo(() => {
+    const defaultOne = deliverableStatuses.find(s => s.isDefault);
+    if (defaultOne) return defaultOne.label;
+    const notStarted = deliverableStatuses.find(s => matchesPattern(s.label, NOT_STARTED_PATTERNS));
+    if (notStarted) return notStarted.label;
+    return deliverableStatuses[0]?.label || "Not Started";
+  }, [deliverableStatuses]);
+
+  const statusColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    deliverableStatuses.forEach(s => {
+      map[s.label] = s.color;
+    });
+    return map;
+  }, [deliverableStatuses]);
+
+  const getStatusColor = (status: string): string => {
+    return statusColorMap[status] || "bg-slate-100 text-slate-700";
+  };
+
+  const getStatusBgColor = (status: string): string => {
+    return extractBgColor(statusColorMap[status] || "");
+  };
+
+  const getStatusTextColor = (status: string): string => {
+    return extractTextColor(statusColorMap[status] || "");
+  };
+
+  return {
+    statuses: deliverableStatuses,
+    statusLabels,
+    defaultStatus,
+    isLoading,
+    getStatusColor,
+    getStatusBgColor,
+    getStatusTextColor,
+  };
+}
+
+export interface EpicStatus {
+  id: string;
+  label: string;
+  color: string;
+  order: number;
+  isDefault?: boolean;
+}
+
+interface EpicStatusUtils {
+  statuses: EpicStatus[];
+  statusLabels: string[];
+  defaultStatus: string;
+  isLoading: boolean;
+  getStatusColor: (status: string) => string;
+  getStatusBgColor: (status: string) => string;
+  getStatusTextColor: (status: string) => string;
+}
+
+export function useEpicStatuses(): EpicStatusUtils {
+  const { data: allStatusOptions = [], isLoading } = useStatusOptions();
+
+  const epicStatuses = useMemo(() => {
+    const filtered = allStatusOptions
+      .filter((s: any) => s.type === "epic")
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+      .map((s: any) => ({
+        id: s.id,
+        label: s.label,
+        color: s.color || "bg-slate-100 text-slate-700",
+        order: s.order ?? 0,
+        isDefault: s.isDefault,
+      }));
+    return filtered as EpicStatus[];
+  }, [allStatusOptions]);
+
+  const statusLabels = useMemo(() => {
+    return epicStatuses.map(s => s.label);
+  }, [epicStatuses]);
+
+  const defaultStatus = useMemo(() => {
+    const defaultOne = epicStatuses.find(s => s.isDefault);
+    if (defaultOne) return defaultOne.label;
+    const notStarted = epicStatuses.find(s => matchesPattern(s.label, NOT_STARTED_PATTERNS));
+    if (notStarted) return notStarted.label;
+    return epicStatuses[0]?.label || "Not Started";
+  }, [epicStatuses]);
+
+  const statusColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    epicStatuses.forEach(s => {
+      map[s.label] = s.color;
+    });
+    return map;
+  }, [epicStatuses]);
+
+  const getStatusColor = (status: string): string => {
+    return statusColorMap[status] || "bg-slate-100 text-slate-700";
+  };
+
+  const getStatusBgColor = (status: string): string => {
+    return extractBgColor(statusColorMap[status] || "");
+  };
+
+  const getStatusTextColor = (status: string): string => {
+    return extractTextColor(statusColorMap[status] || "");
+  };
+
+  return {
+    statuses: epicStatuses,
+    statusLabels,
+    defaultStatus,
+    isLoading,
+    getStatusColor,
+    getStatusBgColor,
+    getStatusTextColor,
+  };
+}
