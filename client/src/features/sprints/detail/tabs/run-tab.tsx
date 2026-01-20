@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { 
   Play,
-  Square,
   PanelRightClose,
   PanelRightOpen,
 } from "lucide-react";
@@ -11,6 +10,7 @@ import { PortableKanban } from "@/components/kanban";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { PulsePanel } from "@/features/project/sprints/pulse-panel";
 import { SprintSignalsBar } from "@/features/project/sprints/sprint-signals-bar";
+import { computeSprintStatus } from "@/lib/constants";
 
 interface RunTabProps {
   projectId: string;
@@ -66,18 +66,16 @@ export function RunTab({
     setPendingBlockerTaskId(null);
   };
 
-  if (sprint?.status === "planned") {
+  const computedStatus = computeSprintStatus(sprint);
+  
+  if (computedStatus === "planned") {
     return (
       <div className="flex flex-col items-center justify-center py-16 space-y-4">
         <Play className="h-12 w-12 text-muted-foreground" />
-        <h3 className="text-lg font-medium">Sprint not started</h3>
+        <h3 className="text-lg font-medium">Sprint not started yet</h3>
         <p className="text-muted-foreground text-center max-w-md">
-          Start the sprint to track progress and manage tasks in real-time.
+          The sprint will automatically become active when the start date is reached.
         </p>
-        <Button onClick={onStartSprint} data-testid="button-start-sprint-run">
-          <Play className="h-4 w-4 mr-2" />
-          Start Sprint
-        </Button>
       </div>
     );
   }
@@ -152,14 +150,6 @@ export function RunTab({
         )}
       </div>
 
-      {sprint?.status === "active" && (
-        <div className="flex justify-end pt-4 border-t">
-          <Button variant="secondary" onClick={onCloseSprint} data-testid="button-close-sprint-run">
-            <Square className="h-4 w-4 mr-2" />
-            Close Sprint
-          </Button>
-        </div>
-      )}
 
       <BlockerReasonDialog
         open={blockerDialogOpen}

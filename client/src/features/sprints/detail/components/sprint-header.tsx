@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format, differenceInDays, isWithinInterval, addDays, isBefore, isAfter } from "date-fns";
+import { computeSprintStatus } from "@/lib/constants";
 import type { SprintStats } from "../types";
 
 interface SprintHeaderProps {
@@ -53,16 +54,18 @@ function getSprintPhase(sprint: any): SprintPhase {
   const startDate = sprint.startDate ? new Date(sprint.startDate) : null;
   const endDate = sprint.endDate ? new Date(sprint.endDate) : null;
   
-  if (sprint.status === "closed") return "closed";
+  const computedStatus = computeSprintStatus(sprint);
   
-  if (sprint.status === "active") {
+  if (computedStatus === "closed") return "closed";
+  
+  if (computedStatus === "active") {
     if (endDate && differenceInDays(endDate, today) <= 3 && differenceInDays(endDate, today) >= 0) {
       return "closing";
     }
     return "active";
   }
   
-  if (sprint.status === "planned") {
+  if (computedStatus === "planned") {
     if (startDate && differenceInDays(startDate, today) <= 3 && differenceInDays(startDate, today) >= 0) {
       return "starting";
     }
@@ -177,20 +180,6 @@ export function SprintHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {sprint?.status === "planned" && (
-            <Button onClick={onStartSprint} data-testid="button-start-sprint">
-              <Play className="h-4 w-4 mr-2" />
-              Start Sprint
-            </Button>
-          )}
-          {sprint?.status === "active" && (
-            <Button variant="secondary" onClick={onCloseSprint} data-testid="button-close-sprint">
-              <Square className="h-4 w-4 mr-2" />
-              Close Sprint
-            </Button>
-          )}
-        </div>
       </div>
 
       <Collapsible open={goalMetricsOpen} onOpenChange={setGoalMetricsOpen}>

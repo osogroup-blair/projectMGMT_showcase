@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import { computeSprintStatus } from "@/lib/constants";
 
 interface Sprint {
   id: string;
@@ -100,7 +101,7 @@ export function SprintNavigator({
             <SelectItem key={sprint.id} value={sprint.id} data-testid={`sprint-nav-option-${sprint.id}`}>
               <div className="flex items-center">
                 <span>{formatSprintLabel(sprint)}</span>
-                {getStatusBadge(sprint.status)}
+                {getStatusBadge(computeSprintStatus(sprint))}
               </div>
             </SelectItem>
           ))}

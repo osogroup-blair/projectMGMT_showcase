@@ -1416,8 +1416,8 @@ export default function ProjectOverview() {
                                 />
                                 {selectedSprint && (
                                   <>
-                                    <Badge variant={selectedSprint.status === "active" ? "default" : "secondary"} className="capitalize text-xs h-5">
-                                      {selectedSprint.status}
+                                    <Badge variant={computeSprintStatus(selectedSprint) === "active" ? "default" : "secondary"} className="capitalize text-xs h-5">
+                                      {computeSprintStatus(selectedSprint)}
                                     </Badge>
                                     {selectedSprint.startDate && selectedSprint.endDate && (
                                       <span className="text-xs text-muted-foreground whitespace-nowrap">

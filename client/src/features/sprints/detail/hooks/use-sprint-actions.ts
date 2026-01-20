@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useCurrentUser } from "@/context/current-user-context";
 import { format as formatDate } from "date-fns";
+import { computeSprintStatus } from "@/lib/constants";
 
 interface UseSprintActionsProps {
   sprintId: string;
@@ -139,54 +140,20 @@ export function useSprintActions({
   }, [sprintId, updateSprint, toast]);
 
   const handleStartSprint = useCallback(async () => {
-    const hasActive = projectSprints.some((s: any) => s.status === "active" && s.id !== sprintId);
-    if (hasActive) {
-      toast({ title: "Another sprint is already active", description: "Close the active sprint first.", variant: "destructive" });
-      return;
-    }
-    try {
-      const response = await fetch(`/api/sprints/${sprintId}/start`, { method: "POST" });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error);
-      }
-      updateSprint({ id: sprintId, updates: { status: "active" } });
-      toast({ title: "Sprint started" });
-    } catch (error: any) {
-      toast({ title: "Failed to start sprint", description: error.message, variant: "destructive" });
-    }
-  }, [projectSprints, sprintId, updateSprint, toast]);
+    // Status is now computed from dates - inform user
+    toast({ 
+      title: "Status is date-driven", 
+      description: "Sprint status is automatically set based on dates. The sprint will become active when the start date is reached.",
+    });
+  }, [toast]);
 
   const handleCloseSprint = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error);
-      }
-      const result = await response.json();
-      updateSprint({ id: sprintId, updates: { status: "closed", closedAt: new Date().toISOString() } });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["sprints"] });
-      
-      // Show rollover summary if tasks were moved
-      if (result.rolloverSummary) {
-        const { completedTasks, rolledOverTasks, movedToBacklog, nextSprintName } = result.rolloverSummary;
-        let description = `${completedTasks} tasks completed.`;
-        if (rolledOverTasks > 0) {
-          description += ` ${rolledOverTasks} tasks rolled over to ${nextSprintName}.`;
-        }
-        if (movedToBacklog > 0) {
-          description += ` ${movedToBacklog} tasks moved to backlog.`;
-        }
-        toast({ title: "Sprint closed", description });
-      } else {
-        toast({ title: "Sprint closed" });
-      }
-    } catch (error: any) {
-      toast({ title: "Failed to close sprint", description: error.message, variant: "destructive" });
-    }
-  }, [sprintId, updateSprint, queryClient, toast]);
+    // Status is now computed from dates - inform user
+    toast({ 
+      title: "Status is date-driven", 
+      description: "Sprint status is automatically set based on dates. The sprint will close when the end date is passed.",
+    });
+  }, [toast]);
 
   const handleCloseSprintWithRollover = useCallback(async () => {
     const response = await fetch(`/api/sprints/${sprintId}/close`, { method: "POST" });
@@ -233,7 +200,7 @@ export function useSprintActions({
 
   const handleRolloverTasks = useCallback(async (decisions: { taskId: string; action: string; targetSprintId?: string }[]) => {
     const nextSprint = projectSprints
-      .filter((s: any) => s.id !== sprintId && s.status === "planned")
+      .filter((s: any) => s.id !== sprintId && computeSprintStatus(s) === "planned")
       .sort((a: any, b: any) => (a.startDate || "").localeCompare(b.startDate || ""))[0];
 
     for (const decision of decisions) {

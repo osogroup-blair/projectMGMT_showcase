@@ -4,6 +4,7 @@ import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useQuery } from "@tanstack/react-query";
 import type { SprintStats } from "../types";
+import { computeSprintStatus } from "@/lib/constants";
 
 export function useSprintData(projectId: string, sprintId: string) {
   const { data: project } = useProject(projectId);
@@ -167,7 +168,7 @@ export function useSprintData(projectId: string, sprintId: string) {
     deleteSprint,
     updateTask,
     createTask,
-    isReadOnly: sprint?.status === "closed",
-    isPartiallyLocked: sprint?.status === "active",
+    isReadOnly: sprint ? computeSprintStatus(sprint) === "closed" : false,
+    isPartiallyLocked: sprint ? computeSprintStatus(sprint) === "active" : false,
   };
 }

@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { 
-  Play,
-  Square,
   Trash2,
   Calendar as CalendarIcon,
 } from "lucide-react";
@@ -13,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
+import { computeSprintStatus } from "@/lib/constants";
 
 interface SettingsTabProps {
   sprint: any;
@@ -166,28 +165,6 @@ export function SettingsTab({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Sprint Actions</CardTitle>
-          <CardDescription>Start, close, or manage this sprint</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            {sprint?.status === "planned" && (
-              <Button onClick={onStartSprint} className="flex-1" data-testid="button-start-sprint-settings">
-                <Play className="h-4 w-4 mr-2" />
-                Start Sprint
-              </Button>
-            )}
-            {sprint?.status === "active" && (
-              <Button variant="secondary" onClick={onCloseSprint} className="flex-1" data-testid="button-close-sprint-settings">
-                <Square className="h-4 w-4 mr-2" />
-                Close Sprint
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -227,11 +204,11 @@ export function SettingsTab({
               id="auto-start"
               checked={sprint?.autoStart || false}
               onCheckedChange={onAutoStartToggle}
-              disabled={isReadOnly || sprint?.status !== "planned"}
+              disabled={isReadOnly || computeSprintStatus(sprint) !== "planned"}
               data-testid="switch-auto-start"
             />
           </div>
-          {sprint?.autoStart && sprint?.status === "planned" && (
+          {sprint?.autoStart && computeSprintStatus(sprint) === "planned" && (
             <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
               <CalendarIcon className="h-3 w-3 inline mr-1" />
               Will auto-start on {sprint.startDate ? format(new Date(sprint.startDate), "MMM d, yyyy") : "start date (not set)"}
