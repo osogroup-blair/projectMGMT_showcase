@@ -1770,6 +1770,65 @@ export function registerImportExportRoutes(
       const addedUserIds = new Set<string>();
       const teamMemberMap = new Map<string, string>(); // userId -> teamMemberId
       
+      // 2a. Create project roles from role templates (BEFORE team member creation)
+      // This is required because execution_role_assignments.roleId references project_roles.id
+      const roleTemplateToProjectRoleMap = new Map<string, string>(); // roleTemplateId -> projectRoleId
+      
+      // Collect unique roleTypeIds (role template IDs) from the payload
+      const uniqueRoleTemplateIds: string[] = [];
+      roles.forEach((role: any) => {
+        if (role.roleTypeId && !uniqueRoleTemplateIds.includes(role.roleTypeId)) {
+          uniqueRoleTemplateIds.push(role.roleTypeId);
+        }
+      });
+      
+      if (uniqueRoleTemplateIds.length > 0) {
+        console.log(`[FULL-CREATE] Creating ${uniqueRoleTemplateIds.length} project roles from templates`);
+        
+        // Get all role templates to look up names/descriptions
+        const allRoleTemplates = await storage.getRoleTemplates();
+        
+        for (const templateId of uniqueRoleTemplateIds) {
+          try {
+            const template = allRoleTemplates.find(t => t.id === templateId);
+            
+            // Create project role using the template data
+            // The createProjectRole function returns the created role with its auto-generated ID
+            const createdRole = await storage.createProjectRole({
+              projectId: projectId!,
+              name: template?.name || 'Unknown Role',
+              description: template?.description || '',
+              roleType: template?.defaultRoleType || 'execution',
+              isRequired: false,
+              maxAssignees: null,
+              permissions: template?.defaultPermissions || []
+            });
+            
+            roleTemplateToProjectRoleMap.set(templateId, createdRole.id);
+            console.log(`[FULL-CREATE] Created project role: ${createdRole.name} (${templateId} -> ${createdRole.id})`);
+            
+            entityResults.push({
+              entityType: 'project_role' as EntityType,
+              id: createdRole.id,
+              name: createdRole.name,
+              success: true,
+              parentId: projectId!
+            });
+          } catch (e: any) {
+            console.error(`[FULL-CREATE] Error creating project role for template ${templateId}:`, e.message);
+            entityResults.push({
+              entityType: 'project_role' as EntityType,
+              id: templateId,
+              name: `Role from template ${templateId}`,
+              success: false,
+              error: e.message,
+              parentId: projectId!
+            });
+          }
+        }
+      }
+      
+      // 2b. Create team members with high-level and execution roles
       if (roles.length > 0) {
         console.log(`[FULL-CREATE] Creating ${roles.length} team members with roles`);
         
@@ -1824,11 +1883,18 @@ export function registerImportExportRoutes(
             }
             
             // Add execution role assignment if roleTypeId is provided
+            // Use the mapped project role ID (from role template -> project role mapping)
             if (role.roleTypeId && !highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
-              await storage.createExecutionRoleAssignment({
-                teamMemberId,
-                roleId: role.roleTypeId
-              });
+              const mappedProjectRoleId = roleTemplateToProjectRoleMap.get(role.roleTypeId);
+              if (mappedProjectRoleId) {
+                await storage.createExecutionRoleAssignment({
+                  teamMemberId,
+                  roleId: mappedProjectRoleId
+                });
+                console.log(`[FULL-CREATE] Created execution role assignment: ${role.roleTypeId} -> ${mappedProjectRoleId}`);
+              } else {
+                console.warn(`[FULL-CREATE] No mapped project role found for template ${role.roleTypeId}, skipping execution role assignment`);
+              }
             }
           } catch (e: any) {
             console.error(`[FULL-CREATE] Error creating team member for role:`, e.message);
