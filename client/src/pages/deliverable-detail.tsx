@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
-  ArrowLeft, 
   Calendar as CalendarIcon, 
   CheckCircle2, 
   Package,
@@ -342,20 +341,6 @@ export default function DeliverableDetail() {
   return (
     <Shell>
       <div className="space-y-6">
-        {/* Hierarchy Context Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm">
-          <Link href={`/projects/${projectId}`} className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-            <ArrowLeft className="h-4 w-4" />
-            Back to Project
-          </Link>
-          <span className="text-border">|</span>
-          <Link href={`/projects/${projectId}?tab=deliverables`} className="text-muted-foreground hover:text-primary transition-colors">
-            Deliverables
-          </Link>
-          <ChevronRight className="h-3 w-3 text-muted-foreground" />
-          <span className="font-medium text-foreground">{deliverable.title}</span>
-        </div>
-
         {/* Hierarchy Visual Indicator */}
         <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg border">
           <div className="flex items-center gap-1.5 text-xs font-medium">
