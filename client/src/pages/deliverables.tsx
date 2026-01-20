@@ -49,7 +49,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRoute, Link } from "wouter";
-import { STAGE_TEMPLATES } from "@/lib/mock-data";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages, useResolvedTaskTypes, useDeliverableTypes } from "@/hooks/use-nexus-data";
@@ -91,6 +91,7 @@ const EFFORT_VALUES = [1, 2, 3, 5, 8, 13, 21];
 
 export function DeliverablesContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -634,6 +635,9 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         tags: []
       });
+      
+      // Explicitly invalidate tasks query to ensure the new task appears
+      await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       
       setNewTaskTitle("");
       setCreatingTaskForEpic(null);
@@ -1596,44 +1600,6 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                 onChange={(e) => setNewEpicData({...newEpicData, description: e.target.value})}
                 placeholder="Brief description of the work..."
               />
-            </div>
-            
-            <div className="space-y-3 pt-2">
-              <Label>Assign Stages</Label>
-              <div className="text-xs text-muted-foreground mb-2">
-                  Select the workflow stages that apply to this epic.
-              </div>
-              <ScrollArea className="h-[200px] border rounded-md p-2">
-                  <div className="space-y-2">
-                      {STAGE_TEMPLATES.map(stage => (
-                          <div 
-                              key={stage.id} 
-                              className={cn(
-                                  "flex items-center space-x-3 p-2 rounded-md cursor-pointer transition-colors border",
-                                  newEpicData.stageIds.includes(stage.id) 
-                                      ? "bg-primary/5 border-primary" 
-                                      : "hover:bg-muted border-transparent"
-                              )}
-                              onClick={() => toggleStageSelection(stage.id)}
-                          >
-                              <div className={cn(
-                                  "h-4 w-4 rounded border flex items-center justify-center transition-colors",
-                                  newEpicData.stageIds.includes(stage.id)
-                                      ? "bg-primary border-primary text-primary-foreground"
-                                      : "border-muted-foreground"
-                              )}>
-                                  {newEpicData.stageIds.includes(stage.id) && <Check className="h-3 w-3" />}
-                              </div>
-                              <div className="flex-1">
-                                  <div className="text-sm font-medium">{stage.name}</div>
-                                  <div className="text-xs text-muted-foreground">
-                                      Includes {stage.defaultTasks.length} default tasks
-                                  </div>
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-              </ScrollArea>
             </div>
           </div>
           <DialogFooter>
