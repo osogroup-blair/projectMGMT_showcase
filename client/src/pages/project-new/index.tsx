@@ -1269,10 +1269,14 @@ export default function ProjectWizard() {
           title: del.title,
           description: del.description || '',
           ownerId: projectData.ownerId || undefined,
+          startDate: del.startDate || undefined,
+          endDate: del.endDate || undefined,
           epics: (del.epics || []).map(epic => ({
             id: epic.id,
             title: epic.title,
             description: epic.description || '',
+            startDate: epic.startDate || undefined,
+            endDate: epic.endDate || undefined,
             tasks: (epic.tasks || []).map((task, taskIndex) => ({
               id: task.id || `epic-task-${Date.now()}-${taskIndex}`,
               title: task.title,
