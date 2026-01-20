@@ -9,15 +9,17 @@ function invalidateCollectionQueries(queryClient: ReturnType<typeof useQueryClie
     predicate: (query) => {
       const key = query.queryKey;
       if (Array.isArray(key) && key[0] === collection) return true;
+      // Also invalidate paginated task queries when tasks are modified
+      if (collection === 'tasks' && Array.isArray(key) && key[0] === 'projectTasksPaginated') return true;
       // Also invalidate related collections for nested data
       if (collection === 'projects') {
-        return key[0] === 'deliverables' || key[0] === 'epics' || key[0] === 'tasks' || key[0] === 'milestones';
+        return key[0] === 'deliverables' || key[0] === 'epics' || key[0] === 'tasks' || key[0] === 'milestones' || key[0] === 'projectTasksPaginated';
       }
       if (collection === 'deliverables') {
-        return key[0] === 'epics' || key[0] === 'tasks';
+        return key[0] === 'epics' || key[0] === 'tasks' || key[0] === 'projectTasksPaginated';
       }
       if (collection === 'epics') {
-        return key[0] === 'tasks';
+        return key[0] === 'tasks' || key[0] === 'projectTasksPaginated';
       }
       return false;
     }
@@ -806,5 +808,57 @@ export function useUnifiedTeamMembers(projectId: string) {
     isUpdating: updateMember.isPending,
     isRemoving: removeMember.isPending,
     isBulkAdding: bulkAddMembers.isPending,
+  };
+}
+
+// Paginated project tasks hook
+export interface PaginatedTasksResult {
+  tasks: any[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export function useProjectTasksPaginated(
+  projectId: string | undefined,
+  page: number = 1,
+  pageSize: number = 50,
+  sortBy?: string,
+  sortDirection?: 'asc' | 'desc'
+) {
+  const queryClient = useQueryClient();
+  
+  const query = useQuery({
+    queryKey: ['projectTasksPaginated', projectId, page, pageSize, sortBy, sortDirection],
+    queryFn: async (): Promise<PaginatedTasksResult> => {
+      if (!projectId) return { tasks: [], total: 0, page: 1, pageSize, totalPages: 0 };
+      
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pageSize.toString(),
+      });
+      if (sortBy) params.set('sortBy', sortBy);
+      if (sortDirection) params.set('sortDirection', sortDirection);
+      
+      const response = await fetch(`/api/projects/${projectId}/tasks?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch tasks');
+      return response.json();
+    },
+    enabled: !!projectId,
+  });
+  
+  const invalidate = () => {
+    queryClient.invalidateQueries({ 
+      predicate: (q) => {
+        const key = q.queryKey;
+        return Array.isArray(key) && key[0] === 'projectTasksPaginated' && key[1] === projectId;
+      }
+    });
+  };
+  
+  return {
+    ...query,
+    invalidate,
   };
 }

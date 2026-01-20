@@ -4,6 +4,7 @@ import {
   Search, 
   Filter,
   ChevronRight,
+  ChevronLeft,
   Clock,
   User,
   Calendar,
@@ -36,7 +37,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useProjectTasksPaginated } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -69,7 +70,7 @@ import { EFFORT_VALUES } from "@shared/schema";
 import { useCurrentUser } from "@/context/current-user-context";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
-type SortField = "title" | "status" | "priority" | "assignee" | "deadline" | "stage" | "sprint";
+type SortField = "title" | "status" | "priority" | "deadline" | "createdAt";
 type SortDirection = "asc" | "desc";
 
 const PRIORITY_CONFIG: Record<string, { color: string; bgColor: string }> = {
@@ -91,8 +92,28 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [, setLocation] = useLocation();
   const { currentUserId, currentUser } = useCurrentUser();
   
+  // Pagination state (must be declared before useProjectTasksPaginated)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+  
+  // Sorting state (must be declared before useProjectTasksPaginated)
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
-  const { data: allTasks, isLoading: isTasksLoading, createAsync: createTaskAsync, update: updateTask, remove: deleteTask } = useTasks();
+  const { createAsync: createTaskAsync, update: updateTask, remove: deleteTask } = useTasks();
+  
+  // Paginated tasks for this project (with server-side sorting)
+  const { 
+    data: paginatedTasksData, 
+    isLoading: isTasksLoading,
+  } = useProjectTasksPaginated(
+    projectId, 
+    currentPage, 
+    pageSize,
+    sortField || undefined,
+    sortDirection
+  );
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
@@ -155,10 +176,6 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   
   // My Tasks filter
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
-  
-  // Sorting state
-  const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   // Bulk selection state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -174,6 +191,11 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset page when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters, showMyTasksOnly]);
 
   // Focus input when editing title
   useEffect(() => {
@@ -226,11 +248,14 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     return allEpics.filter((e: any) => deliverableIds.has(e.deliverableId));
   }, [allEpics, project, projectDeliverables]);
 
-  // Get project-specific tasks
+  // Get project-specific tasks from paginated response
   const projectTasks = useMemo(() => {
-    if (!project || !allTasks) return [];
-    return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
-  }, [project, allTasks]);
+    return paginatedTasksData?.tasks || [];
+  }, [paginatedTasksData]);
+  
+  // Pagination info
+  const totalTasks = paginatedTasksData?.total || 0;
+  const totalPages = paginatedTasksData?.totalPages || 1;
 
   // Extract unique stage IDs from project tasks and epics
   const projectStageIds = useMemo(() => {
@@ -886,12 +911,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 </TableHead>
                 <TableHead 
                   style={{ width: "10%" }}
-                  className="cursor-pointer select-none hover:bg-muted/50"
-                  onClick={() => handleSort("stage")}
-                  data-testid="sort-stage"
+                  data-testid="col-stage"
                 >
                   <div className="flex items-center">
-                    Stage {getSortIcon("stage")}
+                    Stage
                   </div>
                 </TableHead>
                 <TableHead 
@@ -906,12 +929,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 </TableHead>
                 <TableHead 
                   style={{ width: "13%" }}
-                  className="cursor-pointer select-none hover:bg-muted/50"
-                  onClick={() => handleSort("sprint")}
-                  data-testid="sort-sprint"
+                  data-testid="col-sprint"
                 >
                   <div className="flex items-center">
-                    Sprint {getSortIcon("sprint")}
+                    Sprint
                   </div>
                 </TableHead>
                 <TableHead 
@@ -926,12 +947,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 </TableHead>
                 <TableHead 
                   style={{ width: "12%" }}
-                  className="cursor-pointer select-none hover:bg-muted/50"
-                  onClick={() => handleSort("assignee")}
-                  data-testid="sort-assignee"
+                  data-testid="col-assignee"
                 >
                   <div className="flex items-center">
-                    Assignee {getSortIcon("assignee")}
+                    Assignee
                   </div>
                 </TableHead>
                 <TableHead 
@@ -1278,6 +1297,63 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t pt-4 mt-4">
+          <div className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalTasks)} of {totalTasks} tasks
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              data-testid="button-prev-page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    className="w-8 h-8 p-0"
+                    onClick={() => setCurrentPage(pageNum)}
+                    data-testid={`button-page-${pageNum}`}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              data-testid="button-next-page"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 

@@ -50,6 +50,35 @@ export function registerProjectRoutes(
     res.json(project);
   });
 
+  // Paginated tasks for a project
+  app.get("/api/projects/:id/tasks", async (req, res) => {
+    try {
+      const projectId = req.params.id;
+      // Validate and clamp page/limit to safe values
+      let page = req.query.page ? parseInt(req.query.page as string) : 1;
+      let limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      if (isNaN(page) || page < 1) page = 1;
+      if (isNaN(limit) || limit < 1) limit = 50;
+      if (limit > 100) limit = 100; // Cap at 100 for performance
+      
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortDirection = req.query.sortDirection as 'asc' | 'desc' | undefined;
+      
+      const result = await storage.getProjectTasksPaginated({
+        projectId,
+        page,
+        limit,
+        sortBy,
+        sortDirection,
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error fetching paginated tasks:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/projects", async (req, res) => {
     try {
       const userId = getAuthUserId(req);

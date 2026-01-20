@@ -115,6 +115,7 @@ export interface IStorage {
   getTasks(): Promise<Task[]>;
   getTaskById(id: string): Promise<Task | undefined>;
   getTasksByProjectId(projectId: string): Promise<Task[]>;
+  getProjectTasksPaginated(options: { projectId: string; page?: number; limit?: number; sortBy?: string; sortDirection?: 'asc' | 'desc' }): Promise<{ tasks: Task[]; total: number; page: number; pageSize: number; totalPages: number }>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<Task>): Promise<Task>;
   deleteTask(id: string): Promise<void>;
@@ -874,6 +875,15 @@ export class DatabaseStorage implements IStorage {
   }
   async getTasksByProjectId(projectId: string): Promise<Task[]> {
     return taskRepository.getTasksByProjectId(projectId);
+  }
+  async getProjectTasksPaginated(options: { projectId: string; page?: number; limit?: number; sortBy?: string; sortDirection?: 'asc' | 'desc' }) {
+    return taskRepository.getProjectTasksPaginated({
+      projectId: options.projectId,
+      page: options.page,
+      limit: options.limit,
+      sortBy: options.sortBy as any,
+      sortDirection: options.sortDirection,
+    });
   }
   async createTask(task: InsertTask): Promise<Task> {
     return taskRepository.createTask(task);
