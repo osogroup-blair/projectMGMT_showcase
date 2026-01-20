@@ -1504,8 +1504,8 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                         </Select>
 
                                                         <Select 
-                                                          value={task.stageId || ""} 
-                                                          onValueChange={(v) => updateTask({ id: task.id, updates: { stageId: v || null } })}
+                                                          value={task.stageId || "none"} 
+                                                          onValueChange={(v) => updateTask({ id: task.id, updates: { stageId: v === "none" ? null : v } })}
                                                         >
                                                           <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto max-w-[80px]">
                                                             <span className="text-xs truncate">
@@ -1513,7 +1513,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                             </span>
                                                           </SelectTrigger>
                                                           <SelectContent>
-                                                            <SelectItem value="">No Stage</SelectItem>
+                                                            <SelectItem value="none">No Stage</SelectItem>
                                                             {projectStages.map((stage: any) => (
                                                               <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
                                                             ))}
