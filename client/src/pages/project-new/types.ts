@@ -74,6 +74,7 @@ export interface WizardTaskDraft {
   assigneeId?: string;
   milestoneId?: string;
   sprintId?: string;
+  status?: string;
   isFromImport?: boolean;
   sourceAssigneeId?: string;
   sourceSprintId?: string;

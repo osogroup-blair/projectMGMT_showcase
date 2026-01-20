@@ -1941,46 +1941,52 @@ export function registerImportExportRoutes(
       }
       
       // 5. Create management deliverable and epics (auto-created)
+      // Skip if payload already contains a Management Activities deliverable
       let projectManagementEpicId: string | null = null;
       let productManagementEpicId: string | null = null;
       
-      try {
-        const mgmtDeliverableId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        await storage.createDeliverable({
-          id: mgmtDeliverableId,
-          projectId: projectId!,
-          title: "Management Activities",
-          description: "Project and product management activities",
-          status: "Active",
-          ownerId: payload.project.ownerId || "1",
-          startDate: payload.project.startDate,
-          dueDate: payload.project.deadline,
-          progress: 0
-        } as any);
-        
-        entityResults.push({
-          entityType: 'deliverable',
-          id: mgmtDeliverableId,
-          name: 'Management Activities',
-          success: true,
-          parentId: projectId!
-        });
-        
-        // Create PM epic
-        const pmEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const pmEpic = await storage.createEpic({
-          id: pmEpicId,
-          deliverableId: mgmtDeliverableId,
-          title: "Project Management",
-          description: "Project coordination, reporting, and governance activities",
-          status: "Active",
-          ownerId: payload.project.ownerId || "1",
-          startDate: payload.project.startDate,
-          endDate: payload.project.deadline,
-          progress: 0,
-          stageIds: allStageIds
-        } as any);
-        projectManagementEpicId = pmEpic.id;
+      const hasMgmtDeliverable = (payload.deliverables || []).some(
+        d => d.title === 'Management Activities' || d.id?.startsWith('d-mgmt-')
+      );
+      
+      if (!hasMgmtDeliverable) {
+        try {
+          const mgmtDeliverableId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          await storage.createDeliverable({
+            id: mgmtDeliverableId,
+            projectId: projectId!,
+            title: "Management Activities",
+            description: "Project and product management activities",
+            status: "Active",
+            ownerId: payload.project.ownerId || "1",
+            startDate: payload.project.startDate,
+            dueDate: payload.project.deadline,
+            progress: 0
+          } as any);
+          
+          entityResults.push({
+            entityType: 'deliverable',
+            id: mgmtDeliverableId,
+            name: 'Management Activities',
+            success: true,
+            parentId: projectId!
+          });
+          
+          // Create PM epic
+          const pmEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const pmEpic = await storage.createEpic({
+            id: pmEpicId,
+            deliverableId: mgmtDeliverableId,
+            title: "Project Management",
+            description: "Project coordination, reporting, and governance activities",
+            status: "Active",
+            ownerId: payload.project.ownerId || "1",
+            startDate: payload.project.startDate,
+            endDate: payload.project.deadline,
+            progress: 0,
+            stageIds: allStageIds
+          } as any);
+          projectManagementEpicId = pmEpic.id;
         
         entityResults.push({
           entityType: 'epic',
@@ -2036,16 +2042,17 @@ export function registerImportExportRoutes(
           success: true,
           parentId: mgmtDeliverableId
         });
-      } catch (e: any) {
-        entityResults.push({
-          entityType: 'deliverable',
-          id: 'mgmt-deliverable',
-          name: 'Management Activities',
-          success: false,
-          error: e.message,
-          parentId: projectId!
-        });
-      }
+        } catch (e: any) {
+          entityResults.push({
+            entityType: 'deliverable',
+            id: 'mgmt-deliverable',
+            name: 'Management Activities',
+            success: false,
+            error: e.message,
+            parentId: projectId!
+          });
+        }
+      } // End of hasMgmtDeliverable check
       
       // 6. Create business deliverables and epics
       const businessEpics: { id: string; title: string }[] = [];
@@ -2533,7 +2540,7 @@ export function registerImportExportRoutes(
         },
         entityResults,
         breakdownByType,
-        unresolvedAssignees: unresolvedAssignees.length > 0 ? unresolvedAssignees : undefined,
+        unresolvedAssignees: undefined,
         fatalError: error.message
       });
     }

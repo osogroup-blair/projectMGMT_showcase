@@ -1258,7 +1258,10 @@ export default function ProjectWizard() {
             mappingStatus: task.mappingStatus,
             assigneeId: task.assigneeId || undefined,
             startDate: task.startDate || stage.startDate || undefined,
-            deadline: task.deadline || stage.endDate || undefined
+            deadline: task.deadline || stage.endDate || undefined,
+            status: task.status || undefined,
+            sprintId: task.sprintId || undefined,
+            milestoneId: task.milestoneId || undefined
           }))
         })),
         deliverables: deliverables.map(del => ({
@@ -1279,7 +1282,9 @@ export default function ProjectWizard() {
               milestoneId: task.milestoneId || undefined,
               assigneeId: task.assigneeId || undefined,
               taskTypeId: task.taskTypeId || undefined,
-              order: taskIndex
+              order: taskIndex,
+              status: task.status || undefined,
+              sprintId: task.sprintId || undefined
             }))
           }))
         })),
