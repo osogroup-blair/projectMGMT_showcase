@@ -57,6 +57,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import {
   Popover,
   PopoverContent,
@@ -177,6 +180,37 @@ export default function EpicDetail() {
       toast({
         title: "Epic Type Updated",
         description: typeId ? `Type set to "${epicTypes.find((t: any) => t.id === typeId)?.name}"` : "Type removed"
+      });
+    }
+  };
+
+  const handleUpdateEpicStatus = (status: string) => {
+    if (epic) {
+      updateEpic({ id: epic.id, updates: { status } });
+      toast({
+        title: "Status Updated",
+        description: `Epic status changed to "${status}"`
+      });
+    }
+  };
+
+  const handleUpdateEpicDate = (field: "startDate" | "endDate", date: Date | undefined) => {
+    if (!date || !epic) return;
+    const dateStr = format(date, "yyyy-MM-dd");
+    updateEpic({ id: epic.id, updates: { [field]: dateStr } });
+    toast({
+      title: "Date Updated",
+      description: `Epic ${field === "startDate" ? "start date" : "end date"} changed to ${dateStr}`
+    });
+  };
+
+  const handleUpdateEpicOwner = (ownerId: string) => {
+    if (epic) {
+      updateEpic({ id: epic.id, updates: { ownerId } });
+      const newOwner = users?.find((u: any) => u.id === ownerId);
+      toast({
+        title: "Owner Updated",
+        description: `Epic owner changed to ${newOwner?.name || "Unassigned"}`
       });
     }
   };
@@ -368,21 +402,68 @@ export default function EpicDetail() {
                     {epic.title}
                   </h1>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                    <span className="flex items-center gap-1">
-                      <CalendarIcon className="h-3.5 w-3.5" />
-                      {epic.startDate} - {epic.endDate}
-                    </span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <span className="flex items-center gap-1 cursor-pointer hover:text-primary" data-testid="epic-start-date">
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                          {epic.startDate ? new Date(epic.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Start'}
+                        </span>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={epic.startDate ? new Date(epic.startDate) : undefined}
+                          onSelect={(date) => handleUpdateEpicDate("startDate", date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <span>-</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <span className="flex items-center gap-1 cursor-pointer hover:text-primary" data-testid="epic-end-date">
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                          {epic.endDate ? new Date(epic.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'End'}
+                        </span>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={epic.endDate ? new Date(epic.endDate) : undefined}
+                          onSelect={(date) => handleUpdateEpicDate("endDate", date)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <span>•</span>
-                    <Badge variant="outline" className={cn(
-                      "font-normal text-xs",
-                      epicStatusLabels.length > 0 
-                        ? cn(getEpicStatusBgColor(epic.status), getEpicStatusTextColor(epic.status))
-                        : epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                          epic.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
-                          "bg-slate-50 text-slate-700 border-slate-200"
-                    )}>
-                      {epic.status}
-                    </Badge>
+                    <Select value={epic.status} onValueChange={handleUpdateEpicStatus}>
+                      <SelectTrigger className="h-6 text-xs border-none shadow-none px-1 w-auto" data-testid="select-epic-status">
+                        <Badge variant="outline" className={cn(
+                          "font-normal text-xs cursor-pointer",
+                          epicStatusLabels.length > 0 
+                            ? cn(getEpicStatusBgColor(epic.status), getEpicStatusTextColor(epic.status))
+                            : epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                              epic.status === "Completed" ? "bg-green-50 text-green-700 border-green-200" :
+                              "bg-slate-50 text-slate-700 border-slate-200"
+                        )}>
+                          {epic.status}
+                        </Badge>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {epicStatusLabels.length > 0 ? (
+                          epicStatusLabels.map((status) => (
+                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                          ))
+                        ) : (
+                          <>
+                            <SelectItem value="Not Started">Not Started</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="Completed">Completed</SelectItem>
+                            <SelectItem value="Blocked">Blocked</SelectItem>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
                     <span>•</span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Type:</span>
@@ -521,9 +602,16 @@ export default function EpicDetail() {
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>{owner?.name?.charAt(0) || "?"}</AvatarFallback>
                 </Avatar>
-                <div>
+                <div className="flex-1">
                   <div className="text-xs text-muted-foreground">Owner</div>
-                  <div className="text-sm font-medium">{owner?.name || "Unassigned"}</div>
+                  <SearchableSelect
+                    value={epic?.ownerId || ""}
+                    onValueChange={handleUpdateEpicOwner}
+                    placeholder="Select owner..."
+                    options={(users || []).map((u: any) => ({ value: u.id, label: u.name || u.email }))}
+                    className="h-7 text-sm w-full"
+                    data-testid="select-epic-owner"
+                  />
                 </div>
               </CardContent>
             </Card>
