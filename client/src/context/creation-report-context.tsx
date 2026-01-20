@@ -10,6 +10,7 @@ export interface CreationProgress {
     tasks: number;
     milestones: number;
     roles: number;
+    sprints?: number;
   };
 }
 

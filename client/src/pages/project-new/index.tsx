@@ -1214,7 +1214,8 @@ export default function ProjectWizard() {
         epics: totalEpics,
         tasks: totalTasks,
         milestones: milestones.length,
-        roles: rolesWithAssignees.length
+        roles: rolesWithAssignees.length,
+        sprints: sprints.length
       }
     });
     

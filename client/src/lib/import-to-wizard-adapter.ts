@@ -388,11 +388,15 @@ function extractDeliverables(entities: ParsedEntity[]): ImportedDeliverable[] {
   return deliverableEntity.rows.map((row, index) => {
     const titleField = getFieldValue<string>(row, ['title', 'name', 'deliverableName'], `Deliverable ${index + 1}`);
     const descField = getFieldValue<string>(row, ['description', 'desc', 'summary'], '');
+    const startDateField = getFieldValue<string>(row, ['startDate', 'start_date', 'startAt', 'start'], '');
+    const endDateField = getFieldValue<string>(row, ['endDate', 'end_date', 'deadline', 'dueDate', 'due_date'], '');
     
     return {
       id: generateId('d'),
       title: titleField.value,
       description: descField.value,
+      startDate: parseDate(startDateField.value) || undefined,
+      endDate: parseDate(endDateField.value) || undefined,
       epics: [],
       sourceId: row.id || row.sourceId,
       confidence: titleField.sourceField ? 'high' : 'medium',
@@ -422,11 +426,15 @@ function extractEpics(
     const titleField = getFieldValue<string>(row, ['title', 'name', 'epicName'], `Epic ${index + 1}`);
     const descField = getFieldValue<string>(row, ['description', 'desc', 'summary'], '');
     const deliverableIdField = getFieldValue<string>(row, ['deliverableId', 'deliverable_id', 'parentId'], '');
+    const startDateField = getFieldValue<string>(row, ['startDate', 'start_date', 'startAt', 'start'], '');
+    const endDateField = getFieldValue<string>(row, ['endDate', 'end_date', 'deadline', 'dueDate', 'due_date'], '');
     
     const epic: ImportedEpic = {
       id: generateId('e'),
       title: titleField.value,
       description: descField.value,
+      startDate: parseDate(startDateField.value) || undefined,
+      endDate: parseDate(endDateField.value) || undefined,
       sourceId: row.id || row.sourceId,
       sourceDeliverableId: deliverableIdField.value,
       confidence: titleField.sourceField ? 'high' : 'medium',
@@ -1466,10 +1474,15 @@ export function toWizardDeliverables(
     id: d.id,
     title: d.title,
     description: d.description,
+    startDate: d.startDate,
+    endDate: d.endDate,
     epics: d.epics.map(e => ({
       id: e.id,
       title: e.title,
       description: e.description,
+      // Use epic dates if available, otherwise fall back to parent deliverable dates
+      startDate: e.startDate || d.startDate,
+      endDate: e.endDate || d.endDate,
       tasks: tasksByEpicId.get(e.id) || []
     }))
   }));

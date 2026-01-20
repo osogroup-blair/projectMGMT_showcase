@@ -17,7 +17,8 @@ import {
   UserX,
   ArrowRightLeft,
   Info,
-  Download
+  Download,
+  CalendarDays
 } from "lucide-react";
 import { saveAs } from "file-saver";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +32,7 @@ export function StepReview({
   milestones,
   roles,
   users,
+  sprints = [],
 }: StepProps) {
   const { toast } = useToast();
   const importContext = useImportOptional();
@@ -377,6 +379,16 @@ export function StepReview({
             <Target className="h-4 w-4 mr-2" />
             Milestones ({milestones.length})
           </TabsTrigger>
+          {sprints.length > 0 && (
+            <TabsTrigger 
+              value="sprints" 
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-3"
+              data-testid="tab-sprints"
+            >
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Sprints ({sprints.length})
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="overview" className="pt-4">
@@ -742,6 +754,94 @@ export function StepReview({
             </CardContent>
           </Card>
         </TabsContent>
+
+        {sprints.length > 0 && (
+          <TabsContent value="sprints" className="pt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalendarDays className="h-5 w-5" /> Project Sprints
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {sprints.map((sprint) => {
+                    // Find tasks assigned to this sprint from epic tasks
+                    const sprintTasks: Array<{ id: string; title: string; epicTitle?: string }> = [];
+                    deliverables.forEach(d => {
+                      d.epics.forEach(e => {
+                        (e.tasks || []).forEach((t: any) => {
+                          if (t.sprintId === sprint.id) {
+                            sprintTasks.push({ 
+                              id: t.id, 
+                              title: t.title,
+                              epicTitle: e.title 
+                            });
+                          }
+                        });
+                      });
+                    });
+                    // Also check stage tasks
+                    stages.forEach(s => {
+                      (s.tasks || []).forEach(t => {
+                        if (t.sprintId === sprint.id) {
+                          sprintTasks.push({ 
+                            id: t.id, 
+                            title: t.title,
+                            epicTitle: t.assignedEpicTitle 
+                          });
+                        }
+                      });
+                    });
+
+                    return (
+                      <div key={sprint.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                              <CalendarDays className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <span className="font-medium">{sprint.name || "Unnamed Sprint"}</span>
+                              <div className="text-xs text-muted-foreground">
+                                {sprint.startDate && sprint.endDate 
+                                  ? `${sprint.startDate} - ${sprint.endDate}`
+                                  : "No dates set"}
+                              </div>
+                            </div>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {sprintTasks.length} task{sprintTasks.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                        {sprintTasks.length > 0 ? (
+                          <div className="space-y-1 pl-11">
+                            {sprintTasks.slice(0, 5).map(task => (
+                              <div key={task.id} className="flex items-center gap-2 text-sm">
+                                <ListTodo className="h-3 w-3 text-muted-foreground" />
+                                <span className="truncate">{task.title}</span>
+                                {task.epicTitle && (
+                                  <span className="text-xs text-muted-foreground">({task.epicTitle})</span>
+                                )}
+                              </div>
+                            ))}
+                            {sprintTasks.length > 5 && (
+                              <div className="text-xs text-muted-foreground">
+                                +{sprintTasks.length - 5} more tasks
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground pl-11">No tasks assigned to this sprint</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -25,7 +25,9 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
-  Loader2
+  Loader2,
+  CalendarDays,
+  UserPlus
 } from 'lucide-react';
 import type { EntityType, EntityResult } from '@shared/creation-result-types';
 
@@ -36,7 +38,9 @@ const entityIcons: Record<EntityType, typeof FolderOpen> = {
   epic: Layers,
   task: ListTodo,
   milestone: Flag,
-  role: Users
+  role: Users,
+  sprint: CalendarDays,
+  team_member: UserPlus
 };
 
 const entityLabels: Record<EntityType, string> = {
@@ -46,7 +50,9 @@ const entityLabels: Record<EntityType, string> = {
   epic: 'Epics',
   task: 'Tasks',
   milestone: 'Milestones',
-  role: 'Roles'
+  role: 'Roles',
+  sprint: 'Sprints',
+  team_member: 'Team Members'
 };
 
 function EntityBreakdownCard({ 
@@ -247,7 +253,7 @@ function EntityTypeSection({
   );
 }
 
-const entityCreationOrder: EntityType[] = ['project', 'stage', 'deliverable', 'epic', 'task', 'milestone', 'role'];
+const entityCreationOrder: EntityType[] = ['project', 'stage', 'deliverable', 'epic', 'task', 'milestone', 'role', 'sprint', 'team_member'];
 
 function CreatingProgressView({ progress }: { progress: CreationProgress }) {
   const [currentEntityIndex, setCurrentEntityIndex] = useState(0);
@@ -259,7 +265,8 @@ function CreatingProgressView({ progress }: { progress: CreationProgress }) {
     progress.expectedCounts.epics + 
     progress.expectedCounts.tasks + 
     progress.expectedCounts.milestones + 
-    progress.expectedCounts.roles;
+    progress.expectedCounts.roles +
+    (progress.expectedCounts.sprints || 0);
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -342,6 +349,12 @@ function CreatingProgressView({ progress }: { progress: CreationProgress }) {
               <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span>{progress.expectedCounts.roles} Roles</span>
+              </div>
+            )}
+            {progress.expectedCounts.sprints && progress.expectedCounts.sprints > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <span>{progress.expectedCounts.sprints} Sprints</span>
               </div>
             )}
           </div>
@@ -451,7 +464,9 @@ export default function ProjectCreationSummary() {
     task: [],
     stage: [],
     milestone: [],
-    role: []
+    role: [],
+    sprint: [],
+    team_member: []
   };
   
   successfulEntities.forEach(entity => {
@@ -580,7 +595,7 @@ export default function ProjectCreationSummary() {
             <CardContent>
               <ScrollArea className="h-[300px] pr-4">
                 <div className="space-y-1">
-                  {(['project', 'deliverable', 'epic', 'task', 'stage', 'milestone', 'role'] as EntityType[]).map(type => (
+                  {(['project', 'deliverable', 'epic', 'task', 'stage', 'milestone', 'role', 'sprint', 'team_member'] as EntityType[]).map(type => (
                     <EntityTypeSection
                       key={type}
                       entityType={type}
@@ -591,6 +606,47 @@ export default function ProjectCreationSummary() {
                   ))}
                 </div>
               </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
+        
+        {entitiesByType.sprint.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-blue-500" />
+                Sprints Created ({entitiesByType.sprint.length})
+              </CardTitle>
+              <CardDescription>
+                Sprint schedule for your project. Tasks can be assigned to sprints from the project page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {entitiesByType.sprint.map((sprint, index) => (
+                  <div 
+                    key={sprint.id} 
+                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                    data-testid={`sprint-row-${index}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <CalendarDays className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <span className="font-medium">{sprint.name}</span>
+                    </div>
+                    {sprint.success ? (
+                      <Badge variant="default" className="bg-green-100 text-green-700">
+                        Created
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        Failed
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
