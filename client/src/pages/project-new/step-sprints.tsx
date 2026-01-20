@@ -4,7 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Trash2, RefreshCw, Plus, Calendar, AlertCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Trash2, RefreshCw, Plus, Calendar, AlertCircle, ChevronDown, CalendarPlus } from "lucide-react";
 import { ProjectData } from "./types";
 import { cn } from "@/lib/utils";
 
@@ -144,6 +150,58 @@ export function StepSprints({
     }]);
   };
 
+  const handleFillRemaining = (weeks: number) => {
+    if (!projectData.dueDate) return;
+    
+    const projectEnd = new Date(projectData.dueDate);
+    const lastSprint = sprints[sprints.length - 1];
+    
+    let fillStartDate: Date;
+    if (lastSprint?.endDate) {
+      fillStartDate = new Date(lastSprint.endDate);
+      fillStartDate.setDate(fillStartDate.getDate() + 1);
+    } else {
+      fillStartDate = new Date(projectData.startDate);
+    }
+    
+    if (fillStartDate >= projectEnd) return;
+    
+    const newSprints: SprintData[] = [];
+    const sprintDurationMs = weeks * 7 * 24 * 60 * 60 * 1000;
+    let currentStart = new Date(fillStartDate);
+    let sprintNumber = sprints.length + 1;
+    
+    while (currentStart < projectEnd) {
+      const currentEnd = new Date(currentStart.getTime() + sprintDurationMs - 24 * 60 * 60 * 1000);
+      if (currentEnd > projectEnd) {
+        currentEnd.setTime(projectEnd.getTime());
+      }
+      
+      newSprints.push({
+        id: `sprint-${sprintNumber}-${Date.now()}`,
+        name: `Sprint ${sprintNumber}`,
+        startDate: currentStart.toISOString().split('T')[0],
+        endDate: currentEnd.toISOString().split('T')[0],
+      });
+      
+      currentStart = new Date(currentEnd.getTime() + 24 * 60 * 60 * 1000);
+      sprintNumber++;
+    }
+    
+    if (newSprints.length > 0) {
+      setSprints(prev => [...prev, ...newSprints]);
+    }
+  };
+
+  const hasRemainingTime = (() => {
+    if (!projectData.dueDate) return false;
+    const projectEnd = new Date(projectData.dueDate);
+    const lastSprint = sprints[sprints.length - 1];
+    if (!lastSprint?.endDate) return true;
+    const lastEnd = new Date(lastSprint.endDate);
+    return lastEnd < projectEnd;
+  })();
+
   const cadenceOptions = [
     { value: "none", label: "No Sprints", description: "This project won't use sprint-based planning" },
     ...(hasImportedSprints ? [{ value: "imported", label: "Use Imported Sprints", description: `${sprints.length} sprints from your import file` }] : []),
@@ -217,6 +275,37 @@ export function StepSprints({
                   <RefreshCw className="h-4 w-4 mr-1" />
                   Re-apply Dates
                 </Button>
+              )}
+              {cadence === "imported" && hasRemainingTime && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!projectDatesValid}
+                      data-testid="button-fill-remaining"
+                    >
+                      <CalendarPlus className="h-4 w-4 mr-1" />
+                      Fill Remaining
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleFillRemaining(1)} data-testid="fill-1-week">
+                      1 Week Sprints
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillRemaining(2)} data-testid="fill-2-week">
+                      2 Week Sprints
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillRemaining(3)} data-testid="fill-3-week">
+                      3 Week Sprints
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleFillRemaining(4)} data-testid="fill-4-week">
+                      4 Week Sprints
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               <Button
                 type="button"
