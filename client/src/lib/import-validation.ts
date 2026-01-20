@@ -855,7 +855,10 @@ export function validateTaskSprintAssignments(
   const sprintSummaries = sprints.map(s => ({
     id: s.id,
     name: s.name,
-    taskCount: sprintTaskCounts.get(s.id) || 0
+    taskCount: sprintTaskCounts.get(s.id) || 0,
+    startDate: s.startDate,
+    endDate: s.endDate,
+    dateSource: s.dateSource
   }));
   
   return {

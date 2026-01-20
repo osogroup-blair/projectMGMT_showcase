@@ -162,25 +162,61 @@ export function SprintValidationPanel({ summary, onExportProblems }: SprintValid
                         <TableHeader>
                           <TableRow>
                             <TableHead>Sprint Name</TableHead>
+                            <TableHead>Dates</TableHead>
                             <TableHead className="text-right">Tasks Assigned</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {summary.sprints.map(sprint => (
-                            <TableRow key={sprint.id} data-testid={`sprint-row-${sprint.id}`}>
-                              <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                  <CalendarDays className="h-4 w-4 text-blue-500" />
-                                  {sprint.name}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Badge variant={sprint.taskCount > 0 ? "default" : "secondary"}>
-                                  {sprint.taskCount} task{sprint.taskCount !== 1 ? 's' : ''}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          {summary.sprints.map(sprint => {
+                            const formatDate = (dateStr?: string) => {
+                              if (!dateStr) return null;
+                              try {
+                                return new Date(dateStr).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                });
+                              } catch { return dateStr; }
+                            };
+                            const startStr = formatDate(sprint.startDate);
+                            const endStr = formatDate(sprint.endDate);
+                            const dateDisplay = startStr && endStr 
+                              ? `${startStr} - ${endStr}` 
+                              : (startStr || endStr || 'Not set');
+                            
+                            const dateSourceBadge = sprint.dateSource === 'imported' 
+                              ? { label: 'From file', variant: 'default' as const, className: 'bg-green-50 text-green-700 border-green-200' }
+                              : sprint.dateSource === 'parsed_from_name'
+                              ? { label: 'Auto-detected', variant: 'outline' as const, className: 'bg-blue-50 text-blue-700 border-blue-200' }
+                              : sprint.dateSource === 'calculated'
+                              ? { label: 'Calculated', variant: 'outline' as const, className: 'bg-amber-50 text-amber-700 border-amber-200' }
+                              : null;
+                            
+                            return (
+                              <TableRow key={sprint.id} data-testid={`sprint-row-${sprint.id}`}>
+                                <TableCell className="font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <CalendarDays className="h-4 w-4 text-blue-500" />
+                                    {sprint.name}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">{dateDisplay}</span>
+                                    {dateSourceBadge && (
+                                      <Badge variant={dateSourceBadge.variant} className={`text-xs ${dateSourceBadge.className}`}>
+                                        {dateSourceBadge.label}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant={sprint.taskCount > 0 ? "default" : "secondary"}>
+                                    {sprint.taskCount} task{sprint.taskCount !== 1 ? 's' : ''}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>

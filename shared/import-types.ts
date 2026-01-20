@@ -313,5 +313,12 @@ export interface SprintValidationSummary {
   invalidSprintReference: number;
   errorsByType: Record<SprintValidationErrorType, number>;
   results: SprintValidationResult[];
-  sprints: Array<{ id: string; name: string; taskCount: number }>;
+  sprints: Array<{ 
+    id: string; 
+    name: string; 
+    taskCount: number; 
+    startDate?: string;
+    endDate?: string;
+    dateSource?: 'imported' | 'parsed_from_name' | 'calculated';
+  }>;
 }
