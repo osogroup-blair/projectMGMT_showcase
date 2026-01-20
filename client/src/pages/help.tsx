@@ -580,7 +580,8 @@ export default function HelpPage() {
                       <h4 className="font-semibold">Create Your Project</h4>
                       <p className="text-sm text-muted-foreground mt-1">
                         Use the project wizard to set up your project. Define the project name, description, 
-                        and set key dates. Set a project owner to automatically assign deliverables.
+                        client, and set key dates. Set a project owner - all deliverables will be automatically 
+                        assigned to them.
                       </p>
                     </div>
                   </div>
@@ -590,11 +591,11 @@ export default function HelpPage() {
                       2
                     </div>
                     <div className="pt-1">
-                      <h4 className="font-semibold">Build Your Work Breakdown Structure</h4>
+                      <h4 className="font-semibold">Select a Delivery Framework</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Add deliverables and epics to organize your scope. This hierarchical structure helps 
-                        everyone understand what needs to be built. You can import tasks from spreadsheets or 
-                        add them manually.
+                        Choose a delivery framework that matches your methodology (like "Delivery Framework" or 
+                        "Generic Project"). This auto-configures your workflow stages with predefined tasks 
+                        that run per-epic or once per project.
                       </p>
                     </div>
                   </div>
@@ -604,11 +605,11 @@ export default function HelpPage() {
                       3
                     </div>
                     <div className="pt-1">
-                      <h4 className="font-semibold">Configure Your Workflow Stages</h4>
+                      <h4 className="font-semibold">Build Your Work Breakdown Structure</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Select a delivery framework that matches your methodology (like "Standard Delivery" or 
-                        "Agile Scrum"), or create custom stages that fit your team's process. Stages define how 
-                        tasks move through your workflow.
+                        Add deliverables and epics to organize your scope. A "Management Activities" deliverable 
+                        with project management epics is automatically created. Import tasks from Excel, CSV, 
+                        JSON, or YAML files, or add them manually.
                       </p>
                     </div>
                   </div>
@@ -618,10 +619,11 @@ export default function HelpPage() {
                       4
                     </div>
                     <div className="pt-1">
-                      <h4 className="font-semibold">Create Tasks and Milestones</h4>
+                      <h4 className="font-semibold">Assign Your Team</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Define specific tasks and important project milestones. Assign tasks to epics and set target 
-                        dates for milestones to create a clear roadmap for your project.
+                        Add team members with appropriate project roles (Owner, Manager, Stakeholder, Member) 
+                        and execution roles (Developer, Designer, QA). This enables workload tracking and 
+                        task assignment.
                       </p>
                     </div>
                   </div>
@@ -631,10 +633,11 @@ export default function HelpPage() {
                       5
                     </div>
                     <div className="pt-1">
-                      <h4 className="font-semibold">Assign Your Team</h4>
+                      <h4 className="font-semibold">Set Up Milestones</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Add team members with appropriate project roles (Owner, Manager, Member) and execution 
-                        roles (Developer, Designer, QA). This enables workload tracking and task assignment.
+                        Create key milestones with target dates to mark important checkpoints. Use "Auto-Sequence" 
+                        to evenly distribute milestone dates across your project timeline. Link tasks to milestones 
+                        to track progress toward each goal.
                       </p>
                     </div>
                   </div>
@@ -646,8 +649,9 @@ export default function HelpPage() {
                     <div className="pt-1">
                       <h4 className="font-semibold">Plan Sprints</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Create sprints for time-boxed planning. Set start and end dates - the status updates 
-                        automatically. Assign tasks to sprints and monitor capacity.
+                        Create sprints for time-boxed planning or use "Auto-Create" to generate them based on 
+                        project duration. Just set start and end dates - sprint status updates automatically 
+                        (Planned → Active → Closed).
                       </p>
                     </div>
                   </div>
@@ -659,8 +663,9 @@ export default function HelpPage() {
                     <div className="pt-1">
                       <h4 className="font-semibold">Execute & Track Progress</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Use Kanban boards to move tasks through stages. Update task status, log blockers, 
-                        and track completion. The homepage dashboard shows your current work at a glance.
+                        Use Kanban boards to drag tasks through stages. Filter by assignee, epic, sprint, or 
+                        milestone. Flag blockers immediately. Review the homepage dashboard daily to see your 
+                        current work across all projects.
                       </p>
                     </div>
                   </div>
