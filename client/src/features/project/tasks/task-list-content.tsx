@@ -64,6 +64,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EFFORT_VALUES } from "@shared/schema";
 import { useCurrentUser } from "@/context/current-user-context";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -85,36 +86,26 @@ const STATUS_CONFIG: Record<string, { color: string; bgColor: string }> = {
   "Done": { color: "text-green-600", bgColor: "bg-green-100" },
 };
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+
 export function TaskListContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { currentUserId, currentUser } = useCurrentUser();
   
-  // Pagination state (must be declared before useProjectTasksPaginated)
+  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 50;
+  const [pageSize, setPageSize] = useState<number>(50);
   
-  // Sorting state (must be declared before useProjectTasksPaginated)
+  // Sorting state
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { createAsync: createTaskAsync, update: updateTask, remove: deleteTask } = useTasks();
   
-  // All tasks for this project (for filter values calculation)
-  const { data: allProjectTasks = [] } = useAllProjectTasks(projectId);
-  
-  // Paginated tasks for this project (with server-side sorting)
-  const { 
-    data: paginatedTasksData, 
-    isLoading: isTasksLoading,
-  } = useProjectTasksPaginated(
-    projectId, 
-    currentPage, 
-    pageSize,
-    sortField || undefined,
-    sortDirection
-  );
+  // All tasks for this project - used for filtering and pagination
+  const { data: allProjectTasks = [], isLoading: isTasksLoading } = useAllProjectTasks(projectId);
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
@@ -248,19 +239,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     return allEpics.filter((e: any) => deliverableIds.has(e.deliverableId));
   }, [allEpics, project, projectDeliverables]);
 
-  // Get project-specific tasks from paginated response
-  const projectTasks = useMemo(() => {
-    return paginatedTasksData?.tasks || [];
-  }, [paginatedTasksData]);
-  
-  // Pagination info
-  const totalTasks = paginatedTasksData?.total || 0;
-  const totalPages = paginatedTasksData?.totalPages || 1;
-
-  // Extract unique stage IDs from project tasks and epics
+  // Extract unique stage IDs from all project tasks and epics
   const projectStageIds = useMemo(() => {
     const stageIds = new Set<string>();
-    projectTasks.forEach((t: any) => {
+    allProjectTasks.forEach((t: any) => {
       if (t.stageId) stageIds.add(t.stageId);
     });
     projectEpics.forEach((e: any) => {
@@ -269,7 +251,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       }
     });
     return stageIds;
-  }, [projectTasks, projectEpics]);
+  }, [allProjectTasks, projectEpics]);
 
   // Map stages filtered to project
   const stages = useMemo(() => {
@@ -301,9 +283,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       : <ArrowDown className="h-3.5 w-3.5 ml-1 text-primary" />;
   };
 
-  // Apply search, my tasks filter, and filters
+  // Apply search, my tasks filter, and filters across ALL project tasks first
   const filteredTasks = useMemo(() => {
-    let result = projectTasks.filter((task: any) => {
+    let result = allProjectTasks.filter((task: any) => {
       // My Tasks filter
       if (showMyTasksOnly && currentUserId && task.assigneeId !== currentUserId) {
         return false;
@@ -419,7 +401,24 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     }
 
     return result;
-  }, [projectTasks, searchQuery, filters, showMyTasksOnly, currentUserId, sortField, sortDirection, projectSprints]);
+  }, [allProjectTasks, searchQuery, filters, showMyTasksOnly, currentUserId, sortField, sortDirection]);
+
+  // Calculate pagination from filtered results
+  const totalFilteredTasks = filteredTasks.length;
+  const totalPages = Math.ceil(totalFilteredTasks / pageSize) || 1;
+  
+  // Clamp currentPage when filtered results shrink (e.g., after deletes or filter changes)
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+  
+  // Get current page of filtered tasks
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredTasks.slice(startIndex, startIndex + pageSize);
+  }, [filteredTasks, currentPage, pageSize]);
 
   // Group tasks by status for Kanban view
   const tasksByStatus = useMemo(() => {
@@ -432,15 +431,25 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
   const activeFilterCount = getActiveFilterCount(filters);
 
-  // Bulk selection helpers
-  const isAllSelected = filteredTasks.length > 0 && filteredTasks.every((t: any) => selectedTaskIds.has(t.id));
-  const isPartiallySelected = filteredTasks.some((t: any) => selectedTaskIds.has(t.id)) && !isAllSelected;
+  // Bulk selection helpers - work on current page tasks
+  const isAllSelected = paginatedTasks.length > 0 && paginatedTasks.every((t: any) => selectedTaskIds.has(t.id));
+  const isPartiallySelected = paginatedTasks.some((t: any) => selectedTaskIds.has(t.id)) && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedTaskIds(new Set());
+      // Deselect all current page tasks
+      setSelectedTaskIds(prev => {
+        const next = new Set(prev);
+        paginatedTasks.forEach((t: any) => next.delete(t.id));
+        return next;
+      });
     } else {
-      setSelectedTaskIds(new Set(filteredTasks.map((t: any) => t.id)));
+      // Select all current page tasks
+      setSelectedTaskIds(prev => {
+        const next = new Set(prev);
+        paginatedTasks.forEach((t: any) => next.add(t.id));
+        return next;
+      });
     }
   };
 
@@ -810,19 +819,19 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       </div>
 
       {/* Task List */}
-      {filteredTasks.length === 0 ? (
+      {paginatedTasks.length === 0 ? (
         <Card className="bg-muted/10 border-dashed">
           <CardContent className="flex flex-col items-center justify-center p-12 text-center">
             <ListTodo className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
             <h3 className="text-lg font-medium">
-              {projectTasks.length === 0 ? "No tasks yet" : "No tasks match your filters"}
+              {allProjectTasks.length === 0 ? "No tasks yet" : "No tasks match your filters"}
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">
-              {projectTasks.length === 0 
+              {allProjectTasks.length === 0 
                 ? "Create your first task to get started."
                 : "Try adjusting your search or filters."}
             </p>
-            {projectTasks.length === 0 && (
+            {allProjectTasks.length === 0 && (
               <Button onClick={openCreateDialog} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Create Task
@@ -916,7 +925,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTasks.map((task: any) => {
+              {paginatedTasks.map((task: any) => {
                 const assignee = getAssignee(task.assigneeId);
                 const epic = getEpic(task.epicId);
                 const stage = getStage(task.stageId);
@@ -1143,7 +1152,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       ) : (
         /* Card View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTasks.map((task: any) => {
+          {paginatedTasks.map((task: any) => {
             const assignee = getAssignee(task.assigneeId);
             const epic = getEpic(task.epicId);
             const stage = getStage(task.stageId);
@@ -1250,59 +1259,84 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       )}
 
       {/* Pagination Controls */}
-      {totalPages > 1 && (
+      {(totalFilteredTasks > 10 || totalPages > 1) && (
         <div className="flex items-center justify-between border-t pt-4 mt-4">
-          <div className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalTasks)} of {totalTasks} tasks
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              data-testid="button-prev-page"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum: number;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={currentPage === pageNum ? "default" : "outline"}
-                    size="sm"
-                    className="w-8 h-8 p-0"
-                    onClick={() => setCurrentPage(pageNum)}
-                    data-testid={`button-page-${pageNum}`}
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {totalFilteredTasks === 0 ? 0 : ((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalFilteredTasks)} of {totalFilteredTasks} tasks
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              data-testid="button-next-page"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Per page:</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(v) => {
+                  setPageSize(Number(v));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]" data-testid="select-page-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      className="w-8 h-8 p-0"
+                      onClick={() => setCurrentPage(pageNum)}
+                      data-testid={`button-page-${pageNum}`}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                data-testid="button-next-page"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
