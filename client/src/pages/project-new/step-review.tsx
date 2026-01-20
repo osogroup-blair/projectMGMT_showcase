@@ -203,6 +203,46 @@ export function StepReview({
 
   const isLargeProject = totalTasks > 100;
 
+  const allTasks = [...onceTasks, ...epicTasks];
+  const stageTasks = stages.flatMap(s => s.tasks);
+  
+  const tasksByStatus = (() => {
+    const counts: Record<string, number> = {};
+    [...allTasks, ...stageTasks].forEach((task: any) => {
+      const status = task.status || "Not Started";
+      counts[status] = (counts[status] || 0) + 1;
+    });
+    if (perEpicTasks.length > 0 && totalEpics > 0) {
+      perEpicTasks.forEach((task: any) => {
+        const status = task.status || "Not Started";
+        counts[status] = (counts[status] || 0) + totalEpics;
+      });
+    }
+    return Object.entries(counts)
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
+  })();
+
+  const tasksBySprint = (() => {
+    const counts: Record<string, { name: string; taskCount: number; startDate?: string; endDate?: string }> = {};
+    sprints.forEach(sprint => {
+      counts[sprint.id] = { 
+        name: sprint.name, 
+        taskCount: 0,
+        startDate: sprint.startDate,
+        endDate: sprint.endDate
+      };
+    });
+    [...allTasks, ...stageTasks].forEach(task => {
+      if (task.sprintId && counts[task.sprintId]) {
+        counts[task.sprintId].taskCount += 1;
+      }
+    });
+    return Object.entries(counts).map(([id, data]) => ({ id, ...data }));
+  })();
+
+  const unassignedSprintTasks = [...allTasks, ...stageTasks].filter(t => !t.sprintId).length;
+
   const tasksByAssignee = (() => {
     const counts: Record<string, { name: string; once: number; perEpic: number; epic: number }> = {};
     const stageTasks = stages.flatMap(s => s.tasks);
@@ -288,7 +328,7 @@ export function StepReview({
             <p className="text-sm text-muted-foreground mb-3">
               When you click "Create Project", the following will be created:
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               <div className="flex items-center gap-2 bg-background/80 rounded-md px-3 py-2">
                 <Briefcase className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">1 Project</span>
@@ -304,6 +344,10 @@ export function StepReview({
               <div className="flex items-center gap-2 bg-background/80 rounded-md px-3 py-2">
                 <Layers className="h-4 w-4 text-blue-500" />
                 <span className="text-sm font-medium">{stages.length} Stage{stages.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="flex items-center gap-2 bg-background/80 rounded-md px-3 py-2">
+                <CalendarDays className="h-4 w-4 text-cyan-500" />
+                <span className="text-sm font-medium">{sprints.length} Sprint{sprints.length !== 1 ? 's' : ''}</span>
               </div>
               <div className="flex items-center gap-2 bg-background/80 rounded-md px-3 py-2">
                 <ListTodo className="h-4 w-4 text-green-500" />
@@ -709,6 +753,33 @@ export function StepReview({
                         </div>
                         <Badge variant="outline" className="text-xs font-normal">
                           {total} task{total !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Check className="h-4 w-4" /> Tasks by Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tasksByStatus.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No tasks defined</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {tasksByStatus.map(({ status, count }) => (
+                      <div key={status} className="flex items-center justify-between text-sm p-2 bg-muted/30 rounded">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-muted-foreground" />
+                          <span>{status}</span>
+                        </div>
+                        <Badge variant="outline" className="text-xs font-normal">
+                          {count} task{count !== 1 ? 's' : ''}
                         </Badge>
                       </div>
                     ))}
