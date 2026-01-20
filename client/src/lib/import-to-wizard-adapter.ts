@@ -1434,6 +1434,7 @@ export function toWizardDeliverables(
     assigneeId?: string;
     deadline?: string;
     taskTypeId?: string;
+    status?: string;
   }>>();
   
   importedStages.forEach(stage => {
@@ -1464,7 +1465,8 @@ export function toWizardDeliverables(
           sprintId: importedTask.sprintId,
           assigneeId,
           deadline: task.deadline,
-          taskTypeId: task.taskTypeId
+          taskTypeId: task.taskTypeId,
+          status: importedTask.sourceStatus
         });
       }
     });
