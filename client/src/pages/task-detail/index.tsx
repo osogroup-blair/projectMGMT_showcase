@@ -58,7 +58,8 @@ import {
   useProjectStages,
   useResolvedTaskTypes,
   useTaskDependencies,
-  useSubtasks
+  useSubtasks,
+  useSprints
 } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { EFFORT_VALUES } from "@shared/schema";
@@ -107,6 +108,7 @@ export default function TaskDetail() {
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
+  const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
   const { data: taskTypes, isLoading: isTaskTypesLoading } = useResolvedTaskTypes(projectId);
   const { 
     dependsOn, 
@@ -128,7 +130,14 @@ export default function TaskDetail() {
     (allMilestones || []).filter((m: any) => m.projectId === projectId),
     [allMilestones, projectId]
   );
-  const stages = useMemo(() => projectStages || [], [projectStages]);
+  const stages = useMemo(() => 
+    (projectStages || []).filter((s: any) => s.projectId === projectId),
+    [projectStages, projectId]
+  );
+  const sprints = useMemo(() => 
+    (allSprints || []).filter((s: any) => s.projectId === projectId),
+    [allSprints, projectId]
+  );
   const taskType = useMemo(() => 
     (taskTypes || []).find((tt: any) => tt.id === task?.taskTypeId),
     [taskTypes, task]
@@ -137,7 +146,7 @@ export default function TaskDetail() {
   const { statuses: taskStatusOptions, getStatusColor } = useTaskStatuses();
 
   const isLoading = isProjectLoading || isTasksLoading || isUsersLoading || isEpicsLoading || 
-    isDeliverablesLoading || isMilestonesLoading || isStagesLoading || isTaskTypesLoading;
+    isDeliverablesLoading || isMilestonesLoading || isStagesLoading || isSprintsLoading || isTaskTypesLoading;
 
   const handleUpdateTask = (field: string, value: any) => {
     if (!task) return;
@@ -383,6 +392,36 @@ export default function TaskDetail() {
                     options={(taskTypes || []).map((tt: any) => ({ value: tt.id, label: tt.name }))}
                     className="w-[120px] h-8"
                     data-testid="inline-select-task-type"
+                  />
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                  <SearchableSelect
+                    value={task.stageId || "none"}
+                    onValueChange={(v) => handleUpdateTask("stageId", v === "none" ? null : v)}
+                    placeholder="Stage"
+                    options={[
+                      { value: "none", label: "No Stage" },
+                      ...stages.map((s: any) => ({ value: s.id, label: s.name }))
+                    ]}
+                    className="w-[140px] h-8"
+                    data-testid="inline-select-stage"
+                  />
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <Gauge className="h-4 w-4 text-muted-foreground" />
+                  <SearchableSelect
+                    value={task.sprintId || "none"}
+                    onValueChange={(v) => handleUpdateTask("sprintId", v === "none" ? null : v)}
+                    placeholder="Sprint"
+                    options={[
+                      { value: "none", label: "No Sprint" },
+                      ...sprints.map((s: any) => ({ value: s.id, label: s.name }))
+                    ]}
+                    className="w-[140px] h-8"
+                    data-testid="inline-select-sprint"
                   />
                 </div>
               </div>
