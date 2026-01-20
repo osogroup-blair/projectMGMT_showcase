@@ -2,14 +2,12 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { 
   Plus, 
   Search, 
-  Filter,
   ChevronRight,
   ChevronLeft,
   Clock,
   User,
   Calendar,
   Loader2,
-  SlidersHorizontal,
   ListTodo,
   Zap,
   Check,
@@ -44,7 +42,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { format as formatDate } from "date-fns";
 import { Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { TaskFilterModal, TaskFilters, emptyFilters, getActiveFilterCount } from "./task-filter-modal";
+import { TaskInlineFilters, TaskFilters, emptyFilters, getActiveFilterCount } from "./task-inline-filters";
 import { PortableKanban } from "@/components/kanban";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
@@ -169,7 +167,6 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<TaskFilters>(emptyFilters);
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card" | "kanban">("list");
@@ -643,10 +640,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       />
 
       {/* Search and Filter Bar */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         <div className="py-3 border-b">
-          <div className="flex gap-3">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex gap-3 items-center">
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search tasks..."
@@ -672,21 +669,6 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               )}
             </Button>
             
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="gap-2"
-              onClick={() => setFilterModalOpen(true)}
-              data-testid="button-open-filters"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-              {activeFilterCount > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                  {activeFilterCount}
-                </Badge>
-              )}
-            </Button>
             <Button 
               size="sm"
               className="gap-1.5"
@@ -740,46 +722,18 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           </div>
         </div>
 
-        {/* Active Filters Summary */}
-        {activeFilterCount > 0 && (
-          <div className="flex flex-wrap gap-2 text-sm">
-            {filters.statuses.map(status => (
-              <Badge key={status} variant="secondary" className="gap-1">
-                Status: {status}
-              </Badge>
-            ))}
-            {filters.priorities.map(priority => (
-              <Badge key={priority} variant="secondary" className="gap-1">
-                Priority: {priority}
-              </Badge>
-            ))}
-            {filters.stageIds.map(stageId => {
-              const stage = getStage(stageId);
-              return stage ? (
-                <Badge key={stageId} variant="secondary" className="gap-1">
-                  Stage: {stage.name}
-                </Badge>
-              ) : null;
-            })}
-            {filters.epicIds.map(epicId => {
-              const epic = getEpic(epicId);
-              return epic ? (
-                <Badge key={epicId} variant="secondary" className="gap-1">
-                  Epic: {epic.title}
-                </Badge>
-              ) : null;
-            })}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-6 px-2 text-xs"
-              onClick={() => setFilters(emptyFilters)}
-              data-testid="button-clear-filters"
-            >
-              Clear all
-            </Button>
-          </div>
-        )}
+        {/* Inline Filter Bar */}
+        <TaskInlineFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          tasks={projectTasks}
+          stages={stages}
+          epics={projectEpics}
+          users={users || []}
+          sprints={projectSprints}
+          taskTypes={taskTypes || []}
+          statusLabels={statusLabels}
+        />
 
         {/* Bulk Action Bar */}
         {selectedTaskIds.size > 0 && (
@@ -1348,19 +1302,6 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           </div>
         </div>
       )}
-
-      {/* Filter Modal */}
-      <TaskFilterModal
-        open={filterModalOpen}
-        onOpenChange={setFilterModalOpen}
-        filters={filters}
-        onFiltersChange={setFilters}
-        stages={stages.map((s: any) => ({ id: s.id, name: s.name }))}
-        epics={projectEpics.map((e: any) => ({ id: e.id, title: e.title }))}
-        users={(users || []).map((u: any) => ({ id: u.id, name: u.name }))}
-        sprints={projectSprints.map((s: any) => ({ id: s.id, name: s.name }))}
-        taskTypes={(taskTypes || []).map((tt: any) => ({ id: tt.id, name: tt.name, color: tt.color }))}
-      />
 
       {/* Create Task Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
