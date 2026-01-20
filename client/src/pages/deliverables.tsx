@@ -96,7 +96,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
   const { data: project } = useProject(projectId);
   const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, isCreating: isCreatingDeliverable, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable, isRemoving: isDeletingDeliverable } = useDeliverables();
-  const { data: allEpics, isLoading: isEpicsLoading, create: createEpic, isCreating: isCreatingEpic } = useEpics();
+  const { data: allEpics, isLoading: isEpicsLoading, create: createEpic, isCreating: isCreatingEpic, remove: deleteEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allTasks, isLoading: isTasksLoading, update: updateTask, createAsync: createTaskAsync } = useTasks();
   const { data: statusOptions = [] } = useStatusOptions();
@@ -139,6 +139,9 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deliverableToDelete, setDeliverableToDelete] = useState<{ id: string; title: string } | null>(null);
+  
+  const [deleteEpicDialogOpen, setDeleteEpicDialogOpen] = useState(false);
+  const [epicToDelete, setEpicToDelete] = useState<{ id: string; title: string } | null>(null);
 
   const [expandedDeliverables, setExpandedDeliverables] = useState<Set<string>>(new Set());
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
@@ -406,6 +409,20 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     setDeliverableToDelete(null);
   };
 
+  const openDeleteEpicDialog = (id: string, title: string) => {
+    setEpicToDelete({ id, title });
+    setDeleteEpicDialogOpen(true);
+  };
+
+  const confirmDeleteEpic = () => {
+    if (epicToDelete) {
+      deleteEpic(epicToDelete.id);
+      toast({ title: "Deleted", description: `Epic "${epicToDelete.title}" has been deleted.` });
+    }
+    setDeleteEpicDialogOpen(false);
+    setEpicToDelete(null);
+  };
+
   const startEditing = (deliverableId: string, field: string, currentValue: string) => {
     setEditingDeliverableId(deliverableId);
     setEditingField(field);
@@ -614,7 +631,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         epicId: epicId,
         deliverableId: epic?.deliverableId,
         stageId: stageId,
-        typeId: defaultTaskType.id,
+        taskTypeId: defaultTaskType.id,
         status: defaultStatus,
         priority: "Medium",
         effort: 3,
@@ -1284,6 +1301,18 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                               <Progress value={epicProgress} className="h-1.5" />
                                               <span className="text-xs text-muted-foreground w-8 text-right">{epicProgress}%</span>
                                             </div>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                openDeleteEpicDialog(epic.id, epic.title);
+                                              }}
+                                              data-testid={`btn-delete-epic-${epic.id}`}
+                                            >
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
                                           </div>
                                         </div>
 
@@ -1633,6 +1662,28 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete-deliverable"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteEpicDialogOpen} onOpenChange={setDeleteEpicDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Epic</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{epicToDelete?.title}"? This action cannot be undone. 
+              Any associated tasks will remain but will no longer be linked to this epic.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteEpic}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-epic"
             >
               Delete
             </AlertDialogAction>
