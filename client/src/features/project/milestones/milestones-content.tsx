@@ -318,11 +318,21 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   }, [projectTasks, allStages]);
 
   const getTasksForMilestone = (milestoneId: string) => {
+    // Get tasks from milestone_task_links table
     const links = (allTaskLinks || []).filter((l: any) => l.milestoneId === milestoneId);
-    return links.map((link: any) => {
+    const linkedTaskIds = new Set(links.map((link: any) => link.taskId));
+    const tasksFromLinks = links.map((link: any) => {
       const task = (allTasks || []).find((t: any) => t.id === link.taskId);
       return task;
     }).filter(Boolean);
+    
+    // Also get tasks with milestoneId set directly on the task record
+    const tasksWithDirectMilestone = (allTasks || []).filter((t: any) => 
+      t.milestoneId === milestoneId && !linkedTaskIds.has(t.id)
+    );
+    
+    // Combine both sources, avoiding duplicates
+    return [...tasksFromLinks, ...tasksWithDirectMilestone];
   };
 
   const getLinksForMilestone = (milestoneId: string) => {
