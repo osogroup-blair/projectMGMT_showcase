@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,16 @@ export function StepSprints({
     }
   }, [hasImportedSprints, sprints.length]);
 
+  const sortSprintsByDate = (sprintList: SprintData[]): SprintData[] => {
+    return [...sprintList].sort((a, b) => {
+      const dateA = a.startDate ? new Date(a.startDate).getTime() : 0;
+      const dateB = b.startDate ? new Date(b.startDate).getTime() : 0;
+      return dateA - dateB;
+    });
+  };
+
+  const sortedSprints = useMemo(() => sortSprintsByDate(sprints), [sprints]);
+
   const handleCadenceChange = (newCadence: SprintCadence) => {
     setCadence(newCadence);
 
@@ -119,15 +129,18 @@ export function StepSprints({
   };
 
   const handleSprintDateChange = (sprintId: string, field: "startDate" | "endDate", value: string) => {
-    setSprints(prev => prev.map(s => s.id === sprintId ? { ...s, [field]: value } : s));
+    setSprints(prev => {
+      const updated = prev.map(s => s.id === sprintId ? { ...s, [field]: value } : s);
+      return sortSprintsByDate(updated);
+    });
   };
 
   const handleDeleteSprint = (sprintId: string) => {
-    setSprints(prev => prev.filter(s => s.id !== sprintId));
+    setSprints(prev => sortSprintsByDate(prev.filter(s => s.id !== sprintId)));
   };
 
   const handleAddSprint = () => {
-    const lastSprint = sprints[sprints.length - 1];
+    const lastSprint = sortedSprints[sortedSprints.length - 1];
     let newStartDate = projectData.startDate;
     let newEndDate = projectData.dueDate;
 
@@ -142,19 +155,19 @@ export function StepSprints({
       newEndDate = newEnd.toISOString().split('T')[0];
     }
 
-    setSprints(prev => [...prev, {
+    setSprints(prev => sortSprintsByDate([...prev, {
       id: `sprint-${prev.length + 1}-${Date.now()}`,
       name: `Sprint ${prev.length + 1}`,
       startDate: newStartDate,
       endDate: newEndDate,
-    }]);
+    }]));
   };
 
   const handleFillRemaining = (weeks: number) => {
     if (!projectData.dueDate) return;
     
     const projectEnd = new Date(projectData.dueDate);
-    const lastSprint = sprints[sprints.length - 1];
+    const lastSprint = sortedSprints[sortedSprints.length - 1];
     
     let fillStartDate: Date;
     if (lastSprint?.endDate) {
@@ -169,7 +182,7 @@ export function StepSprints({
     const newSprints: SprintData[] = [];
     const sprintDurationMs = weeks * 7 * 24 * 60 * 60 * 1000;
     let currentStart = new Date(fillStartDate);
-    let sprintNumber = sprints.length + 1;
+    let sprintNumber = sortedSprints.length + 1;
     
     while (currentStart < projectEnd) {
       const currentEnd = new Date(currentStart.getTime() + sprintDurationMs - 24 * 60 * 60 * 1000);
@@ -189,18 +202,18 @@ export function StepSprints({
     }
     
     if (newSprints.length > 0) {
-      setSprints(prev => [...prev, ...newSprints]);
+      setSprints(prev => sortSprintsByDate([...prev, ...newSprints]));
     }
   };
 
-  const hasRemainingTime = (() => {
+  const hasRemainingTime = useMemo(() => {
     if (!projectData.dueDate) return false;
     const projectEnd = new Date(projectData.dueDate);
-    const lastSprint = sprints[sprints.length - 1];
+    const lastSprint = sortedSprints[sortedSprints.length - 1];
     if (!lastSprint?.endDate) return true;
     const lastEnd = new Date(lastSprint.endDate);
     return lastEnd < projectEnd;
-  })();
+  }, [projectData.dueDate, sortedSprints]);
 
   const cadenceOptions = [
     { value: "none", label: "No Sprints", description: "This project won't use sprint-based planning" },
@@ -321,7 +334,7 @@ export function StepSprints({
           </div>
 
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-            {sprints.map((sprint, index) => (
+            {sortedSprints.map((sprint, index) => (
               <Card key={sprint.id} className="relative">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-3">
