@@ -608,12 +608,8 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
       return;
     }
     
-    // Get the first stage from the epic's stageIds, or fallback to project stages
-    const stageId = epic.stageIds?.[0] || projectStages?.[0]?.id;
-    if (!stageId) {
-      toast({ title: "Error", description: "No stage available for this task.", variant: "destructive" });
-      return;
-    }
+    // Get the first stage from the epic's stageIds, or fallback to project stages (optional)
+    const stageId = epic.stageIds?.[0] || projectStages?.[0]?.id || null;
     
     // Get default task type from resolved types (default or first available)
     const defaultTaskType = resolvedTaskTypes.find((t: any) => t.isDefault) || resolvedTaskTypes[0];
