@@ -527,6 +527,24 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     updateTask({ id: taskId, updates: { milestoneId: milestoneId === "none" ? null : milestoneId } });
   };
 
+  const handleEpicDateChange = async (epicId: string, field: "startDate" | "endDate", date: Date | undefined) => {
+    if (!date) return;
+    const dateStr = format(date, "yyyy-MM-dd");
+    try {
+      await updateEpicAsync({ id: epicId, updates: { [field]: dateStr } });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update epic date.", variant: "destructive" });
+    }
+  };
+
+  const handleEpicStatusChange = async (epicId: string, newStatus: string) => {
+    try {
+      await updateEpicAsync({ id: epicId, updates: { status: newStatus } });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update epic status.", variant: "destructive" });
+    }
+  };
+
   const autoAdjustEpicDates = async (epicId: string, taskDeadline: string) => {
     const epic = allEpics?.find((e: any) => e.id === epicId);
     if (!epic) return;
@@ -859,13 +877,14 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead style={{ width: "3%" }}></TableHead>
-                  <SortableHeader field="title" width="22%">Deliverable</SortableHeader>
-                  <TableHead style={{ width: "12%" }}>Type</TableHead>
+                  <SortableHeader field="title" width="18%">Deliverable</SortableHeader>
+                  <TableHead style={{ width: "10%" }}>Type</TableHead>
                   <SortableHeader field="status" width="10%">Status</SortableHeader>
+                  <TableHead style={{ width: "10%" }}>Start Date</TableHead>
                   <SortableHeader field="dueDate" width="10%">Due Date</SortableHeader>
                   <SortableHeader field="owner" width="10%">Owner</SortableHeader>
-                  <SortableHeader field="epics" width="8%">Epics</SortableHeader>
-                  <SortableHeader field="progress" width="15%">Progress</SortableHeader>
+                  <SortableHeader field="epics" width="6%">Epics</SortableHeader>
+                  <SortableHeader field="progress" width="13%">Progress</SortableHeader>
                   <TableHead style={{ width: "10%" }} className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1004,7 +1023,33 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                             <PopoverTrigger asChild>
                               <div 
                                 className="flex items-center gap-1.5 cursor-pointer hover:text-primary group"
-                                data-testid={`editable-date-${deliverable.id}`}
+                                data-testid={`editable-start-date-${deliverable.id}`}
+                              >
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                                {deliverable.startDate ? (
+                                  new Date(deliverable.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                                ) : (
+                                  <span className="italic">Not set</span>
+                                )}
+                                <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={deliverable.startDate ? new Date(deliverable.startDate) : undefined}
+                                onSelect={(date) => handleDateChange(deliverable.id, "startDate", date)}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <div 
+                                className="flex items-center gap-1.5 cursor-pointer hover:text-primary group"
+                                data-testid={`editable-due-date-${deliverable.id}`}
                               >
                                 <CalendarIcon className="h-3.5 w-3.5" />
                                 {deliverable.dueDate ? (
@@ -1075,7 +1120,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
                       {isExpanded && (
                         <TableRow className="bg-muted/10 hover:bg-muted/10">
-                          <TableCell colSpan={8} className="p-0">
+                          <TableCell colSpan={10} className="p-0">
                             <div className="p-4 border-t">
                               <div className="flex items-center justify-between mb-3">
                                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -1148,21 +1193,89 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                               )}
                                             </div>
                                           </div>
-                                          <div className="flex items-center gap-4">
-                                            <Badge 
-                                              variant="outline" 
-                                              className={cn(
-                                                "text-[10px]",
-                                                epicStatusLabels.length > 0 
-                                                  ? cn(getEpicStatusBgColor(epic.status), getEpicStatusTextColor(epic.status))
-                                                  : epic.status === "Completed" || epic.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
-                                                    epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                                    "bg-slate-50 text-slate-700 border-slate-200"
-                                              )}
+                                          <div className="flex items-center gap-4" onClick={(e) => e.stopPropagation()}>
+                                            <Select 
+                                              value={epic.status} 
+                                              onValueChange={(v) => handleEpicStatusChange(epic.id, v)}
                                             >
-                                              <EpicStatusIcon className="h-2.5 w-2.5 mr-1" />
-                                              {epic.status}
-                                            </Badge>
+                                              <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto">
+                                                <Badge 
+                                                  variant="outline" 
+                                                  className={cn(
+                                                    "text-[10px] cursor-pointer",
+                                                    epicStatusLabels.length > 0 
+                                                      ? cn(getEpicStatusBgColor(epic.status), getEpicStatusTextColor(epic.status))
+                                                      : epic.status === "Completed" || epic.status === "Done" ? "bg-green-50 text-green-700 border-green-200" :
+                                                        epic.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                                        "bg-slate-50 text-slate-700 border-slate-200"
+                                                  )}
+                                                >
+                                                  <EpicStatusIcon className="h-2.5 w-2.5 mr-1" />
+                                                  {epic.status}
+                                                </Badge>
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {epicStatusLabels.length > 0 ? (
+                                                  epicStatusLabels.map((status) => (
+                                                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                                                  ))
+                                                ) : (
+                                                  <>
+                                                    <SelectItem value="Not Started">Not Started</SelectItem>
+                                                    <SelectItem value="In Progress">In Progress</SelectItem>
+                                                    <SelectItem value="Completed">Completed</SelectItem>
+                                                    <SelectItem value="Blocked">Blocked</SelectItem>
+                                                  </>
+                                                )}
+                                              </SelectContent>
+                                            </Select>
+                                            <Popover>
+                                              <PopoverTrigger asChild>
+                                                <div 
+                                                  className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer hover:text-primary group"
+                                                  data-testid={`epic-start-date-${epic.id}`}
+                                                >
+                                                  <CalendarIcon className="h-3 w-3" />
+                                                  {epic.startDate ? (
+                                                    new Date(epic.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                                                  ) : (
+                                                    <span className="italic">Start</span>
+                                                  )}
+                                                </div>
+                                              </PopoverTrigger>
+                                              <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                  mode="single"
+                                                  selected={epic.startDate ? new Date(epic.startDate) : undefined}
+                                                  onSelect={(date) => handleEpicDateChange(epic.id, "startDate", date)}
+                                                  initialFocus
+                                                />
+                                              </PopoverContent>
+                                            </Popover>
+                                            <span className="text-xs text-muted-foreground">-</span>
+                                            <Popover>
+                                              <PopoverTrigger asChild>
+                                                <div 
+                                                  className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer hover:text-primary group"
+                                                  data-testid={`epic-end-date-${epic.id}`}
+                                                >
+                                                  <CalendarIcon className="h-3 w-3" />
+                                                  {epic.endDate ? (
+                                                    new Date(epic.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                                                  ) : (
+                                                    <span className="italic">End</span>
+                                                  )}
+                                                </div>
+                                              </PopoverTrigger>
+                                              <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                  mode="single"
+                                                  selected={epic.endDate ? new Date(epic.endDate) : undefined}
+                                                  onSelect={(date) => handleEpicDateChange(epic.id, "endDate", date)}
+                                                  initialFocus
+                                                />
+                                              </PopoverContent>
+                                            </Popover>
                                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                               <ListTodo className="h-3 w-3" />
                                               <span>{epicTaskCounts.done}/{epicTaskCounts.total}</span>
