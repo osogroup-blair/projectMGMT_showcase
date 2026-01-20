@@ -1,141 +1,61 @@
 # Nymbl Workspace
 
 ## Overview
-
-Nymbl Workspace is an AI-powered project management platform for service delivery organizations, offering comprehensive project lifecycle management. It includes configurable frameworks, hierarchical work breakdown structures (Projects → Deliverables → Epics → Tasks), milestone tracking, and team management. Key capabilities feature customizable views (Kanban, Table, Timeline), stage-based workflows, advanced import/export, and sprint planning. The platform aims to enhance usability and efficiency in project management.
+Nymbl Workspace is an AI-powered project management platform designed for service delivery organizations. It offers a comprehensive suite of tools for managing the entire project lifecycle, including configurable frameworks, hierarchical work breakdown structures (Projects → Deliverables → Epics → Tasks), milestone tracking, and team management. Key capabilities include customizable views (Kanban, Table, Timeline), stage-based workflows, advanced import/export functionalities, and sprint planning. The platform's core purpose is to enhance usability and efficiency in project management processes.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
 ### Frontend
-
-The frontend is built with React 18 and TypeScript, using Wouter for routing and TanStack Query for server state management. UI components leverage shadcn/ui (based on Radix UI primitives), styled with Tailwind CSS v4, and bundled with Vite.
+The frontend is built with React 18, TypeScript, Wouter for routing, and TanStack Query for server state management. UI components are developed using shadcn/ui (based on Radix UI primitives), styled with Tailwind CSS v4, and bundled with Vite.
 
 ### Backend
-
-The backend is developed with Node.js and Express in TypeScript, providing RESTful API endpoints. Data is persisted in PostgreSQL using Drizzle ORM, with a shared schema definition (`shared/schema.ts`).
+The backend utilizes Node.js and Express, written in TypeScript, to provide RESTful API endpoints. Data persistence is managed with PostgreSQL and Drizzle ORM.
 
 ### Data Model
-
-The core data model is hierarchical, comprising Projects, Deliverables, Epics, Tasks, Milestones, Stages, and Sprints. It also includes Users, Roles, Assignments, Views, Guidance Items, and various template types, alongside User Preferences, Work Blocks, and Day Plans for personalized planning.
+The core data model is hierarchical, encompassing Projects, Deliverables, Epics, Tasks, Milestones, Stages, Sprints, Users, Roles, Assignments, Views, Guidance Items, and various template types. It also includes User Preferences, Work Blocks, and Day Plans.
 
 ### Authentication and Authorization
-
-The platform uses OpenID Connect for authentication with two optional SSO providers:
--   **Microsoft SSO** (Azure AD / Entra ID): Configured via `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` environment variables
--   **Google OAuth**: Configured via `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` environment variables
--   **Demo Login**: Users can log in without credentials when demo data is generated
-
-Authentication modules are located in `server/replit_integrations/auth/`:
--   `sessionAuth.ts`: Session management with PostgreSQL session store
--   `microsoftAuth.ts`: Microsoft SSO using openid-client
--   `googleAuth.ts`: Google OAuth using openid-client
--   `routes.ts`: Auth routes including demo login and impersonation
-
-#### SSO Identity Linking Pattern
-
-When users sign in via SSO (Google or Microsoft), the system follows a specific pattern to preserve user data while capturing SSO claims:
-
-1. **User Record Behavior**:
-   - If the user already exists (matched by email), their `firstName`, `lastName`, and `name` are **never overwritten** by SSO claims
-   - Only truly new users get their names populated from SSO claims
-   - The SSO provider ID (googleId/microsoftId) is linked to the user for future logins
-   - Profile image is only updated if the user doesn't already have one
-
-2. **Identity Records**:
-   - All SSO claim data is stored in the `user_identities` table instead of overwriting user fields
-   - Each SSO login creates/updates an identity record with `systemId` set to "google" or "microsoft"
-   - The identity record captures: `externalUserId`, `externalEmail`, `profile.displayName`, `profile.avatarUrl`, auth scopes, and sync status
-   - This allows users to link multiple external accounts and preserves the SSO-provided data
-
-3. **Pattern for Future Integrations**:
-   - When adding new external system integrations (e.g., Jira, ClickUp, Asana), follow this same pattern
-   - Create identity records with `systemType: "integration"` or appropriate type
-   - Store external claims in identity records rather than overwriting user profile data
-   - Use `workspaceId` to track the external workspace/organization
-   - Set `syncSourceOfTruth` to indicate which system owns the data
-
-Role-Based Access Control (RBAC) is implemented with database-driven roles and permissions:
-
--   **System Roles**: 5 built-in roles (admin, manager, member, viewer, demo) stored in `system_roles` table
--   **Permissions**: 13 permissions across 4 categories (User Management, Admin Access, Projects, Data Management) stored in `system_permissions` table
--   **Role-Permission Mappings**: Stored in `role_permissions` table, configurable via Admin > App Defaults > Roles & Permissions
--   **User Permissions**: Users inherit permissions from their role, plus any additional permissions granted directly via `permissions` array
--   **Enforcement**: `AuthGuard` components on frontend, `requirePermission` middleware on backend reads from database
-
-Admins and demo users can impersonate other users. Core entities track `createdBy`, `updatedBy`, `createdAt`, and `updatedAt` for audit logging.
-
-### Deployment
-
-Two deployment options are documented in `DEPLOYMENT.md`:
--   **Local Setup**: Using `setup.sh` script with local PostgreSQL
--   **Docker Compose**: Containerized deployment with included PostgreSQL
+The platform uses OpenID Connect for authentication, supporting Microsoft SSO (Azure AD / Entra ID) and Google OAuth. A demo login option is also available. A key architectural decision is the SSO Identity Linking Pattern, where SSO claims are stored in `user_identities` to preserve user data and allow linking multiple external accounts without overwriting core user profile fields. Role-Based Access Control (RBAC) is implemented with database-driven roles and permissions, enforced via frontend `AuthGuard` components and backend `requirePermission` middleware.
 
 ### API Structure
-
-The API uses a modular route architecture organized by domain (e.g., `admin`, `projects`, `tasks`, `users`, `templates`, `sprints`, `config`, `import-export`, `schedule-sync`) in `server/api/routes/`. Each module registers its routes with the Express application.
+The API employs a modular route architecture organized by domain (e.g., `admin`, `projects`, `tasks`) in `server/api/routes/`.
 
 ### Data Layer
-
-A repository pattern is used in `server/data/repositories/` for data access, with specific repositories for entities like `user`, `task`, `milestone`, and `sprint`.
+A repository pattern is used in `server/data/repositories/` for data access.
 
 ### Key Features
-
--   **Project Creation Wizard**: A 6-step guided flow for creating projects, defining work breakdown, configuring stages, assigning teams, and reviewing. Supports importing tasks with automatic epic matching.
-    -   **Stage Configuration Step**: Features a thin horizontal framework bar at top with "Custom" as the first/default option followed by framework templates. A collapsible left navigation sidebar provides access to Milestones and Stages tabs (collapse toggle in header). Stages support drag-and-drop reordering, task creation modes (None/Once/Per Epic) inline with dates, and milestone linking. When stage names or order are modified, the framework automatically switches to "Custom" without confirmation. Projects start with no stages by default.
-    -   **Work Breakdown Step**: Creates default "Management Activities" deliverable with 3 protected epics (Project Management, Product Management, Client Management). These cannot be deleted. One-off tasks from stages are applied to Product Management epic. When creating new deliverables/epics, per_epic tasks from stages are automatically applied. Tasks have optional Stage, Sprint, Milestone, Owner, and Effort fields (only Title and Epic are required). **Deliverables now start collapsed by default** to reduce visual clutter. Validation ensures each deliverable has at least one epic. **Task Count Badges**: Deliverable headers show "(X epics, Y tasks)" and epic headers show "(X tasks)" when collapsed, providing visibility into item counts without expanding.
-    -   **Step Navigation Loading Feedback**: Next and Back buttons show a loading spinner during step transitions to provide visual feedback that the click was registered and content is loading.
-    -   **Import Task Separation Pattern**: When importing projects, tasks are separated by purpose: imported tasks go directly into `epic.tasks` (via `toWizardDeliverables`), while `stage.tasks` remains empty (for template-based task generation). This prevents task duplication. The `generatePerEpicTasks()` function also filters out `isFromImport` tasks as a safety measure. Key files: `client/src/lib/import-to-wizard-adapter.ts` (adapter functions), `client/src/pages/project-new/step-work-breakdown.tsx` (Work Breakdown UI).
--   **Sample Data Generation**: An admin feature to generate test data for a Website Redesign project, available in `/admin/import-export` under the "Sample Data" tab.
--   **Demo Data Generation**: Creates realistic multi-project demo scenarios with 5 demo users, a Delivery Framework, and 3 projects at different completion stages (CRM System ~60%, Task Management App ~30%, Time Entry System ~10%). Demo users are named by role (Demo Solution Consultant, Demo Product Designer, Demo Developer Lead, Demo QA Engineer, Demo Documentation Manager). Available in `/admin/import-export` under the "Demo Data" tab.
--   **Data Viewer**: A JSON viewer at `/admin/data-viewer` to inspect generated project data structure including hierarchical views of projects, deliverables, epics, and tasks.
--   **Import/Export System**: Supports multi-format (JSON, Excel/CSV, YAML) import with a multi-step flow: file upload → **Team Assignment** → summary → project wizard. The Team Assignment step displays ALL imported users with task counts, confidence-based auto-mapping to system users, and project role assignment (Owner/Manager/Stakeholder/Member). Features nested Nexus export format support, array field normalization, and foreign key validation. Includes automatic **Reference Resolution** (`client/src/lib/import-reference-resolver.ts`) that handles name-based references from external systems (like ClickUp exports) where entities are referenced by name instead of UUID. The reference resolver uses multi-strategy matching (exact ID → exact name → partial name → fuzzy match) with confidence scoring and displays resolution statistics in the import summary. Each unique source value gets its own mapping entry with accurate affected row counts (e.g., Epic A: 23 rows, Epic B: 45 rows). Manual Override dropdowns source options from the imported file entities (not the system database) to prevent duplicates and ensure correct entity selection.
-    -   **Import Validation** (`client/src/lib/import-validation.ts`): Comprehensive validation with user-friendly error messages:
-        - Empty file detection with format-specific messages
-        - Duplicate ID detection with automatic renaming (appends `_dupN` suffix) and foreign key propagation
-        - Circular dependency detection using DFS algorithm (for task dependencies, blockedBy, dependsOn)
-        - Zod schema validation for required fields (Tasks, Epics, Deliverables, Sprints, Projects, Milestones)
-        - Date parsing with multi-format support (ISO, MM/DD/YYYY, DD-MM-YYYY, Excel serial numbers) and warning collection
-        - Chunked processing utility for large files (CHUNK_SIZE=500, LARGE_FILE_THRESHOLD=5000)
-    -   **Task-Epic Validation Panel** (`client/src/components/import/task-validation-panel.tsx`): Visual diagnostic tool in the Import Summary step that shows task-to-epic assignment status. Features:
-        - Summary header with assigned/orphaned task counts
-        - Collapsible error type sections grouping orphaned tasks by cause (no epic reference, epic ID not found, epic name not found, fuzzy match failed)
-        - Detailed table showing each orphaned task with its source epic reference and specific error message
-        - Export Problems button to download orphaned tasks as CSV for fixing source import files
-        - Help text explaining how to fix orphaned tasks (add epicId/epicName columns, verify matches)
--   **Homepage Current Projects Kanban**: An interactive Kanban board on the homepage displaying tasks for projects with user involvement, supporting filtering by Assignee, Epic, Milestone, and Sprint.
--   **Identity Linking System**: Allows users to link multiple external accounts (e.g., ClickUp, Jira, Asana, Google) to their Nymbl profile, managed via the profile page or by administrators. Supports user merging.
--   **Milestone Template Scope Rules**: Milestone templates support rule-based scoping to automatically match tasks when applied to projects. Rules can filter by stage, epic type, and task template. Scope rules are defined in framework editor and stored in `defaultScopeRules` JSONB field with typed `MilestoneScopeRule` interface.
--   **Theme Management System**: Full theme customization with import/export capabilities. Admins can create, edit, and publish themes via `/admin/themes`. Users can switch between published themes using the palette icon in the header, and toggle dark/light mode with the moon/sun icon. Theme preferences persist in localStorage. Themes define colors (background, foreground, primary, secondary, accent, etc.), typography (font families, sizes), and spacing (border radius). The `ThemeProvider` context applies theme tokens as CSS custom properties to the document root.
+-   **Project Creation Wizard**: A guided, multi-step flow for project setup, including work breakdown definition, stage configuration, team assignment, and review. It supports importing tasks and includes features like stage configuration with framework templates, "Management Activities" deliverable with protected epics, and task count badges.
+-   **Sample and Demo Data Generation**: Administrative features to generate test data for project examples and realistic multi-project demo scenarios.
+-   **Data Viewer**: An administrative JSON viewer for inspecting project data structures.
+-   **Import/Export System**: Supports multi-format (JSON, Excel/CSV, YAML) import with a multi-step flow including team assignment, summary, and integration with the project wizard. Features automatic reference resolution with multi-strategy matching, a tabbed UI for reference mapping, a relationship preview, and comprehensive import validation with user-friendly error messages and a task-epic validation panel.
+-   **Homepage Current Projects Kanban**: An interactive Kanban board for tasks on user-involved projects with filtering capabilities.
+-   **Identity Linking System**: Allows users to link multiple external accounts to their profile.
+-   **Milestone Template Scope Rules**: Rule-based scoping for milestone templates to automatically match tasks.
+-   **Theme Management System**: Allows full theme customization, including creation, editing, publishing, and user-selection of themes with dark/light mode toggling.
 
 ### File Structure
-
-The codebase follows a feature-first structure. The `client/src/` directory contains global components, contexts, feature-specific modules, hooks, utilities, and pages. The `server/` directory organizes Express setup, API routes, and data access. Shared types are in `shared/schema.ts`. Large components are being decomposed into modular feature folders (e.g., `sprints/detail/`, `import-export/`) using custom hooks for data and actions, and reusable UI components.
+The codebase follows a feature-first structure, with `client/src/` for frontend concerns and `server/` for backend. Shared types are in `shared/schema.ts`.
 
 ## External Dependencies
 
 ### Database
-
 -   **PostgreSQL**: Primary relational database.
--   **Drizzle ORM**: Object-relational mapper for database interaction.
+-   **Drizzle ORM**: Object-relational mapper.
 
 ### UI Libraries
-
--   **Radix UI**: Provides accessible and unstyled UI primitives.
+-   **Radix UI**: Accessible and unstyled UI primitives.
 -   **dnd-kit**: Drag-and-drop library.
 -   **Lucide React**: Icon library.
 -   **date-fns**: Date utility library.
 
 ### Data Processing
-
--   **xlsx**: Used for Excel file parsing.
--   **js-yaml**: For YAML configuration processing.
+-   **xlsx**: Excel file parsing.
+-   **js-yaml**: YAML configuration processing.
 -   **file-saver**: Client-side file download utility.
 -   **zod**: Schema declaration and validation library.
 
 ### Fonts
-
--   **Google Fonts**: Montserrat and Raleway for typography.
+-   **Google Fonts**: Montserrat and Raleway.
