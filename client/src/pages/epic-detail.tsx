@@ -33,7 +33,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useRoute, Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints, useEpicTypes } from "@/hooks/use-nexus-data";
+import { useProject, useEpics, useDeliverables, useTasks, useUsers, useProjectStages, useSprints, useEpicTypes, useTaskTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses, useEpicStatuses } from "@/hooks/use-task-statuses";
 import {
   Dialog,
@@ -99,6 +99,7 @@ export default function EpicDetail() {
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
   const { data: epicTypes = [], isLoading: isEpicTypesLoading } = useEpicTypes();
+  const { data: taskTypes = [], isLoading: isTaskTypesLoading } = useTaskTypes();
   const { statusLabels, defaultStatus, isCompletedStatus } = useTaskStatuses();
   const { statusLabels: epicStatusLabels, getStatusBgColor: getEpicStatusBgColor, getStatusTextColor: getEpicStatusTextColor, defaultStatus: defaultEpicStatus } = useEpicStatuses();
 
@@ -328,11 +329,22 @@ export default function EpicDetail() {
         description: `"${formData.title}" has been updated.`
       });
     } else {
+      // Get default task type (first available or use a fallback)
+      const defaultTaskTypeId = taskTypes[0]?.id;
+      if (!defaultTaskTypeId) {
+        toast({
+          title: "Cannot Create Task",
+          description: "No task types are available. Please contact an administrator.",
+          variant: "destructive"
+        });
+        return;
+      }
       createTask({
         ...formData,
         epicId,
         projectId,
-        project: project?.name
+        project: project?.name,
+        taskTypeId: defaultTaskTypeId
       });
       toast({
         title: "Task Created",
