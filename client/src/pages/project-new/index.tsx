@@ -1525,6 +1525,7 @@ export default function ProjectWizard() {
     onSkipWizard: handleSkipWizard,
     isImportMode,
     onResetStageConfiguration: handleResetStageConfiguration,
+    sprints,
   };
 
   const basicsRef = useRef<any>(null);
