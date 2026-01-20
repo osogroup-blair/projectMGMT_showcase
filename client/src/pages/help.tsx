@@ -50,6 +50,7 @@ export default function HelpPage() {
       </div>
 
       <div className="space-y-8">
+        {/* Section 1: Understanding the Data Model */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -188,410 +189,7 @@ export default function HelpPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-500" />
-              What's New: Recent Features
-            </CardTitle>
-            <CardDescription>
-              Latest additions to enhance your project management experience
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="p-4 border rounded-lg border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900 space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Timer className="h-4 w-4 text-amber-600" />
-                  Automatic Sprint Status
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Sprint status now changes automatically based on dates. Sprints are "Planned" before their 
-                  start date, "Active" during their date range, and "Closed" after their end date. 
-                  No more manually starting or closing sprints!
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900 space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <UserCheck className="h-4 w-4 text-blue-600" />
-                  Owner Auto-Assignment
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  When you set a project owner during project creation, all deliverables are automatically 
-                  assigned to that owner. This saves time and ensures accountability from day one.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-900 space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Link className="h-4 w-4 text-purple-600" />
-                  Identity Linking
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Link multiple external accounts (Microsoft, Google) to your profile. Access your workspace 
-                  from different login providers while maintaining a single user identity.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-900 space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Palette className="h-4 w-4 text-green-600" />
-                  Theme Customization
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Customize the look and feel with custom themes. Create, edit, and publish themes with 
-                  full dark/light mode support. Select from published themes in your profile.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-900 space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <FileSpreadsheet className="h-4 w-4 text-orange-600" />
-                  Enhanced Import System
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Import from Excel, CSV, JSON, or YAML with intelligent column mapping. Features automatic 
-                  reference resolution, team assignment, validation with friendly error messages, and 
-                  integration with the project wizard.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg border-cyan-200 bg-cyan-50/50 dark:bg-cyan-950/20 dark:border-cyan-900 space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <FolderTree className="h-4 w-4 text-cyan-600" />
-                  Management Activities
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  New projects automatically include a "Management Activities" deliverable with protected 
-                  epics for Project Management, Product Management, and Client Management tasks.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Workflow className="h-5 w-5 text-primary" />
-              Recommended Workflow
-            </CardTitle>
-            <CardDescription>
-              The ideal way to use Nymbl Workspace from project setup to delivery
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="relative">
-                <div className="absolute left-5 top-10 bottom-10 w-0.5 bg-border" />
-                
-                <div className="space-y-6">
-                  <div className="relative flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      1
-                    </div>
-                    <div className="pt-1">
-                      <h4 className="font-semibold">Create Your Project</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Use the project wizard to set up your project. Define the project name, description, 
-                        and set key dates. Set a project owner to automatically assign deliverables.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="relative flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      2
-                    </div>
-                    <div className="pt-1">
-                      <h4 className="font-semibold">Build Your Work Breakdown Structure</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Add deliverables and epics to organize your scope. This hierarchical structure helps 
-                        everyone understand what needs to be built. You can import tasks from spreadsheets or 
-                        add them manually.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="relative flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      3
-                    </div>
-                    <div className="pt-1">
-                      <h4 className="font-semibold">Configure Your Workflow Stages</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Select a delivery framework that matches your methodology (like "Standard Delivery" or 
-                        "Agile Scrum"), or create custom stages that fit your team's process. Stages define how 
-                        tasks move through your workflow.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="relative flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      4
-                    </div>
-                    <div className="pt-1">
-                      <h4 className="font-semibold">Create Tasks and Milestones</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Define specific tasks and important project milestones. Assign tasks to epics and set target 
-                        dates for milestones to create a clear roadmap for your project.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="relative flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      5
-                    </div>
-                    <div className="pt-1">
-                      <h4 className="font-semibold">Assign Your Team</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Add team members with appropriate project roles (Owner, Manager, Member) and execution 
-                        roles (Developer, Designer, QA). This enables workload tracking and task assignment.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="relative flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      6
-                    </div>
-                    <div className="pt-1">
-                      <h4 className="font-semibold">Plan Sprints</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Create sprints for time-boxed planning. Set start and end dates - the status updates 
-                        automatically. Assign tasks to sprints and monitor capacity.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="relative flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
-                      7
-                    </div>
-                    <div className="pt-1">
-                      <h4 className="font-semibold">Execute & Track Progress</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Use Kanban boards to move tasks through stages. Update task status, log blockers, 
-                        and track completion. The homepage dashboard shows your current work at a glance.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <LayoutGrid className="h-5 w-5 text-primary" />
-              Key Features & Views
-            </CardTitle>
-            <CardDescription>
-              Powerful tools to manage and visualize your work
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <LayoutGrid className="h-4 w-4" />
-                  Kanban Board
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Drag and drop tasks between columns to update their status. Available on the homepage for 
-                  your assigned tasks and within each project for all project tasks. Use expand/collapse 
-                  controls to focus on specific areas.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <ListTodo className="h-4 w-4" />
-                  Table View
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  See all tasks in a sortable, filterable table format. Great for bulk editing, 
-                  exporting data, or getting a comprehensive list view.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Sprint Planning
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Plan what work goes into each sprint. Create sprints with dates - they'll automatically 
-                  transition from Planned to Active to Closed. Drag tasks from the backlog into sprints.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Timeline View
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Visualize tasks and milestones on a timeline. See how work is distributed over time 
-                  and identify scheduling conflicts.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Team Workload
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  See how work is distributed across team members. Identify who's overloaded and 
-                  who has capacity for more work.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4" />
-                  Import/Export
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Import tasks from Excel, CSV, JSON, or YAML files. Export your project data for reporting 
-                  or backup purposes. Multi-step wizard with validation and team assignment.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  Advanced Filtering
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Filter tasks by assignee, epic, milestone, sprint, status, priority, and more. 
-                  Combine multiple filters to find exactly what you need.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  Saved Views
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Save your filter configurations as named views. Quickly switch between different 
-                  perspectives on your project data.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5 text-primary" />
-              Administration Features
-            </CardTitle>
-            <CardDescription>
-              Powerful tools for administrators to configure and manage the platform
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  User Management
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Manage users, assign system roles (Admin, User), edit profiles, and view user activity. 
-                  Administrators can also link identities and manage user permissions.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <GitBranch className="h-4 w-4" />
-                  Stage Templates
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Create and manage reusable stage templates. Define stage types, descriptions, 
-                  and default tasks that get applied when stages are added to projects.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Workflow className="h-4 w-4" />
-                  Framework Templates
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Design delivery frameworks (like Waterfall, Agile) with predefined stages. 
-                  Frameworks can be selected during project creation to auto-configure stages.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Target className="h-4 w-4" />
-                  Milestone Templates
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Create milestone templates with scope rules. Templates can automatically 
-                  match tasks based on criteria like deliverable type or epic type.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Palette className="h-4 w-4" />
-                  Theme Management
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Create custom themes with full color customization. Support for dark and light modes. 
-                  Publish themes for all users or keep them private.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Authentication Settings
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Configure Single Sign-On (SSO) with Microsoft (Azure AD/Entra ID) or Google OAuth. 
-                  Manage demo login settings and authentication providers.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  App Defaults
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Configure default status options for projects, deliverables, epics, and tasks. 
-                  Define task types, deliverable types, epic types, and role types.
-                </p>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-2">
-                <h4 className="font-semibold flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Sample & Demo Data
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Generate sample projects for testing. Create realistic multi-project demo scenarios 
-                  with deliverables, tasks, milestones, and sprints.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* Section 2: Common Actions Guide (moved up) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -780,6 +378,7 @@ export default function HelpPage() {
           </CardContent>
         </Card>
 
+        {/* Section 3: Pro Tips (moved up) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -872,6 +471,415 @@ export default function HelpPage() {
           </CardContent>
         </Card>
 
+        {/* Section 4: What's New */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              What's New: Recent Features
+            </CardTitle>
+            <CardDescription>
+              Latest additions to enhance your project management experience
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 border rounded-lg border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-amber-600" />
+                  Automatic Sprint Status
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Sprint status now changes automatically based on dates. Sprints are "Planned" before their 
+                  start date, "Active" during their date range, and "Closed" after their end date. 
+                  No more manually starting or closing sprints!
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-blue-600" />
+                  Owner Auto-Assignment
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  When you set a project owner during project creation, all deliverables are automatically 
+                  assigned to that owner. This saves time and ensures accountability from day one.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Link className="h-4 w-4 text-purple-600" />
+                  Identity Linking
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Link multiple external accounts (Microsoft, Google) to your profile. Access your workspace 
+                  from different login providers while maintaining a single user identity.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-green-600" />
+                  Theme Customization
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Customize the look and feel with custom themes. Create, edit, and publish themes with 
+                  full dark/light mode support. Select from published themes in your profile.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-orange-600" />
+                  Enhanced Import System
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Import from Excel, CSV, JSON, or YAML with intelligent column mapping. Features automatic 
+                  reference resolution, team assignment, validation with friendly error messages, and 
+                  integration with the project wizard.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-cyan-200 bg-cyan-50/50 dark:bg-cyan-950/20 dark:border-cyan-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <FolderTree className="h-4 w-4 text-cyan-600" />
+                  Management Activities
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  New projects automatically include a "Management Activities" deliverable with protected 
+                  epics for Project Management, Product Management, and Client Management tasks.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section 5: Recommended Workflow */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Workflow className="h-5 w-5 text-primary" />
+              Recommended Workflow
+            </CardTitle>
+            <CardDescription>
+              The ideal way to use Nymbl Workspace from project setup to delivery
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="relative">
+                <div className="absolute left-5 top-10 bottom-10 w-0.5 bg-border" />
+                
+                <div className="space-y-6">
+                  <div className="relative flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
+                      1
+                    </div>
+                    <div className="pt-1">
+                      <h4 className="font-semibold">Create Your Project</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Use the project wizard to set up your project. Define the project name, description, 
+                        and set key dates. Set a project owner to automatically assign deliverables.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
+                      2
+                    </div>
+                    <div className="pt-1">
+                      <h4 className="font-semibold">Build Your Work Breakdown Structure</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Add deliverables and epics to organize your scope. This hierarchical structure helps 
+                        everyone understand what needs to be built. You can import tasks from spreadsheets or 
+                        add them manually.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
+                      3
+                    </div>
+                    <div className="pt-1">
+                      <h4 className="font-semibold">Configure Your Workflow Stages</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Select a delivery framework that matches your methodology (like "Standard Delivery" or 
+                        "Agile Scrum"), or create custom stages that fit your team's process. Stages define how 
+                        tasks move through your workflow.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
+                      4
+                    </div>
+                    <div className="pt-1">
+                      <h4 className="font-semibold">Create Tasks and Milestones</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Define specific tasks and important project milestones. Assign tasks to epics and set target 
+                        dates for milestones to create a clear roadmap for your project.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
+                      5
+                    </div>
+                    <div className="pt-1">
+                      <h4 className="font-semibold">Assign Your Team</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Add team members with appropriate project roles (Owner, Manager, Member) and execution 
+                        roles (Developer, Designer, QA). This enables workload tracking and task assignment.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
+                      6
+                    </div>
+                    <div className="pt-1">
+                      <h4 className="font-semibold">Plan Sprints</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Create sprints for time-boxed planning. Set start and end dates - the status updates 
+                        automatically. Assign tasks to sprints and monitor capacity.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative flex gap-4">
+                    <div className="h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold shrink-0 z-10">
+                      7
+                    </div>
+                    <div className="pt-1">
+                      <h4 className="font-semibold">Execute & Track Progress</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Use Kanban boards to move tasks through stages. Update task status, log blockers, 
+                        and track completion. The homepage dashboard shows your current work at a glance.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section 6: Key Features & Views */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <LayoutGrid className="h-5 w-5 text-primary" />
+              Key Features & Views
+            </CardTitle>
+            <CardDescription>
+              Powerful tools to manage and visualize your work
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4" />
+                  Kanban Board
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Drag and drop tasks between columns to update their status. Available on the homepage for 
+                  your assigned tasks and within each project for all project tasks. Use expand/collapse 
+                  controls to focus on specific areas.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <ListTodo className="h-4 w-4" />
+                  Table View
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  See all tasks in a sortable, filterable table format. Great for bulk editing, 
+                  exporting data, or getting a comprehensive list view.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Sprint Planning
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Plan what work goes into each sprint. Create sprints with dates - they'll automatically 
+                  transition from Planned to Active to Closed. Drag tasks from the backlog into sprints.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Timeline View
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Visualize tasks and milestones on a timeline. See how work is distributed over time 
+                  and identify scheduling conflicts.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Team Workload
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  See how work is distributed across team members. Identify who's overloaded and 
+                  who has capacity for more work.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <ArrowRight className="h-4 w-4" />
+                  Import/Export
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Import tasks from Excel, CSV, JSON, or YAML files. Export your project data for reporting 
+                  or backup purposes. Multi-step wizard with validation and team assignment.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Advanced Filtering
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Filter tasks by assignee, epic, milestone, sprint, status, priority, and more. 
+                  Combine multiple filters to find exactly what you need.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  Saved Views
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Save your filter configurations as named views. Quickly switch between different 
+                  perspectives on your project data.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section 7: Administration Features */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Administration Features
+            </CardTitle>
+            <CardDescription>
+              Powerful tools for administrators to configure and manage the platform
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  User Management
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Manage users, assign system roles (Admin, User), edit profiles, and view user activity. 
+                  Administrators can also link identities and manage user permissions.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <GitBranch className="h-4 w-4" />
+                  Stage Templates
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Create and manage reusable stage templates. Define stage types, descriptions, 
+                  and default tasks that get applied when stages are added to projects.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Workflow className="h-4 w-4" />
+                  Framework Templates
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Design delivery frameworks (like Waterfall, Agile) with predefined stages. 
+                  Frameworks can be selected during project creation to auto-configure stages.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Milestone Templates
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Create milestone templates with scope rules. Templates can automatically 
+                  match tasks based on criteria like deliverable type or epic type.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  Theme Management
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Create custom themes with full color customization. Support for dark and light modes. 
+                  Publish themes for all users or keep them private.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Authentication Settings
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Configure Single Sign-On (SSO) with Microsoft (Azure AD/Entra ID) or Google OAuth. 
+                  Manage demo login settings and authentication providers.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  App Defaults
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Configure default status options for projects, deliverables, epics, and tasks. 
+                  Define task types, deliverable types, epic types, and role types.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Sample & Demo Data
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Generate sample projects for testing. Create realistic multi-project demo scenarios 
+                  with deliverables, tasks, milestones, and sprints.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Section 8: Getting More Help */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
