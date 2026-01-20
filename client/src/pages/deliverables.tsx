@@ -367,7 +367,8 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
         status: "Not Started",
         progress: 0,
         startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        ownerId: project?.ownerId || users?.[0]?.id || ''
       });
       
       await queryClient.invalidateQueries({ queryKey: ["epics"] });
