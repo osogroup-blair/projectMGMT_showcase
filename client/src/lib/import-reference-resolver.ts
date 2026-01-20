@@ -91,18 +91,22 @@ export function resolveReference(
 
   const trimmedValue = value.trim();
   
+  // ALWAYS check ID lookup first, regardless of format (UUID, numeric, alphanumeric, etc.)
+  // ID match takes highest priority and overrides any name-based matching
+  const idMatch = lookupMap.byId.get(trimmedValue);
+  if (idMatch) {
+    return {
+      sourceId: trimmedValue,
+      sourceValue: trimmedValue,
+      resolvedId: idMatch.id,
+      resolvedName: idMatch.name,
+      confidence: 'high',
+      resolutionMethod: 'id_match'
+    };
+  }
+  
+  // If value looks like a UUID but wasn't found, it's likely an invalid reference
   if (isUUID(trimmedValue)) {
-    const match = lookupMap.byId.get(trimmedValue);
-    if (match) {
-      return {
-        sourceId: trimmedValue,
-        sourceValue: trimmedValue,
-        resolvedId: match.id,
-        resolvedName: match.name,
-        confidence: 'high',
-        resolutionMethod: 'id_match'
-      };
-    }
     return {
       sourceId: trimmedValue,
       sourceValue: trimmedValue,
@@ -112,6 +116,7 @@ export function resolveReference(
     };
   }
 
+  // No ID match found, try name-based matching
   const normalizedValue = normalizeForMatching(trimmedValue);
 
   const exactMatch = lookupMap.byNormalizedName.get(normalizedValue);
