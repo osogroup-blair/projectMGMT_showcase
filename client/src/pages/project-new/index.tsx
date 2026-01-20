@@ -1268,6 +1268,7 @@ export default function ProjectWizard() {
           id: del.id,
           title: del.title,
           description: del.description || '',
+          ownerId: projectData.ownerId || undefined,
           epics: (del.epics || []).map(epic => ({
             id: epic.id,
             title: epic.title,
