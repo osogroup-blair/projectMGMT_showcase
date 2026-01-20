@@ -1491,18 +1491,11 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              disabled={isDeleting}
+              loading={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="confirm-delete-task"
             >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1521,18 +1514,11 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmBulkDelete}
-              disabled={isDeleting}
+              loading={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="confirm-bulk-delete"
             >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                `Delete ${selectedTaskIds.size} Task${selectedTaskIds.size > 1 ? 's' : ''}`
-              )}
+              {isDeleting ? "Deleting..." : `Delete ${selectedTaskIds.size} Task${selectedTaskIds.size > 1 ? 's' : ''}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -685,17 +685,10 @@ export function StagesContent({ projectId }: { projectId: string }) {
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteStage}
-              disabled={isDeleting}
+              loading={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -715,17 +708,10 @@ export function StagesContent({ projectId }: { projectId: string }) {
             <AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkDelete}
-              disabled={isBulkDeleting}
+              loading={isBulkDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isBulkDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete All"
-              )}
+              {isBulkDeleting ? "Deleting..." : "Delete All"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

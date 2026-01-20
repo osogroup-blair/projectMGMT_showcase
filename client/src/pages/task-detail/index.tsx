@@ -550,18 +550,11 @@ export default function TaskDetail() {
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteTask}
-              disabled={isDeleting}
+              loading={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="confirm-delete-task"
             >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
