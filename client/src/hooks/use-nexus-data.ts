@@ -814,6 +814,22 @@ export function useUnifiedTeamMembers(projectId: string) {
   };
 }
 
+// Get all project tasks (for filter values calculation)
+export function useAllProjectTasks(projectId: string | undefined) {
+  return useQuery({
+    queryKey: ['allProjectTasks', projectId],
+    queryFn: async (): Promise<any[]> => {
+      if (!projectId) return [];
+      const response = await fetch(`/api/projects/${projectId}/tasks?page=1&limit=10000`);
+      if (!response.ok) throw new Error('Failed to fetch all tasks');
+      const data = await response.json();
+      return data.tasks || [];
+    },
+    enabled: !!projectId,
+    staleTime: 30000, // Cache for 30 seconds to avoid refetching
+  });
+}
+
 // Paginated project tasks hook
 export interface PaginatedTasksResult {
   tasks: any[];

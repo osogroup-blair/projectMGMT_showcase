@@ -35,7 +35,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useProjectTasksPaginated } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useProjectTasksPaginated, useAllProjectTasks } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -100,6 +100,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { createAsync: createTaskAsync, update: updateTask, remove: deleteTask } = useTasks();
+  
+  // All tasks for this project (for filter values calculation)
+  const { data: allProjectTasks = [] } = useAllProjectTasks(projectId);
   
   // Paginated tasks for this project (with server-side sorting)
   const { 
@@ -722,11 +725,11 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           </div>
         </div>
 
-        {/* Inline Filter Bar */}
+        {/* Inline Filter Bar - uses all project tasks for filter options */}
         <TaskInlineFilters
           filters={filters}
           onFiltersChange={setFilters}
-          tasks={projectTasks}
+          tasks={allProjectTasks}
           stages={stages}
           epics={projectEpics}
           users={users || []}
