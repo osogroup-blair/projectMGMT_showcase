@@ -839,17 +839,32 @@ export interface PaginatedTasksResult {
   totalPages: number;
 }
 
+export interface TaskFilters {
+  search?: string;
+  statuses?: string[];
+  priorities?: string[];
+  stageIds?: string[];
+  epicIds?: string[];
+  assigneeIds?: string[];
+  sprintIds?: string[];
+  taskTypeIds?: string[];
+  dueDateFrom?: string;
+  dueDateTo?: string;
+  myTasksOnly?: string;
+}
+
 export function useProjectTasksPaginated(
   projectId: string | undefined,
   page: number = 1,
   pageSize: number = 50,
   sortBy?: string,
-  sortDirection?: 'asc' | 'desc'
+  sortDirection?: 'asc' | 'desc',
+  filters?: TaskFilters
 ) {
   const queryClient = useQueryClient();
   
   const query = useQuery({
-    queryKey: ['projectTasksPaginated', projectId, page, pageSize, sortBy, sortDirection],
+    queryKey: ['projectTasksPaginated', projectId, page, pageSize, sortBy, sortDirection, filters],
     queryFn: async (): Promise<PaginatedTasksResult> => {
       if (!projectId) return { tasks: [], total: 0, page: 1, pageSize, totalPages: 0 };
       
@@ -859,6 +874,20 @@ export function useProjectTasksPaginated(
       });
       if (sortBy) params.set('sortBy', sortBy);
       if (sortDirection) params.set('sortDirection', sortDirection);
+      
+      if (filters) {
+        if (filters.search) params.set('search', filters.search);
+        if (filters.statuses?.length) params.set('statuses', filters.statuses.join(','));
+        if (filters.priorities?.length) params.set('priorities', filters.priorities.join(','));
+        if (filters.stageIds?.length) params.set('stageIds', filters.stageIds.join(','));
+        if (filters.epicIds?.length) params.set('epicIds', filters.epicIds.join(','));
+        if (filters.assigneeIds?.length) params.set('assigneeIds', filters.assigneeIds.join(','));
+        if (filters.sprintIds?.length) params.set('sprintIds', filters.sprintIds.join(','));
+        if (filters.taskTypeIds?.length) params.set('taskTypeIds', filters.taskTypeIds.join(','));
+        if (filters.dueDateFrom) params.set('dueDateFrom', filters.dueDateFrom);
+        if (filters.dueDateTo) params.set('dueDateTo', filters.dueDateTo);
+        if (filters.myTasksOnly) params.set('myTasksOnly', filters.myTasksOnly);
+      }
       
       const response = await fetch(`/api/projects/${projectId}/tasks?${params}`);
       if (!response.ok) throw new Error('Failed to fetch tasks');

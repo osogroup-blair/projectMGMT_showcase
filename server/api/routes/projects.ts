@@ -50,7 +50,7 @@ export function registerProjectRoutes(
     res.json(project);
   });
 
-  // Paginated tasks for a project
+  // Paginated tasks for a project with filtering
   app.get("/api/projects/:id/tasks", async (req, res) => {
     try {
       const projectId = req.params.id;
@@ -64,12 +64,36 @@ export function registerProjectRoutes(
       const sortBy = req.query.sortBy as string | undefined;
       const sortDirection = req.query.sortDirection as 'asc' | 'desc' | undefined;
       
+      // Extract filter parameters
+      const search = req.query.search as string | undefined;
+      const statuses = req.query.statuses ? (req.query.statuses as string).split(',').filter(Boolean) : undefined;
+      const priorities = req.query.priorities ? (req.query.priorities as string).split(',').filter(Boolean) : undefined;
+      const stageIds = req.query.stageIds ? (req.query.stageIds as string).split(',').filter(Boolean) : undefined;
+      const epicIds = req.query.epicIds ? (req.query.epicIds as string).split(',').filter(Boolean) : undefined;
+      const assigneeIds = req.query.assigneeIds ? (req.query.assigneeIds as string).split(',').filter(Boolean) : undefined;
+      const sprintIds = req.query.sprintIds ? (req.query.sprintIds as string).split(',').filter(Boolean) : undefined;
+      const taskTypeIds = req.query.taskTypeIds ? (req.query.taskTypeIds as string).split(',').filter(Boolean) : undefined;
+      const dueDateFrom = req.query.dueDateFrom as string | undefined;
+      const dueDateTo = req.query.dueDateTo as string | undefined;
+      const myTasksOnly = req.query.myTasksOnly as string | undefined;
+      
       const result = await storage.getProjectTasksPaginated({
         projectId,
         page,
         limit,
         sortBy,
         sortDirection,
+        search,
+        statuses,
+        priorities,
+        stageIds,
+        epicIds,
+        assigneeIds,
+        sprintIds,
+        taskTypeIds,
+        dueDateFrom,
+        dueDateTo,
+        myTasksOnly,
       });
       
       res.json(result);

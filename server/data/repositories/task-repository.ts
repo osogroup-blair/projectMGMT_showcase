@@ -1,4 +1,4 @@
-import { eq, or, sql, asc, desc } from "drizzle-orm";
+import { eq, or, sql, asc, desc, and, inArray, isNull, ilike, gte, lte } from "drizzle-orm";
 import { db } from "../../db";
 import * as schema from "@shared/schema";
 import type { Task, InsertTask, TaskDependency, InsertTaskDependency } from "@shared/schema";
@@ -22,6 +22,17 @@ export interface PaginatedTasksOptions {
   limit?: number;
   sortBy?: 'title' | 'status' | 'priority' | 'deadline' | 'createdAt';
   sortDirection?: 'asc' | 'desc';
+  search?: string;
+  statuses?: string[];
+  priorities?: string[];
+  stageIds?: string[];
+  epicIds?: string[];
+  assigneeIds?: string[];
+  sprintIds?: string[];
+  taskTypeIds?: string[];
+  dueDateFrom?: string;
+  dueDateTo?: string;
+  myTasksOnly?: string;
 }
 
 export interface PaginatedTasksResult {
@@ -33,13 +44,102 @@ export interface PaginatedTasksResult {
 }
 
 export async function getProjectTasksPaginated(options: PaginatedTasksOptions): Promise<PaginatedTasksResult> {
-  const { projectId, page = 1, limit = 50, sortBy = 'createdAt', sortDirection = 'desc' } = options;
+  const { 
+    projectId, 
+    page = 1, 
+    limit = 50, 
+    sortBy = 'createdAt', 
+    sortDirection = 'desc',
+    search,
+    statuses,
+    priorities,
+    stageIds,
+    epicIds,
+    assigneeIds,
+    sprintIds,
+    taskTypeIds,
+    dueDateFrom,
+    dueDateTo,
+    myTasksOnly
+  } = options;
   const offset = (page - 1) * limit;
+  
+  const conditions: any[] = [eq(schema.tasks.projectId, projectId)];
+  
+  if (search && search.trim()) {
+    const searchPattern = `%${search.trim()}%`;
+    conditions.push(
+      or(
+        ilike(schema.tasks.title, searchPattern),
+        ilike(schema.tasks.description, searchPattern)
+      )
+    );
+  }
+  
+  if (statuses && statuses.length > 0) {
+    conditions.push(inArray(schema.tasks.status, statuses));
+  }
+  
+  if (priorities && priorities.length > 0) {
+    conditions.push(inArray(schema.tasks.priority, priorities));
+  }
+  
+  if (stageIds && stageIds.length > 0) {
+    conditions.push(inArray(schema.tasks.stageId, stageIds));
+  }
+  
+  if (epicIds && epicIds.length > 0) {
+    conditions.push(inArray(schema.tasks.epicId, epicIds));
+  }
+  
+  if (assigneeIds && assigneeIds.length > 0) {
+    if (assigneeIds.includes('unassigned')) {
+      const otherIds = assigneeIds.filter(id => id !== 'unassigned');
+      if (otherIds.length > 0) {
+        conditions.push(or(isNull(schema.tasks.assigneeId), inArray(schema.tasks.assigneeId, otherIds)));
+      } else {
+        conditions.push(isNull(schema.tasks.assigneeId));
+      }
+    } else {
+      conditions.push(inArray(schema.tasks.assigneeId, assigneeIds));
+    }
+  }
+  
+  if (sprintIds && sprintIds.length > 0) {
+    if (sprintIds.includes('backlog')) {
+      const otherIds = sprintIds.filter(id => id !== 'backlog');
+      if (otherIds.length > 0) {
+        conditions.push(or(isNull(schema.tasks.sprintId), inArray(schema.tasks.sprintId, otherIds)));
+      } else {
+        conditions.push(isNull(schema.tasks.sprintId));
+      }
+    } else {
+      conditions.push(inArray(schema.tasks.sprintId, sprintIds));
+    }
+  }
+  
+  if (taskTypeIds && taskTypeIds.length > 0) {
+    conditions.push(inArray(schema.tasks.taskTypeId, taskTypeIds));
+  }
+  
+  if (dueDateFrom) {
+    conditions.push(gte(schema.tasks.deadline, dueDateFrom));
+  }
+  
+  if (dueDateTo) {
+    conditions.push(lte(schema.tasks.deadline, dueDateTo));
+  }
+  
+  if (myTasksOnly) {
+    conditions.push(eq(schema.tasks.assigneeId, myTasksOnly));
+  }
+  
+  const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];
   
   const countResult = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(schema.tasks)
-    .where(eq(schema.tasks.projectId, projectId));
+    .where(whereClause);
   
   const total = countResult[0]?.count || 0;
   
@@ -56,7 +156,7 @@ export async function getProjectTasksPaginated(options: PaginatedTasksOptions): 
   const tasks = await db
     .select()
     .from(schema.tasks)
-    .where(eq(schema.tasks.projectId, projectId))
+    .where(whereClause)
     .orderBy(orderFn(sortColumn))
     .limit(limit)
     .offset(offset);
