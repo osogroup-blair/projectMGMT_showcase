@@ -18,7 +18,24 @@ import {
   BookOpen,
   Workflow,
   Clock,
-  ListTodo
+  ListTodo,
+  Settings,
+  Upload,
+  Download,
+  Palette,
+  Shield,
+  Link,
+  FileSpreadsheet,
+  Zap,
+  Timer,
+  UserCheck,
+  Building2,
+  Flag,
+  BarChart3,
+  Eye,
+  Bell,
+  Filter,
+  FolderTree
 } from "lucide-react";
 
 export default function HelpPage() {
@@ -81,7 +98,8 @@ export default function HelpPage() {
                     <p className="text-sm text-muted-foreground">
                       Deliverables are major outcomes or products within a project. Think of them as the key results 
                       you'll hand off to stakeholders. For example, in a website redesign project, deliverables might 
-                      include "Homepage Design," "User Dashboard," and "Mobile App."
+                      include "Homepage Design," "User Dashboard," and "Mobile App." When you set a project owner, 
+                      deliverables are automatically assigned to that owner.
                     </p>
                   </div>
                 </div>
@@ -149,8 +167,8 @@ export default function HelpPage() {
                   <div>
                     <h4 className="font-medium text-sm">Sprints</h4>
                     <p className="text-xs text-muted-foreground">
-                      Time-boxed periods (typically 1-4 weeks) for planning and completing work. Sprints help 
-                      teams focus on a manageable set of tasks.
+                      Time-boxed periods (typically 1-4 weeks) for planning and completing work. Sprint status 
+                      is automatically determined by dates - no manual start/close needed.
                     </p>
                   </div>
                 </div>
@@ -165,6 +183,89 @@ export default function HelpPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              What's New: Recent Features
+            </CardTitle>
+            <CardDescription>
+              Latest additions to enhance your project management experience
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 border rounded-lg border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-amber-600" />
+                  Automatic Sprint Status
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Sprint status now changes automatically based on dates. Sprints are "Planned" before their 
+                  start date, "Active" during their date range, and "Closed" after their end date. 
+                  No more manually starting or closing sprints!
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-blue-600" />
+                  Owner Auto-Assignment
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  When you set a project owner during project creation, all deliverables are automatically 
+                  assigned to that owner. This saves time and ensures accountability from day one.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-purple-200 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Link className="h-4 w-4 text-purple-600" />
+                  Identity Linking
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Link multiple external accounts (Microsoft, Google) to your profile. Access your workspace 
+                  from different login providers while maintaining a single user identity.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-green-600" />
+                  Theme Customization
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Customize the look and feel with custom themes. Create, edit, and publish themes with 
+                  full dark/light mode support. Select from published themes in your profile.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-orange-200 bg-orange-50/50 dark:bg-orange-950/20 dark:border-orange-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-orange-600" />
+                  Enhanced Import System
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Import from Excel, CSV, JSON, or YAML with intelligent column mapping. Features automatic 
+                  reference resolution, team assignment, validation with friendly error messages, and 
+                  integration with the project wizard.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg border-cyan-200 bg-cyan-50/50 dark:bg-cyan-950/20 dark:border-cyan-900 space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <FolderTree className="h-4 w-4 text-cyan-600" />
+                  Management Activities
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  New projects automatically include a "Management Activities" deliverable with protected 
+                  epics for Project Management, Product Management, and Client Management tasks.
+                </p>
               </div>
             </div>
           </CardContent>
@@ -194,7 +295,7 @@ export default function HelpPage() {
                       <h4 className="font-semibold">Create Your Project</h4>
                       <p className="text-sm text-muted-foreground mt-1">
                         Use the project wizard to set up your project. Define the project name, description, 
-                        and set key dates. The wizard guides you through each step of the setup process.
+                        and set key dates. Set a project owner to automatically assign deliverables.
                       </p>
                     </div>
                   </div>
@@ -260,8 +361,8 @@ export default function HelpPage() {
                     <div className="pt-1">
                       <h4 className="font-semibold">Plan Sprints</h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Create sprints for time-boxed planning. Assign tasks to sprints to plan what gets done when, 
-                        monitor team capacity, and track your project's velocity.
+                        Create sprints for time-boxed planning. Set start and end dates - the status updates 
+                        automatically. Assign tasks to sprints and monitor capacity.
                       </p>
                     </div>
                   </div>
@@ -303,7 +404,8 @@ export default function HelpPage() {
                 </h4>
                 <p className="text-sm text-muted-foreground">
                   Drag and drop tasks between columns to update their status. Available on the homepage for 
-                  your assigned tasks and within each project for all project tasks.
+                  your assigned tasks and within each project for all project tasks. Use expand/collapse 
+                  controls to focus on specific areas.
                 </p>
               </div>
 
@@ -324,8 +426,8 @@ export default function HelpPage() {
                   Sprint Planning
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Plan what work goes into each sprint. Drag tasks from the backlog into sprints, 
-                  monitor capacity, and track sprint velocity.
+                  Plan what work goes into each sprint. Create sprints with dates - they'll automatically 
+                  transition from Planned to Active to Closed. Drag tasks from the backlog into sprints.
                 </p>
               </div>
 
@@ -357,8 +459,133 @@ export default function HelpPage() {
                   Import/Export
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  Import tasks from Excel, CSV, or JSON files. Export your project data for reporting 
-                  or backup purposes.
+                  Import tasks from Excel, CSV, JSON, or YAML files. Export your project data for reporting 
+                  or backup purposes. Multi-step wizard with validation and team assignment.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Advanced Filtering
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Filter tasks by assignee, epic, milestone, sprint, status, priority, and more. 
+                  Combine multiple filters to find exactly what you need.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  Saved Views
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Save your filter configurations as named views. Quickly switch between different 
+                  perspectives on your project data.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Administration Features
+            </CardTitle>
+            <CardDescription>
+              Powerful tools for administrators to configure and manage the platform
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  User Management
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Manage users, assign system roles (Admin, User), edit profiles, and view user activity. 
+                  Administrators can also link identities and manage user permissions.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <GitBranch className="h-4 w-4" />
+                  Stage Templates
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Create and manage reusable stage templates. Define stage types, descriptions, 
+                  and default tasks that get applied when stages are added to projects.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Workflow className="h-4 w-4" />
+                  Framework Templates
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Design delivery frameworks (like Waterfall, Agile) with predefined stages. 
+                  Frameworks can be selected during project creation to auto-configure stages.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Milestone Templates
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Create milestone templates with scope rules. Templates can automatically 
+                  match tasks based on criteria like deliverable type or epic type.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  Theme Management
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Create custom themes with full color customization. Support for dark and light modes. 
+                  Publish themes for all users or keep them private.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Authentication Settings
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Configure Single Sign-On (SSO) with Microsoft (Azure AD/Entra ID) or Google OAuth. 
+                  Manage demo login settings and authentication providers.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  App Defaults
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Configure default status options for projects, deliverables, epics, and tasks. 
+                  Define task types, deliverable types, epic types, and role types.
+                </p>
+              </div>
+
+              <div className="p-4 border rounded-lg space-y-2">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Sample & Demo Data
+                </h4>
+                <p className="text-sm text-muted-foreground">
+                  Generate sample projects for testing. Create realistic multi-project demo scenarios 
+                  with deliverables, tasks, milestones, and sprints.
                 </p>
               </div>
             </div>
@@ -418,6 +645,20 @@ export default function HelpPage() {
                 </AccordionContent>
               </AccordionItem>
 
+              <AccordionItem value="sprint-status">
+                <AccordionTrigger>How does sprint status work?</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground space-y-2">
+                  <p>Sprint status is automatic based on dates:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li><strong>Planned</strong>: When today's date is before the sprint start date</li>
+                    <li><strong>Active</strong>: When today is between the start and end dates (inclusive)</li>
+                    <li><strong>Closed</strong>: When today is after the sprint end date</li>
+                  </ul>
+                  <p>Simply set the correct start and end dates when creating a sprint, and the status 
+                  will automatically update as time progresses.</p>
+                </AccordionContent>
+              </AccordionItem>
+
               <AccordionItem value="create-sprint">
                 <AccordionTrigger>How do I create and plan a sprint?</AccordionTrigger>
                 <AccordionContent className="text-muted-foreground space-y-2">
@@ -425,6 +666,7 @@ export default function HelpPage() {
                   <ul className="list-disc list-inside space-y-1 ml-2">
                     <li>Go to your project and navigate to the Sprints section</li>
                     <li>Click "Create Sprint" and set the name, start date, and end date</li>
+                    <li>Use "Auto-Create" to generate sprints based on project duration settings</li>
                     <li>Open the sprint to see the backlog of unassigned tasks</li>
                     <li>Drag tasks from the backlog into the sprint, or edit tasks to assign them</li>
                     <li>Monitor sprint progress on the sprint board</li>
@@ -468,6 +710,7 @@ export default function HelpPage() {
                     <li>Navigate to your project's Milestones section</li>
                     <li>Click "Add Milestone" with a name and target date</li>
                     <li>Link tasks to milestones to track what needs to be done by that date</li>
+                    <li>Use "Auto-Sequence" to evenly distribute milestone dates</li>
                     <li>View milestones on the Timeline to see them in context with tasks</li>
                     <li>Milestone status updates automatically based on linked task completion</li>
                   </ul>
@@ -479,9 +722,12 @@ export default function HelpPage() {
                 <AccordionContent className="text-muted-foreground space-y-2">
                   <p>To import data:</p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>Go to Admin → Import/Export</li>
-                    <li>Upload your Excel, CSV, or JSON file</li>
+                    <li>Go to Projects → Import or use the import option in project creation</li>
+                    <li>Upload your Excel, CSV, JSON, or YAML file</li>
                     <li>Map your columns to Nymbl fields (title, description, status, etc.)</li>
+                    <li>The system will automatically try to match references like epics and users</li>
+                    <li>Use the reference mapping tabs to resolve any unmatched items</li>
+                    <li>Assign team members and review the summary before completing</li>
                     <li>Preview the import and resolve any validation issues</li>
                     <li>Complete the import to create all tasks at once</li>
                   </ul>
@@ -498,6 +744,35 @@ export default function HelpPage() {
                     <li>In Table view, click column headers to sort, or use the filter options</li>
                     <li>Use the global search bar to find tasks by name across all projects</li>
                     <li>Filter by status, priority, or blocked state to focus on specific work</li>
+                    <li>Save frequently used filter combinations as named views</li>
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="link-identity">
+                <AccordionTrigger>How do I link additional login accounts?</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground space-y-2">
+                  <p>To link external accounts:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>Go to your Profile page (click your avatar, then Profile)</li>
+                    <li>Find the "Linked Accounts" section</li>
+                    <li>Click "Link Account" and choose Microsoft or Google</li>
+                    <li>Complete the authentication flow</li>
+                    <li>You can now log in with any linked account</li>
+                  </ul>
+                  <p>All linked accounts access the same user profile and data.</p>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="change-theme">
+                <AccordionTrigger>How do I change the app theme?</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground space-y-2">
+                  <p>To customize appearance:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>Go to your Profile page</li>
+                    <li>Toggle between Light and Dark mode</li>
+                    <li>Select from available published themes</li>
+                    <li>Administrators can create new themes in Admin → Themes</li>
                   </ul>
                 </AccordionContent>
               </AccordionItem>
@@ -573,6 +848,48 @@ export default function HelpPage() {
                   to you and what needs attention.
                 </p>
               </div>
+
+              <div className="flex gap-3 p-3 bg-muted/50 rounded-lg">
+                <div className="shrink-0 h-6 w-6 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <span className="text-amber-500 text-sm font-medium">7</span>
+                </div>
+                <p className="text-sm">
+                  <strong>Set a project owner.</strong> This automatically assigns all deliverables 
+                  to that person, establishing clear accountability.
+                </p>
+              </div>
+
+              <div className="flex gap-3 p-3 bg-muted/50 rounded-lg">
+                <div className="shrink-0 h-6 w-6 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <span className="text-amber-500 text-sm font-medium">8</span>
+                </div>
+                <p className="text-sm">
+                  <strong>Plan sprints by dates.</strong> Just set the right start and end dates - 
+                  the system handles status transitions automatically.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Flag className="h-5 w-5 text-primary" />
+              Getting More Help
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Need additional assistance? Here are some options:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-2">
+                <li>Check project settings for configuration options specific to each project</li>
+                <li>Explore the Admin section for system-wide settings (if you have admin access)</li>
+                <li>Look for the "?" icon on various pages for contextual help</li>
+                <li>Contact your system administrator for access or permission issues</li>
+              </ul>
             </div>
           </CardContent>
         </Card>
