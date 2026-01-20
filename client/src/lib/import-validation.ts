@@ -781,3 +781,121 @@ export function exportTaskValidationProblems(summary: TaskValidationSummary): st
   
   return csvContent;
 }
+
+import type { 
+  SprintValidationResult, 
+  SprintValidationSummary, 
+  SprintValidationErrorType 
+} from '@shared/import-types';
+import type { ImportedSprint } from './import-to-wizard-adapter';
+
+export function validateTaskSprintAssignments(
+  stages: ImportedStage[],
+  sprints: ImportedSprint[],
+  stageMap?: Map<string, string>
+): SprintValidationSummary {
+  const results: SprintValidationResult[] = [];
+  const errorsByType: Record<SprintValidationErrorType, number> = {
+    no_sprint_reference: 0,
+    sprint_id_not_found: 0,
+    sprint_name_not_found: 0,
+    unknown: 0
+  };
+  
+  const sprintMap = new Map(sprints.map(s => [s.id, s.name]));
+  const sprintTaskCounts = new Map<string, number>();
+  sprints.forEach(s => sprintTaskCounts.set(s.id, 0));
+  
+  let assignedToSprint = 0;
+  let noSprintAssignment = 0;
+  let invalidSprintReference = 0;
+  
+  stages.forEach(stage => {
+    (stage.tasks || []).forEach(task => {
+      const importedTask = task as ImportedTask;
+      const hasSprintRef = !!importedTask.sprintId || !!importedTask.sourceSprintId;
+      const sprintId = importedTask.sprintId || importedTask.sourceSprintId;
+      const isValidSprint = sprintId && sprintMap.has(sprintId);
+      
+      let status: 'assigned' | 'unassigned' | 'invalid' = 'unassigned';
+      let errorType: SprintValidationErrorType | undefined;
+      let errorMessage: string | undefined;
+      
+      if (!hasSprintRef) {
+        noSprintAssignment++;
+        status = 'unassigned';
+      } else if (isValidSprint) {
+        assignedToSprint++;
+        status = 'assigned';
+        sprintTaskCounts.set(sprintId!, (sprintTaskCounts.get(sprintId!) || 0) + 1);
+      } else {
+        invalidSprintReference++;
+        status = 'invalid';
+        errorType = 'sprint_id_not_found';
+        errorMessage = `Sprint "${sprintId}" not found in import`;
+        errorsByType.sprint_id_not_found++;
+      }
+      
+      results.push({
+        taskId: importedTask.id,
+        taskTitle: importedTask.title,
+        sourceId: importedTask.sourceId,
+        status,
+        assignedSprintId: isValidSprint ? sprintId : undefined,
+        assignedSprintName: isValidSprint ? sprintMap.get(sprintId!) : undefined,
+        sourceSprintId: importedTask.sourceSprintId,
+        sourceSprintName: sprintId && sprintMap.has(sprintId) ? sprintMap.get(sprintId) : undefined,
+        errorType,
+        errorMessage,
+        warnings: importedTask.warnings || []
+      });
+    });
+  });
+  
+  const sprintSummaries = sprints.map(s => ({
+    id: s.id,
+    name: s.name,
+    taskCount: sprintTaskCounts.get(s.id) || 0
+  }));
+  
+  return {
+    totalTasks: results.length,
+    assignedToSprint,
+    noSprintAssignment,
+    invalidSprintReference,
+    errorsByType,
+    results,
+    sprints: sprintSummaries
+  };
+}
+
+export function exportSprintValidationProblems(summary: SprintValidationSummary): string {
+  const invalidTasks = summary.results.filter(r => r.status === 'invalid');
+  
+  if (invalidTasks.length === 0) {
+    return '';
+  }
+  
+  const headers = ['Task Title', 'Source ID', 'Error Type', 'Error Message', 'Source Sprint ID'];
+  const rows = invalidTasks.map(task => [
+    task.taskTitle,
+    task.sourceId || '',
+    task.errorType || '',
+    task.errorMessage || '',
+    task.sourceSprintId || ''
+  ]);
+  
+  const escapeCSV = (value: string) => {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  };
+  
+  const csvContent = [
+    headers.map(escapeCSV).join(','),
+    ...rows.map(row => row.map(escapeCSV).join(','))
+  ].join('\n');
+  
+  return csvContent;
+}

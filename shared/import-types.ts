@@ -285,3 +285,33 @@ export interface TaskValidationSummary {
   errorsByType: Record<TaskValidationErrorType, number>;
   results: TaskValidationResult[];
 }
+
+export type SprintValidationErrorType = 
+  | 'no_sprint_reference'
+  | 'sprint_id_not_found'
+  | 'sprint_name_not_found'
+  | 'unknown';
+
+export interface SprintValidationResult {
+  taskId: string;
+  taskTitle: string;
+  sourceId?: string;
+  status: 'assigned' | 'unassigned' | 'invalid';
+  assignedSprintId?: string;
+  assignedSprintName?: string;
+  sourceSprintId?: string;
+  sourceSprintName?: string;
+  errorType?: SprintValidationErrorType;
+  errorMessage?: string;
+  warnings: string[];
+}
+
+export interface SprintValidationSummary {
+  totalTasks: number;
+  assignedToSprint: number;
+  noSprintAssignment: number;
+  invalidSprintReference: number;
+  errorsByType: Record<SprintValidationErrorType, number>;
+  results: SprintValidationResult[];
+  sprints: Array<{ id: string; name: string; taskCount: number }>;
+}
