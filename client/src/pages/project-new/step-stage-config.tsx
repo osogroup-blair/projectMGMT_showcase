@@ -62,7 +62,8 @@ import {
   ChevronLeft,
   ChevronRight,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  ArrowDownUp
 } from "lucide-react";
 import {
   Tooltip,
@@ -521,6 +522,77 @@ function SortableStageItem({
   );
 }
 
+interface SortableMilestoneRowProps {
+  milestone: WizardMilestone;
+  index: number;
+  updateMilestone: (index: number, updates: Partial<WizardMilestone>) => void;
+  removeMilestone: (index: number) => void;
+}
+
+function SortableMilestoneRow({
+  milestone,
+  index,
+  updateMilestone,
+  removeMilestone,
+}: SortableMilestoneRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: milestone.id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className="grid grid-cols-[32px_1fr_140px_80px_40px] gap-2 p-2 items-center hover:bg-muted/30"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded flex items-center justify-center"
+        data-testid={`milestone-drag-handle-${index}`}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <Input
+        value={milestone.name}
+        onChange={(e) => updateMilestone(index, { name: e.target.value })}
+        className="h-8 text-sm"
+        placeholder="Milestone name..."
+        data-testid={`input-milestone-name-${index}`}
+      />
+      <Input
+        type="date"
+        value={milestone.targetDate}
+        onChange={(e) => updateMilestone(index, { targetDate: e.target.value })}
+        className="h-8 text-sm"
+        data-testid={`input-milestone-date-${index}`}
+      />
+      <div className="flex justify-center">
+        <input
+          type="checkbox"
+          checked={milestone.isBillingGate}
+          onChange={(e) => updateMilestone(index, { isBillingGate: e.target.checked })}
+          className="h-4 w-4"
+          data-testid={`checkbox-milestone-billing-${index}`}
+        />
+      </div>
+      <Button 
+        variant="ghost" 
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+        onClick={() => removeMilestone(index)}
+        data-testid={`button-remove-milestone-${index}`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 export function StepStageConfig({
   projectData,
   stages,
@@ -756,6 +828,63 @@ export function StepStageConfig({
     newMilestones[index] = { ...newMilestones[index], ...updates };
     setMilestones(newMilestones);
   };
+
+  const handleMilestoneDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = milestones.findIndex(m => m.id === active.id);
+      const newIndex = milestones.findIndex(m => m.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newMilestones = arrayMove(milestones, oldIndex, newIndex);
+        setMilestones(newMilestones);
+      }
+    }
+  }, [milestones, setMilestones]);
+
+  const autoSequenceMilestoneDates = useCallback(() => {
+    if (milestones.length === 0) return;
+    
+    // Find milestones with existing dates to determine range
+    const milestonesWithDates = milestones.filter(m => m.targetDate);
+    
+    let startDate: Date;
+    let intervalDays: number;
+    
+    if (milestonesWithDates.length >= 1) {
+      // Use first date found as starting point
+      const sortedDates = milestonesWithDates
+        .map(m => new Date(m.targetDate))
+        .sort((a, b) => a.getTime() - b.getTime());
+      startDate = sortedDates[0];
+      
+      // Calculate interval (default 2 weeks if only one date)
+      if (milestonesWithDates.length >= 2) {
+        const lastDate = sortedDates[sortedDates.length - 1];
+        const totalDays = Math.round((lastDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        intervalDays = Math.max(7, Math.round(totalDays / (milestones.length - 1)));
+      } else {
+        intervalDays = 14; // Default 2 weeks
+      }
+    } else {
+      // No dates set, start from today with 2-week intervals
+      startDate = new Date();
+      intervalDays = 14;
+    }
+    
+    // Apply sequential dates
+    const newMilestones = milestones.map((m, index) => {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + (index * intervalDays));
+      return {
+        ...m,
+        targetDate: date.toISOString().split('T')[0]
+      };
+    });
+    
+    setMilestones(newMilestones);
+  }, [milestones, setMilestones]);
 
   const applyStageTemplate = (templateId: string) => {
     const template = stageTemplates.find((t: any) => t.id === templateId);
@@ -1286,7 +1415,25 @@ export function StepStageConfig({
               {activeTab === 'milestones' && (
                 <>
                   <div className="flex items-center justify-between mb-3 gap-2">
-                    <div className="flex items-center gap-2" />
+                    <div className="flex items-center gap-2">
+                      {milestones.length >= 2 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={autoSequenceMilestoneDates}
+                              data-testid="button-auto-sequence-dates"
+                            >
+                              <ArrowDownUp className="h-4 w-4 mr-2" /> Auto-sequence Dates
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-[240px]">
+                            <p className="text-xs">Set milestone dates in sequential order based on existing dates or 2-week intervals from today.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       {milestones.length > 0 && (
                         <Button 
@@ -1311,51 +1458,37 @@ export function StepStageConfig({
                       <p className="text-sm mt-1">Milestones are optional but help track key deliverables.</p>
                     </div>
                   ) : (
-                    <div className="border rounded-lg overflow-hidden">
-                      <div className="grid grid-cols-[1fr_140px_80px_40px] gap-2 p-3 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase">
-                        <div>Name</div>
-                        <div>Target Date</div>
-                        <div className="text-center">Billing Gate</div>
-                        <div></div>
-                      </div>
-                      <div className="divide-y">
-                        {milestones.map((milestone, index) => (
-                          <div 
-                            key={milestone.id} 
-                            className="grid grid-cols-[1fr_140px_80px_40px] gap-2 p-2 items-center hover:bg-muted/30"
-                          >
-                            <Input
-                              value={milestone.name}
-                              onChange={(e) => updateMilestone(index, { name: e.target.value })}
-                              className="h-8 text-sm"
-                              placeholder="Milestone name..."
-                            />
-                            <Input
-                              type="date"
-                              value={milestone.targetDate}
-                              onChange={(e) => updateMilestone(index, { targetDate: e.target.value })}
-                              className="h-8 text-sm"
-                            />
-                            <div className="flex justify-center">
-                              <input
-                                type="checkbox"
-                                checked={milestone.isBillingGate}
-                                onChange={(e) => updateMilestone(index, { isBillingGate: e.target.checked })}
-                                className="h-4 w-4"
-                              />
-                            </div>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => removeMilestone(index)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleMilestoneDragEnd}
+                    >
+                      <SortableContext
+                        items={milestones.map(m => m.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="border rounded-lg overflow-hidden">
+                          <div className="grid grid-cols-[32px_1fr_140px_80px_40px] gap-2 p-3 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase">
+                            <div></div>
+                            <div>Name</div>
+                            <div>Target Date</div>
+                            <div className="text-center">Billing Gate</div>
+                            <div></div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          <div className="divide-y">
+                            {milestones.map((milestone, index) => (
+                              <SortableMilestoneRow
+                                key={milestone.id}
+                                milestone={milestone}
+                                index={index}
+                                updateMilestone={updateMilestone}
+                                removeMilestone={removeMilestone}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                   )}
                 </>
               )}
