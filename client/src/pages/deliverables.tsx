@@ -97,7 +97,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
   const { data: project } = useProject(projectId);
   const { data: allDeliverables, isLoading: isDeliverablesLoading, createAsync: createDeliverableAsync, isCreating: isCreatingDeliverable, update: updateDeliverable, updateAsync: updateDeliverableAsync, remove: deleteDeliverable, isRemoving: isDeletingDeliverable } = useDeliverables();
-  const { data: allEpics, isLoading: isEpicsLoading, create: createEpic, isCreating: isCreatingEpic, remove: deleteEpic } = useEpics();
+  const { data: allEpics, isLoading: isEpicsLoading, create: createEpic, createAsync: createEpicAsync, isCreating: isCreatingEpic, remove: deleteEpic } = useEpics();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: allTasks, isLoading: isTasksLoading, update: updateTask, createAsync: createTaskAsync } = useTasks();
   const { data: statusOptions = [] } = useStatusOptions();
@@ -352,25 +352,31 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     }));
   };
 
-  const handleCreateEpic = () => {
+  const handleCreateEpic = async () => {
     if (!newEpicData.title || !selectedDeliverableId) {
       toast({ title: "Validation Error", description: "Please provide an epic title.", variant: "destructive" });
       return;
     }
     
-    createEpic({
-      title: newEpicData.title,
-      description: newEpicData.description,
-      deliverableId: selectedDeliverableId,
-      stageIds: newEpicData.stageIds,
-      status: "Not Started",
-      progress: 0,
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    });
-    
-    toast({ title: "Epic Created", description: `${newEpicData.title} has been created.` });
-    setIsCreateEpicOpen(false);
+    try {
+      await createEpicAsync({
+        title: newEpicData.title,
+        description: newEpicData.description,
+        deliverableId: selectedDeliverableId,
+        stageIds: [],
+        status: "Not Started",
+        progress: 0,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      });
+      
+      await queryClient.invalidateQueries({ queryKey: ["epics"] });
+      toast({ title: "Epic Created", description: `${newEpicData.title} has been created.` });
+      setIsCreateEpicOpen(false);
+    } catch (error: any) {
+      console.error("Failed to create epic:", error);
+      toast({ title: "Error", description: error?.message || "Failed to create epic.", variant: "destructive" });
+    }
   };
 
   const handleCreateDeliverable = async () => {
@@ -1492,6 +1498,23 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
                                                           <SelectContent>
                                                             {EFFORT_VALUES.map((v) => (
                                                               <SelectItem key={v} value={String(v)}>{v} pts</SelectItem>
+                                                            ))}
+                                                          </SelectContent>
+                                                        </Select>
+
+                                                        <Select 
+                                                          value={task.stageId || ""} 
+                                                          onValueChange={(v) => updateTask({ id: task.id, updates: { stageId: v || null } })}
+                                                        >
+                                                          <SelectTrigger className="h-6 text-[10px] border-none shadow-none px-1 w-auto max-w-[80px]">
+                                                            <span className="text-xs truncate">
+                                                              {projectStages.find((s: any) => s.id === task.stageId)?.name || "No Stage"}
+                                                            </span>
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            <SelectItem value="">No Stage</SelectItem>
+                                                            {projectStages.map((stage: any) => (
+                                                              <SelectItem key={stage.id} value={stage.id}>{stage.name}</SelectItem>
                                                             ))}
                                                           </SelectContent>
                                                         </Select>

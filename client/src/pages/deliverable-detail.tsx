@@ -881,25 +881,6 @@ export default function DeliverableDetail() {
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label>Stages</Label>
-              <ScrollArea className="h-32 rounded-md border p-3">
-                <div className="space-y-2">
-                  {projectStages?.map((stage: any) => (
-                    <div key={stage.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`stage-${stage.id}`}
-                        checked={newEpicData.stageIds.includes(stage.id)}
-                        onCheckedChange={() => toggleStageSelection(stage.id)}
-                      />
-                      <label htmlFor={`stage-${stage.id}`} className="text-sm cursor-pointer">
-                        {stage.name}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateEpicOpen(false)}>Cancel</Button>
