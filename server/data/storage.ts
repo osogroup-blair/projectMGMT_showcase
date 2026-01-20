@@ -705,15 +705,23 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteProject(id: string): Promise<void> {
     // Cascade delete all related entities in a transaction for atomicity
-    // Order: sprint-related → milestone_task_links → tasks → milestones → 
+    // Order: milestone_task_links → tasks → sprint-related → sprints → milestones → 
     //        epics → deliverables → stages → assignments → project
+    // NOTE: Tasks must be deleted BEFORE sprints because tasks have FK to sprints (sprintId)
     
     await db.transaction(async (tx) => {
-      // 1. Get sprints for this project to delete related sprint data
+      // 1. Delete milestone task links for this project (references tasks)
+      await tx.delete(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.projectId, id));
+      
+      // 2. Delete tasks for this project FIRST (comments, attachments, history cascade automatically)
+      // Tasks have FK to sprints, so must be deleted before sprints
+      await tx.delete(schema.tasks).where(eq(schema.tasks.projectId, id));
+      
+      // 3. Get sprints for this project to delete related sprint data
       const sprints = await tx.select().from(schema.sprints).where(eq(schema.sprints.projectId, id));
       const sprintIds = sprints.map(s => s.id);
       
-      // 2. Delete sprint-related entities
+      // 4. Delete sprint-related entities
       if (sprintIds.length > 0) {
         for (const sprintId of sprintIds) {
           // Sprint pulse updates
@@ -727,14 +735,8 @@ export class DatabaseStorage implements IStorage {
         }
       }
       
-      // 3. Delete sprints for this project
+      // 5. Delete sprints for this project (now safe - no tasks reference them)
       await tx.delete(schema.sprints).where(eq(schema.sprints.projectId, id));
-      
-      // 4. Delete milestone task links for this project
-      await tx.delete(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.projectId, id));
-      
-      // 5. Delete tasks for this project (comments, attachments, history cascade automatically)
-      await tx.delete(schema.tasks).where(eq(schema.tasks.projectId, id));
       
       // 6. Delete milestones for this project (scope rules cascade automatically)
       await tx.delete(schema.milestones).where(eq(schema.milestones.projectId, id));
