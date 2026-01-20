@@ -42,6 +42,16 @@ export function registerConfigRoutes(
     res.json(options);
   });
 
+  app.get("/api/deliverableStatuses", async (req, res) => {
+    const options = await storage.getStatusOptionsByType("deliverable");
+    res.json(options);
+  });
+
+  app.get("/api/epicStatuses", async (req, res) => {
+    const options = await storage.getStatusOptionsByType("epic");
+    res.json(options);
+  });
+
   app.post("/api/statusOptions", async (req, res) => {
     try {
       const validated = insertStatusOptionSchema.parse(req.body);

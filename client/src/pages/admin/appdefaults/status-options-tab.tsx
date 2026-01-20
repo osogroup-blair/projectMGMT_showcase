@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2, GripVertical, AlertTriangle, ArrowRight, Loader2, Map, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, AlertTriangle, ArrowRight, Loader2, Map, CheckCircle2, RefreshCw } from "lucide-react";
 import { useStatusOptions } from "@/hooks/use-nexus-data";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -80,13 +80,15 @@ async function remapStatus(oldStatus: string, newStatus: string, entityTypes?: s
   return res.json();
 }
 
+type StatusType = "project" | "task" | "deliverable" | "epic";
+
 interface SortableStatusRowProps {
   status: StatusOption;
-  type: "project" | "task";
+  type: StatusType;
   usageCount: number;
   isLoadingUsage: boolean;
-  onEdit: (type: "project" | "task", item: StatusOption) => void;
-  onDelete: (type: "project" | "task", item: StatusOption) => void;
+  onEdit: (type: StatusType, item: StatusOption) => void;
+  onDelete: (type: StatusType, item: StatusOption) => void;
 }
 
 function SortableStatusRow({ status, type, usageCount, isLoadingUsage, onEdit, onDelete }: SortableStatusRowProps) {
@@ -317,7 +319,7 @@ interface StatusUsageMapDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   statuses: StatusOption[];
-  type: "project" | "task";
+  type: StatusType;
   usageCountsMap: Record<string, StatusUsageCounts>;
 }
 
@@ -569,9 +571,17 @@ export function StatusOptionsTab() {
     allStatusOptions.filter((s: StatusOption) => s.type === "task").sort((a: StatusOption, b: StatusOption) => (a.order ?? 0) - (b.order ?? 0)),
     [allStatusOptions]
   );
+  const deliverableStatuses = useMemo(() => 
+    allStatusOptions.filter((s: StatusOption) => s.type === "deliverable").sort((a: StatusOption, b: StatusOption) => (a.order ?? 0) - (b.order ?? 0)),
+    [allStatusOptions]
+  );
+  const epicStatuses = useMemo(() => 
+    allStatusOptions.filter((s: StatusOption) => s.type === "epic").sort((a: StatusOption, b: StatusOption) => (a.order ?? 0) - (b.order ?? 0)),
+    [allStatusOptions]
+  );
   
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [currentType, setCurrentType] = useState<"project" | "task">("project");
+  const [currentType, setCurrentType] = useState<StatusType>("project");
   const [editingItem, setEditingItem] = useState<StatusOption | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<any>({
@@ -587,6 +597,9 @@ export function StatusOptionsTab() {
 
   const [projectMapOpen, setProjectMapOpen] = useState(false);
   const [taskMapOpen, setTaskMapOpen] = useState(false);
+  const [deliverableMapOpen, setDeliverableMapOpen] = useState(false);
+  const [epicMapOpen, setEpicMapOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const { data: usageCountsMap = {} } = useQuery({
     queryKey: ["statusUsageCounts", allStatusOptions.map(s => s.label).join(",")],
@@ -619,11 +632,13 @@ export function StatusOptionsTab() {
     })
   );
 
-  const handleDragEnd = async (event: DragEndEvent, type: "project" | "task") => {
+  const handleDragEnd = async (event: DragEndEvent, type: StatusType) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const items = type === "project" ? projectStatuses : taskStatuses;
+    const items = type === "project" ? projectStatuses : 
+                  type === "task" ? taskStatuses :
+                  type === "deliverable" ? deliverableStatuses : epicStatuses;
     const oldIndex = items.findIndex((item) => item.id === active.id);
     const newIndex = items.findIndex((item) => item.id === over.id);
 
@@ -650,7 +665,45 @@ export function StatusOptionsTab() {
     }
   };
 
-  const handleOpenEdit = (type: "project" | "task", item?: StatusOption) => {
+  const handleSyncStatuses = async (sourceType: "deliverable" | "epic", targetType: "deliverable" | "epic") => {
+    const sourceStatuses = sourceType === "deliverable" ? deliverableStatuses : epicStatuses;
+    const targetStatuses = targetType === "deliverable" ? deliverableStatuses : epicStatuses;
+    
+    setIsSyncing(true);
+    try {
+      for (const targetStatus of targetStatuses) {
+        await deleteStatusOption(targetStatus.id);
+      }
+      
+      for (let i = 0; i < sourceStatuses.length; i++) {
+        const source = sourceStatuses[i];
+        await createStatusOption({
+          label: source.label,
+          color: source.color,
+          type: targetType,
+          order: i,
+          isDefault: source.isDefault || false,
+          kanbanCollapsed: source.kanbanCollapsed || false,
+        });
+      }
+      
+      toast({
+        title: "Statuses Synced",
+        description: `${targetType === "deliverable" ? "Deliverable" : "Epic"} statuses have been synced from ${sourceType} statuses.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["statusUsageCounts"] });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sync statuses. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleOpenEdit = (type: StatusType, item?: StatusOption) => {
     setCurrentType(type);
     setEditingItem(item || null);
     if (item) {
@@ -695,7 +748,9 @@ export function StatusOptionsTab() {
         label: newLabel || formData.label,
         color: formData.color,
         type: currentType,
-        order: currentType === "project" ? projectStatuses.length : taskStatuses.length,
+        order: currentType === "project" ? projectStatuses.length : 
+               currentType === "task" ? taskStatuses.length :
+               currentType === "deliverable" ? deliverableStatuses.length : epicStatuses.length,
         isDefault: formData.isDefault || false,
         kanbanCollapsed: formData.kanbanCollapsed || false,
       };
@@ -721,7 +776,7 @@ export function StatusOptionsTab() {
     }
   };
 
-  const handleDelete = async (type: "project" | "task", status: StatusOption) => {
+  const handleDelete = async (type: StatusType, status: StatusOption) => {
     const usage = usageCountsMap[status.label];
     if (usage && usage.total > 0) {
       setCurrentType(type);
@@ -787,8 +842,14 @@ export function StatusOptionsTab() {
 
   const availableStatusesForMapper = useMemo(() => {
     if (!statusToRemap) return [];
-    return statusToRemap.type === "project" ? projectStatuses : taskStatuses;
-  }, [statusToRemap, projectStatuses, taskStatuses]);
+    switch (statusToRemap.type) {
+      case "project": return projectStatuses;
+      case "task": return taskStatuses;
+      case "deliverable": return deliverableStatuses;
+      case "epic": return epicStatuses;
+      default: return [];
+    }
+  }, [statusToRemap, projectStatuses, taskStatuses, deliverableStatuses, epicStatuses]);
 
   return (
     <>
@@ -875,6 +936,114 @@ export function StatusOptionsTab() {
                         status={status}
                         type="task"
                         usageCount={usageCountsMap[status.label]?.total || 0}
+                        isLoadingUsage={!usageCountsMap[status.label]}
+                        onEdit={handleOpenEdit}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Deliverable Statuses</CardTitle>
+                <CardDescription>Define the available status options for deliverables.</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => handleSyncStatuses("epic", "deliverable")} disabled={isSyncing || epicStatuses.length === 0} data-testid="button-sync-from-epic">
+                  <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} /> Sync from Epic
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setDeliverableMapOpen(true)} data-testid="button-map-deliverable-status">
+                  <Map className="h-4 w-4 mr-2" /> Map
+                </Button>
+                <Button size="sm" onClick={() => handleOpenEdit("deliverable")} data-testid="button-add-deliverable-status">
+                  <Plus className="h-4 w-4 mr-2" /> Add Status
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event) => handleDragEnd(event, "deliverable")}
+              >
+                <SortableContext
+                  items={deliverableStatuses.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="grid grid-cols-1 divide-y">
+                    {deliverableStatuses.length === 0 ? (
+                      <div className="p-8 text-center text-muted-foreground">
+                        No deliverable statuses defined. Add your first status to get started.
+                      </div>
+                    ) : deliverableStatuses.map((status) => (
+                      <SortableStatusRow
+                        key={status.id}
+                        status={status}
+                        type="deliverable"
+                        usageCount={usageCountsMap[status.label]?.deliverables || 0}
+                        isLoadingUsage={!usageCountsMap[status.label]}
+                        onEdit={handleOpenEdit}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Epic Statuses</CardTitle>
+                <CardDescription>Define the available status options for epics.</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => handleSyncStatuses("deliverable", "epic")} disabled={isSyncing || deliverableStatuses.length === 0} data-testid="button-sync-from-deliverable">
+                  <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing && "animate-spin")} /> Sync from Deliverable
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setEpicMapOpen(true)} data-testid="button-map-epic-status">
+                  <Map className="h-4 w-4 mr-2" /> Map
+                </Button>
+                <Button size="sm" onClick={() => handleOpenEdit("epic")} data-testid="button-add-epic-status">
+                  <Plus className="h-4 w-4 mr-2" /> Add Status
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event) => handleDragEnd(event, "epic")}
+              >
+                <SortableContext
+                  items={epicStatuses.map((s) => s.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="grid grid-cols-1 divide-y">
+                    {epicStatuses.length === 0 ? (
+                      <div className="p-8 text-center text-muted-foreground">
+                        No epic statuses defined. Add your first status to get started.
+                      </div>
+                    ) : epicStatuses.map((status) => (
+                      <SortableStatusRow
+                        key={status.id}
+                        status={status}
+                        type="epic"
+                        usageCount={usageCountsMap[status.label]?.epics || 0}
                         isLoadingUsage={!usageCountsMap[status.label]}
                         onEdit={handleOpenEdit}
                         onDelete={handleDelete}
@@ -976,6 +1145,22 @@ export function StatusOptionsTab() {
         onOpenChange={setTaskMapOpen}
         statuses={taskStatuses}
         type="task"
+        usageCountsMap={usageCountsMap}
+      />
+
+      <StatusUsageMapDialog
+        open={deliverableMapOpen}
+        onOpenChange={setDeliverableMapOpen}
+        statuses={deliverableStatuses}
+        type="deliverable"
+        usageCountsMap={usageCountsMap}
+      />
+
+      <StatusUsageMapDialog
+        open={epicMapOpen}
+        onOpenChange={setEpicMapOpen}
+        statuses={epicStatuses}
+        type="epic"
         usageCountsMap={usageCountsMap}
       />
     </>
