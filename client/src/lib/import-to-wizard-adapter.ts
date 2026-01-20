@@ -21,6 +21,7 @@ import type {
   SystemUserIdentity,
   FieldMapping
 } from '@shared/import-types';
+import { parseDatesFromSprintName } from './sprint-date-parser';
 import {
   validateParseResult,
   detectAndResolveDuplicateIds,
@@ -95,6 +96,7 @@ export interface ImportedSprint {
   taskIds: string[];
   confidence: ConfidenceLevel;
   warnings: string[];
+  dateSource?: 'imported' | 'parsed_from_name' | 'calculated';
 }
 
 export interface ImportedRole extends WizardRole {
@@ -855,13 +857,15 @@ function validateSprintDates(sprints: ImportedSprint[]): ImportedSprint[] {
   });
 }
 
-function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
+function extractSprints(entities: ParsedEntity[], projectStartDate?: string, projectEndDate?: string): ImportedSprint[] {
   const sprintsEntity = entities.find(e => e.entityType === 'Sprints');
   if (!sprintsEntity || sprintsEntity.rows.length === 0) return [];
   
   const sprints: ImportedSprint[] = [];
+  const totalSprintRows = sprintsEntity.rows.length;
   
-  for (const row of sprintsEntity.rows) {
+  for (let i = 0; i < sprintsEntity.rows.length; i++) {
+    const row = sprintsEntity.rows[i];
     const sprintName = getFieldValue(row, ['name', 'sprintName', 'title'], `Sprint ${sprints.length + 1}`);
     const sprintGoal = getFieldValue(row, ['goal', 'description', 'objective'], null);
     const sprintStartDate = getFieldValue(row, ['startDate', 'start_date', 'start'], null);
@@ -869,11 +873,32 @@ function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
     const sprintStatusRaw = getFieldValue(row, ['status', 'state'], null);
     const sprintCapacity = getFieldValue(row, ['capacityHours', 'capacity', 'capacity_hours'], null);
     
-    const parsedStartDate = parseDate(sprintStartDate.value);
-    const parsedEndDate = parseDate(sprintEndDate.value);
+    let parsedStartDate = parseDate(sprintStartDate.value);
+    let parsedEndDate = parseDate(sprintEndDate.value);
+    
+    const warnings: string[] = [];
+    let dateSource: 'imported' | 'parsed_from_name' | 'calculated' = 'imported';
+    
+    if (!parsedStartDate || !parsedEndDate) {
+      const parsedDates = parseDatesFromSprintName(sprintName.value, {
+        projectStartDate,
+        projectEndDate,
+        sprintIndex: i,
+        totalSprints: totalSprintRows
+      });
+      
+      if (parsedDates.startDate && parsedDates.endDate) {
+        parsedStartDate = parsedDates.startDate;
+        parsedEndDate = parsedDates.endDate;
+        dateSource = parsedDates.method === 'distributed_across_project' ? 'calculated' : 'parsed_from_name';
+        
+        const confidenceLabel = parsedDates.confidence === 'high' ? 'high confidence' : 
+                                parsedDates.confidence === 'medium' ? 'medium confidence' : 'low confidence';
+        warnings.push(`Dates auto-detected from sprint name using "${parsedDates.method}" (${confidenceLabel})`);
+      }
+    }
     
     if (parsedStartDate && parsedEndDate) {
-      const warnings: string[] = [];
       const { status: normalizedStatus, normalized } = normalizeSprintStatus(sprintStatusRaw.value);
       
       if (normalized && sprintStatusRaw.value) {
@@ -891,13 +916,30 @@ function extractSprints(entities: ParsedEntity[]): ImportedSprint[] {
         sourceId: row.id || row.sprintId,
         taskIds: [],
         confidence: calculateConfidence(!!sprintName.sourceField, sprintName.sourceField ? 'exact' : 'inferred'),
-        warnings
+        warnings,
+        dateSource
+      });
+    } else {
+      warnings.push(`Sprint "${sprintName.value}" skipped: could not determine start/end dates from name or fields`);
+      sprints.push({
+        id: generateId('sprint'),
+        name: sprintName.value,
+        goal: sprintGoal.value,
+        startDate: '',
+        endDate: '',
+        status: 'planning',
+        capacityHours: typeof sprintCapacity.value === 'number' ? sprintCapacity.value : null,
+        sourceId: row.id || row.sprintId,
+        taskIds: [],
+        confidence: 'low',
+        warnings,
+        dateSource: 'calculated'
       });
     }
   }
   
-  // Validate sprint dates and detect overlaps
-  return validateSprintDates(sprints);
+  const validSprints = sprints.filter(s => s.startDate && s.endDate);
+  return validateSprintDates(validSprints);
 }
 
 function normalizeString(s: string | undefined | null): string {
@@ -1300,7 +1342,9 @@ export function convertImportToWizardData(
   const stages = extractStages(resolvedParseResult.entities);
   
   // Extract sprints BEFORE tasks so we can map task-sprint associations
-  const sprints = extractSprints(resolvedParseResult.entities);
+  const projectStartDate = projectData.startDate?.value;
+  const projectEndDate = projectData.dueDate?.value;
+  const sprints = extractSprints(resolvedParseResult.entities, projectStartDate, projectEndDate);
   
   const tasks = extractTasks(resolvedParseResult.entities, stages, deliverables, sprints);
   const milestones = extractMilestones(resolvedParseResult.entities);
