@@ -44,6 +44,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -236,7 +242,7 @@ function RelationshipHierarchyPreview({ deliverables, epics, tasks, referenceMap
       const rawEpicRef = t.epicId || t.epicName || t.epicTitle;
       const epicId = getEffectiveId(rawEpicRef, 'epic', referenceMappings, epicIds);
       if (epicId) {
-        for (const [, dData] of deliverableMap) {
+        for (const dData of Array.from(deliverableMap.values())) {
           if (dData.epics.has(epicId)) {
             dData.epics.get(epicId)!.tasks.push(t);
             dData.taskCount++;
