@@ -392,7 +392,10 @@ export default function ProjectWizard() {
     const existingTemplateIds = new Set(roles.map(r => r.templateId).filter(Boolean));
     
     const coreRoles: WizardRole[] = CORE_PROJECT_ROLES.map(core => {
-      const existingRole = roles.find(r => r.templateId === core.templateId);
+      // Match existing roles by templateId OR by roleType (for roles created by buildRolesArray)
+      const existingRole = roles.find(r => 
+        r.templateId === core.templateId || r.roleType === core.roleType
+      );
       if (existingRole) return existingRole;
       
       return {
@@ -429,7 +432,7 @@ export default function ProjectWizard() {
 
     const existingNonCoreRoles = roles.filter(r => 
       !r.isCore && 
-      !CORE_PROJECT_ROLES.some(c => c.templateId === r.templateId) &&
+      !CORE_PROJECT_ROLES.some(c => c.templateId === r.templateId || c.roleType === r.roleType) &&
       !stageRoles.some(sr => sr.templateId === r.templateId)
     );
 
