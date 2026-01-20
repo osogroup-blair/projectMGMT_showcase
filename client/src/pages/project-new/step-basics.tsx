@@ -1,10 +1,9 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { StepProps, getDefaultDueDate, DEFAULT_SPRINT_DURATION, DEFAULT_PROJECT_DURATION_WEEKS } from "./types";
+import { StepProps, getDefaultDueDate, DEFAULT_PROJECT_DURATION_WEEKS } from "./types";
 import { useEffect, useRef } from "react";
 import { Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +14,6 @@ interface ProjectBasicsData {
   startDate: string;
   dueDate: string;
   client: string;
-  sprintDurationWeeks: number;
 }
 
 import { forwardRef, useImperativeHandle } from "react";
@@ -55,7 +53,6 @@ export const StepBasics = forwardRef(({
       startDate: projectData.startDate,
       dueDate: projectData.dueDate,
       client: projectData.client || "",
-      sprintDurationWeeks: projectData.sprintDurationWeeks,
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -84,7 +81,6 @@ export const StepBasics = forwardRef(({
           startDate: data.startDate || prev.startDate,
           dueDate: data.dueDate || prev.dueDate,
           client: data.client || prev.client,
-          sprintDurationWeeks: data.sprintDurationWeeks ?? prev.sprintDurationWeeks,
         }));
         toast({ title: "Imported", description: "Project settings imported successfully." });
       } catch {
@@ -94,14 +90,6 @@ export const StepBasics = forwardRef(({
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
-
-  const sprintDurationOptions = [
-    { value: "0", label: "No Sprints" },
-    { value: "1", label: "1 Week" },
-    { value: "2", label: "2 Weeks (Recommended)" },
-    { value: "3", label: "3 Weeks" },
-    { value: "4", label: "4 Weeks" },
-  ];
 
   return (
     <div className="space-y-6">
@@ -158,40 +146,23 @@ export const StepBasics = forwardRef(({
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="client">Client (Optional)</Label>
-              <Input 
-                id="client" 
-                placeholder="e.g. Acme Corporation" 
-                value={projectData.client || ""}
-                onChange={(e) => setProjectData({...projectData, client: e.target.value})}
-                data-testid="input-project-client"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Sprint Duration</Label>
-              <SearchableSelect 
-                value={String(projectData.sprintDurationWeeks)} 
-                onValueChange={(v) => setProjectData({...projectData, sprintDurationWeeks: parseInt(v)})}
-                placeholder="Select sprint length..."
-                options={sprintDurationOptions}
-                data-testid="select-sprint-duration"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="client">Client (Optional)</Label>
+            <Input 
+              id="client" 
+              placeholder="e.g. Acme Corporation" 
+              value={projectData.client || ""}
+              onChange={(e) => setProjectData({...projectData, client: e.target.value})}
+              data-testid="input-project-client"
+            />
           </div>
-          <p className="text-xs text-muted-foreground">
-            {projectData.sprintDurationWeeks > 0 
-              ? `Sprints will be automatically created based on project dates.`
-              : `You can create sprints manually later.`}
-          </p>
         </div>
       </div>
 
       <div className="bg-muted/30 rounded-lg p-4 mt-6">
         <h4 className="font-medium text-sm mb-2">What's next?</h4>
         <p className="text-sm text-muted-foreground">
-          In the following steps, you'll assign team members, configure stages with tasks and milestones, 
+          In the following steps, you'll configure sprints, assign team members, set up stages with tasks and milestones, 
           and define deliverables and epics. You can apply templates in Stage Configuration or build everything from scratch.
         </p>
       </div>

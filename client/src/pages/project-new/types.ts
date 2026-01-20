@@ -231,11 +231,12 @@ export interface StepProps {
 
 export const STEPS = [
   { id: 1, title: "Project Basics", description: "Name, dates, and basic settings" },
-  { id: 2, title: "Team Assignment", description: "Assign team members by role" },
-  { id: 3, title: "Stage Configuration", description: "Set up stages, tasks, and milestones" },
-  { id: 4, title: "Work Breakdown", description: "Define deliverables and epics" },
-  { id: 5, title: "Task Alignment", description: "Map orphaned tasks to epics", conditional: true },
-  { id: 6, title: "Review & Summary", description: "Preview what will be created" },
+  { id: 2, title: "Sprint Configuration", description: "Set up sprint cadence and schedule" },
+  { id: 3, title: "Team Assignment", description: "Assign team members by role" },
+  { id: 4, title: "Stage Configuration", description: "Set up stages, tasks, and milestones" },
+  { id: 5, title: "Work Breakdown", description: "Define deliverables and epics" },
+  { id: 6, title: "Task Alignment", description: "Map orphaned tasks to epics", conditional: true },
+  { id: 7, title: "Review & Summary", description: "Preview what will be created" },
 ];
 
 export const DEFAULT_SPRINT_DURATION = 2;
