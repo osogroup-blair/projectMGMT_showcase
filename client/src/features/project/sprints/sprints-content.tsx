@@ -114,8 +114,8 @@ export function SprintsContent({ projectId }: { projectId: string }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("card");
 
-  // Sorting state
-  const [sortField, setSortField] = useState<SortField>("name");
+  // Sorting state - default to chronological order by start date
+  const [sortField, setSortField] = useState<SortField>("startDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   // Selection state for bulk actions
