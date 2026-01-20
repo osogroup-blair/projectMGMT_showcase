@@ -133,7 +133,7 @@ export default function ProjectOverview() {
   const { data: allEpics, isLoading: isEpicsLoading } = useEpics();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
   const { data: frameworkTemplates, isLoading: isFrameworksLoading } = useFrameworkTemplates();
-  const { data: allSprints, isLoading: isSprintsLoading } = useSprints();
+  const { data: allSprints, isLoading: isSprintsLoading, createAsync: createSprintAsync } = useSprints();
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { createAsync: createTaskAsync, update: updateTask } = useTasks();
   const { toast } = useToast();
@@ -341,7 +341,7 @@ export default function ProjectOverview() {
   const { tasks, milestones, stats, dashboardData } = useMemo(() => {
     if (!project) return { tasks: [], milestones: [], stats: { total: 0, completed: 0, inProgress: 0, atRisk: 0 }, dashboardData: null };
 
-    const projectTasks = allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
+    const projectTasks = allTasks.filter((t: any) => t.projectId === project.id);
     const projectMilestones = allMilestones.filter((m: any) => m.projectId === project.id);
     const projectDeliverables = allDeliverables.filter((d: any) => d.projectId === project.id);
     const projectEpics = allEpics.filter((e: any) => 
@@ -527,6 +527,18 @@ export default function ProjectOverview() {
       setSelectedSprintId(defaultSprintId);
     }
   }, [defaultSprintId, selectedSprintId]);
+
+  // Check if any sprint covers today's date
+  const hasSprintCoveringToday = useMemo(() => {
+    if (!projectSprints || projectSprints.length === 0) return false;
+    const today = new Date();
+    return projectSprints.some((s: any) => {
+      if (!s.startDate) return false;
+      const startDate = parseISO(s.startDate);
+      const endDate = s.endDate ? parseISO(s.endDate) : null;
+      return startDate <= today && (!endDate || endDate >= today);
+    });
+  }, [projectSprints]);
 
   // Get the currently selected sprint object
   const selectedSprint = useMemo(() => {
@@ -722,6 +734,53 @@ export default function ProjectOverview() {
   // Handle blocker request
   const handleBlockerRequested = (taskId: string) => {
     setBlockerTaskId(taskId);
+  };
+
+  // Create a sprint for the current period
+  const [isCreatingCurrentSprint, setIsCreatingCurrentSprint] = useState(false);
+  const handleCreateCurrentSprint = async () => {
+    setIsCreatingCurrentSprint(true);
+    try {
+      const sprintDurationWeeks = project?.sprintDurationWeeks || 2;
+      const today = new Date();
+      // Start from the beginning of the current week (Monday)
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const startDate = new Date(today);
+      startDate.setDate(today.getDate() + mondayOffset);
+      
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + (sprintDurationWeeks * 7) - 1);
+      
+      // Calculate sprint number
+      const sprintNumbers = projectSprints
+        .map((s: any) => {
+          const match = s.name?.match(/Sprint\s*(\d+)/i);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n: number) => n > 0);
+      const nextNumber = sprintNumbers.length > 0 ? Math.max(...sprintNumbers) + 1 : 1;
+      
+      const newSprint = await createSprintAsync({
+        projectId,
+        name: `Sprint ${nextNumber}`,
+        goal: "",
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd"),
+        status: "active",
+        capacityHours: null,
+      });
+      
+      if (newSprint?.id) {
+        setSelectedSprintId(newSprint.id);
+        toast({ title: "Sprint Created", description: `Sprint ${nextNumber} has been created and is now active.` });
+        setLocation(`/projects/${projectId}/sprints/${newSprint.id}`);
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to create sprint.", variant: "destructive" });
+    } finally {
+      setIsCreatingCurrentSprint(false);
+    }
   };
 
   // Get the framework name from the framework ID
@@ -1407,6 +1466,26 @@ export default function ProjectOverview() {
                             }}
                             onCancel={() => setBlockerTaskId(null)}
                           />
+                        </div>
+                      ) : !hasSprintCoveringToday ? (
+                        <div className="flex flex-col items-center justify-center h-[400px] text-center">
+                          <Zap className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No Sprint for This Week</h3>
+                          <p className="text-muted-foreground mb-4 max-w-sm">
+                            There's no sprint covering the current period. Create one to start tracking your work.
+                          </p>
+                          <Button 
+                            onClick={handleCreateCurrentSprint}
+                            disabled={isCreatingCurrentSprint}
+                            data-testid="button-create-current-sprint"
+                          >
+                            {isCreatingCurrentSprint ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4 mr-2" />
+                            )}
+                            Create Sprint for Current Period
+                          </Button>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center justify-center h-[400px] text-center">
