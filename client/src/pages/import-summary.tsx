@@ -182,6 +182,188 @@ function ReferenceMappingTable({ mappings, entityOptions, onMappingChange }: Ref
   );
 }
 
+interface RelationshipHierarchyPreviewProps {
+  deliverables: any[];
+  epics: any[];
+  tasks: any[];
+  referenceMappings: ReferenceMappingEntry[];
+}
+
+function RelationshipHierarchyPreview({ deliverables, epics, tasks, referenceMappings }: RelationshipHierarchyPreviewProps) {
+  const resolveId = useCallback((entityType: ReferenceMappingEntry['entityType'], sourceValue: string): string | undefined => {
+    const mapping = referenceMappings.find(m => m.entityType === entityType && m.sourceValue === sourceValue);
+    return mapping?.resolvedId || undefined;
+  }, [referenceMappings]);
+
+  const hierarchy = useMemo(() => {
+    const deliverableMap = new Map<string, { deliverable: any; epics: Map<string, { epic: any; tasks: any[] }> }>();
+    
+    deliverables.forEach((d: any) => {
+      deliverableMap.set(d.id, { deliverable: d, epics: new Map() });
+    });
+
+    epics.forEach((e: any) => {
+      const deliverableId = e.deliverableId || resolveId('deliverable', e.deliverableName || e.deliverableTitle);
+      if (deliverableId && deliverableMap.has(deliverableId)) {
+        deliverableMap.get(deliverableId)!.epics.set(e.id, { epic: e, tasks: [] });
+      }
+    });
+
+    tasks.forEach((t: any) => {
+      const epicId = t.epicId || resolveId('epic', t.epicName || t.epicTitle);
+      for (const [, dData] of deliverableMap) {
+        if (dData.epics.has(epicId)) {
+          dData.epics.get(epicId)!.tasks.push(t);
+          break;
+        }
+      }
+    });
+
+    return deliverableMap;
+  }, [deliverables, epics, tasks, resolveId]);
+
+  if (deliverables.length === 0) {
+    return <div className="text-center py-8 text-muted-foreground">No deliverables to preview.</div>;
+  }
+
+  return (
+    <div className="space-y-4 max-h-[500px] overflow-y-auto">
+      {Array.from(hierarchy.entries()).map(([dId, dData]) => (
+        <div key={dId} className="border rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Package className="h-4 w-4 text-primary" />
+            <span className="font-semibold">{dData.deliverable.title || dData.deliverable.name || dId}</span>
+            <Badge variant="outline" className="ml-auto">
+              {dData.epics.size} epics
+            </Badge>
+          </div>
+          <div className="ml-4 space-y-2">
+            {Array.from(dData.epics.entries()).map(([eId, eData]) => (
+              <div key={eId} className="border-l-2 border-muted pl-3">
+                <div className="flex items-center gap-2">
+                  <FileBox className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm font-medium">{eData.epic.title || eData.epic.name || eId}</span>
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {eData.tasks.length} tasks
+                  </Badge>
+                </div>
+                {eData.tasks.length > 0 && (
+                  <div className="ml-4 mt-1 space-y-1">
+                    {eData.tasks.slice(0, 3).map((t: any) => (
+                      <div key={t.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <ListTodo className="h-3 w-3" />
+                        <span className="truncate">{t.title || t.name || t.id}</span>
+                      </div>
+                    ))}
+                    {eData.tasks.length > 3 && (
+                      <div className="text-xs text-muted-foreground italic">
+                        +{eData.tasks.length - 3} more tasks
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface EntityTaskPreviewProps {
+  entities: any[];
+  tasks: any[];
+  entityType: string;
+  entityLabel: string;
+  fieldName: string;
+  referenceMappings: ReferenceMappingEntry[];
+}
+
+function EntityTaskPreview({ entities, tasks, entityType, entityLabel, fieldName, referenceMappings }: EntityTaskPreviewProps) {
+  const resolveId = useCallback((sourceValue: string): string | undefined => {
+    const mapping = referenceMappings.find(m => m.entityType === entityType && m.sourceValue === sourceValue);
+    return mapping?.resolvedId || undefined;
+  }, [referenceMappings, entityType]);
+
+  const groupedTasks = useMemo(() => {
+    const groups = new Map<string, { entity: any; tasks: any[] }>();
+    
+    entities.forEach((e: any) => {
+      groups.set(e.id, { entity: e, tasks: [] });
+    });
+
+    groups.set('unassigned', { entity: null, tasks: [] });
+
+    tasks.forEach((t: any) => {
+      const entityId = t[fieldName] || resolveId(t[fieldName.replace('Id', 'Name')] || t[fieldName.replace('Id', 'Title')]);
+      if (entityId && groups.has(entityId)) {
+        groups.get(entityId)!.tasks.push(t);
+      } else {
+        groups.get('unassigned')!.tasks.push(t);
+      }
+    });
+
+    return groups;
+  }, [entities, tasks, fieldName, resolveId]);
+
+  if (entities.length === 0) {
+    return <div className="text-center py-8 text-muted-foreground">No {entityLabel.toLowerCase()}s imported.</div>;
+  }
+
+  const unassignedCount = groupedTasks.get('unassigned')?.tasks.length || 0;
+
+  return (
+    <div className="space-y-4 max-h-[500px] overflow-y-auto">
+      {Array.from(groupedTasks.entries())
+        .filter(([id]) => id !== 'unassigned')
+        .map(([eId, data]) => (
+          <div key={eId} className="border rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              {entityType === 'stage' && <Layers className="h-4 w-4 text-orange-500" />}
+              {entityType === 'sprint' && <ArrowRightLeft className="h-4 w-4 text-purple-500" />}
+              {entityType === 'milestone' && <Target className="h-4 w-4 text-green-500" />}
+              <span className="font-semibold">{data.entity?.title || data.entity?.name || eId}</span>
+              <Badge variant="secondary" className="ml-auto">
+                {data.tasks.length} tasks
+              </Badge>
+            </div>
+            {data.tasks.length > 0 && (
+              <div className="ml-6 space-y-1">
+                {data.tasks.slice(0, 5).map((t: any) => (
+                  <div key={t.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <ListTodo className="h-3 w-3" />
+                    <span className="truncate">{t.title || t.name || t.id}</span>
+                  </div>
+                ))}
+                {data.tasks.length > 5 && (
+                  <div className="text-xs text-muted-foreground italic">
+                    +{data.tasks.length - 5} more tasks
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      
+      {unassignedCount > 0 && (
+        <div className="border border-dashed border-amber-300 rounded-lg p-3 bg-amber-50/30">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <span className="font-semibold text-amber-700">No {entityLabel} Assigned</span>
+            <Badge className="bg-amber-100 text-amber-700 border-amber-200 ml-auto">
+              {unassignedCount} tasks
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            These tasks don't have a {entityLabel.toLowerCase()} assigned or their reference couldn't be resolved.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ImportSummary() {
   const [, setLocation] = useLocation();
   const { state, updateUserMapping, updateStatusMapping, updateReferenceMapping, setDefaultUnassignedTo } = useImport();
@@ -191,6 +373,7 @@ export default function ImportSummary() {
   const [userMappingOpen, setUserMappingOpen] = useState(true);
   const [statusMappingOpen, setStatusMappingOpen] = useState(true);
   const [referenceMappingOpen, setReferenceMappingOpen] = useState(true);
+  const [relationshipPreviewOpen, setRelationshipPreviewOpen] = useState(true);
   const [taskPreviewOpen, setTaskPreviewOpen] = useState(false);
   const [unassignedOpen, setUnassignedOpen] = useState(true);
 
@@ -204,6 +387,8 @@ export default function ImportSummary() {
       epics: entities.find(e => e.entityType === 'Epics')?.rows || [],
       milestones: entities.find(e => e.entityType === 'Milestones')?.rows || [],
       stages: entities.find(e => e.entityType === 'ProjectStages')?.rows || [],
+      tasks: entities.find(e => e.entityType === 'Tasks')?.rows || [],
+      sprints: entities.find(e => e.entityType === 'Sprints')?.rows || [],
     };
   }, [state.parseResult?.entities]);
 
@@ -1040,6 +1225,108 @@ export default function ImportSummary() {
                           mappings={referenceMappings.filter(m => m.sourceEntityType === 'Task')}
                           entityOptions={entityOptions}
                           onMappingChange={handleReferenceMappingChange}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
+
+          {(importedEntities.deliverables.length > 0 || importedEntities.tasks.length > 0) && (
+            <Collapsible open={relationshipPreviewOpen} onOpenChange={setRelationshipPreviewOpen}>
+              <Card>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-5 w-5" />
+                        <CardTitle className="text-lg">Relationship Preview</CardTitle>
+                        <Badge variant="outline">
+                          {importedEntities.deliverables.length} deliverables, {importedEntities.epics.length} epics, {importedEntities.tasks.length} tasks
+                        </Badge>
+                      </div>
+                      {relationshipPreviewOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
+                    <CardDescription>
+                      Preview how imported entities will be organized after applying reference mappings.
+                    </CardDescription>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    <Tabs defaultValue="hierarchy" className="w-full">
+                      <TabsList className="grid w-full grid-cols-4">
+                        <TabsTrigger value="hierarchy" className="flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          <span className="hidden sm:inline">Work Breakdown</span>
+                          <Badge variant="secondary" className="ml-1">
+                            {importedEntities.deliverables.length}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="stages" className="flex items-center gap-2">
+                          <Layers className="h-4 w-4" />
+                          <span className="hidden sm:inline">Stages</span>
+                          <Badge variant="secondary" className="ml-1">
+                            {importedEntities.stages.length}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="sprints" className="flex items-center gap-2">
+                          <ArrowRightLeft className="h-4 w-4" />
+                          <span className="hidden sm:inline">Sprints</span>
+                          <Badge variant="secondary" className="ml-1">
+                            {importedEntities.sprints.length}
+                          </Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="milestones" className="flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          <span className="hidden sm:inline">Milestones</span>
+                          <Badge variant="secondary" className="ml-1">
+                            {importedEntities.milestones.length}
+                          </Badge>
+                        </TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="hierarchy" className="mt-4">
+                        <RelationshipHierarchyPreview 
+                          deliverables={importedEntities.deliverables}
+                          epics={importedEntities.epics}
+                          tasks={importedEntities.tasks}
+                          referenceMappings={referenceMappings}
+                        />
+                      </TabsContent>
+                      
+                      <TabsContent value="stages" className="mt-4">
+                        <EntityTaskPreview
+                          entities={importedEntities.stages}
+                          tasks={importedEntities.tasks}
+                          entityType="stage"
+                          entityLabel="Stage"
+                          fieldName="stageId"
+                          referenceMappings={referenceMappings}
+                        />
+                      </TabsContent>
+                      
+                      <TabsContent value="sprints" className="mt-4">
+                        <EntityTaskPreview
+                          entities={importedEntities.sprints}
+                          tasks={importedEntities.tasks}
+                          entityType="sprint"
+                          entityLabel="Sprint"
+                          fieldName="sprintId"
+                          referenceMappings={referenceMappings}
+                        />
+                      </TabsContent>
+                      
+                      <TabsContent value="milestones" className="mt-4">
+                        <EntityTaskPreview
+                          entities={importedEntities.milestones}
+                          tasks={importedEntities.tasks}
+                          entityType="milestone"
+                          entityLabel="Milestone"
+                          fieldName="milestoneId"
+                          referenceMappings={referenceMappings}
                         />
                       </TabsContent>
                     </Tabs>
