@@ -47,3 +47,32 @@ export const STAGE_TEMPLATES: StageTemplate[] = [
   { id: "st_develop_solution", name: "Develop Solution", defaultTasks: ["tt3", "tt4"], defaultRoles: ["rt1"] },
   { id: "st_enable_users", name: "Enable Users", defaultTasks: [], defaultRoles: [] }
 ];
+
+export type SprintStatus = "planned" | "active" | "closed";
+
+export function computeSprintStatus(sprint: { startDate?: string | null; endDate?: string | null; status?: string }): SprintStatus {
+  if (!sprint.startDate) {
+    return (sprint.status as SprintStatus) || "planned";
+  }
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const startDate = new Date(sprint.startDate);
+  startDate.setHours(0, 0, 0, 0);
+  
+  const endDate = sprint.endDate ? new Date(sprint.endDate) : null;
+  if (endDate) {
+    endDate.setHours(23, 59, 59, 999);
+  }
+  
+  if (today < startDate) {
+    return "planned";
+  }
+  
+  if (endDate && today > endDate) {
+    return "closed";
+  }
+  
+  return "active";
+}
