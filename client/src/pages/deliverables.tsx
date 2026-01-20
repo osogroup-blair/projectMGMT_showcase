@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Shell } from "@/components/layout/shell";
 import { 
   ArrowLeft, 
@@ -24,7 +24,10 @@ import {
   Clock,
   CheckCircle2,
   Circle,
-  AlertCircle
+  AlertCircle,
+  Loader2,
+  Flag,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +55,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useDeliverables, useEpics, useUsers, useTasks, useProject, useStatusOptions, useSprints, useMilestones, useProjectStages, useResolvedTaskTypes, useDeliverableTypes } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
-import { Loader2, Flag, Target } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
@@ -138,6 +140,7 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
 
   const [expandedDeliverables, setExpandedDeliverables] = useState<Set<string>>(new Set());
   const [expandedEpics, setExpandedEpics] = useState<Set<string>>(new Set());
+  const [isExpanding, setIsExpanding] = useState(false);
 
   const [isCreateEpicOpen, setIsCreateEpicOpen] = useState(false);
   const [selectedDeliverableId, setSelectedDeliverableId] = useState<string>("");
@@ -283,14 +286,21 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
     </TableHead>
   );
 
-  const handleExpandAll = () => {
-    setExpandedDeliverables(new Set(filteredDeliverables.map((d: any) => d.id)));
-    const allEpicIds = new Set<string>();
-    filteredDeliverables.forEach((d: any) => {
-      getEpicsForDeliverable(d.id).forEach((e: any) => allEpicIds.add(e.id));
+  const handleExpandAll = useCallback(() => {
+    setIsExpanding(true);
+    // Use requestAnimationFrame to allow the loader to render before heavy DOM work
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        setExpandedDeliverables(new Set(filteredDeliverables.map((d: any) => d.id)));
+        const allEpicIds = new Set<string>();
+        filteredDeliverables.forEach((d: any) => {
+          getEpicsForDeliverable(d.id).forEach((e: any) => allEpicIds.add(e.id));
+        });
+        setExpandedEpics(allEpicIds);
+        setIsExpanding(false);
+      }, 50);
     });
-    setExpandedEpics(allEpicIds);
-  };
+  }, [filteredDeliverables, getEpicsForDeliverable]);
 
   const handleCollapseAll = () => {
     setExpandedDeliverables(new Set());
@@ -659,10 +669,15 @@ export function DeliverablesContent({ projectId }: { projectId: string }) {
               size="sm" 
               className="h-8 px-2 text-xs"
               onClick={handleExpandAll}
+              disabled={isExpanding}
               data-testid="button-expand-all"
             >
-              <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
-              Expand All
+              {isExpanding ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <ChevronsUpDown className="h-3.5 w-3.5 mr-1" />
+              )}
+              {isExpanding ? "Expanding..." : "Expand All"}
             </Button>
             <div className="w-px h-4 bg-border" />
             <Button 
