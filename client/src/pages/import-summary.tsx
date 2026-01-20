@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { 
   ArrowRight, 
@@ -23,7 +23,10 @@ import {
   UserPlus,
   Crown,
   Briefcase,
-  Eye
+  Eye,
+  BarChart3,
+  ClipboardCheck,
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -428,11 +431,26 @@ function EntityTaskPreview({ entities, tasks, entityType, entityLabel, fieldName
   );
 }
 
+type NavSection = 
+  | 'overview' 
+  | 'team-preview' 
+  | 'user-mappings' 
+  | 'status-mappings' 
+  | 'reference-mappings' 
+  | 'relationship-preview'
+  | 'task-validation'
+  | 'sprint-validation'
+  | 'unassigned-tasks'
+  | 'task-preview';
+
 export default function ImportSummary() {
   const [, setLocation] = useLocation();
   const { state, updateUserMapping, updateStatusMapping, updateReferenceMapping, setDefaultUnassignedTo } = useImport();
   const { data: allUsers } = useAllUsersForAssignment();
   const { data: statusOptionsData } = useStatusOptions();
+  
+  const [activeSection, setActiveSection] = useState<NavSection>('overview');
+  const contentRef = useRef<HTMLDivElement>(null);
   
   const [userMappingOpen, setUserMappingOpen] = useState(true);
   const [statusMappingOpen, setStatusMappingOpen] = useState(true);
@@ -761,6 +779,52 @@ export default function ImportSummary() {
     }
   };
 
+  const scrollToSection = useCallback((sectionId: NavSection) => {
+    setActiveSection(sectionId);
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  const navItems = useMemo(() => {
+    const items: { id: NavSection; label: string; icon: React.ReactNode; badge?: number | string; show: boolean }[] = [
+      { id: 'overview', label: 'Overview', icon: <BarChart3 className="h-4 w-4" />, show: true },
+      { id: 'team-preview', label: 'Team Preview', icon: <UserCheck className="h-4 w-4" />, badge: teamAssignmentSummary.totalMapped > 0 ? teamAssignmentSummary.totalMapped : undefined, show: teamAssignmentSummary.totalMapped > 0 },
+      { id: 'user-mappings', label: 'User Mappings', icon: <Users className="h-4 w-4" />, badge: validationSummary.unmappedUsers > 0 ? `${validationSummary.unmappedUsers}!` : userMappings.length, show: userMappings.length > 0 },
+      { id: 'status-mappings', label: 'Status Mappings', icon: <ArrowRightLeft className="h-4 w-4" />, badge: validationSummary.lowConfidenceStatuses > 0 ? `${validationSummary.lowConfidenceStatuses}!` : statusMappings.length, show: statusMappings.length > 0 },
+      { id: 'reference-mappings', label: 'References', icon: <Link2 className="h-4 w-4" />, badge: validationSummary.unresolvedReferences > 0 ? `${validationSummary.unresolvedReferences}!` : referenceMappings.length, show: referenceMappings.length > 0 },
+      { id: 'relationship-preview', label: 'Work Breakdown', icon: <Package className="h-4 w-4" />, badge: importedEntities.deliverables.length, show: importedEntities.deliverables.length > 0 || importedEntities.tasks.length > 0 },
+      { id: 'task-validation', label: 'Task Validation', icon: <ClipboardCheck className="h-4 w-4" />, badge: taskValidationSummary?.totalTasks, show: !!(taskValidationSummary && taskValidationSummary.totalTasks > 0) },
+      { id: 'sprint-validation', label: 'Sprint Validation', icon: <Calendar className="h-4 w-4" />, show: !!sprintValidationSummary },
+      { id: 'unassigned-tasks', label: 'Unassigned Tasks', icon: <UserPlus className="h-4 w-4" />, badge: unassignedTaskCount, show: unassignedTaskCount > 0 },
+      { id: 'task-preview', label: 'Task Assignments', icon: <ListTodo className="h-4 w-4" />, badge: stats?.tasksFound, show: true },
+    ];
+    return items.filter(item => item.show);
+  }, [teamAssignmentSummary, validationSummary, userMappings, statusMappings, referenceMappings, importedEntities, taskValidationSummary, sprintValidationSummary, unassignedTaskCount, stats]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = navItems.map(item => ({
+        id: item.id,
+        element: document.getElementById(item.id)
+      })).filter(s => s.element);
+
+      const scrollPosition = window.scrollY + 150;
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = sections[i];
+        if (section.element && section.element.offsetTop <= scrollPosition) {
+          setActiveSection(section.id);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [navItems]);
+
   if (!state.isImportMode || !state.adapterResult) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 py-12 px-4">
@@ -802,17 +866,68 @@ export default function ImportSummary() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 py-12 px-4">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <FileCheck className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight text-primary">Import Summary</h1>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
+      <div className="flex">
+        <aside className="w-64 shrink-0 sticky top-0 h-screen overflow-y-auto border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-2 mb-1">
+              <FileCheck className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold text-primary">Import Summary</h2>
+            </div>
+            <p className="text-xs text-muted-foreground truncate" title={state.sourceFileName}>
+              {state.sourceFileName}
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Review what was found in <span className="font-medium">{state.sourceFileName}</span> and verify the mappings before creating your project.
-          </p>
-        </div>
+          <nav className="p-2 space-y-1">
+            {navItems.map((item) => {
+              const isActive = activeSection === item.id;
+              const hasWarning = typeof item.badge === 'string' && item.badge.endsWith('!');
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  data-testid={`nav-${item.id}`}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-left ${
+                    isActive 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {item.icon}
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {item.badge !== undefined && (
+                    <Badge 
+                      variant={hasWarning ? "destructive" : "secondary"} 
+                      className={`text-xs px-1.5 py-0 h-5 ${isActive ? 'bg-primary-foreground/20 text-primary-foreground' : ''}`}
+                    >
+                      {hasWarning ? item.badge.toString().replace('!', '') : item.badge}
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+          <div className="p-4 border-t mt-auto">
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" size="sm" onClick={handleBack} className="w-full justify-start" data-testid="back-to-team-btn">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Team
+              </Button>
+              <Button size="sm" onClick={handleContinue} className="w-full justify-start" data-testid="continue-to-wizard-btn">
+                Continue
+                <ArrowRight className="h-4 w-4 ml-auto" />
+              </Button>
+            </div>
+          </div>
+        </aside>
+
+        <main ref={contentRef} className="flex-1 py-8 px-6 max-w-4xl">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold tracking-tight text-primary mb-1">Import Summary</h1>
+            <p className="text-muted-foreground text-sm">
+              Review mappings and validate your data before creating the project.
+            </p>
+          </div>
 
         {validationSummary.hasIssues && (
           <Card className="mb-6 border-amber-200 bg-amber-50/50">
@@ -838,6 +953,7 @@ export default function ImportSummary() {
           </Card>
         )}
 
+        <section id="overview" className="scroll-mt-8">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardContent className="pt-4 pb-3">
@@ -885,10 +1001,12 @@ export default function ImportSummary() {
             </CardContent>
           </Card>
         </div>
+        </section>
 
         {teamAssignmentSummary.totalMapped > 0 && (
+          <section id="team-preview" className="scroll-mt-8 mb-4">
           <Collapsible open={teamSummaryOpen} onOpenChange={setTeamSummaryOpen}>
-            <Card className="mb-4 border-primary/30 bg-primary/5">
+            <Card className="border-primary/30 bg-primary/5">
               <CollapsibleTrigger asChild>
                 <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
                   <div className="flex items-center justify-between">
@@ -1014,9 +1132,11 @@ export default function ImportSummary() {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+          </section>
         )}
 
         <div className="space-y-4">
+          <section id="user-mappings" className="scroll-mt-8">
           <Collapsible open={userMappingOpen} onOpenChange={setUserMappingOpen}>
             <Card>
               <CollapsibleTrigger asChild>
@@ -1131,7 +1251,9 @@ export default function ImportSummary() {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+          </section>
 
+          <section id="status-mappings" className="scroll-mt-8">
           <Collapsible open={statusMappingOpen} onOpenChange={setStatusMappingOpen}>
             <Card>
               <CollapsibleTrigger asChild>
@@ -1214,8 +1336,10 @@ export default function ImportSummary() {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+          </section>
 
           {referenceMappings.length > 0 && (
+            <section id="reference-mappings" className="scroll-mt-8">
             <Collapsible open={referenceMappingOpen} onOpenChange={setReferenceMappingOpen}>
               <Card className={validationSummary.unresolvedReferences > 0 ? "border-amber-200 bg-amber-50/30" : ""}>
                 <CollapsibleTrigger asChild>
@@ -1303,9 +1427,11 @@ export default function ImportSummary() {
                 </CollapsibleContent>
               </Card>
             </Collapsible>
+            </section>
           )}
 
           {(importedEntities.deliverables.length > 0 || importedEntities.tasks.length > 0) && (
+            <section id="relationship-preview" className="scroll-mt-8">
             <Collapsible open={relationshipPreviewOpen} onOpenChange={setRelationshipPreviewOpen}>
               <Card>
                 <CollapsibleTrigger asChild>
@@ -1405,17 +1531,23 @@ export default function ImportSummary() {
                 </CollapsibleContent>
               </Card>
             </Collapsible>
+            </section>
           )}
 
           {taskValidationSummary && taskValidationSummary.totalTasks > 0 && (
+            <section id="task-validation" className="scroll-mt-8">
             <TaskValidationPanel summary={taskValidationSummary} />
+            </section>
           )}
 
           {sprintValidationSummary && (
+            <section id="sprint-validation" className="scroll-mt-8">
             <SprintValidationPanel summary={sprintValidationSummary} />
+            </section>
           )}
 
           {unassignedTaskCount > 0 && (
+            <section id="unassigned-tasks" className="scroll-mt-8">
             <Collapsible open={unassignedOpen} onOpenChange={setUnassignedOpen}>
               <Card className="border-blue-200 bg-blue-50/30">
                 <CollapsibleTrigger asChild>
@@ -1469,8 +1601,10 @@ export default function ImportSummary() {
                 </CollapsibleContent>
               </Card>
             </Collapsible>
+            </section>
           )}
 
+          <section id="task-preview" className="scroll-mt-8">
           <Collapsible open={taskPreviewOpen} onOpenChange={setTaskPreviewOpen}>
             <Card>
               <CollapsibleTrigger asChild>
@@ -1524,20 +1658,9 @@ export default function ImportSummary() {
               </CollapsibleContent>
             </Card>
           </Collapsible>
+          </section>
         </div>
-
-        <Separator className="my-8" />
-
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={handleBack} data-testid="back-to-team-btn">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Team Assignment
-          </Button>
-          <Button onClick={handleContinue} data-testid="continue-to-wizard-btn">
-            Continue to Project Setup
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </div>
+        </main>
       </div>
     </div>
   );
