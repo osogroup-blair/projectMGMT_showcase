@@ -35,7 +35,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useProjectTasksPaginated, useAllProjectTasks, useProjectTeam } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useProjectTasksPaginated, useAllProjectTasks, useProjectTeam, TaskFilters as BackendTaskFilters } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -104,8 +104,46 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { createAsync: createTaskAsync, update: updateTask, remove: deleteTask } = useTasks();
   
-  // All tasks for this project - used for filtering and pagination
-  const { data: allProjectTasks = [], isLoading: isTasksLoading } = useAllProjectTasks(projectId);
+  // Local filter/search state - will be converted to backend format
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<TaskFilters>(emptyFilters);
+  const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
+  
+  // Convert local filters to backend format for server-side filtering
+  const backendFilters: BackendTaskFilters = useMemo(() => ({
+    search: searchQuery || undefined,
+    statuses: filters.statuses.length > 0 ? filters.statuses : undefined,
+    priorities: filters.priorities.length > 0 ? filters.priorities : undefined,
+    stageIds: filters.stageIds.length > 0 ? filters.stageIds : undefined,
+    epicIds: filters.epicIds.length > 0 ? filters.epicIds : undefined,
+    assigneeIds: filters.assigneeIds.length > 0 ? filters.assigneeIds : undefined,
+    sprintIds: filters.sprintIds.length > 0 ? filters.sprintIds : undefined,
+    taskTypeIds: filters.taskTypeIds.length > 0 ? filters.taskTypeIds : undefined,
+    dueDateFrom: filters.dueDateRange?.from ? new Date(filters.dueDateRange.from).toISOString().split('T')[0] : undefined,
+    dueDateTo: filters.dueDateRange?.to ? new Date(filters.dueDateRange.to).toISOString().split('T')[0] : undefined,
+    myTasksOnly: showMyTasksOnly && currentUserId ? currentUserId : undefined,
+  }), [searchQuery, filters, showMyTasksOnly, currentUserId]);
+  
+  // Server-side paginated tasks with filtering
+  const { 
+    data: paginatedResult, 
+    isLoading: isTasksLoading 
+  } = useProjectTasksPaginated(
+    projectId,
+    currentPage,
+    pageSize,
+    sortField || undefined,
+    sortDirection,
+    backendFilters
+  );
+  
+  // Extract tasks and pagination info from server response
+  const paginatedTasks = paginatedResult?.tasks || [];
+  const totalFilteredTasks = paginatedResult?.total || 0;
+  const totalPages = paginatedResult?.totalPages || 1;
+  
+  // Also fetch all tasks for reference data (stages, etc.) but not for filtering
+  const { data: allProjectTasks = [] } = useAllProjectTasks(projectId);
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
   const { data: projectStages, isLoading: isStagesLoading } = useProjectStages();
@@ -160,14 +198,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     return allSprints.filter((s: any) => s.projectId === project.id);
   }, [allSprints, project]);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState<TaskFilters>(emptyFilters);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "card" | "kanban">("list");
-  
-  // My Tasks filter
-  const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
 
   // Bulk selection state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -315,14 +348,20 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       : <ArrowDown className="h-3.5 w-3.5 ml-1 text-primary" />;
   };
 
-  // Apply search, my tasks filter, and filters across ALL project tasks first
-  const filteredTasks = useMemo(() => {
-    let result = allProjectTasks.filter((task: any) => {
+  // Clamp currentPage when filtered results shrink (e.g., after deletes or filter changes)
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  // Apply client-side filtering to all tasks for Kanban view (needs all tasks, not paginated)
+  const filteredTasksForKanban = useMemo(() => {
+    return allProjectTasks.filter((task: any) => {
       // My Tasks filter
       if (showMyTasksOnly && currentUserId && task.assigneeId !== currentUserId) {
         return false;
       }
-
       // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -331,27 +370,22 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           task.description?.toLowerCase().includes(q);
         if (!matchesSearch) return false;
       }
-
       // Status filter
       if (filters.statuses.length > 0 && !filters.statuses.includes(task.status)) {
         return false;
       }
-
       // Priority filter
       if (filters.priorities.length > 0 && !filters.priorities.includes(task.priority)) {
         return false;
       }
-
       // Stage filter
       if (filters.stageIds.length > 0 && !filters.stageIds.includes(task.stageId)) {
         return false;
       }
-
       // Epic filter
       if (filters.epicIds.length > 0 && !filters.epicIds.includes(task.epicId)) {
         return false;
       }
-
       // Assignee filter
       if (filters.assigneeIds.length > 0) {
         if (filters.assigneeIds.includes("unassigned")) {
@@ -362,7 +396,6 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           return false;
         }
       }
-
       // Sprint filter
       if (filters.sprintIds.length > 0) {
         if (filters.sprintIds.includes("backlog")) {
@@ -373,12 +406,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           return false;
         }
       }
-
       // Task Type filter
       if (filters.taskTypeIds.length > 0 && !filters.taskTypeIds.includes(task.taskTypeId)) {
         return false;
       }
-
       // Due date range filter
       if (filters.dueDateRange) {
         const taskDate = new Date(task.deadline);
@@ -389,77 +420,18 @@ export function TaskListContent({ projectId }: { projectId: string }) {
           return false;
         }
       }
-
       return true;
     });
+  }, [allProjectTasks, searchQuery, filters, showMyTasksOnly, currentUserId]);
 
-    // Apply sorting
-    if (sortField) {
-      const priorityOrder = { "Critical": 4, "High": 3, "Medium": 2, "Low": 1 };
-      const statusOrder = { "Done": 4, "Review": 3, "In Progress": 2, "Todo": 1 };
-
-      result = [...result].sort((a, b) => {
-        let aVal: any, bVal: any;
-        
-        switch (sortField) {
-          case "title":
-            aVal = a.title?.toLowerCase() || "";
-            bVal = b.title?.toLowerCase() || "";
-            break;
-          case "status":
-            aVal = statusOrder[a.status as keyof typeof statusOrder] || 0;
-            bVal = statusOrder[b.status as keyof typeof statusOrder] || 0;
-            break;
-          case "priority":
-            aVal = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
-            bVal = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-            break;
-          case "deadline":
-            aVal = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-            bVal = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-            break;
-          case "createdAt":
-            aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            break;
-          default:
-            return 0;
-        }
-
-        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return result;
-  }, [allProjectTasks, searchQuery, filters, showMyTasksOnly, currentUserId, sortField, sortDirection]);
-
-  // Calculate pagination from filtered results
-  const totalFilteredTasks = filteredTasks.length;
-  const totalPages = Math.ceil(totalFilteredTasks / pageSize) || 1;
-  
-  // Clamp currentPage when filtered results shrink (e.g., after deletes or filter changes)
-  useEffect(() => {
-    if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-  
-  // Get current page of filtered tasks
-  const paginatedTasks = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredTasks.slice(startIndex, startIndex + pageSize);
-  }, [filteredTasks, currentPage, pageSize]);
-
-  // Group tasks by status for Kanban view
+  // Group tasks by status for Kanban view (uses all filtered tasks, not paginated)
   const tasksByStatus = useMemo(() => {
     const grouped: Record<string, any[]> = {};
     statusLabels.forEach(status => {
-      grouped[status] = filteredTasks.filter((t: any) => t.status === status);
+      grouped[status] = filteredTasksForKanban.filter((t: any) => t.status === status);
     });
     return grouped;
-  }, [filteredTasks, statusLabels]);
+  }, [filteredTasksForKanban, statusLabels]);
 
   const activeFilterCount = getActiveFilterCount(filters);
 
@@ -1203,7 +1175,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
         /* Kanban View - Uses App Defaults columns */
         <div className="h-[calc(100vh-320px)] min-h-[400px]" data-testid="kanban-board">
           <PortableKanban
-            tasks={filteredTasks}
+            tasks={filteredTasksForKanban}
             users={users || []}
             epics={projectEpics || []}
             milestones={(milestones || []).filter((m: any) => m.projectId === project?.id)}
