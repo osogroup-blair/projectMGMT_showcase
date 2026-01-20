@@ -182,6 +182,26 @@ function ReferenceMappingTable({ mappings, entityOptions, onMappingChange }: Ref
   );
 }
 
+function getEffectiveId(
+  rawValue: string | undefined | null,
+  entityType: ReferenceMappingEntry['entityType'],
+  referenceMappings: ReferenceMappingEntry[],
+  validEntityIds: Set<string>
+): string | undefined {
+  if (!rawValue) return undefined;
+  
+  const mapping = referenceMappings.find(m => m.entityType === entityType && m.sourceValue === rawValue);
+  if (mapping?.resolvedId) {
+    return mapping.resolvedId;
+  }
+  
+  if (validEntityIds.has(rawValue)) {
+    return rawValue;
+  }
+  
+  return undefined;
+}
+
 interface RelationshipHierarchyPreviewProps {
   deliverables: any[];
   epics: any[];
@@ -190,12 +210,10 @@ interface RelationshipHierarchyPreviewProps {
 }
 
 function RelationshipHierarchyPreview({ deliverables, epics, tasks, referenceMappings }: RelationshipHierarchyPreviewProps) {
-  const resolveId = useCallback((entityType: ReferenceMappingEntry['entityType'], sourceValue: string): string | undefined => {
-    const mapping = referenceMappings.find(m => m.entityType === entityType && m.sourceValue === sourceValue);
-    return mapping?.resolvedId || undefined;
-  }, [referenceMappings]);
-
   const hierarchy = useMemo(() => {
+    const deliverableIds = new Set(deliverables.map((d: any) => d.id));
+    const epicIds = new Set(epics.map((e: any) => e.id));
+    
     const deliverableMap = new Map<string, { deliverable: any; epics: Map<string, { epic: any; tasks: any[] }> }>();
     
     deliverables.forEach((d: any) => {
@@ -203,24 +221,28 @@ function RelationshipHierarchyPreview({ deliverables, epics, tasks, referenceMap
     });
 
     epics.forEach((e: any) => {
-      const deliverableId = e.deliverableId || resolveId('deliverable', e.deliverableName || e.deliverableTitle);
+      const rawDeliverableRef = e.deliverableId || e.deliverableName || e.deliverableTitle;
+      const deliverableId = getEffectiveId(rawDeliverableRef, 'deliverable', referenceMappings, deliverableIds);
       if (deliverableId && deliverableMap.has(deliverableId)) {
         deliverableMap.get(deliverableId)!.epics.set(e.id, { epic: e, tasks: [] });
       }
     });
 
     tasks.forEach((t: any) => {
-      const epicId = t.epicId || resolveId('epic', t.epicName || t.epicTitle);
-      for (const [, dData] of deliverableMap) {
-        if (dData.epics.has(epicId)) {
-          dData.epics.get(epicId)!.tasks.push(t);
-          break;
+      const rawEpicRef = t.epicId || t.epicName || t.epicTitle;
+      const epicId = getEffectiveId(rawEpicRef, 'epic', referenceMappings, epicIds);
+      if (epicId) {
+        for (const [, dData] of deliverableMap) {
+          if (dData.epics.has(epicId)) {
+            dData.epics.get(epicId)!.tasks.push(t);
+            break;
+          }
         }
       }
     });
 
     return deliverableMap;
-  }, [deliverables, epics, tasks, resolveId]);
+  }, [deliverables, epics, tasks, referenceMappings]);
 
   if (deliverables.length === 0) {
     return <div className="text-center py-8 text-muted-foreground">No deliverables to preview.</div>;
@@ -281,12 +303,8 @@ interface EntityTaskPreviewProps {
 }
 
 function EntityTaskPreview({ entities, tasks, entityType, entityLabel, fieldName, referenceMappings }: EntityTaskPreviewProps) {
-  const resolveId = useCallback((sourceValue: string): string | undefined => {
-    const mapping = referenceMappings.find(m => m.entityType === entityType && m.sourceValue === sourceValue);
-    return mapping?.resolvedId || undefined;
-  }, [referenceMappings, entityType]);
-
   const groupedTasks = useMemo(() => {
+    const entityIds = new Set(entities.map((e: any) => e.id));
     const groups = new Map<string, { entity: any; tasks: any[] }>();
     
     entities.forEach((e: any) => {
@@ -295,17 +313,27 @@ function EntityTaskPreview({ entities, tasks, entityType, entityLabel, fieldName
 
     groups.set('unassigned', { entity: null, tasks: [] });
 
+    const nameField = fieldName.replace('Id', 'Name');
+    const titleField = fieldName.replace('Id', 'Title');
+    
     tasks.forEach((t: any) => {
-      const entityId = t[fieldName] || resolveId(t[fieldName.replace('Id', 'Name')] || t[fieldName.replace('Id', 'Title')]);
-      if (entityId && groups.has(entityId)) {
-        groups.get(entityId)!.tasks.push(t);
+      const rawRef = t[fieldName] || t[nameField] || t[titleField];
+      const effectiveEntityId = getEffectiveId(
+        rawRef, 
+        entityType as ReferenceMappingEntry['entityType'], 
+        referenceMappings, 
+        entityIds
+      );
+      
+      if (effectiveEntityId && groups.has(effectiveEntityId)) {
+        groups.get(effectiveEntityId)!.tasks.push(t);
       } else {
         groups.get('unassigned')!.tasks.push(t);
       }
     });
 
     return groups;
-  }, [entities, tasks, fieldName, resolveId]);
+  }, [entities, tasks, fieldName, entityType, referenceMappings]);
 
   if (entities.length === 0) {
     return <div className="text-center py-8 text-muted-foreground">No {entityLabel.toLowerCase()}s imported.</div>;
