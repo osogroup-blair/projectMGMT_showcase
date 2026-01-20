@@ -243,12 +243,16 @@ export default function EpicDetail() {
   // Get Assigned Stages directly from the Epic (fallback to project stages if none assigned)
   const epicStages = useMemo(() => {
     if (!projectStages) return [];
+    let stages: any[];
     // If epic has explicit stage assignments, use those; otherwise use all project stages
     if (epic?.stageIds && epic.stageIds.length > 0) {
-      return projectStages.filter((s: any) => epic.stageIds.includes(s.id));
+      stages = projectStages.filter((s: any) => epic.stageIds.includes(s.id));
+    } else {
+      // Fallback to project stages filtered by projectId
+      stages = projectStages.filter((s: any) => s.projectId === projectId);
     }
-    // Fallback to project stages filtered by projectId
-    return projectStages.filter((s: any) => s.projectId === projectId);
+    // Filter out any stages with empty/undefined IDs to prevent Select component crash
+    return stages.filter((s: any) => s.id && s.id.trim() !== '');
   }, [epic, projectStages, projectId]);
 
   // Calculate progress from task completion (uses filtered tasks when filters active)
