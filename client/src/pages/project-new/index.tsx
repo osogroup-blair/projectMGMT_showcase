@@ -285,7 +285,8 @@ export default function ProjectWizard() {
         adapter.deliverables,
         adapter.stages,
         importContext.state.userMappings,
-        importContext.state.defaultUnassignedTo?.userId
+        importContext.state.defaultUnassignedTo?.userId,
+        importContext.state.statusMappings
       );
       if (importedDeliverables.length > 0) {
         setDeliverables(importedDeliverables);
@@ -1447,7 +1448,8 @@ export default function ProjectWizard() {
         adapter.deliverables,
         adapter.stages,
         importContext.state.userMappings,
-        importContext.state.defaultUnassignedTo?.userId
+        importContext.state.defaultUnassignedTo?.userId,
+        importContext.state.statusMappings
       );
       if (importedDeliverables.length > 0) {
         setDeliverables(importedDeliverables);

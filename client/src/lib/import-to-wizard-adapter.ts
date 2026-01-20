@@ -1411,13 +1411,22 @@ export function toWizardDeliverables(
   imported: ImportedDeliverable[],
   importedStages: ImportedStage[] = [],
   userMappings: UserMappingEntry[] = [],
-  defaultUnassignedTo?: string | null
+  defaultUnassignedTo?: string | null,
+  statusMappings: StatusMappingEntry[] = []
 ): WizardDeliverable[] {
   // Build user mapping lookup
   const userMappingLookup = new Map<string, string>();
   userMappings.forEach(m => {
     if (m.mappedToId && m.action === 'map') {
       userMappingLookup.set(m.sourceId, m.mappedToId);
+    }
+  });
+  
+  // Build status mapping lookup (sourceStatus -> mappedStatus)
+  const statusMappingLookup = new Map<string, string>();
+  statusMappings.forEach(m => {
+    if (m.mappedStatus) {
+      statusMappingLookup.set(m.sourceStatus, m.mappedStatus);
     }
   });
   
@@ -1454,6 +1463,12 @@ export function toWizardDeliverables(
           assigneeId = defaultUnassignedTo;
         }
         
+        // Apply status mapping: convert sourceStatus to mapped status
+        let mappedStatus: string | undefined = undefined;
+        if (importedTask.sourceStatus) {
+          mappedStatus = statusMappingLookup.get(importedTask.sourceStatus) || importedTask.sourceStatus;
+        }
+        
         tasksByEpicId.get(importedTask.assignedEpicId)!.push({
           id: task.id,
           title: task.title,
@@ -1466,7 +1481,7 @@ export function toWizardDeliverables(
           assigneeId,
           deadline: task.deadline,
           taskTypeId: task.taskTypeId,
-          status: importedTask.sourceStatus
+          status: mappedStatus
         });
       }
     });
