@@ -43,6 +43,8 @@ function toPublicUser(user: typeof users.$inferSelect): UserPublic {
     permissions: user.permissions || [],
     roleTemplateIds: user.roleTemplateIds || [],
     createdAt: user.createdAt,
+    lastLogin: user.lastLogin,
+    loginCount: user.loginCount,
   };
 }
 
@@ -126,6 +128,8 @@ export async function listUsers(params: ListUsersRequest): Promise<ListUsersResp
     systemRole: users.systemRole,
     status: users.status,
     createdAt: users.createdAt,
+    lastLogin: users.lastLogin,
+    loginCount: users.loginCount,
   }[sortBy] || users.createdAt;
 
   const orderFn = sortOrder === "asc" ? asc : desc;

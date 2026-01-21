@@ -14,7 +14,7 @@ export interface UseUsersOptions {
   status?: string;
   page?: number;
   pageSize?: number;
-  sortBy?: "name" | "email" | "systemRole" | "status" | "createdAt";
+  sortBy?: "name" | "email" | "systemRole" | "status" | "createdAt" | "lastLogin" | "loginCount";
   sortOrder?: "asc" | "desc";
   hasEmail?: "yes" | "no";
   hasTasks?: "yes" | "no";

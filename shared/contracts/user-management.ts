@@ -47,7 +47,7 @@ export const listUsersRequestSchema = z.object({
   status: z.string().optional(),
   page: z.number().optional().default(1),
   pageSize: z.number().optional().default(50),
-  sortBy: z.enum(["name", "email", "systemRole", "status", "createdAt"]).optional().default("createdAt"),
+  sortBy: z.enum(["name", "email", "systemRole", "status", "createdAt", "lastLogin", "loginCount"]).optional().default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
   hasEmail: z.enum(["yes", "no"]).optional(),
   hasTasks: z.enum(["yes", "no"]).optional(),
@@ -82,6 +82,8 @@ export interface UserPublic {
   permissions: string[] | null;
   roleTemplateIds: string[] | null;
   createdAt: Date | null;
+  lastLogin: Date | null;
+  loginCount: number | null;
 }
 
 export const updateUserRequestSchema = z.object({

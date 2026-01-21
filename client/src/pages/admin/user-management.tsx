@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { format, formatDistanceToNow } from "date-fns";
 import { Shell } from "@/components/layout/shell";
 import { 
   Users, 
@@ -123,7 +124,7 @@ interface ImportResults {
   errors: { email: string; error: string }[];
 }
 
-type SortColumn = "name" | "email" | "systemRole" | "status" | "createdAt";
+type SortColumn = "name" | "email" | "systemRole" | "status" | "createdAt" | "lastLogin" | "loginCount";
 type SortOrder = "asc" | "desc";
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -1203,6 +1204,22 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       Status <SortIcon column="status" />
                     </button>
                   </TableHead>
+                  <TableHead className="w-[140px]">
+                    <button 
+                      className="flex items-center hover:text-foreground transition-colors"
+                      onClick={() => handleSort("lastLogin")}
+                    >
+                      Last Login <SortIcon column="lastLogin" />
+                    </button>
+                  </TableHead>
+                  <TableHead className="w-[80px]">
+                    <button 
+                      className="flex items-center hover:text-foreground transition-colors"
+                      onClick={() => handleSort("loginCount")}
+                    >
+                      Logins <SortIcon column="loginCount" />
+                    </button>
+                  </TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -1214,12 +1231,14 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       <TableCell><div className="h-8 w-48 bg-muted rounded animate-pulse" /></TableCell>
                       <TableCell><div className="h-5 w-16 bg-muted rounded animate-pulse" /></TableCell>
                       <TableCell><div className="h-5 w-14 bg-muted rounded animate-pulse" /></TableCell>
+                      <TableCell><div className="h-5 w-20 bg-muted rounded animate-pulse" /></TableCell>
+                      <TableCell><div className="h-5 w-8 bg-muted rounded animate-pulse" /></TableCell>
                       <TableCell><div className="h-6 w-6 bg-muted rounded animate-pulse" /></TableCell>
                     </TableRow>
                   ))
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <Users className="h-10 w-10 mx-auto mb-2 text-muted-foreground/50" />
                       <p className="text-muted-foreground">
                         {hasActiveFilters ? "No users match your filters" : "No users found"}
@@ -1285,6 +1304,18 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                         >
                           {user.status || "Offline"}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {user.lastLogin ? (
+                          <span title={format(new Date(user.lastLogin), "PPpp")}>
+                            {formatDistanceToNow(new Date(user.lastLogin), { addSuffix: true })}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/50">Never</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-center">
+                        {user.loginCount ?? 0}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
