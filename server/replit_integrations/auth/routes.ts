@@ -4,6 +4,20 @@ import { isAuthenticated } from "./sessionAuth";
 import { storage } from "../../data/storage";
 import { getMicrosoftAuthConfig } from "./microsoftAuth";
 import { getGoogleAuthConfig } from "./googleAuth";
+import { db } from "../../db";
+import { users } from "@shared/models/auth";
+import { eq, sql } from "drizzle-orm";
+
+// Helper to update login tracking stats
+async function updateLoginStats(userId: string) {
+  await db
+    .update(users)
+    .set({
+      lastLogin: new Date(),
+      loginCount: sql`COALESCE(${users.loginCount}, 0) + 1`,
+    })
+    .where(eq(users.id, userId));
+}
 
 // Roles that can use impersonation feature
 const IMPERSONATION_ROLES = ["admin", "demo"];
@@ -174,11 +188,14 @@ export function registerAuthRoutes(app: Express): void {
       };
       
       // Use Passport's login method to properly set up the session
-      req.login(mockUser, (err: any) => {
+      req.login(mockUser, async (err: any) => {
         if (err) {
           console.error("Error during passport login:", err);
           return res.status(500).json({ error: "Failed to create demo session" });
         }
+        
+        // Update login tracking
+        await updateLoginStats(demoUser!.id);
         
         res.json({ 
           success: true, 
@@ -264,11 +281,14 @@ export function registerAuthRoutes(app: Express): void {
       const userName = adminUser!.name || `${adminUser!.firstName || ''} ${adminUser!.lastName || ''}`.trim() || 'Admin';
       
       // Use Passport's login method to properly set up the session
-      req.login(mockUser, (err: any) => {
+      req.login(mockUser, async (err: any) => {
         if (err) {
           console.error("Error during demo admin login:", err);
           return res.status(500).json({ error: "Failed to create demo admin session" });
         }
+        
+        // Update login tracking
+        await updateLoginStats(adminUser.id);
         
         res.json({ 
           success: true, 

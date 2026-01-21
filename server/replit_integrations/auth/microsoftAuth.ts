@@ -6,8 +6,19 @@ import memoize from "memoizee";
 import { db } from "../../db";
 import { users, appSettings } from "@shared/models/auth";
 import { userIdentities } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
+
+// Helper to update login tracking stats
+async function updateLoginStats(userId: string) {
+  await db
+    .update(users)
+    .set({
+      lastLogin: new Date(),
+      loginCount: sql`COALESCE(${users.loginCount}, 0) + 1`,
+    })
+    .where(eq(users.id, userId));
+}
 
 const MICROSOFT_ISSUER_URL = "https://login.microsoftonline.com";
 
@@ -175,6 +186,8 @@ async function upsertMicrosoftUser(claims: any) {
     
     // Create/update identity record with SSO claims
     await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
+    // Update login tracking
+    await updateLoginStats(existingUser.id);
     return existingUser;
   }
   
@@ -200,6 +213,8 @@ async function upsertMicrosoftUser(claims: any) {
     
     // Create/update identity record with SSO claims
     await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
+    // Update login tracking
+    await updateLoginStats(existingUser.id);
     return existingUser;
   }
   
@@ -227,6 +242,8 @@ async function upsertMicrosoftUser(claims: any) {
       
       // Create/update identity record with SSO claims
       await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
+      // Update login tracking
+      await updateLoginStats(existingUser.id);
       return existingUser;
     }
   }
@@ -243,6 +260,8 @@ async function upsertMicrosoftUser(claims: any) {
       profileImageUrl,
       microsoftId,
       authProvider: "microsoft",
+      lastLogin: new Date(),
+      loginCount: 1,
     })
     .returning();
   

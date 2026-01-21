@@ -5,8 +5,19 @@ import type { Express } from "express";
 import memoize from "memoizee";
 import { db } from "../../db";
 import { appSettings, users, userIdentities } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
+
+// Helper to update login tracking stats
+async function updateLoginStats(userId: string) {
+  await db
+    .update(users)
+    .set({
+      lastLogin: new Date(),
+      loginCount: sql`COALESCE(${users.loginCount}, 0) + 1`,
+    })
+    .where(eq(users.id, userId));
+}
 
 const getGoogleOidcConfig = memoize(
   async () => {
@@ -160,6 +171,8 @@ async function upsertGoogleUser(claims: any) {
     }
     // Create/update identity record with SSO claims
     await upsertOrLinkGoogleIdentity(existingUser.id, claims);
+    // Update login tracking
+    await updateLoginStats(existingUser.id);
     return existingUser;
   }
 
@@ -177,6 +190,8 @@ async function upsertGoogleUser(claims: any) {
       authProvider: "google",
       systemRole: "member",
       status: "active",
+      lastLogin: new Date(),
+      loginCount: 1,
     })
     .onConflictDoUpdate({
       target: users.id,

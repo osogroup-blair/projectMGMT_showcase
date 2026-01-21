@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // Session storage table for authentication sessions.
 export const sessions = pgTable(
@@ -45,6 +45,10 @@ export const users = pgTable("users", {
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  
+  // Login tracking
+  lastLogin: timestamp("last_login"),
+  loginCount: integer("login_count").default(0),
 });
 
 // App-wide settings including authentication configuration
