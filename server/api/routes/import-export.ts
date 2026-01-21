@@ -1884,7 +1884,8 @@ export function registerImportExportRoutes(
             
             // Add execution role assignment if roleTypeId is provided
             // Use the mapped project role ID (from role template -> project role mapping)
-            if (role.roleTypeId && !highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
+            // Note: Team members can have both a high-level role (member) AND an execution role
+            if (role.roleTypeId) {
               const mappedProjectRoleId = roleTemplateToProjectRoleMap.get(role.roleTypeId);
               if (mappedProjectRoleId) {
                 await storage.createExecutionRoleAssignment({

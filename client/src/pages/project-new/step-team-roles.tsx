@@ -144,7 +144,7 @@ export const StepTeamRoles = forwardRef(({
       newRoles.push({
         id: `role-member-${member.userId}-${idx}`,
         name: executionRole ? executionRole.label : "Team Member",
-        roleType: executionRole?.label || "member",
+        roleType: "member",
         roleTypeId: member.executionRoleId,
         isCore: false,
         assigneeId: member.userId

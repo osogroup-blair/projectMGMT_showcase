@@ -28,6 +28,7 @@ interface SprintData {
 
 interface StepSprintsProps {
   projectData: ProjectData;
+  setProjectData: React.Dispatch<React.SetStateAction<ProjectData>>;
   sprints: SprintData[];
   setSprints: React.Dispatch<React.SetStateAction<SprintData[]>>;
   hasImportedSprints: boolean;
@@ -72,6 +73,7 @@ function generateSprintsFromCadence(
 
 export function StepSprints({
   projectData,
+  setProjectData,
   sprints,
   setSprints,
   hasImportedSprints,
@@ -88,8 +90,19 @@ export function StepSprints({
   useEffect(() => {
     if (hasImportedSprints && sprints.length > 0 && cadence === "none") {
       setCadence("imported");
+      // Calculate average sprint duration from imported sprints and update projectData
+      if (sprints.length > 0 && sprints[0].startDate && sprints[0].endDate) {
+        const firstSprint = sprints[0];
+        const start = new Date(firstSprint.startDate);
+        const end = new Date(firstSprint.endDate);
+        const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const durationWeeks = Math.round(durationDays / 7);
+        if (durationWeeks > 0 && durationWeeks <= 4) {
+          setProjectData(prev => ({ ...prev, sprintDurationWeeks: durationWeeks }));
+        }
+      }
     }
-  }, [hasImportedSprints, sprints.length]);
+  }, [hasImportedSprints, sprints.length, setProjectData]);
 
   const sortSprintsByDate = (sprintList: SprintData[]): SprintData[] => {
     return [...sprintList].sort((a, b) => {
@@ -107,11 +120,13 @@ export function StepSprints({
     if (newCadence === "none") {
       setSprints([]);
       setLastGeneratedCadence(null);
+      setProjectData(prev => ({ ...prev, sprintDurationWeeks: 0 }));
     } else if (newCadence !== "imported") {
       const weeks = parseInt(newCadence);
       const generated = generateSprintsFromCadence(weeks, projectData.startDate, projectData.dueDate);
       setSprints(generated);
       setLastGeneratedCadence(newCadence);
+      setProjectData(prev => ({ ...prev, sprintDurationWeeks: weeks }));
     }
   };
 

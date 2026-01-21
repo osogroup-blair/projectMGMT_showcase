@@ -1865,7 +1865,7 @@ export default function ProjectWizard() {
                 ) : (
                   <>
                     {currentStep === 1 && <StepBasics {...stepProps} ref={basicsRef} />}
-                    {currentStep === 2 && <StepSprints projectData={projectData} sprints={sprints} setSprints={setSprints} hasImportedSprints={isImportMode && sprints.length > 0} />}
+                    {currentStep === 2 && <StepSprints projectData={projectData} setProjectData={setProjectData} sprints={sprints} setSprints={setSprints} hasImportedSprints={isImportMode && sprints.length > 0} />}
                     {currentStep === 3 && <StepTeamRoles {...stepProps} ref={teamRef} />}
                     {currentStep === 4 && <StepStageConfig {...stepProps} />}
                     {currentStep === 5 && <StepWorkBreakdown {...stepProps} />}
