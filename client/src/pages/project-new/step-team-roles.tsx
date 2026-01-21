@@ -73,6 +73,7 @@ export const StepTeamRoles = forwardRef(({
   stages,
   setStages,
   deliverables,
+  setProjectData,
 }: StepProps, ref) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,6 +158,8 @@ export const StepTeamRoles = forwardRef(({
   const setOwnerUserId = (userId: string) => {
     setOwnerUserIdState(userId);
     setRoles(buildRolesArray(userId, managerUserId, stakeholderUserIds, teamMembers));
+    // Also update projectData.ownerId so Review page and API payload have correct owner
+    setProjectData(prev => ({ ...prev, ownerId: userId }));
   };
 
   const setManagerUserId = (userId: string) => {
@@ -173,6 +176,26 @@ export const StepTeamRoles = forwardRef(({
     setTeamMembersState(members);
     setRoles(buildRolesArray(ownerUserId, managerUserId, stakeholderUserIds, members));
   };
+
+  // Sync roles array whenever local state changes - ensures owner/manager are never lost
+  // This runs after any state update to rebuild the roles array with the latest values
+  const rolesArraySyncedRef = useRef(false);
+  useEffect(() => {
+    // Skip initial render and let other effects initialize first
+    if (!rolesArraySyncedRef.current) {
+      rolesArraySyncedRef.current = true;
+      return;
+    }
+    // Only sync if we have at least one role assignment
+    if (ownerUserId || managerUserId || stakeholderUserIds.length > 0 || teamMembers.length > 0) {
+      const newRoles = buildRolesArray(ownerUserId, managerUserId, stakeholderUserIds, teamMembers);
+      // Only update if the roles are different to avoid infinite loops
+      if (JSON.stringify(newRoles.map(r => ({ roleType: r.roleType, assigneeId: r.assigneeId, roleTypeId: r.roleTypeId }))) !== 
+          JSON.stringify(roles.map(r => ({ roleType: r.roleType, assigneeId: r.assigneeId, roleTypeId: r.roleTypeId })))) {
+        setRoles(newRoles);
+      }
+    }
+  }, [ownerUserId, managerUserId, stakeholderUserIds, teamMembers, buildRolesArray, roles, setRoles]);
 
   useEffect(() => {
     if (importInitializedRef.current) return;
@@ -239,6 +262,8 @@ export const StepTeamRoles = forwardRef(({
     
     if (newOwnerUserId !== ownerUserId) {
       setOwnerUserIdState(newOwnerUserId);
+      // Also update projectData.ownerId for imported owner
+      setProjectData(prev => ({ ...prev, ownerId: newOwnerUserId }));
     }
     if (newManagerUserId !== managerUserId) {
       setManagerUserIdState(newManagerUserId);
@@ -255,7 +280,7 @@ export const StepTeamRoles = forwardRef(({
     console.log('[TEAM-ROLES] Initialized roles from import - owner:', newOwnerUserId, 'manager:', newManagerUserId, 'stakeholders:', newStakeholderUserIds.length, 'members:', importedTeamMembers.length);
     
     importInitializedRef.current = true;
-  }, [importContext?.state?.isImportMode, importContext?.state?.userMappings, stages, buildRolesArray, ownerUserId, managerUserId, stakeholderUserIds, setRoles]);
+  }, [importContext?.state?.isImportMode, importContext?.state?.userMappings, stages, buildRolesArray, ownerUserId, managerUserId, stakeholderUserIds, setRoles, setProjectData]);
 
   // Initialize local state from existing roles prop (for non-import mode or when navigating back to this step)
   // Runs on mount when roles has data and restores each field that is empty
@@ -307,6 +332,8 @@ export const StepTeamRoles = forwardRef(({
     // Restore each field that is currently empty (allows partial restoration)
     if (!ownerUserId && extractedOwner) {
       setOwnerUserIdState(extractedOwner);
+      // Also sync to projectData.ownerId
+      setProjectData(prev => ({ ...prev, ownerId: extractedOwner }));
       console.log('[TEAM-ROLES] Restored owner:', extractedOwner);
     }
     if (!managerUserId && extractedManager) {
@@ -323,7 +350,7 @@ export const StepTeamRoles = forwardRef(({
     }
     
     rolesInitializedRef.current = true;
-  }, [roles, ownerUserId, managerUserId, stakeholderUserIds, teamMembers]);
+  }, [roles, ownerUserId, managerUserId, stakeholderUserIds, teamMembers, setProjectData]);
 
   const taskAssignmentStats = useMemo<TaskAssignmentStats>(() => {
     let totalTasks = 0;

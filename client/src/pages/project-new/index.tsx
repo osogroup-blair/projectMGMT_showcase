@@ -1199,6 +1199,21 @@ export default function ProjectWizard() {
     const rolesWithAssignees = [...roles];
     const existingUserIds = new Set(roles.filter(r => r.assigneeId).map(r => r.assigneeId));
     
+    // Ensure owner is in roles array if projectData.ownerId is set
+    const hasOwnerRole = roles.some(r => r.roleType === 'owner' && r.assigneeId);
+    if (projectData.ownerId && !hasOwnerRole) {
+      rolesWithAssignees.push({
+        id: `role-owner-${projectData.ownerId}`,
+        name: "Project Owner",
+        description: "Project owner",
+        roleType: "owner",
+        roleTypeId: undefined,
+        isCore: true,
+        assigneeId: projectData.ownerId
+      });
+      existingUserIds.add(projectData.ownerId);
+    }
+    
     let autoRoleCounter = 0;
     taskAssignees.forEach(assigneeId => {
       if (!existingUserIds.has(assigneeId)) {
