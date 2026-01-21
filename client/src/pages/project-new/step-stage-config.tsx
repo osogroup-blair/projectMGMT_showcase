@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useCurrentUser } from "@/context/current-user-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -607,6 +608,7 @@ export function StepStageConfig({
   roles,
   users,
 }: StepProps) {
+  const { currentUserId } = useCurrentUser();
   const [activeTab, setActiveTab] = useState<'stages' | 'milestones'>('milestones');
   const [expandedStages, setExpandedStages] = useState<string[]>([]);
   const [expandedMilestones, setExpandedMilestones] = useState<string[]>([]);
@@ -790,7 +792,7 @@ export function StepStageConfig({
       name: "",
       description: "",
       targetDate: "",
-      ownerId: users[0]?.id || "",
+      ownerId: currentUserId || "",
       isBillingGate: false,
       rule: {
         scopeType: 'stage',
@@ -1018,7 +1020,7 @@ export function StepStageConfig({
           name: mt.name,
           description: mt.description || "",
           targetDate: "",
-          ownerId: users[0]?.id || "",
+          ownerId: currentUserId || "",
           isBillingGate: mt.isBillingGate || false,
           rule: {
             scopeType: mt.scopeType || 'stage',

@@ -1,3 +1,4 @@
+import { useCurrentUser } from "@/context/current-user-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -75,6 +76,7 @@ export const StepTeamRoles = forwardRef(({
 }: StepProps, ref) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { currentUserId } = useCurrentUser();
 
   useImperativeHandle(ref, () => ({
     handleExport,
@@ -89,6 +91,15 @@ export const StepTeamRoles = forwardRef(({
   
   const importContext = useImportOptional();
   const importInitializedRef = useRef(false);
+  const defaultOwnerSetRef = useRef(false);
+  
+  // Default owner to current user if not set and not from import
+  useEffect(() => {
+    if (currentUserId && !ownerUserId && !importContext?.state?.isImportMode && !defaultOwnerSetRef.current) {
+      defaultOwnerSetRef.current = true;
+      setOwnerUserId(currentUserId);
+    }
+  }, [currentUserId, ownerUserId, importContext?.state?.isImportMode]);
 
   const buildRolesArray = useCallback((
     owner: string,

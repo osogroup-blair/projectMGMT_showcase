@@ -46,6 +46,7 @@ import {
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
 import { useImportOptional } from "@/context/import-context";
+import { useCurrentUser } from "@/context/current-user-context";
 import { useCreationReport } from "@/context/creation-report-context";
 import { 
   toWizardProjectData, 
@@ -121,6 +122,7 @@ export default function ProjectWizard() {
   const isImportMode = importContext?.state?.isImportMode || false;
   const { setReport, startCreating, finishCreating, failCreating } = useCreationReport();
   const queryClient = useQueryClient();
+  const { currentUserId } = useCurrentUser();
   
   const { data: frameworkTemplates = [], isLoading: loadingFrameworks } = useFrameworkTemplates();
   const { data: stageTemplates = [], isLoading: loadingStages } = useStageTemplates();
@@ -157,8 +159,15 @@ export default function ProjectWizard() {
     startDate: new Date().toISOString().split('T')[0],
     dueDate: "",
     sprintDurationWeeks: 2,
-    ownerId: users[0]?.id || "",
+    ownerId: "",
   });
+
+  // Set ownerId to current user once available
+  useEffect(() => {
+    if (currentUserId && !projectData.ownerId) {
+      setProjectData(prev => ({ ...prev, ownerId: currentUserId }));
+    }
+  }, [currentUserId]);
 
   const [deliverables, setDeliverables] = useState<WizardDeliverable[]>([]);
   const [stages, setStagesRaw] = useState<WizardStage[]>([]);
@@ -266,7 +275,7 @@ export default function ProjectWizard() {
           dueDate: importedProject.dueDate || prev.dueDate,
           sprintDurationWeeks: importedProject.sprintDurationWeeks || prev.sprintDurationWeeks,
           client: importedProject.client || prev.client,
-          ownerId: importedProject.ownerId || users[0]?.id || prev.ownerId
+          ownerId: importedProject.ownerId || currentUserId || prev.ownerId
         }));
       }
       
@@ -1589,7 +1598,7 @@ export default function ProjectWizard() {
                 startDate: new Date().toISOString().split('T')[0],
                 dueDate: "",
                 sprintDurationWeeks: 2,
-                ownerId: users[0]?.id || "",
+                ownerId: currentUserId || "",
               });
               setDeliverables([]);
               setStagesRaw([]);
