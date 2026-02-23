@@ -10,6 +10,7 @@
     "start": "npx cross-env NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
+    "db:seed": "tsx --env-file=.env server/db/run-seed.ts",
     "docker:up": "docker compose up db -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up db -d"
