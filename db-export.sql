@@ -69,16 +69,16 @@ INSERT INTO stage_templates (id, name, description, default_tasks, default_roles
 INSERT INTO stage_templates (id, name, description, default_tasks, default_roles, entry_criteria, exit_criteria, allowed_task_statuses) VALUES ('fcd4353c-9ad2-4c94-ae11-562ad0cb9798', 'Support', '', ARRAY[]::text[], ARRAY[]::text[], '', '', ARRAY['ts1', 'ts2', 'ts4']::text[]);
 
 -- framework_templates (3 rows)
-INSERT INTO framework_templates (id, name, description, default_stages) VALUES ('fw_nymbl_implementation', 'Nymbl Implementation Framework', 'Structured 4-stage delivery framework ensuring alignment, validation, execution, and adoption.', ARRAY['st_plan_strategy', 'st_validate_blueprint', 'st_develop_solution', 'st_enable_users']::text[]);
+INSERT INTO framework_templates (id, name, description, default_stages) VALUES ('fw_prodCo_implementation', 'prodCo Implementation Framework', 'Structured 4-stage delivery framework ensuring alignment, validation, execution, and adoption.', ARRAY['st_plan_strategy', 'st_validate_blueprint', 'st_develop_solution', 'st_enable_users']::text[]);
 INSERT INTO framework_templates (id, name, description, default_stages) VALUES ('ft_impl', 'Implementation Framework', 'Standard implementation delivery framework', ARRAY['st_plan_strategy', 'st_validate_blueprint', 'st_develop_solution', 'st_enable_users']::text[]);
-INSERT INTO framework_templates (id, name, description, default_stages) VALUES ('c0ec60be-9757-40c1-91fa-e34a5bbb5f92', 'Nymbl Delivery', '', ARRAY['e77fb2b6-b7c3-4754-a2af-8931ffffe49f', 'c84a6014-ceca-4ecd-8b52-a1068d8f2225', 'c6e91e0f-2f4b-467c-b498-b2114ed72eb6', '587a067a-8905-42a3-b1e0-62af11249803', '1e67bc20-8e5e-401c-87e9-50389f4043fb']::text[]);
+INSERT INTO framework_templates (id, name, description, default_stages) VALUES ('c0ec60be-9757-40c1-91fa-e34a5bbb5f92', 'prodCo Delivery', '', ARRAY['e77fb2b6-b7c3-4754-a2af-8931ffffe49f', 'c84a6014-ceca-4ecd-8b52-a1068d8f2225', 'c6e91e0f-2f4b-467c-b498-b2114ed72eb6', '587a067a-8905-42a3-b1e0-62af11249803', '1e67bc20-8e5e-401c-87e9-50389f4043fb']::text[]);
 
 -- No data in project_templates
 -- No data in deliverable_templates
 -- No data in epic_templates
 -- No data in mapping_templates
 -- projects (1 rows)
-INSERT INTO projects (id, name, description, status, start_date, deadline, progress, framework_id, default_mapping_template_id, permissions, sprint_duration_weeks, owner_id, client, risk_level) VALUES ('2b3e02b8-b7ae-42ce-aae7-eff2073a71f9', 'Mycro', 'A strategic initiative to overhaul the core systems and improve user experience across all digital touchpoints.', 'In Progress', '2025-12-10', '2026-02-25', 0, 'fw_nymbl_implementation', NULL, NULL, NULL, '1', 'client', 'Low');
+INSERT INTO projects (id, name, description, status, start_date, deadline, progress, framework_id, default_mapping_template_id, permissions, sprint_duration_weeks, owner_id, client, risk_level) VALUES ('2b3e02b8-b7ae-42ce-aae7-eff2073a71f9', 'Mycro', 'A strategic initiative to overhaul the core systems and improve user experience across all digital touchpoints.', 'In Progress', '2025-12-10', '2026-02-25', 0, 'fw_prodCo_implementation', NULL, NULL, NULL, '1', 'client', 'Low');
 
 -- No data in project_stages
 -- project_roles (3 rows)

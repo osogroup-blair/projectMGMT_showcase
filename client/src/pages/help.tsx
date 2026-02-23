@@ -322,7 +322,7 @@ export default function HelpPage() {
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li>Go to Projects → Import or use the import option in project creation</li>
                       <li>Upload your Excel, CSV, JSON, or YAML file</li>
-                      <li>Map your columns to Nymbl fields (title, description, status, etc.)</li>
+                      <li>Map your columns to prodCo fields (title, description, status, etc.)</li>
                       <li>The system will automatically try to match references like epics and users</li>
                       <li>Use the reference mapping tabs to resolve any unmatched items</li>
                       <li>Assign team members and review the summary before completing</li>
