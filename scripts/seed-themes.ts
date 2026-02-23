@@ -1,0 +1,679 @@
+import { db, pool } from "../server/db";
+import { themes } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import crypto from "crypto";
+
+const CYBERPUNK_THEME = {
+    name: "Cyberpunk",
+    description: "High contrast, neon colors",
+    status: "published",
+    isDefault: false,
+    lightTokens: {
+        colors: {
+            background: "280 60% 98%",
+            foreground: "280 80% 10%",
+            card: "0 0% 100%",
+            cardForeground: "280 80% 10%",
+            popover: "0 0% 100%",
+            popoverForeground: "280 80% 10%",
+            primary: "300 100% 50%", // Neon Pink
+            primaryForeground: "0 0% 100%",
+            secondary: "180 100% 50%", // Neon Cyan
+            secondaryForeground: "0 0% 0%",
+            muted: "280 20% 96%",
+            mutedForeground: "280 40% 50%",
+            accent: "60 100% 50%", // Neon Yellow
+            accentForeground: "0 0% 0%",
+            destructive: "0 100% 50%",
+            destructiveForeground: "0 0% 100%",
+            border: "280 30% 90%",
+            input: "280 30% 90%",
+            ring: "300 100% 50%",
+            chart1: "300 100% 50%",
+            chart2: "180 100% 50%",
+            chart3: "60 100% 50%",
+            chart4: "0 100% 50%",
+            chart5: "240 100% 50%",
+            sidebar: "280 50% 10%",
+            sidebarForeground: "0 0% 100%",
+            sidebarPrimary: "300 100% 50%",
+            sidebarPrimaryForeground: "0 0% 100%",
+            sidebarAccent: "280 50% 20%",
+            sidebarAccentForeground: "300 100% 50%",
+            sidebarBorder: "280 50% 20%",
+            sidebarRing: "300 100% 50%",
+            success: "120 100% 40%",
+            successForeground: "0 0% 100%",
+            warning: "40 100% 50%",
+            warningForeground: "0 0% 100%",
+            info: "200 100% 50%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Inter', sans-serif",
+            fontHeading: "'Orbitron', sans-serif",
+            fontMono: "'JetBrains Mono', monospace",
+        },
+        spacing: {
+            radius: "0rem",
+        },
+    },
+    darkTokens: {
+        colors: {
+            background: "280 50% 5%",
+            foreground: "280 20% 90%",
+            card: "280 50% 8%",
+            cardForeground: "280 20% 90%",
+            popover: "280 50% 8%",
+            popoverForeground: "280 20% 90%",
+            primary: "300 100% 50%", // Neon Pink
+            primaryForeground: "0 0% 100%",
+            secondary: "180 100% 50%", // Neon Cyan
+            secondaryForeground: "0 0% 0%",
+            muted: "280 50% 15%",
+            mutedForeground: "280 20% 70%",
+            accent: "60 100% 50%", // Neon Yellow
+            accentForeground: "0 0% 0%",
+            destructive: "0 100% 60%",
+            destructiveForeground: "0 0% 100%",
+            border: "280 50% 20%",
+            input: "280 50% 20%",
+            ring: "300 100% 50%",
+            chart1: "300 100% 50%",
+            chart2: "180 100% 50%",
+            chart3: "60 100% 50%",
+            chart4: "0 100% 50%",
+            chart5: "240 100% 50%",
+            sidebar: "280 50% 5%",
+            sidebarForeground: "280 20% 90%",
+            sidebarPrimary: "300 100% 50%",
+            sidebarPrimaryForeground: "0 0% 100%",
+            sidebarAccent: "280 50% 15%",
+            sidebarAccentForeground: "300 100% 50%",
+            sidebarBorder: "280 50% 20%",
+            sidebarRing: "300 100% 50%",
+            success: "120 100% 40%",
+            successForeground: "0 0% 100%",
+            warning: "40 100% 50%",
+            warningForeground: "0 0% 100%",
+            info: "200 100% 50%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Inter', sans-serif",
+            fontHeading: "'Orbitron', sans-serif",
+            fontMono: "'JetBrains Mono', monospace",
+        },
+        spacing: {
+            radius: "0rem",
+        },
+    },
+};
+
+const NATURE_THEME = {
+    name: "Nature",
+    description: "Earthy tones, greens, browns",
+    status: "published",
+    isDefault: false,
+    lightTokens: {
+        colors: {
+            background: "120 20% 97%",
+            foreground: "120 40% 10%",
+            card: "0 0% 100%",
+            cardForeground: "120 40% 10%",
+            popover: "0 0% 100%",
+            popoverForeground: "120 40% 10%",
+            primary: "140 50% 40%", // Forest Green
+            primaryForeground: "0 0% 100%",
+            secondary: "30 40% 80%", // Beige
+            secondaryForeground: "30 40% 20%",
+            muted: "120 20% 94%",
+            mutedForeground: "120 30% 50%",
+            accent: "80 60% 60%", // Fresh Green
+            accentForeground: "0 0% 100%",
+            destructive: "0 60% 50%",
+            destructiveForeground: "0 0% 100%",
+            border: "120 20% 85%",
+            input: "120 20% 85%",
+            ring: "140 50% 40%",
+            chart1: "140 50% 40%",
+            chart2: "80 60% 60%",
+            chart3: "30 50% 50%",
+            chart4: "180 40% 40%",
+            chart5: "240 30% 50%",
+            sidebar: "120 30% 15%",
+            sidebarForeground: "0 0% 95%",
+            sidebarPrimary: "140 50% 60%",
+            sidebarPrimaryForeground: "0 0% 100%",
+            sidebarAccent: "120 30% 25%",
+            sidebarAccentForeground: "140 50% 60%",
+            sidebarBorder: "120 30% 25%",
+            sidebarRing: "140 50% 40%",
+            success: "120 60% 40%",
+            successForeground: "0 0% 100%",
+            warning: "40 80% 50%",
+            warningForeground: "0 0% 100%",
+            info: "200 60% 50%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Nunito', sans-serif",
+            fontHeading: "'Lora', serif",
+            fontMono: "'Fira Code', monospace",
+        },
+        spacing: {
+            radius: "1rem",
+        },
+    },
+    darkTokens: {
+        colors: {
+            background: "120 20% 8%",
+            foreground: "120 20% 90%",
+            card: "120 20% 12%",
+            cardForeground: "120 20% 90%",
+            popover: "120 20% 12%",
+            popoverForeground: "120 20% 90%",
+            primary: "140 50% 50%", // Forest Green
+            primaryForeground: "0 0% 100%",
+            secondary: "30 30% 25%", // Dark Beige
+            secondaryForeground: "30 30% 90%",
+            muted: "120 20% 15%",
+            mutedForeground: "120 20% 70%",
+            accent: "80 50% 50%", // Fresh Green
+            accentForeground: "0 0% 100%",
+            destructive: "0 60% 60%",
+            destructiveForeground: "0 0% 100%",
+            border: "120 20% 20%",
+            input: "120 20% 20%",
+            ring: "140 50% 50%",
+            chart1: "140 50% 50%",
+            chart2: "80 50% 50%",
+            chart3: "30 40% 50%",
+            chart4: "180 30% 50%",
+            chart5: "240 30% 50%",
+            sidebar: "120 20% 5%",
+            sidebarForeground: "120 20% 90%",
+            sidebarPrimary: "140 50% 50%",
+            sidebarPrimaryForeground: "0 0% 100%",
+            sidebarAccent: "120 20% 15%",
+            sidebarAccentForeground: "140 50% 50%",
+            sidebarBorder: "120 20% 20%",
+            sidebarRing: "140 50% 50%",
+            success: "120 60% 40%",
+            successForeground: "0 0% 100%",
+            warning: "40 80% 50%",
+            warningForeground: "0 0% 100%",
+            info: "200 60% 50%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Nunito', sans-serif",
+            fontHeading: "'Lora', serif",
+            fontMono: "'Fira Code', monospace",
+        },
+        spacing: {
+            radius: "1rem",
+        },
+    },
+};
+
+const CORPORATE_THEME = {
+    name: "Corporate",
+    description: "Professional, blue/gray palette",
+    status: "published",
+    isDefault: false,
+    lightTokens: {
+        colors: {
+            background: "220 20% 98%",
+            foreground: "220 40% 20%",
+            card: "0 0% 100%",
+            cardForeground: "220 40% 20%",
+            popover: "0 0% 100%",
+            popoverForeground: "220 40% 20%",
+            primary: "220 80% 40%", // Corporate Blue
+            primaryForeground: "0 0% 100%",
+            secondary: "220 10% 90%",
+            secondaryForeground: "220 40% 20%",
+            muted: "220 10% 94%",
+            mutedForeground: "220 20% 50%",
+            accent: "200 60% 50%", // Light Blue
+            accentForeground: "0 0% 100%",
+            destructive: "0 80% 50%",
+            destructiveForeground: "0 0% 100%",
+            border: "220 20% 85%",
+            input: "220 20% 85%",
+            ring: "220 80% 40%",
+            chart1: "220 80% 40%",
+            chart2: "200 60% 50%",
+            chart3: "180 50% 50%",
+            chart4: "0 80% 50%",
+            chart5: "40 80% 50%",
+            sidebar: "220 40% 20%",
+            sidebarForeground: "0 0% 100%",
+            sidebarPrimary: "220 80% 50%",
+            sidebarPrimaryForeground: "0 0% 100%",
+            sidebarAccent: "220 40% 30%",
+            sidebarAccentForeground: "220 80% 50%",
+            sidebarBorder: "220 40% 30%",
+            sidebarRing: "220 80% 40%",
+            success: "140 80% 40%",
+            successForeground: "0 0% 100%",
+            warning: "40 90% 50%",
+            warningForeground: "0 0% 100%",
+            info: "210 90% 50%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Roboto', sans-serif",
+            fontHeading: "'Roboto Slab', serif",
+            fontMono: "'Roboto Mono', monospace",
+        },
+        spacing: {
+            radius: "0.25rem",
+        },
+    },
+    darkTokens: {
+        colors: {
+            background: "220 30% 12%",
+            foreground: "220 20% 90%",
+            card: "220 30% 16%",
+            cardForeground: "220 20% 90%",
+            popover: "220 30% 16%",
+            popoverForeground: "220 20% 90%",
+            primary: "220 80% 50%", // Corporate Blue
+            primaryForeground: "0 0% 100%",
+            secondary: "220 20% 25%",
+            secondaryForeground: "220 20% 90%",
+            muted: "220 20% 20%",
+            mutedForeground: "220 20% 70%",
+            accent: "200 60% 50%", // Light Blue
+            accentForeground: "0 0% 100%",
+            destructive: "0 80% 60%",
+            destructiveForeground: "0 0% 100%",
+            border: "220 20% 25%",
+            input: "220 20% 25%",
+            ring: "220 80% 50%",
+            chart1: "220 80% 50%",
+            chart2: "200 60% 50%",
+            chart3: "180 50% 50%",
+            chart4: "0 80% 60%",
+            chart5: "40 80% 50%",
+            sidebar: "220 30% 10%",
+            sidebarForeground: "220 20% 90%",
+            sidebarPrimary: "220 80% 50%",
+            sidebarPrimaryForeground: "0 0% 100%",
+            sidebarAccent: "220 30% 18%",
+            sidebarAccentForeground: "220 80% 50%",
+            sidebarBorder: "220 30% 20%",
+            sidebarRing: "220 80% 50%",
+            success: "140 80% 40%",
+            successForeground: "0 0% 100%",
+            warning: "40 90% 50%",
+            warningForeground: "0 0% 100%",
+            info: "210 90% 50%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Roboto', sans-serif",
+            fontHeading: "'Roboto Slab', serif",
+            fontMono: "'Roboto Mono', monospace",
+        },
+        spacing: {
+            radius: "0.25rem",
+        },
+    },
+};
+
+const BLACK_AND_WHITE_THEME = {
+    name: "Black & White",
+    description: "High contrast, strict monochrome",
+    status: "published",
+    isDefault: false,
+    lightTokens: {
+        colors: {
+            background: "0 0% 100%",
+            foreground: "0 0% 0%",
+            card: "0 0% 100%",
+            cardForeground: "0 0% 0%",
+            popover: "0 0% 100%",
+            popoverForeground: "0 0% 0%",
+            primary: "0 0% 0%",
+            primaryForeground: "0 0% 100%",
+            secondary: "0 0% 90%",
+            secondaryForeground: "0 0% 0%",
+            muted: "0 0% 96%",
+            mutedForeground: "0 0% 40%",
+            accent: "0 0% 80%",
+            accentForeground: "0 0% 0%",
+            destructive: "0 0% 20%",
+            destructiveForeground: "0 0% 100%",
+            border: "0 0% 0%",
+            input: "0 0% 0%",
+            ring: "0 0% 0%",
+            chart1: "0 0% 20%",
+            chart2: "0 0% 40%",
+            chart3: "0 0% 60%",
+            chart4: "0 0% 80%",
+            chart5: "0 0% 100%",
+            sidebar: "0 0% 0%",
+            sidebarForeground: "0 0% 100%",
+            sidebarPrimary: "0 0% 100%",
+            sidebarPrimaryForeground: "0 0% 0%",
+            sidebarAccent: "0 0% 20%",
+            sidebarAccentForeground: "0 0% 100%",
+            sidebarBorder: "0 0% 100%",
+            sidebarRing: "0 0% 100%",
+            success: "0 0% 40%",
+            successForeground: "0 0% 100%",
+            warning: "0 0% 60%",
+            warningForeground: "0 0% 0%",
+            info: "0 0% 80%",
+            infoForeground: "0 0% 0%"
+        },
+        typography: {
+            fontSans: "'Inter', sans-serif",
+            fontHeading: "'Inter', sans-serif",
+            fontMono: "'JetBrains Mono', monospace",
+        },
+        spacing: {
+            radius: "0rem",
+        },
+    },
+    darkTokens: {
+        colors: {
+            background: "0 0% 0%",
+            foreground: "0 0% 100%",
+            card: "0 0% 5%",
+            cardForeground: "0 0% 100%",
+            popover: "0 0% 5%",
+            popoverForeground: "0 0% 100%",
+            primary: "0 0% 100%",
+            primaryForeground: "0 0% 0%",
+            secondary: "0 0% 20%",
+            secondaryForeground: "0 0% 100%",
+            muted: "0 0% 15%",
+            mutedForeground: "0 0% 60%",
+            accent: "0 0% 30%",
+            accentForeground: "0 0% 100%",
+            destructive: "0 0% 80%",
+            destructiveForeground: "0 0% 0%",
+            border: "0 0% 100%",
+            input: "0 0% 100%",
+            ring: "0 0% 100%",
+            chart1: "0 0% 80%",
+            chart2: "0 0% 60%",
+            chart3: "0 0% 40%",
+            chart4: "0 0% 20%",
+            chart5: "0 0% 0%",
+            sidebar: "0 0% 0%",
+            sidebarForeground: "0 0% 100%",
+            sidebarPrimary: "0 0% 100%",
+            sidebarPrimaryForeground: "0 0% 0%",
+            sidebarAccent: "0 0% 20%",
+            sidebarAccentForeground: "0 0% 100%",
+            sidebarBorder: "0 0% 100%",
+            sidebarRing: "0 0% 100%",
+            success: "0 0% 80%",
+            successForeground: "0 0% 0%",
+            warning: "0 0% 60%",
+            warningForeground: "0 0% 0%",
+            info: "0 0% 40%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Inter', sans-serif",
+            fontHeading: "'Inter', sans-serif",
+            fontMono: "'JetBrains Mono', monospace",
+        },
+        spacing: {
+            radius: "0rem",
+        },
+    },
+};
+
+const GRAYSCALE_THEME = {
+    name: "Grayscale",
+    description: "Varied shades of gray, soft",
+    status: "published",
+    isDefault: false,
+    lightTokens: {
+        colors: {
+            background: "0 0% 97%",
+            foreground: "0 0% 20%",
+            card: "0 0% 100%",
+            cardForeground: "0 0% 20%",
+            popover: "0 0% 100%",
+            popoverForeground: "0 0% 20%",
+            primary: "0 0% 40%",
+            primaryForeground: "0 0% 100%",
+            secondary: "0 0% 90%",
+            secondaryForeground: "0 0% 20%",
+            muted: "0 0% 94%",
+            mutedForeground: "0 0% 50%",
+            accent: "0 0% 85%",
+            accentForeground: "0 0% 20%",
+            destructive: "0 0% 40%", // Dark gray for destructive in a grayscale theme
+            destructiveForeground: "0 0% 100%",
+            border: "0 0% 85%",
+            input: "0 0% 85%",
+            ring: "0 0% 40%",
+            chart1: "0 0% 30%",
+            chart2: "0 0% 40%",
+            chart3: "0 0% 50%",
+            chart4: "0 0% 60%",
+            chart5: "0 0% 70%",
+            sidebar: "0 0% 95%",
+            sidebarForeground: "0 0% 20%",
+            sidebarPrimary: "0 0% 40%",
+            sidebarPrimaryForeground: "0 0% 100%",
+            sidebarAccent: "0 0% 90%",
+            sidebarAccentForeground: "0 0% 20%",
+            sidebarBorder: "0 0% 85%",
+            sidebarRing: "0 0% 40%",
+            success: "0 0% 45%",
+            successForeground: "0 0% 100%",
+            warning: "0 0% 55%",
+            warningForeground: "0 0% 100%",
+            info: "0 0% 65%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Roboto', sans-serif",
+            fontHeading: "'Roboto Slab', serif",
+            fontMono: "'Roboto Mono', monospace",
+        },
+        spacing: {
+            radius: "0.5rem",
+        },
+    },
+    darkTokens: {
+        colors: {
+            background: "0 0% 10%",
+            foreground: "0 0% 90%",
+            card: "0 0% 15%",
+            cardForeground: "0 0% 90%",
+            popover: "0 0% 15%",
+            popoverForeground: "0 0% 90%",
+            primary: "0 0% 60%",
+            primaryForeground: "0 0% 10%",
+            secondary: "0 0% 25%",
+            secondaryForeground: "0 0% 90%",
+            muted: "0 0% 20%",
+            mutedForeground: "0 0% 60%",
+            accent: "0 0% 30%",
+            accentForeground: "0 0% 90%",
+            destructive: "0 0% 40%",
+            destructiveForeground: "0 0% 90%",
+            border: "0 0% 25%",
+            input: "0 0% 25%",
+            ring: "0 0% 60%",
+            chart1: "0 0% 70%",
+            chart2: "0 0% 60%",
+            chart3: "0 0% 50%",
+            chart4: "0 0% 40%",
+            chart5: "0 0% 30%",
+            sidebar: "0 0% 8%",
+            sidebarForeground: "0 0% 90%",
+            sidebarPrimary: "0 0% 60%",
+            sidebarPrimaryForeground: "0 0% 10%",
+            sidebarAccent: "0 0% 20%",
+            sidebarAccentForeground: "0 0% 80%",
+            sidebarBorder: "0 0% 25%",
+            sidebarRing: "0 0% 60%",
+            success: "0 0% 55%",
+            successForeground: "0 0% 100%",
+            warning: "0 0% 45%",
+            warningForeground: "0 0% 100%",
+            info: "0 0% 35%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Roboto', sans-serif",
+            fontHeading: "'Roboto Slab', serif",
+            fontMono: "'Roboto Mono', monospace",
+        },
+        spacing: {
+            radius: "0.5rem",
+        },
+    },
+};
+
+const WARM_PAPER_THEME = {
+    name: "Warm Paper",
+    description: "Sepia tones, non-vibrant",
+    status: "published",
+    isDefault: false,
+    lightTokens: {
+        colors: {
+            background: "35 30% 96%", // Cream
+            foreground: "25 20% 20%", // Dark Brown
+            card: "35 20% 98%",
+            cardForeground: "25 20% 20%",
+            popover: "35 20% 98%",
+            popoverForeground: "25 20% 20%",
+            primary: "30 40% 40%", // Brown
+            primaryForeground: "35 30% 96%",
+            secondary: "35 20% 90%",
+            secondaryForeground: "25 20% 20%",
+            muted: "35 20% 92%",
+            mutedForeground: "25 10% 50%",
+            accent: "40 30% 85%",
+            accentForeground: "25 20% 20%",
+            destructive: "10 40% 50%", // Muted Rust
+            destructiveForeground: "0 0% 100%",
+            border: "35 20% 85%",
+            input: "35 20% 85%",
+            ring: "30 40% 40%",
+            chart1: "30 40% 40%",
+            chart2: "25 30% 50%",
+            chart3: "40 30% 40%",
+            chart4: "20 40% 45%",
+            chart5: "50 20% 40%",
+            sidebar: "35 20% 94%",
+            sidebarForeground: "25 20% 20%",
+            sidebarPrimary: "30 40% 40%",
+            sidebarPrimaryForeground: "35 30% 96%",
+            sidebarAccent: "35 20% 88%",
+            sidebarAccentForeground: "30 40% 40%",
+            sidebarBorder: "35 20% 85%",
+            sidebarRing: "30 40% 40%",
+            success: "80 30% 40%", // Muted Olive
+            successForeground: "0 0% 100%",
+            warning: "40 50% 50%",
+            warningForeground: "0 0% 100%",
+            info: "200 20% 40%", // Muted Slate
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Serif', serif",
+            fontHeading: "'Serif', serif",
+            fontMono: "'Courier Prime', monospace",
+        },
+        spacing: {
+            radius: "0.1rem",
+        },
+    },
+    darkTokens: {
+        colors: {
+            background: "25 20% 10%", // Deep Brown
+            foreground: "35 30% 80%", // Wheat
+            card: "25 20% 14%",
+            cardForeground: "35 30% 80%",
+            popover: "25 20% 14%",
+            popoverForeground: "35 30% 80%",
+            primary: "35 40% 60%", // Light Brown
+            primaryForeground: "25 20% 10%",
+            secondary: "25 20% 20%",
+            secondaryForeground: "35 30% 80%",
+            muted: "25 20% 18%",
+            mutedForeground: "35 10% 60%",
+            accent: "25 30% 25%",
+            accentForeground: "35 30% 80%",
+            destructive: "10 40% 60%",
+            destructiveForeground: "0 0% 100%",
+            border: "25 20% 25%",
+            input: "25 20% 25%",
+            ring: "35 40% 60%",
+            chart1: "35 40% 60%",
+            chart2: "25 30% 60%",
+            chart3: "40 30% 50%",
+            chart4: "20 40% 55%",
+            chart5: "50 20% 50%",
+            sidebar: "25 20% 8%",
+            sidebarForeground: "35 30% 80%",
+            sidebarPrimary: "35 40% 60%",
+            sidebarPrimaryForeground: "25 20% 10%",
+            sidebarAccent: "25 20% 16%",
+            sidebarAccentForeground: "35 40% 60%",
+            sidebarBorder: "25 20% 25%",
+            sidebarRing: "35 40% 60%",
+            success: "80 30% 50%",
+            successForeground: "0 0% 100%",
+            warning: "40 50% 60%",
+            warningForeground: "0 0% 100%",
+            info: "200 20% 50%",
+            infoForeground: "0 0% 100%"
+        },
+        typography: {
+            fontSans: "'Serif', serif",
+            fontHeading: "'Serif', serif",
+            fontMono: "'Courier Prime', monospace",
+        },
+        spacing: {
+            radius: "0.1rem",
+        },
+    },
+};
+
+async function seed() {
+    console.log("Checking if themes exist...");
+
+    const themesToSeed = [CYBERPUNK_THEME, NATURE_THEME, CORPORATE_THEME, BLACK_AND_WHITE_THEME, GRAYSCALE_THEME, WARM_PAPER_THEME];
+
+    for (const themeData of themesToSeed) {
+        const existing = await db.query.themes.findFirst({
+            where: eq(themes.name, themeData.name),
+        });
+
+        if (existing) {
+            console.log(`Theme "${themeData.name}" already exists. Skipping.`);
+        } else {
+            console.log(`Adding theme "${themeData.name}"...`);
+            await db.insert(themes).values({
+                id: crypto.randomUUID(),
+                ...themeData,
+                version: 1,
+            });
+            console.log(`Theme "${themeData.name}" added successfully.`);
+        }
+    }
+
+    console.log("Theme seeding completed.");
+    pool.end();
+}
+
+seed().catch((err) => {
+    console.error("Error seeding themes:", err);
+    pool.end();
+    process.exit(1);
+});

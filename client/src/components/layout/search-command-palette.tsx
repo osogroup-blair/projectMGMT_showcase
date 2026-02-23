@@ -52,7 +52,7 @@ const typeLabels: Record<SearchResult["type"], string> = {
   deliverable: "Deliverables",
 };
 
-const RECENT_SEARCHES_KEY = "nymbl_recent_searches";
+const RECENT_SEARCHES_KEY = "prodCo_recent_searches";
 const MAX_RECENT = 5;
 
 function getRecentSearches(): SearchResult[] {
@@ -138,7 +138,7 @@ export function SearchCommandPalette({ open, onOpenChange }: SearchCommandPalett
             Searching...
           </div>
         )}
-        
+
         {!isLoading && query.length >= 2 && !hasResults && (
           <CommandEmpty>No results found for "{query}"</CommandEmpty>
         )}

@@ -7,7 +7,7 @@ export interface Project {
   startDate?: string; // Added for dynamic timeline calculation
   deadline: string;
   progress?: number;
-  frameworkId?: string; 
+  frameworkId?: string;
   defaultMappingTemplateId?: string;
   permissions?: Record<string, any>;
 }
@@ -318,71 +318,71 @@ export const PROJECTS: Project[] = [
 ];
 
 export const DELIVERABLES: Deliverable[] = [
-  { 
-    id: "d1", 
-    projectId: "1", 
-    title: "Brand Strategy", 
-    description: "Complete overhaul of brand positioning and messaging framework.", 
-    status: "Completed", 
-    ownerId: "1", 
+  {
+    id: "d1",
+    projectId: "1",
+    title: "Brand Strategy",
+    description: "Complete overhaul of brand positioning and messaging framework.",
+    status: "Completed",
+    ownerId: "1",
     dueDate: "2023-12-15",
-    progress: 100 
+    progress: 100
   },
-  { 
-    id: "d2", 
-    projectId: "1", 
-    title: "Digital Presence", 
-    description: "New website design and development including CMS implementation.", 
-    status: "In Progress", 
-    ownerId: "2", 
+  {
+    id: "d2",
+    projectId: "1",
+    title: "Digital Presence",
+    description: "New website design and development including CMS implementation.",
+    status: "In Progress",
+    ownerId: "2",
     dueDate: "2024-02-28",
-    progress: 45 
+    progress: 45
   },
-  { 
-    id: "d3", 
-    projectId: "1", 
-    title: "Marketing Collateral", 
-    description: "Templates for presentations, business cards, and social media assets.", 
-    status: "Not Started", 
-    ownerId: "3", 
+  {
+    id: "d3",
+    projectId: "1",
+    title: "Marketing Collateral",
+    description: "Templates for presentations, business cards, and social media assets.",
+    status: "Not Started",
+    ownerId: "3",
     dueDate: "2024-03-15",
-    progress: 0 
+    progress: 0
   }
 ];
 
 export const EPICS: Epic[] = [
-  { 
-    id: "e1", 
-    deliverableId: "d2", 
-    title: "Website Redesign", 
-    description: "UX/UI design phases including wireframing and prototyping.", 
-    status: "In Progress", 
-    ownerId: "3", 
-    startDate: "2023-11-01", 
+  {
+    id: "e1",
+    deliverableId: "d2",
+    title: "Website Redesign",
+    description: "UX/UI design phases including wireframing and prototyping.",
+    status: "In Progress",
+    ownerId: "3",
+    startDate: "2023-11-01",
     endDate: "2024-01-15",
     progress: 60,
     stageIds: ["st_validate", "st_develop", "st_enable"]
   },
-  { 
-    id: "e2", 
-    deliverableId: "d2", 
-    title: "CMS Implementation", 
-    description: "Backend development and content migration to the new CMS.", 
-    status: "Not Started", 
-    ownerId: "5", 
-    startDate: "2024-01-01", 
+  {
+    id: "e2",
+    deliverableId: "d2",
+    title: "CMS Implementation",
+    description: "Backend development and content migration to the new CMS.",
+    status: "Not Started",
+    ownerId: "5",
+    startDate: "2024-01-01",
     endDate: "2024-02-28",
     progress: 0,
     stageIds: ["st_develop", "st_enable"]
   },
-  { 
-    id: "e3", 
-    deliverableId: "d1", 
-    title: "Market Research", 
-    description: "Competitor analysis and stakeholder interviews.", 
-    status: "Completed", 
-    ownerId: "1", 
-    startDate: "2023-10-01", 
+  {
+    id: "e3",
+    deliverableId: "d1",
+    title: "Market Research",
+    description: "Competitor analysis and stakeholder interviews.",
+    status: "Completed",
+    ownerId: "1",
+    startDate: "2023-10-01",
     endDate: "2023-11-15",
     progress: 100,
     stageIds: ["st_plan"]
@@ -390,120 +390,120 @@ export const EPICS: Epic[] = [
 ];
 
 export const TASKS: Task[] = [
-  { 
-    id: "1", 
-    title: "Code Review", 
+  {
+    id: "1",
+    title: "Code Review",
     description: "Review pull requests for the authentication module. Focus on security vulnerabilities and code style consistency.",
-    project: "Quality Matters", 
+    project: "Quality Matters",
     stageId: "st_develop",
     epicId: "e2",
-    status: "Review", 
-    deadline: "Tomorrow", 
+    status: "Review",
+    deadline: "Tomorrow",
     priority: "High",
     assigneeId: "5", // Jason Roberts
     milestoneId: "m3",
     estimateHours: 4,
     tags: ["Backend", "Security"]
   },
-  { 
-    id: "2", 
-    title: "Feature Implementation", 
+  {
+    id: "2",
+    title: "Feature Implementation",
     description: "Implement the new dashboard widgets as per design. Ensure responsiveness on mobile devices.",
-    project: "Houlihan Lokey", 
+    project: "Houlihan Lokey",
     stageId: "st_develop",
     epicId: "e1",
-    status: "In Progress", 
-    deadline: "11/28", 
+    status: "In Progress",
+    deadline: "11/28",
     priority: "Medium",
     assigneeId: "6", // Nigel Wong
     milestoneId: "m3",
     estimateHours: 12,
     tags: ["Frontend", "React"]
   },
-  { 
-    id: "3", 
-    title: "Bug Fixing", 
+  {
+    id: "3",
+    title: "Bug Fixing",
     description: "Fix the reported crash on the user profile page when uploading large avatars.",
-    project: "Kraft HR", 
+    project: "Kraft HR",
     stageId: "st_enable",
     epicId: "e2",
-    status: "Todo", 
-    deadline: "11/29", 
+    status: "Todo",
+    deadline: "11/29",
     priority: "High",
     assigneeId: "5", // Jason Roberts
     milestoneId: "m4",
     estimateHours: 2,
     tags: ["Bug", "Urgent"]
   },
-  { 
-    id: "4", 
-    title: "System Optimization", 
+  {
+    id: "4",
+    title: "System Optimization",
     description: "Optimize database queries for faster load times on the reports page.",
-    project: "Colgate-Palmolive", 
+    project: "Colgate-Palmolive",
     stageId: "st_develop",
     epicId: "e2",
-    status: "Todo", 
-    deadline: "Tomorrow", 
+    status: "Todo",
+    deadline: "Tomorrow",
     priority: "Medium",
     assigneeId: "2", // Jessica Lin
     milestoneId: "m3",
     estimateHours: 8,
     tags: ["Database", "Performance"]
   },
-  { 
-    id: "5", 
-    title: "API Development", 
+  {
+    id: "5",
+    title: "API Development",
     description: "Create REST endpoints for the mobile app to fetch user settings.",
-    project: "Houlihan Lokey", 
+    project: "Houlihan Lokey",
     stageId: "st_develop",
     epicId: "e2",
-    status: "Todo", 
-    deadline: "11/30", 
+    status: "Todo",
+    deadline: "11/30",
     priority: "High",
     assigneeId: "5", // Jason Roberts
     milestoneId: "m3",
     estimateHours: 16,
     tags: ["API", "Backend"]
   },
-  { 
-    id: "6", 
-    title: "Testing and QA", 
+  {
+    id: "6",
+    title: "Testing and QA",
     description: "Run regression tests before the release. Document any failures in JIRA.",
-    project: "Kraft", 
+    project: "Kraft",
     stageId: "st_enable",
     epicId: "e2",
-    status: "Todo", 
-    deadline: "11/30", 
+    status: "Todo",
+    deadline: "11/30",
     priority: "Low",
     assigneeId: "7", // Steven Ahmed
     milestoneId: "m4",
     estimateHours: 6,
     tags: ["QA", "Testing"]
   },
-  { 
-    id: "7", 
-    title: "Design System Update", 
+  {
+    id: "7",
+    title: "Design System Update",
     description: "Update the color palette in the design system to match the new brand guidelines.",
-    project: "Houlihan Lokey", 
+    project: "Houlihan Lokey",
     stageId: "st_validate",
     epicId: "e1",
-    status: "Done", 
-    deadline: "Yesterday", 
+    status: "Done",
+    deadline: "Yesterday",
     priority: "Medium",
     assigneeId: "3", // Susan Smith
     milestoneId: "m2",
     estimateHours: 4,
     tags: ["Design", "UI/UX"]
   },
-  { 
-    id: "8", 
-    title: "Client Meeting Prep", 
+  {
+    id: "8",
+    title: "Client Meeting Prep",
     description: "Prepare slides for the weekly status update. Include metrics on velocity and burn-down.",
-    project: "Houlihan Lokey", 
+    project: "Houlihan Lokey",
     stageId: "st_plan",
     epicId: "e3",
-    status: "Done", 
-    deadline: "Last Week", 
+    status: "Done",
+    deadline: "Last Week",
     priority: "High",
     assigneeId: "1", // Joy Mason
     milestoneId: "m1",
@@ -674,27 +674,27 @@ export const MILESTONE_TASK_LINKS: MilestoneTaskLink[] = [
 ];
 
 export const ACTIVITY: Activity[] = [
-  { 
-    id: "1", 
-    user: "Jason Roberts", 
-    action: "Commented", 
-    target: "Colgate-Palmolive: System Optimization", 
+  {
+    id: "1",
+    user: "Jason Roberts",
+    action: "Commented",
+    target: "Colgate-Palmolive: System Optimization",
     time: "2 hours ago",
     details: "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium..."
   },
-  { 
-    id: "2", 
-    user: "Susan Smith", 
-    action: "Marked Complete", 
-    target: "Kraft HR: Bug Fixing", 
+  {
+    id: "2",
+    user: "Susan Smith",
+    action: "Marked Complete",
+    target: "Kraft HR: Bug Fixing",
     time: "3 hours ago",
     details: "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium..."
   },
-  { 
-    id: "3", 
-    user: "Jessica Lin", 
-    action: "Created New Folder", 
-    target: "Quality Matters: Code Review", 
+  {
+    id: "3",
+    user: "Jessica Lin",
+    action: "Created New Folder",
+    target: "Quality Matters: Code Review",
     time: "9:34 AM",
     details: "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium..."
   },
@@ -903,7 +903,7 @@ export const GUIDANCE_ITEMS: GuidanceItem[] = [
   {
     id: "g2",
     title: "Design Principles",
-    body: "Follow the Nymbl Design System 2.0 guidelines for all UI components.",
+    body: "Follow the prodCo Design System 2.0 guidelines for all UI components.",
     priority: "Medium",
     stageId: "s2"
   },
@@ -924,8 +924,8 @@ export const STAGE_TEMPLATES: StageTemplate[] = [
 ];
 
 export const FRAMEWORK_TEMPLATES: FrameworkTemplate[] = [
-  { 
-    id: "ft_impl", 
+  {
+    id: "ft_impl",
     name: "Implementation Framework",
     description: "Standard implementation delivery framework",
     defaultStages: ["st_plan_strategy", "st_validate_blueprint", "st_develop_solution", "st_enable_users"]
@@ -936,7 +936,7 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
   {
     id: "pt1",
     name: "Implementation Project",
-    description: "Standard implementation project using the Nymbl framework",
+    description: "Standard implementation project using the prodCo framework",
     defaultFrameworkId: "ft_impl",
     defaultRoles: ["rt1", "rt2", "rt3"],
     defaultDeliverables: ["dt1"],

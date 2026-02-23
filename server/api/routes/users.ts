@@ -3,12 +3,12 @@ import { storage } from "../../data/storage";
 import * as userManagementService from "../../services/user-management";
 import * as identityService from "../../services/user-management/identity-service";
 import { requireAuth, requirePermission, requireRole, requireSelfOrRole } from "../../middleware/require-permission";
-import { 
+import {
   UserPermissions,
   createUserRequestSchema,
   updateUserRequestSchema,
 } from "@shared/contracts/user-management";
-import { 
+import {
   linkIdentityRequestSchema,
   updateIdentityRequestSchema,
   updateProfileRequestSchema,
@@ -28,17 +28,17 @@ export function registerUserRoutes(
     try {
       const allUsers = await db.select().from(users);
       const taskCounts = await db
-        .select({ 
-          assigneeId: tasks.assigneeId, 
-          count: sql<number>`count(*)::int` 
+        .select({
+          assigneeId: tasks.assigneeId,
+          count: sql<number>`count(*)::int`
         })
         .from(tasks)
         .groupBy(tasks.assigneeId);
-      
+
       const projectCounts = await db
-        .select({ 
-          ownerId: projects.ownerId, 
-          count: sql<number>`count(*)::int` 
+        .select({
+          ownerId: projects.ownerId,
+          count: sql<number>`count(*)::int`
         })
         .from(projects)
         .groupBy(projects.ownerId);
@@ -91,10 +91,10 @@ export function registerUserRoutes(
     try {
       const allUsers = await storage.getUsers();
       const allIdentities = await storage.getUserIdentities();
-      
+
       const usersWithIdentities = allUsers.map((user: any) => {
         const userIdentities = allIdentities.filter((ident: any) => ident.userId === user.id);
-        
+
         return {
           id: user.id,
           email: user.email,
@@ -144,7 +144,7 @@ export function registerUserRoutes(
       const exportData = {
         exportedAt: new Date().toISOString(),
         exportVersion: "1.0",
-        sourceInstance: process.env.REPL_SLUG || "nymbl-workspace",
+        sourceInstance: process.env.REPL_SLUG || "prodCo-workspace",
         Users: usersWithIdentities,
       };
 
@@ -225,9 +225,9 @@ export function registerUserRoutes(
     try {
       const preflight = await userManagementService.getUserDeletionPreflight(req.params.id);
       if (!preflight.canDelete) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Cannot delete user with blocking dependencies. Use preflight check to see details.",
-          blockers: preflight.blockers 
+          blockers: preflight.blockers
         });
       }
       await userManagementService.deleteUser(req.params.id);
@@ -293,19 +293,19 @@ export function registerUserRoutes(
       if (!ids || !Array.isArray(ids)) {
         return res.status(400).json({ error: "ids array is required" });
       }
-      
+
       const results = await Promise.all(
         ids.map(async (id: string) => {
           const preflight = await userManagementService.getUserDeletionPreflight(id);
           const user = await userManagementService.getUserById(id);
-          return { 
-            id, 
+          return {
+            id,
             name: user?.name || user?.email || id,
-            ...preflight 
+            ...preflight
           };
         })
       );
-      
+
       res.json({ users: results });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -370,7 +370,7 @@ export function registerUserRoutes(
     try {
       const { userId } = req.params;
       const memberships = await storage.getProjectTeamMembersByUser(userId);
-      
+
       const result = await Promise.all(memberships.map(async (m) => {
         const highLevelRoles = await storage.getHighLevelRoles(m.id);
         return {
@@ -378,7 +378,7 @@ export function registerUserRoutes(
           highLevelRoles: highLevelRoles.map(r => r.roleType),
         };
       }));
-      
+
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -482,7 +482,7 @@ export function registerUserRoutes(
   app.post("/api/users/import", requireAuth(), requireRole("admin", "manager"), async (req, res) => {
     try {
       const { Users: importedUsers } = req.body;
-      
+
       if (!importedUsers || !Array.isArray(importedUsers)) {
         return res.status(400).json({ error: "Invalid import format. Expected { Users: [...] }" });
       }

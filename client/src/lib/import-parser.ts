@@ -25,7 +25,7 @@ export interface ParseResult {
   warnings: string[];
 }
 
-export interface NymblSchema {
+export interface ProdCoSchema {
   Projects: string[];
   ProjectStages: string[];
   Deliverables: string[];
@@ -36,7 +36,7 @@ export interface NymblSchema {
   Sprints: string[];
 }
 
-export const NYMBL_SCHEMA: NymblSchema = {
+export const PRODCO_SCHEMA: ProdCoSchema = {
   Projects: ['id', 'name', 'description', 'status', 'startDate', 'deadline', 'progress', 'client', 'ownerId', 'frameworkId', 'riskLevel', 'externalRefs'],
   ProjectStages: ['id', 'projectId', 'name', 'type', 'order', 'description', 'status', 'startDate', 'endDate'],
   Deliverables: ['id', 'projectId', 'title', 'description', 'status', 'ownerId', 'dueDate', 'startDate', 'progress', 'externalRefs'],
@@ -69,41 +69,41 @@ export const FIELD_ALIASES: Record<string, string> = {
 export function detectFileFormat(file: File): FileFormat {
   const extension = file.name.split('.').pop()?.toLowerCase();
   const mimeType = file.type.toLowerCase();
-  
+
   if (extension === 'json' || mimeType === 'application/json') return 'json';
   if (extension === 'xlsx' || extension === 'xls' || mimeType.includes('spreadsheet')) return 'excel';
   if (extension === 'csv' || mimeType === 'text/csv') return 'csv';
   if (extension === 'yaml' || extension === 'yml') return 'yaml';
-  
+
   return 'unknown';
 }
 
 function detectColumnType(values: any[]): ParsedColumn['detectedType'] {
   const nonNullValues = values.filter(v => v !== null && v !== undefined && v !== '');
   if (nonNullValues.length === 0) return 'string';
-  
+
   const sample = nonNullValues.slice(0, 10);
-  
+
   if (sample.every(v => Array.isArray(v))) return 'array';
   if (sample.every(v => typeof v === 'object' && v !== null)) return 'object';
   if (sample.every(v => typeof v === 'boolean' || v === 'true' || v === 'false')) return 'boolean';
   if (sample.every(v => !isNaN(Number(v)) && v !== '')) return 'number';
   if (sample.every(v => !isNaN(Date.parse(String(v))))) return 'date';
-  
+
   return 'string';
 }
 
 function extractColumns(rows: Record<string, any>[]): ParsedColumn[] {
   if (rows.length === 0) return [];
-  
+
   const allKeys = new Set<string>();
   rows.forEach(row => Object.keys(row).forEach(key => allKeys.add(key)));
-  
+
   return Array.from(allKeys).map(key => {
     const values = rows.map(row => row[key]);
     return {
       name: key,
-      sampleValues: values.slice(0, 3).map(v => 
+      sampleValues: values.slice(0, 3).map(v =>
         typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
       ),
       detectedType: detectColumnType(values)
@@ -125,7 +125,7 @@ interface FlattenedNexusData {
 function isNestedNexusFormat(data: any): boolean {
   if (!data || typeof data !== 'object') return false;
   if (!Array.isArray(data.projects) || data.projects.length === 0) return false;
-  
+
   const firstProject = data.projects[0];
   return (
     Array.isArray(firstProject.deliverables) &&
@@ -145,42 +145,42 @@ function flattenNexusExport(data: any): FlattenedNexusData {
     sprints: [],
     comments: []
   };
-  
+
   if (!data.projects || !Array.isArray(data.projects)) {
     return result;
   }
-  
+
   for (const project of data.projects) {
     const { deliverables, stages, milestones, sprints, ...projectData } = project;
     result.projects.push(projectData);
-    
+
     if (Array.isArray(stages)) {
       result.stages.push(...stages);
     }
-    
+
     if (Array.isArray(milestones)) {
       result.milestones.push(...milestones);
     }
-    
+
     if (Array.isArray(sprints)) {
       result.sprints.push(...sprints);
     }
-    
+
     if (Array.isArray(deliverables)) {
       for (const deliverable of deliverables) {
         const { epics, ...deliverableData } = deliverable;
         result.deliverables.push(deliverableData);
-        
+
         if (Array.isArray(epics)) {
           for (const epic of epics) {
             const { tasks, ...epicData } = epic;
             result.epics.push(epicData);
-            
+
             if (Array.isArray(tasks)) {
               for (const task of tasks) {
                 const { comments, ...taskData } = task;
                 result.tasks.push(taskData);
-                
+
                 if (Array.isArray(comments)) {
                   result.comments.push(...comments);
                 }
@@ -191,7 +191,7 @@ function flattenNexusExport(data: any): FlattenedNexusData {
       }
     }
   }
-  
+
   return result;
 }
 
@@ -199,14 +199,14 @@ async function parseJSON(content: string): Promise<ParseResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
   const entities: ParsedEntity[] = [];
-  
+
   try {
     const data = JSON.parse(content);
-    
+
     if (isNestedNexusFormat(data)) {
       warnings.push('Detected nested Nexus export format - flattening hierarchical structure');
       const flattened = flattenNexusExport(data);
-      
+
       const entityTypes: Array<{ key: keyof FlattenedNexusData; type: string }> = [
         { key: 'projects', type: 'Projects' },
         { key: 'deliverables', type: 'Deliverables' },
@@ -217,7 +217,7 @@ async function parseJSON(content: string): Promise<ParseResult> {
         { key: 'sprints', type: 'Sprints' },
         { key: 'comments', type: 'Comments' }
       ];
-      
+
       for (const { key, type } of entityTypes) {
         const rows = flattened[key];
         if (rows.length > 0) {
@@ -229,10 +229,10 @@ async function parseJSON(content: string): Promise<ParseResult> {
           });
         }
       }
-      
+
       return { format: 'json', fileName: '', entities, rawData: data, errors, warnings };
     }
-    
+
     if (Array.isArray(data)) {
       entities.push({
         entityType: 'Unknown',
@@ -260,7 +260,7 @@ async function parseJSON(content: string): Promise<ParseResult> {
         }
       }
     }
-    
+
     return { format: 'json', fileName: '', entities, rawData: data, errors, warnings };
   } catch (e) {
     errors.push(`JSON parse error: ${e instanceof Error ? e.message : String(e)}`);
@@ -272,14 +272,14 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
   const entities: ParsedEntity[] = [];
-  
+
   try {
     const workbook = XLSX.read(buffer, { type: 'array' });
-    
+
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
-      
+
       if (rows.length > 0) {
         const suggestedType = suggestEntityType(sheetName, rows);
         entities.push({
@@ -290,7 +290,7 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
         });
       }
     }
-    
+
     return { format: 'excel', fileName: '', entities, rawData: workbook, errors, warnings };
   } catch (e) {
     errors.push(`Excel parse error: ${e instanceof Error ? e.message : String(e)}`);
@@ -301,19 +301,19 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
 async function parseCSV(content: string): Promise<ParseResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
-  
+
   try {
     const workbook = XLSX.read(content, { type: 'string' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet);
-    
+
     const entities: ParsedEntity[] = [{
       entityType: 'Unknown',
       columns: extractColumns(rows),
       rows,
       rowCount: rows.length
     }];
-    
+
     return { format: 'csv', fileName: '', entities, rawData: rows, errors, warnings };
   } catch (e) {
     errors.push(`CSV parse error: ${e instanceof Error ? e.message : String(e)}`);
@@ -325,10 +325,10 @@ async function parseYAML(content: string): Promise<ParseResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
   const entities: ParsedEntity[] = [];
-  
+
   try {
     const data = YAML.load(content) as any;
-    
+
     if (Array.isArray(data)) {
       entities.push({
         entityType: 'Unknown',
@@ -349,7 +349,7 @@ async function parseYAML(content: string): Promise<ParseResult> {
         }
       }
     }
-    
+
     return { format: 'yaml', fileName: '', entities, rawData: data, errors, warnings };
   } catch (e) {
     errors.push(`YAML parse error: ${e instanceof Error ? e.message : String(e)}`);
@@ -359,7 +359,7 @@ async function parseYAML(content: string): Promise<ParseResult> {
 
 function suggestEntityType(key: string, rows: any[]): string {
   const normalizedKey = key.toLowerCase().replace(/[_\-\s]/g, '');
-  
+
   const mappings: Record<string, string> = {
     'projects': 'Projects',
     'project': 'Projects',
@@ -379,9 +379,9 @@ function suggestEntityType(key: string, rows: any[]): string {
     'sprints': 'Sprints',
     'sprint': 'Sprints'
   };
-  
+
   if (mappings[normalizedKey]) return mappings[normalizedKey];
-  
+
   if (rows.length > 0) {
     const sample = rows[0];
     if (sample.title && sample.status && sample.priority) return 'Tasks';
@@ -394,13 +394,13 @@ function suggestEntityType(key: string, rows: any[]): string {
     if (sample.projectId && sample.name && !sample.deliverableId) return 'Deliverables';
     if (sample.name && sample.status && sample.deadline) return 'Projects';
   }
-  
+
   return key;
 }
 
 export async function parseFile(file: File): Promise<ParseResult> {
   const format = detectFileFormat(file);
-  
+
   if (file.size === 0) {
     return {
       format,
@@ -411,9 +411,9 @@ export async function parseFile(file: File): Promise<ParseResult> {
       warnings: []
     };
   }
-  
+
   let result: ParseResult;
-  
+
   switch (format) {
     case 'json': {
       const content = await file.text();
@@ -484,10 +484,10 @@ export async function parseFile(file: File): Promise<ParseResult> {
         warnings: []
       };
   }
-  
+
   result.fileName = file.name;
   result.format = format;
-  
+
   return result;
 }
 
@@ -501,7 +501,7 @@ export interface ExternalRef {
 
 export function extractExternalRefs(row: Record<string, any>): ExternalRef[] {
   const refs: ExternalRef[] = [];
-  
+
   if (row.external && typeof row.external === 'object') {
     refs.push({
       source: row.external.source || 'unknown',
@@ -511,13 +511,13 @@ export function extractExternalRefs(row: Record<string, any>): ExternalRef[] {
       metadata: row.external
     });
   }
-  
+
   return refs;
 }
 
 export function normalizeStatus(status: string): string {
   const normalized = status.toLowerCase().trim();
-  
+
   const mappings: Record<string, string> = {
     'backlog': 'Backlog',
     'todo': 'To Do',
@@ -541,13 +541,13 @@ export function normalizeStatus(status: string): string {
     'cancelled': 'Cancelled',
     'canceled': 'Cancelled'
   };
-  
+
   return mappings[normalized] || status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 export function extractUniqueUserIds(entities: ParsedEntity[]): string[] {
   const userIds = new Set<string>();
-  
+
   entities.forEach(entity => {
     entity.rows.forEach(row => {
       if (row.assigneeId) userIds.add(row.assigneeId);
@@ -557,19 +557,19 @@ export function extractUniqueUserIds(entities: ParsedEntity[]): string[] {
       }
     });
   });
-  
+
   return Array.from(userIds);
 }
 
 export function extractUniqueStatuses(entities: ParsedEntity[]): string[] {
   const statuses = new Set<string>();
-  
+
   entities.forEach(entity => {
     entity.rows.forEach(row => {
       if (row.status) statuses.add(String(row.status));
     });
   });
-  
+
   return Array.from(statuses);
 }
 
@@ -583,32 +583,32 @@ export interface TransformationResult {
 
 function applyFieldAliases(row: Record<string, any>, entityType: string): Record<string, any> {
   const transformed = { ...row };
-  
+
   if (entityType === 'Deliverables' || entityType === 'Epics') {
     if (row.name && !row.title) {
       transformed.title = row.name;
       delete transformed.name;
     }
   }
-  
+
   if (row.dueDate && !row.deadline) {
     transformed.deadline = row.dueDate;
   }
-  
+
   if (row.endDate && !row.deadline && entityType === 'Tasks') {
     transformed.deadline = row.endDate;
   }
-  
+
   if (row.assignee && !row.assigneeId) {
     transformed.assigneeId = row.assignee;
     delete transformed.assignee;
   }
-  
+
   if (row.owner && !row.ownerId) {
     transformed.ownerId = row.owner;
     delete transformed.owner;
   }
-  
+
   return transformed;
 }
 
@@ -626,28 +626,28 @@ export function transformForImport(
     warnings: [],
     createdEpics: []
   };
-  
+
   const deliverableToEpic: Record<string, string> = {};
-  
+
   parsedEntities.forEach(entity => {
     const targetEntityType = entityMappings?.[entity.entityType] || entity.entityType;
-    
+
     if (targetEntityType === 'skip') {
       return;
     }
-    
+
     const transformedRows = entity.rows.map(row => {
       const aliased = applyFieldAliases(row, targetEntityType);
       const transformed = { ...aliased };
-      
+
       if (row.id) {
         transformed.sourceId = row.id;
       }
-      
+
       if (row.status) {
         transformed.status = statusMappings[row.status] || normalizeStatus(row.status);
       }
-      
+
       if (row.assigneeIds && Array.isArray(row.assigneeIds)) {
         const firstAssignee = row.assigneeIds[0];
         transformed.assigneeId = userMappings[firstAssignee] || null;
@@ -657,17 +657,17 @@ export function transformForImport(
       } else if (row.assigneeId) {
         transformed.assigneeId = userMappings[row.assigneeId] || row.assigneeId;
       }
-      
+
       if (row.ownerId) {
         transformed.ownerId = userMappings[row.ownerId] || row.ownerId;
       }
-      
+
       const externalRefs = extractExternalRefs(row);
       if (externalRefs.length > 0) {
         transformed.externalRefs = externalRefs;
       }
       delete transformed.external;
-      
+
       if (targetEntityType === 'Tasks' && row.deliverableId && !row.epicId) {
         if (!deliverableToEpic[row.deliverableId]) {
           const epicId = `auto_epic_${row.deliverableId}`;
@@ -685,27 +685,27 @@ export function transformForImport(
         transformed.epicId = deliverableToEpic[row.deliverableId];
         delete transformed.deliverableId;
       }
-      
+
       if (projectId && !transformed.projectId) {
         transformed.projectId = projectId;
       }
-      
+
       return transformed;
     });
-    
+
     if (!result.entities[targetEntityType]) {
       result.entities[targetEntityType] = [];
     }
     result.entities[targetEntityType].push(...transformedRows);
   });
-  
+
   if (result.createdEpics.length > 0) {
     result.entities['Epics'] = [
       ...(result.entities['Epics'] || []),
       ...result.createdEpics
     ];
   }
-  
+
   return result;
 }
 
@@ -714,10 +714,10 @@ export function validateForImport(
 ): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
-  
+
   for (const [entityType, rows] of Object.entries(entities)) {
     const requiredFields = REQUIRED_FIELDS[entityType] || [];
-    
+
     rows.forEach((row, index) => {
       requiredFields.forEach(field => {
         if (!row[field] && row[field] !== 0 && row[field] !== false) {
@@ -726,7 +726,7 @@ export function validateForImport(
       });
     });
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,

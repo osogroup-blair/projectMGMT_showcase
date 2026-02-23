@@ -1,4 +1,4 @@
-import { ParseResult, NYMBL_SCHEMA } from "@/lib/import-parser";
+import { ParseResult, PRODCO_SCHEMA } from "@/lib/import-parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ interface SchemaDetectionStepProps {
   existingUsers: any[];
 }
 
-const ENTITY_TYPES = Object.keys(NYMBL_SCHEMA);
+const ENTITY_TYPES = Object.keys(PRODCO_SCHEMA);
 
 export function SchemaDetectionStep({
   parseResult,
@@ -48,7 +48,7 @@ export function SchemaDetectionStep({
       <div className="text-center mb-6">
         <h2 className="text-lg font-semibold">Entity Mapping</h2>
         <p className="text-muted-foreground text-sm mt-1">
-          We detected {parseResult.entities.length} data sections. Map them to Nymbl entities.
+          We detected {parseResult.entities.length} data sections. Map them to prodCo entities.
         </p>
       </div>
 

@@ -1,21 +1,21 @@
 import { useState, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,9 +143,9 @@ export default function ProjectImportMapping() {
             <CardContent className="pt-6 flex items-end gap-4">
               <div className="grid w-full gap-1.5">
                 <Label htmlFor="template-name">Template Name</Label>
-                <Input 
-                  id="template-name" 
-                  placeholder="e.g., Monthly Project Import" 
+                <Input
+                  id="template-name"
+                  placeholder="e.g., Monthly Project Import"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                 />
@@ -164,7 +164,7 @@ export default function ProjectImportMapping() {
               <CardHeader>
                 <CardTitle>Field Mapping</CardTitle>
                 <CardDescription>
-                  Map columns from your uploaded file to the corresponding Nymbl fields.
+                  Map columns from your uploaded file to the corresponding prodCo fields.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -195,8 +195,8 @@ export default function ProjectImportMapping() {
                             {col.sampleValue}
                           </TableCell>
                           <TableCell>
-                            <SearchableSelect 
-                              value={mappings[col.name] || "ignore"} 
+                            <SearchableSelect
+                              value={mappings[col.name] || "ignore"}
                               onValueChange={(val) => handleMappingChange(col.name, val)}
                               placeholder="Select field..."
                               triggerClassName={cn(
@@ -235,8 +235,8 @@ export default function ProjectImportMapping() {
                     </span>
                   </div>
                   <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-500" 
+                    <div
+                      className="h-full bg-primary transition-all duration-500"
                       style={{ width: `${(Object.keys(mappings).filter(k => mappings[k] !== "ignore").length / MOCK_FILE_COLUMNS.length) * 100}%` }}
                     />
                   </div>

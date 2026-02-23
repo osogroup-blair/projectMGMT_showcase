@@ -1,5 +1,10 @@
-# Nymbl Workspace - Docker Compose Configuration
-# Run with: docker-compose up -d
+# prodCo Workspace - Docker Compose Configuration
+#
+# LOCAL DEV:  docker compose up db -d
+#             npm run db:push
+#             npm run dev
+#
+# PRODUCTION: docker compose up -d  (uncomment the app service below)
 
 version: '3.8'
 
@@ -7,44 +12,38 @@ services:
   # PostgreSQL Database
   db:
     image: postgres:16-alpine
-    container_name: nymbl-db
+    container_name: prodCo-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-nymbl}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nymbl_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-nymbl}
+      POSTGRES_USER: ${POSTGRES_USER:-prodCo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prodCo_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-prodCo}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d  # SQL files here run on first start
     ports:
       - "${DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nymbl}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prodCo}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Nymbl Workspace Application
+  # prodCo Workspace Application (uncommented for production/Docker-only deployment)
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nymbl-app
+    container_name: prodCo-app
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
-      # Database connection (uses Docker internal network)
-      DATABASE_URL: postgresql://${POSTGRES_USER:-nymbl}:${POSTGRES_PASSWORD:-nymbl_secret}@db:5432/${POSTGRES_DB:-nymbl}
-      
-      # Session security (CHANGE THIS IN PRODUCTION!)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-prodCo}:${POSTGRES_PASSWORD:-prodCo_secret}@db:5432/${POSTGRES_DB:-prodCo}
       SESSION_SECRET: ${SESSION_SECRET:-change-this-to-a-random-secret-in-production}
-      
-      # Server configuration
       PORT: 5000
       NODE_ENV: production
-      
-      # Microsoft SSO (optional)
       MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
       MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
       MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-common}
@@ -60,8 +59,3 @@ services:
 volumes:
   postgres_data:
     driver: local
-
-# Optional: Add these networks if you need to connect to other services
-# networks:
-#   default:
-#     name: nymbl-network

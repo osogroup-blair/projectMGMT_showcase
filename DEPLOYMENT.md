@@ -1,4 +1,4 @@
-# Nymbl Workspace - Deployment Guide
+# prodCo Workspace - Deployment Guide
 
 This guide covers two deployment options: Local Setup and Docker deployment.
 
@@ -18,7 +18,7 @@ This guide covers two deployment options: Local Setup and Docker deployment.
 ```bash
 # 1. Clone the repository
 git clone <your-repo-url>
-cd nymbl-workspace
+cd prodCo-workspace
 
 # 2. Run the setup script
 chmod +x setup.sh
@@ -70,7 +70,7 @@ npm run dev          # Development mode (with hot reload)
 ```bash
 # 1. Clone the repository
 git clone <your-repo-url>
-cd nymbl-workspace
+cd prodCo-workspace
 
 # 2. Create environment file for Docker
 cp .env.example .env
@@ -123,7 +123,7 @@ docker-compose up -d
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/nymbl` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/prodCo-db` |
 | `SESSION_SECRET` | Random string for session encryption | Use `openssl rand -hex 32` |
 
 ### Optional (Microsoft SSO)
@@ -154,7 +154,7 @@ docker-compose up -d
 
 1. Go to [Azure Portal](https://portal.azure.com) > **App registrations**
 2. Click **New registration**
-3. Enter a name (e.g., "Nymbl Workspace")
+3. Enter a name (e.g., "prodCo Workspace")
 4. Set **Redirect URI** to:
    - Type: Web
    - URL: `https://your-domain.com/api/auth/microsoft/callback`
@@ -173,7 +173,7 @@ docker-compose up -d
 1. Go to [Google Cloud Console](https://console.cloud.google.com) > **APIs & Services** > **Credentials**
 2. Click **Create Credentials** > **OAuth client ID**
 3. Select **Web application** as the application type
-4. Enter a name (e.g., "Nymbl Workspace")
+4. Enter a name (e.g., "prodCo Workspace")
 5. Add **Authorized redirect URI**:
    - `https://your-domain.com/api/auth/google/callback`
 6. Click **Create**

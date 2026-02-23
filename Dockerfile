@@ -1,4 +1,4 @@
-# Nymbl Workspace - Production Dockerfile
+# prodCo Workspace - Production Dockerfile
 # Multi-stage build for optimized production image
 
 # Stage 1: Build
@@ -37,12 +37,12 @@ COPY --from=builder /app/server/db ./server/db
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nymbl -u 1001 -G nodejs
+    adduser -S prodCo -u 1001 -G nodejs
 
 # Change ownership
-RUN chown -R nymbl:nodejs /app
+RUN chown -R prodCo:nodejs /app
 
-USER nymbl
+USER prodCo
 
 # Expose port
 EXPOSE 5000

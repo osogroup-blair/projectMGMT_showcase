@@ -67,7 +67,7 @@ app.use((req, res, next) => {
 
 (async () => {
   const port = parseInt(process.env.PORT || "5000", 10);
-  
+
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
@@ -78,7 +78,7 @@ app.use((req, res, next) => {
       return next();
     }
     if (!isDatabaseConnected()) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         message: 'Service temporarily unavailable - database connecting',
         retryAfter: 5
       });
@@ -144,11 +144,11 @@ app.use((req, res, next) => {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
+      reusePort: process.platform !== "win32",
     },
     async () => {
       log(`serving on port ${port}`);
-      
+
       const initDatabase = async () => {
         try {
           await connectWithRetry(5, 2000);
@@ -162,7 +162,7 @@ app.use((req, res, next) => {
       };
 
       let dbConnected = await initDatabase();
-      
+
       if (!dbConnected) {
         log('Starting background database reconnection...');
         const backgroundRetry = async () => {
@@ -181,7 +181,7 @@ app.use((req, res, next) => {
           const projects = await storage.getProjects();
           const users = await storage.getUsers();
           const hasDemoData = users.some((u: any) => u.id?.startsWith('demo-'));
-          
+
           if (projects.length === 0 || (users.length < 3 && !hasDemoData)) {
             log('Empty database detected - generating demo data...');
             const result = await generateDemoData(false);
@@ -224,7 +224,7 @@ app.use((req, res, next) => {
         await setupVite(httpServer, app);
         log('Vite dev server configured');
       }
-      
+
       log('Server fully initialized');
     },
   );

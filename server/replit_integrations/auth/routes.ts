@@ -46,10 +46,10 @@ export function registerAuthRoutes(app: Express): void {
       // Use the database user ID stored in session, fallback to claims.sub for backwards compatibility
       const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
-      
+
       // Check if admin/demo is impersonating another user
       const impersonatedUserId = req.session?.impersonatedUserId;
-      
+
       if (impersonatedUserId && realUser && canImpersonate(realUser.systemRole, realUser.id)) {
         const impersonatedUser = await authStorage.getUser(impersonatedUserId);
         if (impersonatedUser) {
@@ -67,7 +67,7 @@ export function registerAuthRoutes(app: Express): void {
           return;
         }
       }
-      
+
       res.json({
         ...realUser,
         isImpersonating: false,
@@ -84,22 +84,22 @@ export function registerAuthRoutes(app: Express): void {
     try {
       const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
-      
+
       if (!canImpersonate(realUser?.systemRole, realUser?.id)) {
         return res.status(403).json({ error: "Only admins and demo users can impersonate users" });
       }
-      
+
       const targetUserId = req.params.userId;
-      
+
       if (targetUserId === realUserId) {
         return res.status(400).json({ error: "Cannot impersonate yourself" });
       }
-      
+
       const targetUser = await authStorage.getUser(targetUserId);
       if (!targetUser) {
         return res.status(404).json({ error: "User not found" });
       }
-      
+
       // Demo users can only impersonate other demo users
       if (isDemoUser(realUser?.systemRole, realUser?.id)) {
         const isDemoTarget = isDemoUser(targetUser?.systemRole, targetUser?.id);
@@ -107,7 +107,7 @@ export function registerAuthRoutes(app: Express): void {
           return res.status(403).json({ error: "Demo users can only impersonate other demo users" });
         }
       }
-      
+
       // Store impersonated user ID in session and save explicitly
       req.session.impersonatedUserId = targetUserId;
       req.session.save((err: any) => {
@@ -115,8 +115,8 @@ export function registerAuthRoutes(app: Express): void {
           console.error("Error saving session:", err);
           return res.status(500).json({ error: "Failed to save session" });
         }
-        res.json({ 
-          success: true, 
+        res.json({
+          success: true,
           message: `Now impersonating ${targetUser.firstName || targetUser.email}`,
           impersonatedUser: targetUser,
         });
@@ -132,11 +132,11 @@ export function registerAuthRoutes(app: Express): void {
     try {
       const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
-      
+
       if (!canImpersonate(realUser?.systemRole, realUser?.id)) {
         return res.status(403).json({ error: "Only admins and demo users can stop impersonation" });
       }
-      
+
       // Clear impersonation from session and save explicitly
       delete req.session.impersonatedUserId;
       req.session.save((err: any) => {
@@ -157,20 +157,20 @@ export function registerAuthRoutes(app: Express): void {
     try {
       // Check if demo mode is enabled via app settings
       const appSettings = await storage.getAppSettings();
-      
+
       if (!appSettings?.demoDataReady) {
         return res.status(403).json({ error: "Demo mode is not available. Please generate demo data first." });
       }
-      
+
       const demoUserId = appSettings.demoLoginUserId || "demo-admin";
-      
+
       // Get the configured demo user
       let demoUser = await authStorage.getUser(demoUserId);
-      
+
       if (!demoUser) {
         return res.status(404).json({ error: "Configured demo user not found. Please regenerate demo data." });
       }
-      
+
       // Create a mock user object that matches what SSO auth provides
       const mockUser = {
         id: demoUser.id,
@@ -186,19 +186,19 @@ export function registerAuthRoutes(app: Express): void {
         expires_at: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days from now
         authProvider: "demo",
       };
-      
+
       // Use Passport's login method to properly set up the session
       req.login(mockUser, async (err: any) => {
         if (err) {
           console.error("Error during passport login:", err);
           return res.status(500).json({ error: "Failed to create demo session" });
         }
-        
+
         // Update login tracking
         await updateLoginStats(demoUser!.id);
-        
-        res.json({ 
-          success: true, 
+
+        res.json({
+          success: true,
           message: `Logged in as ${demoUser!.name || 'Demo User'}`,
           user: demoUser,
           redirectTo: "/"
@@ -215,39 +215,39 @@ export function registerAuthRoutes(app: Express): void {
     try {
       // Check if demo admin passthrough is enabled
       const appSettings = await storage.getAppSettings();
-      
+
       if (!appSettings?.demoAdminPassthroughEnabled) {
         return res.status(403).json({ error: "Demo Admin passthrough is not enabled." });
       }
-      
+
       let adminUser: any = null;
-      
+
       // Check if a specific admin user is configured
       if (appSettings.demoAdminPassthroughUserId) {
         adminUser = await authStorage.getUser(appSettings.demoAdminPassthroughUserId);
-        
+
         // Reject if configured user doesn't exist
         if (!adminUser) {
-          return res.status(400).json({ 
-            error: "Configured demo admin user not found. Please select a valid admin user in settings." 
+          return res.status(400).json({
+            error: "Configured demo admin user not found. Please select a valid admin user in settings."
           });
         }
-        
+
         // Reject if configured user is not an admin
         if (adminUser.systemRole !== "admin") {
-          return res.status(403).json({ 
-            error: `User "${adminUser.name || adminUser.email}" no longer has admin privileges. Please select a valid admin user in settings.` 
+          return res.status(403).json({
+            error: `User "${adminUser.name || adminUser.email}" no longer has admin privileges. Please select a valid admin user in settings.`
           });
         }
       } else {
         // No specific user configured - fall back to default demo-admin user
         adminUser = await authStorage.getUser("demo-admin");
-        
+
         if (!adminUser) {
           // Create a demo admin user if it doesn't exist
           adminUser = await authStorage.upsertUser({
             id: "demo-admin",
-            email: "demo-admin@nymbl.com",
+            email: "demo-admin@prodCo.com",
             firstName: "Demo",
             lastName: "Admin",
             name: "Demo Admin",
@@ -255,13 +255,13 @@ export function registerAuthRoutes(app: Express): void {
             profileImageUrl: null,
           });
         }
-        
+
         // Ensure the demo admin has admin role
         if (adminUser.systemRole !== "admin") {
           adminUser = await storage.updateUser("demo-admin", { systemRole: "admin" });
         }
       }
-      
+
       // Create a mock user object that matches what SSO auth provides
       const mockUser = {
         id: adminUser!.id,
@@ -277,21 +277,21 @@ export function registerAuthRoutes(app: Express): void {
         expires_at: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60), // 30 days from now
         authProvider: "demo-admin",
       };
-      
+
       const userName = adminUser!.name || `${adminUser!.firstName || ''} ${adminUser!.lastName || ''}`.trim() || 'Admin';
-      
+
       // Use Passport's login method to properly set up the session
       req.login(mockUser, async (err: any) => {
         if (err) {
           console.error("Error during demo admin login:", err);
           return res.status(500).json({ error: "Failed to create demo admin session" });
         }
-        
+
         // Update login tracking
         await updateLoginStats(adminUser.id);
-        
-        res.json({ 
-          success: true, 
+
+        res.json({
+          success: true,
           message: `Logged in as ${userName} with admin privileges`,
           user: adminUser,
           redirectTo: "/"
@@ -308,17 +308,17 @@ export function registerAuthRoutes(app: Express): void {
     try {
       const realUserId = req.user.id || req.user.claims?.sub;
       const realUser = await authStorage.getUser(realUserId);
-      
+
       const canUserImpersonate = canImpersonate(realUser?.systemRole, realUser?.id);
       const isAdmin = realUser?.systemRole === "admin";
       const isDemo = isDemoUser(realUser?.systemRole, realUser?.id);
-      
+
       if (!canUserImpersonate) {
         return res.json({ isAdmin: false, isDemo: false, canImpersonate: false, isImpersonating: false });
       }
-      
+
       const impersonatedUserId = req.session?.impersonatedUserId;
-      
+
       if (impersonatedUserId) {
         const impersonatedUser = await authStorage.getUser(impersonatedUserId);
         res.json({

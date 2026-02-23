@@ -38,16 +38,16 @@ const getMicrosoftOidcConfig = memoize(
 export async function isMicrosoftAuthEnabled(): Promise<boolean> {
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
-  
+
   if (!clientId || !clientSecret) {
     return false;
   }
-  
+
   const [setting] = await db
     .select()
     .from(appSettings)
     .where(eq(appSettings.id, "microsoft_sso_enabled"));
-  
+
   return setting?.value === true;
 }
 
@@ -59,17 +59,17 @@ export async function getMicrosoftAuthConfig(): Promise<{
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
   const configured = !!(clientId && clientSecret);
-  
+
   const [enabledSetting] = await db
     .select()
     .from(appSettings)
     .where(eq(appSettings.id, "microsoft_sso_enabled"));
-  
+
   const [domainsSetting] = await db
     .select()
     .from(appSettings)
     .where(eq(appSettings.id, "microsoft_allowed_domains"));
-  
+
   return {
     enabled: enabledSetting?.value === true && configured,
     configured,
@@ -162,16 +162,16 @@ async function upsertMicrosoftUser(claims: any) {
   const lastName = claims.family_name;
   const microsoftId = claims.sub || claims.oid;
   const profileImageUrl = claims.picture;
-  
+
   const name = [firstName, lastName].filter(Boolean).join(" ").trim() || email || "User";
-  
+
   // Check 1: User exists by microsoftId field (linked account)
   const existingByMicrosoftId = await db
     .select()
     .from(users)
     .where(eq(users.microsoftId, microsoftId))
     .limit(1);
-  
+
   if (existingByMicrosoftId.length > 0) {
     const existingUser = existingByMicrosoftId[0];
     // Do NOT overwrite names - only update profile image if missing
@@ -183,21 +183,21 @@ async function upsertMicrosoftUser(claims: any) {
         updatedAt: new Date(),
       })
       .where(eq(users.microsoftId, microsoftId));
-    
+
     // Create/update identity record with SSO claims
     await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
     // Update login tracking
     await updateLoginStats(existingUser.id);
     return existingUser;
   }
-  
+
   // Check 2: User exists with primary ID matching Microsoft ID (from previous creation)
   const existingById = await db
     .select()
     .from(users)
     .where(eq(users.id, microsoftId))
     .limit(1);
-  
+
   if (existingById.length > 0) {
     const existingUser = existingById[0];
     // Link microsoftId field and update profile if needed
@@ -210,14 +210,14 @@ async function upsertMicrosoftUser(claims: any) {
         updatedAt: new Date(),
       })
       .where(eq(users.id, microsoftId));
-    
+
     // Create/update identity record with SSO claims
     await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
     // Update login tracking
     await updateLoginStats(existingUser.id);
     return existingUser;
   }
-  
+
   // Check 3: User exists by email (imported user or different auth provider)
   if (email) {
     const existingByEmail = await db
@@ -225,7 +225,7 @@ async function upsertMicrosoftUser(claims: any) {
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
-    
+
     if (existingByEmail.length > 0) {
       const existingUser = existingByEmail[0];
       // Link Microsoft ID but do NOT overwrite names
@@ -239,7 +239,7 @@ async function upsertMicrosoftUser(claims: any) {
           updatedAt: new Date(),
         })
         .where(eq(users.email, email));
-      
+
       // Create/update identity record with SSO claims
       await upsertOrLinkMicrosoftIdentity(existingUser.id, claims);
       // Update login tracking
@@ -247,7 +247,7 @@ async function upsertMicrosoftUser(claims: any) {
       return existingUser;
     }
   }
-  
+
   // Create new user - only for truly new users do we set names from SSO
   const [newUser] = await db
     .insert(users)
@@ -264,27 +264,27 @@ async function upsertMicrosoftUser(claims: any) {
       loginCount: 1,
     })
     .returning();
-  
+
   // Create identity record for the new user
   await upsertOrLinkMicrosoftIdentity(newUser.id, claims);
-  
+
   return newUser;
 }
 
 export async function setupMicrosoftAuth(app: Express) {
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
-  
+
   if (!clientId || !clientSecret) {
     console.log("Microsoft SSO not configured - missing MICROSOFT_CLIENT_ID or MICROSOFT_CLIENT_SECRET");
     return;
   }
-  
+
   try {
     const config = await getMicrosoftOidcConfig();
-    
+
     const registeredStrategies = new Set<string>();
-    
+
     // Helper to get the full host from request (handles Replit proxy headers)
     const getFullHost = (req: any): string => {
       // Prefer x-forwarded-host for proxied requests (Replit)
@@ -301,7 +301,7 @@ export async function setupMicrosoftAuth(app: Express) {
       return req.hostname;
     };
 
-    const ensureMicrosoftStrategy = (host: string) => {
+    const ensureMicrosoftStrategy = (host: string, protocol: string) => {
       const strategyName = `microsoft:${host}`;
       if (!registeredStrategies.has(strategyName)) {
         const verify: VerifyFunction = async (
@@ -325,13 +325,13 @@ export async function setupMicrosoftAuth(app: Express) {
             verified(error as Error);
           }
         };
-        
+
         const strategy = new Strategy(
           {
             name: strategyName,
             config,
             scope: "openid email profile offline_access",
-            callbackURL: `https://${host}/api/auth/microsoft/callback`,
+            callbackURL: `${protocol}://${host}/api/auth/microsoft/callback`,
           },
           verify
         );
@@ -339,55 +339,57 @@ export async function setupMicrosoftAuth(app: Express) {
         registeredStrategies.add(strategyName);
       }
     };
-    
+
     app.get("/api/auth/microsoft", async (req, res, next) => {
       const enabled = await isMicrosoftAuthEnabled();
       if (!enabled) {
         return res.status(403).json({ message: "Microsoft sign-in is not enabled" });
       }
-      
+
       const host = getFullHost(req);
-      console.log(`Microsoft auth initiated - using callback host: ${host}`);
-      ensureMicrosoftStrategy(host);
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      console.log(`Microsoft auth initiated - using callback protocol: ${protocol}, host: ${host}`);
+      ensureMicrosoftStrategy(host, protocol as string);
       passport.authenticate(`microsoft:${host}`, {
         prompt: "select_account",
         scope: ["openid", "email", "profile", "offline_access"],
       })(req, res, next);
     });
-    
+
     app.get("/api/auth/microsoft/callback", async (req, res, next) => {
       try {
         console.log(`[Microsoft Auth] Callback received`);
         console.log(`[Microsoft Auth] Query params: ${JSON.stringify(req.query)}`);
-        
+
         const enabled = await isMicrosoftAuthEnabled();
         console.log(`[Microsoft Auth] SSO enabled: ${enabled}`);
-        
+
         if (!enabled) {
           console.log(`[Microsoft Auth] SSO disabled - redirecting`);
           return res.redirect("/?error=microsoft_disabled");
         }
-        
+
         const host = getFullHost(req);
-        console.log(`[Microsoft Auth] Using host: ${host}`);
-        
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+        console.log(`[Microsoft Auth] Using protocol: ${protocol}, host: ${host}`);
+
         // Check for OAuth errors in the query
         if (req.query.error) {
           console.error(`[Microsoft Auth] OAuth error: ${req.query.error} - ${req.query.error_description}`);
           return res.redirect(`/?error=microsoft_oauth_error&details=${encodeURIComponent(String(req.query.error_description || req.query.error))}`);
         }
-        
-        ensureMicrosoftStrategy(host);
-        
+
+        ensureMicrosoftStrategy(host, protocol as string);
+
         passport.authenticate(`microsoft:${host}`, (err: any, user: any, info: any) => {
           console.log(`[Microsoft Auth] Passport callback`);
           console.log(`[Microsoft Auth] Error:`, err);
           console.log(`[Microsoft Auth] User:`, user ? `${user.email} (id: ${user.id})` : 'null');
           console.log(`[Microsoft Auth] Info:`, JSON.stringify(info, null, 2));
-          
+
           if (err) {
             console.error(`[Microsoft Auth] Full error object:`, JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
-            
+
             // Build detailed error message
             let errorDetails = err.message || 'Unknown error';
             if (err.cause) {
@@ -402,21 +404,21 @@ export async function setupMicrosoftAuth(app: Express) {
             if (err.error_description) {
               errorDetails += ` | Description: ${err.error_description}`;
             }
-            
+
             // Check for common issues
             if (errorDetails.includes('redirect_uri') || errorDetails.includes('AADSTS50011')) {
               errorDetails = `REDIRECT URI MISMATCH: The callback URL registered in Azure Portal doesn't match. Expected: https://${host}/api/auth/microsoft/callback`;
             }
-            
+
             return res.redirect(`/?error=microsoft_auth_error&details=${encodeURIComponent(errorDetails)}&host=${encodeURIComponent(host)}`);
           }
-          
+
           if (!user) {
             const infoDetails = info ? JSON.stringify(info) : 'No additional info';
             console.log(`[Microsoft Auth] No user returned - info:`, info);
             return res.redirect(`/?error=microsoft_auth_failed&details=${encodeURIComponent(`Authentication completed but no user was returned. Info: ${infoDetails}`)}`);
           }
-          
+
           req.logIn(user, (loginErr) => {
             if (loginErr) {
               console.error(`[Microsoft Auth] Login error:`, loginErr);
@@ -431,7 +433,7 @@ export async function setupMicrosoftAuth(app: Express) {
         return res.redirect(`/?error=microsoft_unexpected_error&details=${encodeURIComponent(error.message || 'Unknown error')}`);
       }
     });
-    
+
     console.log("Microsoft SSO configured successfully");
   } catch (error) {
     console.error("Failed to configure Microsoft SSO:", error);

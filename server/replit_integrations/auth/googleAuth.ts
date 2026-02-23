@@ -40,14 +40,14 @@ export async function isGoogleAuthEnabled(): Promise<boolean> {
   if (!(await isGoogleAuthConfigured())) {
     return false;
   }
-  
+
   try {
     const setting = await db
       .select()
       .from(appSettings)
       .where(eq(appSettings.id, "google_sso_enabled"))
       .limit(1);
-    
+
     return setting.length > 0 && setting[0].value === true;
   } catch (error) {
     return false;
@@ -57,7 +57,7 @@ export async function isGoogleAuthEnabled(): Promise<boolean> {
 export async function getGoogleAuthConfig() {
   const configured = await isGoogleAuthConfigured();
   const enabled = configured ? await isGoogleAuthEnabled() : false;
-  
+
   return {
     enabled,
     configured,
@@ -217,9 +217,9 @@ export async function setupGoogleAuth(app: Express) {
 
   try {
     const config = await getGoogleOidcConfig();
-    
+
     const registeredStrategies = new Set<string>();
-    
+
     const getFullHost = (req: any): string => {
       const forwardedHost = req.headers['x-forwarded-host'];
       if (forwardedHost) {
@@ -232,7 +232,7 @@ export async function setupGoogleAuth(app: Express) {
       return req.hostname;
     };
 
-    const ensureGoogleStrategy = (host: string) => {
+    const ensureGoogleStrategy = (host: string, protocol: string) => {
       const strategyName = `google:${host}`;
       if (!registeredStrategies.has(strategyName)) {
         const verify: VerifyFunction = async (
@@ -256,13 +256,13 @@ export async function setupGoogleAuth(app: Express) {
             verified(error as Error);
           }
         };
-        
+
         const strategy = new Strategy(
           {
             name: strategyName,
             config,
             scope: "openid email profile",
-            callbackURL: `https://${host}/api/auth/google/callback`,
+            callbackURL: `${protocol}://${host}/api/auth/google/callback`,
           },
           verify
         );
@@ -270,44 +270,46 @@ export async function setupGoogleAuth(app: Express) {
         registeredStrategies.add(strategyName);
       }
     };
-    
+
     app.get("/api/auth/google", async (req, res, next) => {
       const enabled = await isGoogleAuthEnabled();
       if (!enabled) {
         return res.status(403).json({ message: "Google sign-in is not enabled" });
       }
-      
+
       const host = getFullHost(req);
-      console.log(`Google auth initiated - using callback host: ${host}`);
-      ensureGoogleStrategy(host);
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      console.log(`Google auth initiated - using callback protocol: ${protocol}, host: ${host}`);
+      ensureGoogleStrategy(host, protocol as string);
       passport.authenticate(`google:${host}`, {
         prompt: "select_account",
         scope: ["openid", "email", "profile"],
       })(req, res, next);
     });
-    
+
     app.get("/api/auth/google/callback", async (req, res, next) => {
       try {
         console.log(`[Google Auth] Callback received`);
-        
+
         const enabled = await isGoogleAuthEnabled();
         if (!enabled) {
           return res.redirect("/?error=google_disabled");
         }
-        
+
         const host = getFullHost(req);
-        console.log(`[Google Auth] Using host: ${host}`);
-        
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+        console.log(`[Google Auth] Using protocol: ${protocol}, host: ${host}`);
+
         if (req.query.error) {
           console.error(`[Google Auth] OAuth error: ${req.query.error}`);
           return res.redirect(`/?error=google_oauth_error&details=${encodeURIComponent(String(req.query.error_description || req.query.error))}`);
         }
-        
-        ensureGoogleStrategy(host);
-        
+
+        ensureGoogleStrategy(host, protocol as string);
+
         passport.authenticate(`google:${host}`, (err: any, user: any, info: any) => {
           console.log(`[Google Auth] Passport callback - err: ${err}, user: ${!!user}`);
-          
+
           if (err) {
             console.error(`[Google Auth] Authentication error:`, err);
             let errorDetails = err.message || 'Unknown error';
@@ -316,11 +318,11 @@ export async function setupGoogleAuth(app: Express) {
             }
             return res.redirect(`/?error=google_auth_error&details=${encodeURIComponent(errorDetails)}`);
           }
-          
+
           if (!user) {
             return res.redirect("/?error=google_auth_failed");
           }
-          
+
           req.logIn(user, (loginErr) => {
             if (loginErr) {
               console.error(`[Google Auth] Login error:`, loginErr);
@@ -335,7 +337,7 @@ export async function setupGoogleAuth(app: Express) {
         return res.redirect(`/?error=google_unexpected_error&details=${encodeURIComponent(error.message || 'Unknown error')}`);
       }
     });
-    
+
     console.log("Google SSO configured successfully");
   } catch (error) {
     console.error("Failed to configure Google SSO:", error);

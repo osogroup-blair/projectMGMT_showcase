@@ -14,13 +14,13 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_STORAGE_KEY = "nymbl-theme-id";
-const DARK_MODE_STORAGE_KEY = "nymbl-dark-mode";
+const THEME_STORAGE_KEY = "prodCo-theme-id";
+const DARK_MODE_STORAGE_KEY = "prodCo-dark-mode";
 
 function applyThemeTokens(tokens: ThemeTokens, isDark: boolean) {
   const root = document.documentElement;
   const colors = tokens.colors;
-  
+
   const colorMap: Record<string, string> = {
     background: colors.background,
     foreground: colors.foreground,

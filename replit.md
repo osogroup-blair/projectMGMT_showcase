@@ -1,7 +1,7 @@
-# Nymbl Workspace
+# prodCo Workspace
 
 ## Overview
-Nymbl Workspace is an AI-powered project management platform designed for service delivery organizations. It offers a comprehensive suite of tools for managing the entire project lifecycle, including configurable frameworks, hierarchical work breakdown structures (Projects → Deliverables → Epics → Tasks), milestone tracking, and team management. Key capabilities include customizable views (Kanban, Table, Timeline), stage-based workflows, advanced import/export functionalities, and sprint planning. The platform's core purpose is to enhance usability and efficiency in project management processes.
+prodCo Workspace is an AI-powered project management platform designed for service delivery organizations. It offers a comprehensive suite of tools for managing the entire project lifecycle, including configurable frameworks, hierarchical work breakdown structures (Projects → Deliverables → Epics → Tasks), milestone tracking, and team management. Key capabilities include customizable views (Kanban, Table, Timeline), stage-based workflows, advanced import/export functionalities, and sprint planning. The platform's core purpose is to enhance usability and efficiency in project management processes.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

@@ -1,27 +1,27 @@
 import { useState } from "react";
 import { Shell } from "@/components/layout/shell";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { 
-  ArrowLeft, 
-  CheckCircle, 
-  AlertCircle, 
-  PlusCircle, 
-  RefreshCcw, 
+import {
+  ArrowLeft,
+  CheckCircle,
+  AlertCircle,
+  PlusCircle,
+  RefreshCcw,
   MinusCircle,
   FileCheck
 } from "lucide-react";
@@ -53,7 +53,7 @@ interface SummaryStats {
 const MOCK_PREVIEW_ROWS: PreviewRow[] = [
   { index: 1, name: "Website Redesign 2024", client: "Acme Corp", startDate: "2024-01-15", budget: "$50,000", owner: "Sarah Jones", status: "new" },
   { index: 2, name: "Mobile App Phase 2", client: "Globex", startDate: "2024-02-01", budget: "$120,000", owner: "Mike Smith", status: "update" },
-  { index: 3, name: "Internal Audit", client: "Nymbl", startDate: "2024-03-10", budget: "$0", owner: "Unknown", status: "error", errorMessage: "Owner not found in system" },
+  { index: 3, name: "Internal Audit", client: "prodCo", startDate: "2024-03-10", budget: "$0", owner: "Unknown", status: "error", errorMessage: "Owner not found in system" },
   { index: 4, name: "Q1 Marketing", client: "Stark Ind", startDate: "2024-01-01", budget: "$25,000", owner: "Tony S.", status: "new" },
   { index: 5, name: "Legacy Migration", client: "Initech", startDate: "", budget: "", owner: "", status: "ignored" },
   { index: 6, name: "Cloud Infrastructure", client: "Cyberdyne", startDate: "2024-04-15", budget: "$200,000", owner: "John C.", status: "new" },
@@ -75,7 +75,7 @@ export default function ProjectImportPreview() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isImporting, setIsImporting] = useState(false);
 
-  const filteredRows = MOCK_PREVIEW_ROWS.filter(row => 
+  const filteredRows = MOCK_PREVIEW_ROWS.filter(row =>
     filterStatus === "all" || row.status === filterStatus
   );
 
@@ -191,8 +191,8 @@ export default function ProjectImportPreview() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base font-semibold">Preview Data</CardTitle>
             <div className="w-[180px]">
-              <SearchableSelect 
-                value={filterStatus} 
+              <SearchableSelect
+                value={filterStatus}
                 onValueChange={setFilterStatus}
                 placeholder="Filter by status"
                 triggerClassName="h-8 text-xs"

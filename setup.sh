@@ -1,13 +1,16 @@
 #!/bin/bash
 
-# Nymbl Workspace - Local Setup Script
-# This script helps you set up and run Nymbl Workspace locally
+# prodCo Workspace - Local Setup Script
+# This script helps you set up and run prodCo Workspace locally
 
 set -e
 
-echo "=========================================="
-echo "  Nymbl Workspace - Local Setup"
-echo "=========================================="
+# Set base path
+BASE_DIR="$(pwd)"
+
+echo "--------------------------------------------------"
+echo "  prodCo Workspace - Local Setup"
+echo "--------------------------------------------------"
 echo ""
 
 # Colors for output

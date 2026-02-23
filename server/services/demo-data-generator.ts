@@ -59,7 +59,7 @@ const STAGE_MAPPING: Record<string, Record<string, string>> = {
   // Delivery Framework: Requirements, Design, Development, QA, Documentation
   DELIVERY: {
     governance: "Development",
-    communications: "Development", 
+    communications: "Development",
     risk: "Requirements",
     change: "QA",
   },
@@ -90,39 +90,39 @@ const STAGE_MAPPING: Record<string, Record<string, string>> = {
 function getManagementActivitiesDeliverable(frameworkType: string, projectProgress: number): any {
   const stages = STAGE_MAPPING[frameworkType] || STAGE_MAPPING.GENERIC;
   const adjustedProgress = Math.min(projectProgress + 10, 80); // Management is usually slightly ahead
-  
+
   return {
     title: "Management Activities",
     description: "Project governance, stakeholder communications, and risk management activities",
     status: EPIC_STATUS.IN_PROGRESS,
     progress: adjustedProgress,
     epics: [
-      { 
-        title: "Project Governance", 
-        description: "Steering committee meetings, status reporting, and decision tracking", 
-        status: projectProgress > 30 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED, 
-        progress: Math.min(projectProgress + 20, 90), 
+      {
+        title: "Project Governance",
+        description: "Steering committee meetings, status reporting, and decision tracking",
+        status: projectProgress > 30 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED,
+        progress: Math.min(projectProgress + 20, 90),
         stage: stages.governance
       },
-      { 
-        title: "Stakeholder Communications", 
-        description: "Regular updates, presentations, and stakeholder management", 
-        status: EPIC_STATUS.IN_PROGRESS, 
-        progress: Math.min(projectProgress + 15, 85), 
+      {
+        title: "Stakeholder Communications",
+        description: "Regular updates, presentations, and stakeholder management",
+        status: EPIC_STATUS.IN_PROGRESS,
+        progress: Math.min(projectProgress + 15, 85),
         stage: stages.communications
       },
-      { 
-        title: "Risk Management", 
-        description: "Risk identification, assessment, mitigation planning, and monitoring", 
-        status: projectProgress > 20 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED, 
-        progress: Math.min(projectProgress + 10, 70), 
+      {
+        title: "Risk Management",
+        description: "Risk identification, assessment, mitigation planning, and monitoring",
+        status: projectProgress > 20 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED,
+        progress: Math.min(projectProgress + 10, 70),
         stage: stages.risk
       },
-      { 
-        title: "Change Management", 
-        description: "Change request handling and impact assessment", 
-        status: projectProgress > 50 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED, 
-        progress: Math.max(projectProgress - 20, 10), 
+      {
+        title: "Change Management",
+        description: "Change request handling and impact assessment",
+        status: projectProgress > 50 ? EPIC_STATUS.IN_PROGRESS : EPIC_STATUS.NOT_STARTED,
+        progress: Math.max(projectProgress - 20, 10),
         stage: stages.change
       },
     ],
@@ -162,7 +162,7 @@ export interface DemoDataResult {
 const DEMO_USERS = [
   {
     id: DEMO_USER_IDS.ADMIN,
-    email: "demo.admin@nymbl.demo",
+    email: "demo.admin@prodCo.demo",
     firstName: "Alex",
     lastName: "the Admin",
     name: "Alex the Admin",
@@ -171,7 +171,7 @@ const DEMO_USERS = [
   },
   {
     id: DEMO_USER_IDS.SOLUTION_CONSULTANT,
-    email: "demo.solution.consultant@nymbl.demo",
+    email: "demo.solution.consultant@prodCo.demo",
     firstName: "Sam",
     lastName: "the Consultant",
     name: "Sam the Consultant",
@@ -180,7 +180,7 @@ const DEMO_USERS = [
   },
   {
     id: DEMO_USER_IDS.PRODUCT_DESIGNER,
-    email: "demo.product.designer@nymbl.demo",
+    email: "demo.product.designer@prodCo.demo",
     firstName: "Dana",
     lastName: "the Designer",
     name: "Dana the Designer",
@@ -189,7 +189,7 @@ const DEMO_USERS = [
   },
   {
     id: DEMO_USER_IDS.DEVELOPER_LEAD,
-    email: "demo.developer.lead@nymbl.demo",
+    email: "demo.developer.lead@prodCo.demo",
     firstName: "Dev",
     lastName: "the Developer",
     name: "Dev the Developer",
@@ -198,7 +198,7 @@ const DEMO_USERS = [
   },
   {
     id: DEMO_USER_IDS.QA_ENGINEER,
-    email: "demo.qa.engineer@nymbl.demo",
+    email: "demo.qa.engineer@prodCo.demo",
     firstName: "Quinn",
     lastName: "the QA",
     name: "Quinn the QA",
@@ -207,7 +207,7 @@ const DEMO_USERS = [
   },
   {
     id: DEMO_USER_IDS.DOC_MANAGER,
-    email: "demo.doc.manager@nymbl.demo",
+    email: "demo.doc.manager@prodCo.demo",
     firstName: "Doc",
     lastName: "the Writer",
     name: "Doc the Writer",
@@ -216,7 +216,7 @@ const DEMO_USERS = [
   },
   {
     id: DEMO_USER_IDS.STAKEHOLDER,
-    email: "demo.stakeholder@nymbl.demo",
+    email: "demo.stakeholder@prodCo.demo",
     firstName: "Steve",
     lastName: "the Stakeholder",
     name: "Steve the Stakeholder",
@@ -225,7 +225,7 @@ const DEMO_USERS = [
   },
   {
     id: DEMO_USER_IDS.SUPPORT_LEAD,
-    email: "demo.support.lead@nymbl.demo",
+    email: "demo.support.lead@prodCo.demo",
     firstName: "Sue",
     lastName: "the Support",
     name: "Sue the Support",
@@ -270,13 +270,13 @@ export async function hasDemoData(): Promise<boolean> {
 
 export async function clearDemoData(): Promise<{ success: boolean; deleted: Record<string, number> }> {
   const deleted: Record<string, number> = {};
-  
+
   try {
     // Delete all demo projects and their data
     for (const projectId of Object.values(DEMO_PROJECT_IDS)) {
       const projects = await storage.getProjects();
       const project = projects.find(p => p.id === projectId);
-      
+
       if (project) {
         // Delete tasks and comments
         const tasks = await storage.getTasks();
@@ -311,7 +311,7 @@ export async function clearDemoData(): Promise<{ success: boolean; deleted: Reco
         const epics = await storage.getEpics();
         const deliverables = await storage.getDeliverables();
         const projectDeliverables = deliverables.filter(d => d.projectId === projectId);
-        
+
         for (const deliverable of projectDeliverables) {
           const deliverableEpics = epics.filter(e => e.deliverableId === deliverable.id);
           for (const epic of deliverableEpics) {
@@ -364,7 +364,7 @@ export async function clearDemoData(): Promise<{ success: boolean; deleted: Reco
       demoDataReady: false,
       demoLoginUserId: null,
     });
-    
+
     return { success: true, deleted };
   } catch (error: any) {
     return { success: false, deleted };
@@ -381,19 +381,110 @@ interface FrameworkData {
 
 async function loadFrameworks(): Promise<Record<string, FrameworkData>> {
   const frameworks: Record<string, FrameworkData> = {};
-  const allFrameworkTemplates = await storage.getFrameworkTemplates();
-  const allStageTemplates = await storage.getStageTemplates();
+  let allFrameworkTemplates = await storage.getFrameworkTemplates();
+  let allStageTemplates = await storage.getStageTemplates();
   const allMilestoneTemplates = await storage.getMilestoneTemplates();
   const allTaskTemplates = await storage.getTaskTemplates();
 
+  // Auto-create missing framework templates for fresh databases
+  for (const [key, config] of Object.entries(FRAMEWORK_CONFIGS)) {
+    const existing = allFrameworkTemplates.find(f => f.name === config.name);
+    if (!existing) {
+      console.log(`[demo-data] Creating missing framework template: ${config.name}`);
+
+      // Create stage templates for this framework
+      const stageTemplateIds: string[] = [];
+      for (let i = 0; i < config.stageNames.length; i++) {
+        const stageName = config.stageNames[i];
+        // Check if stage template already exists
+        let stageTemplate = allStageTemplates.find(s => s.name === stageName);
+        if (!stageTemplate) {
+          const stageId = `st_${key.toLowerCase()}_${i + 1}`;
+          stageTemplate = await storage.createStageTemplate({
+            id: stageId,
+            name: stageName,
+            description: `${stageName} stage for ${config.name}`,
+            defaultTasks: [],
+            defaultRoles: [],
+          } as any);
+          allStageTemplates = [...allStageTemplates, stageTemplate];
+        }
+        stageTemplateIds.push(stageTemplate.id);
+      }
+
+      // Create the framework template
+      const frameworkId = `fw_${key.toLowerCase()}`;
+      const created = await storage.createFrameworkTemplate({
+        id: frameworkId,
+        name: config.name,
+        description: `${config.name} - auto-created for demo data`,
+        defaultStages: stageTemplateIds,
+      } as any);
+      allFrameworkTemplates = [...allFrameworkTemplates, created];
+    }
+  }
+
+  // Ensure all stages have their default tasks (Repair/First Run)
+  console.log(`[demo-data] Verifying task templates for stages...`);
+  for (const [key, config] of Object.entries(FRAMEWORK_CONFIGS)) {
+    for (const stageName of config.stageNames) {
+      const stageTemplate = allStageTemplates.find(s => s.name === stageName);
+      if (stageTemplate) {
+        const taskTitles = getTaskTitlesForStage(stageName);
+        const taskIds: string[] = [];
+        let tasksChanged = false;
+
+        for (const title of taskTitles) {
+          let taskTemplate = allTaskTemplates.find(t => t.title === title);
+          if (!taskTemplate) {
+            console.log(`[demo-data] Creating task template: ${title}`);
+            try {
+              // Create task template if it doesn't exist
+              const newId = `tt_${allTaskTemplates.length + taskIds.length + 1}_${Date.now()}`;
+              taskTemplate = await storage.createTaskTemplate({
+                id: newId,
+                title,
+                description: `Default task for ${stageName}`,
+                defaultPriority: "Medium",
+                defaultEstimateHours: 4,
+                scope: "per_epic"
+              } as any);
+              allTaskTemplates.push(taskTemplate);
+              tasksChanged = true;
+            } catch (err) {
+              console.error(`[demo-data] Failed to create task template ${title}:`, err);
+              continue;
+            }
+          }
+          if (taskTemplate) {
+            taskIds.push(taskTemplate.id);
+          }
+        }
+
+        // Update stage template if it has no tasks or fewer tasks than expected
+        if (!stageTemplate.defaultTasks || stageTemplate.defaultTasks.length === 0 || (stageTemplate.defaultTasks.length < taskIds.length && tasksChanged)) {
+          if (taskIds.length > 0) {
+            console.log(`[demo-data] Update stage ${stageName} with ${taskIds.length} tasks`);
+            await storage.updateStageTemplate(stageTemplate.id, {
+              defaultTasks: taskIds
+            });
+            // Update local cache
+            stageTemplate.defaultTasks = taskIds;
+          }
+        }
+      }
+    }
+  }
+
+  // Now load all frameworks with their templates
   for (const [key, config] of Object.entries(FRAMEWORK_CONFIGS)) {
     const template = allFrameworkTemplates.find(f => f.name === config.name);
     if (template) {
       const stageTemplates = template.defaultStages
         ?.map(stageId => allStageTemplates.find(s => s.id === stageId))
         .filter(Boolean) as StageTemplate[] || [];
-      
-      const milestoneTemplates = allMilestoneTemplates.filter(m => 
+
+      const milestoneTemplates = allMilestoneTemplates.filter(m =>
         stageTemplates.some(s => s.id === m.stageTemplateId)
       );
 
@@ -469,7 +560,7 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
 
     // 2. Load framework templates from database
     const frameworks = await loadFrameworks();
-    
+
     if (!frameworks.DELIVERY || !frameworks.GENERIC || !frameworks.ALLIANCE || !frameworks.SUPPORT) {
       result.errors?.push("Missing required framework templates. Please import frameworks first.");
       result.success = false;
@@ -614,7 +705,7 @@ async function createTeamMembersForProject(
   const existingRoles = await storage.getProjectRolesByProjectId(projectId);
   const roleMap: Record<string, string> = {};
   const roleTemplates = await storage.getRoleTemplates();
-  
+
   for (const config of teamConfigs) {
     if (config.executionRole && !existingRoles.find(r => r.name === config.executionRole)) {
       const template = roleTemplates.find(t => t.id === config.executionRole);
@@ -724,29 +815,29 @@ async function createPulseUpdatesForSprint(
 ): Promise<void> {
   const today = new Date();
   const daysInSprint = Math.ceil((sprintEndDate.getTime() - sprintStartDate.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   // Generate pulse updates for each day up to today (or sprint end if in past)
   const endDate = sprintEndDate < today ? sprintEndDate : today;
-  
+
   for (let dayOffset = 0; dayOffset < daysInSprint; dayOffset++) {
     const updateDate = addDays(sprintStartDate, dayOffset);
-    
+
     // Skip future dates
     if (updateDate > endDate) break;
-    
+
     // Skip weekends
     const dayOfWeek = updateDate.getDay();
     if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-    
+
     // Each team member submits a pulse update (not everyone every day - 70% chance)
     for (const userId of teamUserIds) {
       if (Math.random() > 0.7) continue; // 30% chance to skip this day
-      
+
       const pulseId = generateId("pulse");
       const didText = generatePulseText(getRandomItem(PULSE_DID_TEMPLATES));
       const nextText = generatePulseText(getRandomItem(PULSE_NEXT_TEMPLATES));
       const blockerText = generatePulseText(getRandomItem(PULSE_BLOCKER_TEMPLATES));
-      
+
       await storage.createSprintPulseUpdate({
         id: pulseId,
         sprintId,
@@ -874,23 +965,23 @@ async function createDeliverablesWithEpicsAndTasks(
 ): Promise<void> {
   function findSprintForTask(taskStartDate: Date, taskDeadline: Date): { sprintId: string | undefined; sprintStatus: string | undefined } {
     if (sprints.length === 0) return { sprintId: undefined, sprintStatus: undefined };
-    
+
     const taskMidpoint = (taskStartDate.getTime() + taskDeadline.getTime()) / 2;
-    
+
     for (const sprint of sprints) {
       const sprintStart = new Date(sprint.startDate).getTime();
       const sprintEnd = new Date(sprint.endDate).getTime();
-      
+
       if (taskMidpoint >= sprintStart && taskMidpoint <= sprintEnd) {
         return { sprintId: sprint.id, sprintStatus: sprint.status };
       }
     }
-    
+
     let closestSprint = sprints[0];
     if (!closestSprint?.startDate) return { sprintId: sprints[0]?.id, sprintStatus: sprints[0]?.status };
-    
+
     let closestDistance = Math.abs(taskMidpoint - new Date(closestSprint.startDate).getTime());
-    
+
     for (const sprint of sprints) {
       if (!sprint.startDate) continue;
       const distance = Math.abs(taskMidpoint - new Date(sprint.startDate).getTime());
@@ -899,7 +990,7 @@ async function createDeliverablesWithEpicsAndTasks(
         closestSprint = sprint;
       }
     }
-    
+
     return { sprintId: closestSprint?.id, sprintStatus: closestSprint?.status };
   }
 
@@ -911,7 +1002,7 @@ async function createDeliverablesWithEpicsAndTasks(
   let dayOffset = 0;
   for (const delConfig of deliverables) {
     const deliverableId = generateId("del");
-    
+
     await storage.createDeliverable({
       id: deliverableId,
       projectId,
@@ -929,7 +1020,7 @@ async function createDeliverablesWithEpicsAndTasks(
       const epicId = generateId("epic");
       const stageId = stageIds[epicConfig.stage];
       const stage = stages.find(s => s.name === epicConfig.stage);
-      
+
       await storage.createEpic({
         id: epicId,
         deliverableId,
@@ -945,17 +1036,17 @@ async function createDeliverablesWithEpicsAndTasks(
       // Create tasks for each epic
       const taskCount = Math.floor(Math.random() * 3) + 2; // 2-4 tasks per epic
       const taskTitles = getTaskTitlesForStage(epicConfig.stage);
-      
+
       for (let i = 0; i < taskCount && i < taskTitles.length; i++) {
         const taskId = generateId("task");
         const taskStartOffset = dayOffset + (i * 3);
         const taskEndOffset = taskStartOffset + 5;
         const taskStartDate = addDays(projectStartDate, taskStartOffset);
         const taskDeadline = addDays(projectStartDate, taskEndOffset);
-        
+
         const { sprintId, sprintStatus } = findSprintForTask(taskStartDate, taskDeadline);
         const milestoneId = findMilestoneForStage(epicConfig.stage);
-        
+
         // Determine task status based on epic progress - using App Default statuses
         let taskStatus: string = TASK_STATUS.BACKLOGGED;
         if (epicConfig.progress >= 100) {
@@ -974,7 +1065,7 @@ async function createDeliverablesWithEpicsAndTasks(
         }
 
         const userIndex = (i % (demoUsers.length - 1)) + 1;
-        
+
         await storage.createTask({
           id: taskId,
           project: projectName,
@@ -996,7 +1087,7 @@ async function createDeliverablesWithEpicsAndTasks(
         result.created.tasks = (result.created.tasks || 0) + 1;
       }
     }
-    
+
     dayOffset += 15;
   }
 }
@@ -1148,7 +1239,7 @@ function getTaskTitlesForStage(stageName: string): string[] {
       "Process improvement",
     ],
   };
-  
+
   return tasksByStage[stageName] || ["Task 1", "Task 2", "Task 3", "Task 4"];
 }
 
