@@ -1,20 +1,20 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Shell } from "@/components/layout/shell";
 import { CoverageMatrix } from "@/components/coverage-matrix";
-import { 
-  Plus, Search, Filter, MoreVertical, Edit, Trash2, 
-  CheckCircle2, Circle, Clock, AlertCircle, Calendar, 
+import {
+  Plus, Search, Filter, MoreVertical, Edit, Trash2,
+  CheckCircle2, Circle, Clock, AlertCircle, Calendar,
   User, Flag, CheckSquare, Target, Briefcase, Layers,
   ListTodo, SlidersHorizontal, ArrowRight, Copy, Lock, Unlock,
   Grid3X3, Eye, Loader2, ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter 
+import {
+  Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter
 } from "@/components/ui/card";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -39,7 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useRoute, Link, useLocation } from "wouter";
-import { 
+import {
   useMilestones, useTasks, useEpics, useUsers, useProject,
   useMilestoneScopeRules, useMilestoneTaskLinks
 } from "@/hooks/use-nexus-data";
@@ -199,7 +199,7 @@ function TaskDialog({
     if (!formData.epicId) return TASK_STAGES;
     const epic = epics.find(e => e.id === formData.epicId);
     if (!epic || !epic.stageIds) return TASK_STAGES;
-    return TASK_STAGES.filter(s => epic.stageIds.includes(s.id));
+    return TASK_STAGES.filter(s => epic.stageIds?.includes(s.id));
   }, [formData.epicId, epics]);
 
   const handleSave = () => {
@@ -229,8 +229,8 @@ function TaskDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="task-epic">Epic</Label>
-              <SearchableSelect 
-                value={formData.epicId || ""} 
+              <SearchableSelect
+                value={formData.epicId || ""}
                 onValueChange={(v) => setFormData({ ...formData, epicId: v, stageId: "" })}
                 placeholder="Select Epic"
                 options={epics.map(e => ({ value: e.id, label: e.title }))}
@@ -238,8 +238,8 @@ function TaskDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="task-stage">Stage</Label>
-              <SearchableSelect 
-                value={formData.stageId || ""} 
+              <SearchableSelect
+                value={formData.stageId || ""}
                 onValueChange={(v) => setFormData({ ...formData, stageId: v })}
                 disabled={!formData.epicId}
                 placeholder="Select Stage"
@@ -250,8 +250,8 @@ function TaskDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="task-status">Status</Label>
-              <SearchableSelect 
-                value={formData.status || ""} 
+              <SearchableSelect
+                value={formData.status || ""}
                 onValueChange={(v) => setFormData({ ...formData, status: v as any })}
                 options={[
                   { value: "Todo", label: "Todo" },
@@ -263,8 +263,8 @@ function TaskDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="task-assignee">Assignee</Label>
-              <SearchableSelect 
-                value={formData.assigneeId || ""} 
+              <SearchableSelect
+                value={formData.assigneeId || ""}
                 onValueChange={(v) => setFormData({ ...formData, assigneeId: v })}
                 placeholder="Unassigned"
                 options={team.map(t => ({ value: t.id, label: t.name }))}
@@ -281,15 +281,15 @@ function TaskDialog({
   );
 }
 
-function MilestoneListPanel({ 
-  milestones, 
-  selectedId, 
-  onSelect, 
-  onCreate, 
-  onDelete 
-}: { 
-  milestones: Milestone[], 
-  selectedId?: string, 
+function MilestoneListPanel({
+  milestones,
+  selectedId,
+  onSelect,
+  onCreate,
+  onDelete
+}: {
+  milestones: Milestone[],
+  selectedId?: string,
   onSelect: (id: string) => void,
   onCreate: () => void,
   onDelete: (id: string) => void
@@ -297,7 +297,7 @@ function MilestoneListPanel({
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = milestones.filter(m => 
+  const filtered = milestones.filter(m =>
     m.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -312,8 +312,8 @@ function MilestoneListPanel({
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search milestones..." 
+          <Input
+            placeholder="Search milestones..."
             className="pl-9 bg-background"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -325,24 +325,24 @@ function MilestoneListPanel({
           {filtered.map(m => {
             const status = STATUS_CONFIG[m.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.planned;
             const StatusIcon = status.icon;
-            
+
             return (
-              <div 
+              <div
                 key={m.id}
                 onClick={() => onSelect(m.id)}
                 className={cn(
                   "p-3 rounded-lg cursor-pointer border transition-all hover:shadow-sm",
-                  selectedId === m.id 
-                    ? "bg-background border-primary shadow-sm ring-1 ring-primary/20" 
+                  selectedId === m.id
+                    ? "bg-background border-primary shadow-sm ring-1 ring-primary/20"
                     : "bg-card border-transparent hover:bg-background hover:border-border"
                 )}
               >
                 <div className="flex justify-between items-start mb-1">
                   <span className="font-medium text-sm line-clamp-1">{m.name}</span>
                   {selectedId === m.id && (
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-4 w-4 text-muted-foreground hover:text-destructive"
                       onClick={(e) => { e.stopPropagation(); setDeleteId(m.id); }}
                     >
@@ -366,7 +366,7 @@ function MilestoneListPanel({
               </div>
             );
           })}
-          
+
           {filtered.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
               No milestones found.
@@ -460,8 +460,8 @@ function ActiveTasksList({
         </div>
       </div>
 
-      <TaskDialog 
-        open={isDialogOpen} 
+      <TaskDialog
+        open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         task={editingTask}
         epics={epics}
@@ -474,7 +474,7 @@ function ActiveTasksList({
           <ListTodo className="h-12 w-12 opacity-20 mb-4" />
           <h3 className="text-lg font-medium text-foreground">No Active Tasks</h3>
           <p className="max-w-xs text-center mt-2 text-sm">
-             Use the create button or "Scope Definition" tab to add tasks.
+            Use the create button or "Scope Definition" tab to add tasks.
           </p>
         </div>
       ) : (
@@ -495,7 +495,7 @@ function ActiveTasksList({
               {activeTasks.map(task => {
                 const epic = epics.find(e => e.id === task.epicId);
                 const stage = TASK_STAGES.find(p => p.id === task.stageId) || { label: "Unknown", color: "bg-gray-100 text-gray-800" };
-                
+
                 return (
                   <TableRow key={task.id} className="group">
                     <TableCell className="font-medium">
@@ -545,14 +545,14 @@ function ActiveTasksList({
   );
 }
 
-function ScopeBuilder({ 
-  milestone, 
-  tasks, 
-  epics, 
-  links, 
-  rules, 
+function ScopeBuilder({
+  milestone,
+  tasks,
+  epics,
+  links,
+  rules,
   onUpdateLinks,
-  onUpdateRules 
+  onUpdateRules
 }: {
   milestone: Milestone,
   tasks: Task[],
@@ -564,22 +564,22 @@ function ScopeBuilder({
 }) {
   // Manual Scope State
   const [manualSearch, setManualSearch] = useState("");
-  
+
   // Rule Builder State
   const [activeRuleId, setActiveRuleId] = useState<string | null>(null);
 
   // Filtered tasks for manual selection
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
-      const matchesSearch = t.title.toLowerCase().includes(manualSearch.toLowerCase()) || 
-                            t.project.toLowerCase().includes(manualSearch.toLowerCase());
+      const matchesSearch = t.title.toLowerCase().includes(manualSearch.toLowerCase()) ||
+        t.project.toLowerCase().includes(manualSearch.toLowerCase());
       return matchesSearch;
     });
   }, [tasks, manualSearch]);
 
   const handleToggleTask = (taskId: string) => {
     const existingLink = links.find(l => l.taskId === taskId && l.milestoneId === milestone.id);
-    
+
     if (existingLink) {
       if (existingLink.locked) return; // Prevent unlocking via simple toggle, need unlock action
       // Remove link
@@ -636,7 +636,7 @@ function ScopeBuilder({
 
   const getMatrixIncludedCount = useCallback((epicId: string, stageId: string) => {
     const cellTasks = getMatrixTasksForCell(epicId, stageId);
-    return cellTasks.filter(t => 
+    return cellTasks.filter(t =>
       links.some(l => l.taskId === t.id && l.milestoneId === milestone.id)
     ).length;
   }, [getMatrixTasksForCell, links, milestone.id]);
@@ -649,14 +649,14 @@ function ScopeBuilder({
     const cellTasks = tasks.filter(t => t.epicId === epicId && t.stageId === stageId);
     if (cellTasks.length === 0) return;
 
-    const linkedCount = cellTasks.filter(t => 
+    const linkedCount = cellTasks.filter(t =>
       links.some(l => l.taskId === t.id && l.milestoneId === milestone.id)
     ).length;
     const isFullyIncluded = linkedCount === cellTasks.length;
 
     if (isFullyIncluded) {
       const taskIdsToRemove = cellTasks.map(t => t.id);
-      onUpdateLinks(links.filter(l => 
+      onUpdateLinks(links.filter(l =>
         !(l.milestoneId === milestone.id && taskIdsToRemove.includes(l.taskId))
       ));
     } else {
@@ -679,21 +679,21 @@ function ScopeBuilder({
     <div className="space-y-6 mt-6">
       <Tabs defaultValue="rules" className="w-full">
         <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-6">
-          <TabsTrigger 
-            value="rules" 
+          <TabsTrigger
+            value="rules"
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
           >
             <SlidersHorizontal className="w-4 h-4 mr-2" />
             Rule-Based Scope
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="manual"
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
           >
             <ListTodo className="w-4 h-4 mr-2" />
             Manual Adjustments
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="matrix"
             className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 py-2"
           >
@@ -710,22 +710,22 @@ function ScopeBuilder({
                 <Plus className="h-4 w-4" /> Add Rule
               </Button>
             </div>
-            
+
             <div className="space-y-3">
               {(rules.rules || []).length === 0 ? (
-                 <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground text-sm bg-muted/10">
-                   No rules defined. Add a rule to automatically include tasks in this milestone.
-                 </div>
+                <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground text-sm bg-muted/10">
+                  No rules defined. Add a rule to automatically include tasks in this milestone.
+                </div>
               ) : (
                 rules.rules.map((rule) => (
                   <Card key={rule.id} className="relative overflow-hidden group">
                     <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                       <div className="flex-1 mr-4">
-                         <Input 
-                           value={rule.label} 
-                           onChange={(e) => handleUpdateRule(rule.id, { label: e.target.value })}
-                           className="h-8 font-medium border-transparent hover:border-input focus:border-input px-0"
-                         />
+                        <Input
+                          value={rule.label}
+                          onChange={(e) => handleUpdateRule(rule.id, { label: e.target.value })}
+                          className="h-8 font-medium border-transparent hover:border-input focus:border-input px-0"
+                        />
                       </div>
                       <div className="flex items-center gap-2">
                         <Switch checked={rule.active} onCheckedChange={(c) => handleUpdateRule(rule.id, { active: c })} />
@@ -737,54 +737,54 @@ function ScopeBuilder({
                     <CardContent className="p-4 pt-2 text-sm text-muted-foreground space-y-2">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                           <Label className="text-xs">Task Type</Label>
-                           <SearchableSelect 
-                             value={rule.taskTemplateKey || "all"} 
-                             onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}
-                             className="h-8"
-                             placeholder="Any Type"
-                             options={[
-                               { value: "all", label: "Any Type" },
-                               { value: "backend", label: "Backend Task" },
-                               { value: "frontend", label: "Frontend Task" },
-                               { value: "design", label: "Design Task" }
-                             ]}
-                           />
+                          <Label className="text-xs">Task Type</Label>
+                          <SearchableSelect
+                            value={rule.taskTemplateKey || "all"}
+                            onValueChange={(v) => handleUpdateRule(rule.id, { taskTemplateKey: v })}
+                            className="h-8"
+                            placeholder="Any Type"
+                            options={[
+                              { value: "all", label: "Any Type" },
+                              { value: "backend", label: "Backend Task" },
+                              { value: "frontend", label: "Frontend Task" },
+                              { value: "design", label: "Design Task" }
+                            ]}
+                          />
                         </div>
                         <div className="space-y-1">
-                           <Label className="text-xs">Stage</Label>
-                           <SearchableSelect 
-                             value={rule.stage || "all"} 
-                             onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}
-                             className="h-8"
-                             placeholder="Any Stage"
-                             options={[
-                               { value: "all", label: "Any Stage" },
-                               { value: "develop_solution", label: "Develop Solution" },
-                               { value: "validate_blueprints", label: "Validate Blueprints" },
-                               { value: "plan_strategy", label: "Plan Strategy" },
-                               { value: "enable_users", label: "Enable Users" }
-                             ]}
-                           />
+                          <Label className="text-xs">Stage</Label>
+                          <SearchableSelect
+                            value={rule.stage || "all"}
+                            onValueChange={(v) => handleUpdateRule(rule.id, { stage: v })}
+                            className="h-8"
+                            placeholder="Any Stage"
+                            options={[
+                              { value: "all", label: "Any Stage" },
+                              { value: "develop_solution", label: "Develop Solution" },
+                              { value: "validate_blueprints", label: "Validate Blueprints" },
+                              { value: "plan_strategy", label: "Plan Strategy" },
+                              { value: "enable_users", label: "Enable Users" }
+                            ]}
+                          />
                         </div>
                         <div className="space-y-1">
-                           <Label className="text-xs">Epic Type</Label>
-                           <SearchableSelect 
-                             value={rule.epicType || "all"} 
-                             onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}
-                             className="h-8"
-                             placeholder="Any Epic Type"
-                             options={[
-                               { value: "all", label: "Any Epic Type" },
-                               { value: "use_case", label: "Use Case" },
-                               { value: "technical", label: "Technical" }
-                             ]}
-                           />
+                          <Label className="text-xs">Epic Type</Label>
+                          <SearchableSelect
+                            value={rule.epicType || "all"}
+                            onValueChange={(v) => handleUpdateRule(rule.id, { epicType: v })}
+                            className="h-8"
+                            placeholder="Any Epic Type"
+                            options={[
+                              { value: "all", label: "Any Epic Type" },
+                              { value: "use_case", label: "Use Case" },
+                              { value: "technical", label: "Technical" }
+                            ]}
+                          />
                         </div>
                       </div>
                       <div className="bg-muted/30 p-2 rounded text-xs flex items-center gap-2 mt-2">
-                         <ArrowRight className="h-3 w-3" />
-                         <span>Matches roughly <strong>{Math.floor(Math.random() * 10)} tasks</strong> across <strong>{Math.floor(Math.random() * 3)} epics</strong></span>
+                        <ArrowRight className="h-3 w-3" />
+                        <span>Matches roughly <strong>{Math.floor(Math.random() * 10)} tasks</strong> across <strong>{Math.floor(Math.random() * 3)} epics</strong></span>
                       </div>
                     </CardContent>
                   </Card>
@@ -795,16 +795,16 @@ function ScopeBuilder({
 
           <TabsContent value="manual" className="space-y-4">
             <div className="flex gap-2">
-               <div className="relative flex-1">
-                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                 <Input 
-                   placeholder="Search tasks to add..." 
-                   className="pl-9"
-                   value={manualSearch}
-                   onChange={e => setManualSearch(e.target.value)}
-                 />
-               </div>
-               <Button variant="outline"><Filter className="h-4 w-4 mr-2" /> Filter</Button>
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tasks to add..."
+                  className="pl-9"
+                  value={manualSearch}
+                  onChange={e => setManualSearch(e.target.value)}
+                />
+              </div>
+              <Button variant="outline"><Filter className="h-4 w-4 mr-2" /> Filter</Button>
             </div>
 
             <div className="border rounded-md">
@@ -828,9 +828,9 @@ function ScopeBuilder({
                     return (
                       <TableRow key={task.id}>
                         <TableCell>
-                          <CheckSquare 
+                          <CheckSquare
                             className={cn(
-                              "h-4 w-4 cursor-pointer transition-colors", 
+                              "h-4 w-4 cursor-pointer transition-colors",
                               isLinked ? "text-primary" : "text-muted-foreground/30 hover:text-muted-foreground"
                             )}
                             onClick={() => handleToggleTask(task.id)}
@@ -858,15 +858,15 @@ function ScopeBuilder({
                           )}
                         </TableCell>
                         <TableCell>
-                           {isLinked && (
-                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToggleLock(link)}>
-                               {link.locked ? (
-                                 <Lock className="h-3 w-3 text-amber-500" />
-                               ) : (
-                                 <Unlock className="h-3 w-3 text-muted-foreground/30" />
-                               )}
-                             </Button>
-                           )}
+                          {isLinked && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToggleLock(link)}>
+                              {link.locked ? (
+                                <Lock className="h-3 w-3 text-amber-500" />
+                              ) : (
+                                <Unlock className="h-3 w-3 text-muted-foreground/30" />
+                              )}
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -877,27 +877,27 @@ function ScopeBuilder({
           </TabsContent>
 
           <TabsContent value="matrix" className="space-y-4">
-             <div className="border rounded-md overflow-hidden">
-               <div className="bg-muted/30 p-4 border-b">
-                 <h4 className="font-medium text-sm">Coverage Matrix</h4>
-                 <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion. Hover to see task details.</p>
-               </div>
-               <CoverageMatrix
-                 rows={epics}
-                 columns={TASK_STAGES}
-                 tasks={tasks}
-                 rowLabel="Epic"
-                 getTasksForCell={getMatrixTasksForCell}
-                 getIncludedCount={getMatrixIncludedCount}
-                 isTaskIncluded={isTaskLinkedToMilestone}
-                 onCellClick={handleToggleCellTasks}
-                 showRowDescription={true}
-                 displayStyle="circle"
-                 emptyRowsMessage="No epics found in this project."
-                 emptyColumnsMessage="No stages found."
-                 cellTestIdPrefix="cell-milestone"
-               />
-             </div>
+            <div className="border rounded-md overflow-hidden">
+              <div className="bg-muted/30 p-4 border-b">
+                <h4 className="font-medium text-sm">Coverage Matrix</h4>
+                <p className="text-xs text-muted-foreground">Click on cells to toggle task inclusion. Hover to see task details.</p>
+              </div>
+              <CoverageMatrix
+                rows={epics}
+                columns={TASK_STAGES}
+                tasks={tasks}
+                rowLabel="Epic"
+                getTasksForCell={getMatrixTasksForCell}
+                getIncludedCount={getMatrixIncludedCount}
+                isTaskIncluded={isTaskLinkedToMilestone}
+                onCellClick={handleToggleCellTasks}
+                showRowDescription={true}
+                displayStyle="circle"
+                emptyRowsMessage="No epics found in this project."
+                emptyColumnsMessage="No stages found."
+                cellTestIdPrefix="cell-milestone"
+              />
+            </div>
           </TabsContent>
         </div>
       </Tabs>
@@ -905,9 +905,9 @@ function ScopeBuilder({
   );
 }
 
-function MilestoneDetailPanel({ 
-  milestone, 
-  onSave, 
+function MilestoneDetailPanel({
+  milestone,
+  onSave,
   tasks,
   epics,
   team,
@@ -918,8 +918,8 @@ function MilestoneDetailPanel({
   onUpdateTaskLinks,
   onCreateTask,
   onUpdateTask
-}: { 
-  milestone: Milestone, 
+}: {
+  milestone: Milestone,
   onSave: (m: Milestone) => void,
   tasks: Task[],
   epics: Epic[],
@@ -960,30 +960,30 @@ function MilestoneDetailPanel({
       <div className="p-6 border-b space-y-6">
         <div className="flex justify-between items-start gap-4">
           <div className="space-y-1 flex-1">
-             <div className="flex items-center gap-2 mb-2">
-               <Badge variant="outline" className={cn("font-normal", phase.color)}>
-                 {phase.label}
-               </Badge>
-               <Badge variant="outline" className={cn("font-normal border-transparent", status.color, "bg-opacity-10")}>
-                 {status.label}
-               </Badge>
-             </div>
-             <Input 
-               value={formData.name} 
-               onChange={e => handleChange('name', e.target.value)}
-               className="text-2xl font-bold border-transparent px-0 hover:border-input focus:border-input h-auto py-1 shadow-none"
-             />
-             <Input 
-               value={formData.description} 
-               onChange={e => handleChange('description', e.target.value)}
-               className="text-muted-foreground border-transparent px-0 hover:border-input focus:border-input shadow-none h-auto py-1"
-               placeholder="Add a description..."
-             />
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="outline" className={cn("font-normal", phase.color)}>
+                {phase.label}
+              </Badge>
+              <Badge variant="outline" className={cn("font-normal border-transparent", status.color, "bg-opacity-10")}>
+                {status.label}
+              </Badge>
+            </div>
+            <Input
+              value={formData.name}
+              onChange={e => handleChange('name', e.target.value)}
+              className="text-2xl font-bold border-transparent px-0 hover:border-input focus:border-input h-auto py-1 shadow-none"
+            />
+            <Input
+              value={formData.description}
+              onChange={e => handleChange('description', e.target.value)}
+              className="text-muted-foreground border-transparent px-0 hover:border-input focus:border-input shadow-none h-auto py-1"
+              placeholder="Add a description..."
+            />
           </div>
           <div className="flex flex-col gap-2 items-end">
-             <Button onClick={handleSave} disabled={!isDirty}>
-               {isDirty ? "Save Changes" : "Saved"}
-             </Button>
+            <Button onClick={handleSave} disabled={!isDirty}>
+              {isDirty ? "Save Changes" : "Saved"}
+            </Button>
           </div>
         </div>
 
@@ -992,19 +992,19 @@ function MilestoneDetailPanel({
             <Label className="text-xs text-muted-foreground">Target Date</Label>
             <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-card">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <input 
-                type="date" 
+              <input
+                type="date"
                 value={formData.targetDate}
                 onChange={e => handleChange('targetDate', e.target.value)}
                 className="bg-transparent text-sm focus:outline-none w-full"
               />
             </div>
           </div>
-          
+
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Owner</Label>
-            <SearchableSelect 
-              value={formData.ownerId} 
+            <SearchableSelect
+              value={formData.ownerId}
               onValueChange={v => handleChange('ownerId', v)}
               triggerClassName="bg-card"
               options={team.map(t => ({ value: t.id, label: t.name }))}
@@ -1013,8 +1013,8 @@ function MilestoneDetailPanel({
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Status</Label>
-            <SearchableSelect 
-              value={formData.status} 
+            <SearchableSelect
+              value={formData.status}
               onValueChange={v => handleChange('status', v)}
               triggerClassName="bg-card"
               options={Object.entries(STATUS_CONFIG).slice(0, 5).map(([key, conf]) => ({ value: key, label: conf.label }))}
@@ -1023,67 +1023,67 @@ function MilestoneDetailPanel({
 
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Phase</Label>
-            <SearchableSelect 
-              value={formData.phase} 
+            <SearchableSelect
+              value={formData.phase}
               onValueChange={v => handleChange('phase', v)}
               triggerClassName="bg-card"
               options={PHASES.map(p => ({ value: p.id, label: p.label }))}
             />
           </div>
         </div>
-        
+
         <div className="pt-2">
-            <div className="h-10 flex flex-col justify-center gap-1.5">
-              <div className="flex justify-between text-xs">
-                <span>{formData.progress?.completedTasks || 0}/{formData.progress?.totalTasks || 0} tasks completed</span>
-                <span className="font-medium">{formData.progress?.percentComplete || 0}%</span>
-              </div>
-              <Progress value={formData.progress?.percentComplete || 0} className="h-2" />
+          <div className="h-10 flex flex-col justify-center gap-1.5">
+            <div className="flex justify-between text-xs">
+              <span>{formData.progress?.completedTasks || 0}/{formData.progress?.totalTasks || 0} tasks completed</span>
+              <span className="font-medium">{formData.progress?.percentComplete || 0}%</span>
             </div>
+            <Progress value={formData.progress?.percentComplete || 0} className="h-2" />
+          </div>
         </div>
       </div>
 
       {/* Main Content Tabs: Active Tasks vs Scope Definition */}
       <div className="flex-1 overflow-auto bg-muted/5 p-6">
-         <div className="w-full">
-            <Tabs defaultValue="tasks" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="tasks" className="gap-2">
-                  <CheckSquare className="h-4 w-4" />
-                  Active Tasks
-                </TabsTrigger>
-                <TabsTrigger value="scope" className="gap-2">
-                  <Target className="h-4 w-4" />
-                  Scope Definition
-                </TabsTrigger>
-              </TabsList>
+        <div className="w-full">
+          <Tabs defaultValue="tasks" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="tasks" className="gap-2">
+                <CheckSquare className="h-4 w-4" />
+                Active Tasks
+              </TabsTrigger>
+              <TabsTrigger value="scope" className="gap-2">
+                <Target className="h-4 w-4" />
+                Scope Definition
+              </TabsTrigger>
+            </TabsList>
 
-              <TabsContent value="tasks">
-                <ActiveTasksList 
-                  milestone={formData}
-                  tasks={tasks}
-                  links={taskLinks}
-                  epics={epics}
-                  team={team}
-                  projectId={projectId}
-                  onCreateTask={onCreateTask}
-                  onUpdateTask={onUpdateTask}
-                />
-              </TabsContent>
+            <TabsContent value="tasks">
+              <ActiveTasksList
+                milestone={formData}
+                tasks={tasks}
+                links={taskLinks}
+                epics={epics}
+                team={team}
+                projectId={projectId}
+                onCreateTask={onCreateTask}
+                onUpdateTask={onUpdateTask}
+              />
+            </TabsContent>
 
-              <TabsContent value="scope">
-                <ScopeBuilder 
-                   milestone={formData}
-                   tasks={tasks}
-                   epics={epics}
-                   links={taskLinks}
-                   rules={scopeRules}
-                   onUpdateLinks={onUpdateTaskLinks}
-                   onUpdateRules={onUpdateScopeRules}
-                />
-              </TabsContent>
-            </Tabs>
-         </div>
+            <TabsContent value="scope">
+              <ScopeBuilder
+                milestone={formData}
+                tasks={tasks}
+                epics={epics}
+                links={taskLinks}
+                rules={scopeRules}
+                onUpdateLinks={onUpdateTaskLinks}
+                onUpdateRules={onUpdateScopeRules}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </div>
   );
@@ -1108,12 +1108,12 @@ export default function MilestonesManagementPage() {
   const { isTaskComplete } = useCompletedStatuses();
 
   // Filter data by project
-  const milestones = useMemo(() => 
+  const milestones = useMemo(() =>
     (allMilestones || []).filter((m: any) => m.projectId === projectId) as Milestone[],
     [allMilestones, projectId]
   );
 
-  const tasks = useMemo(() => 
+  const tasks = useMemo(() =>
     (allTasks || []).filter((t: any) => t.projectId === projectId) as Task[],
     [allTasks, projectId]
   );
@@ -1131,22 +1131,22 @@ export default function MilestonesManagementPage() {
     }
   }, [milestones, selectedId]);
 
-  const selectedMilestone = useMemo(() => 
-    milestones.find(m => m.id === selectedId), 
+  const selectedMilestone = useMemo(() =>
+    milestones.find(m => m.id === selectedId),
     [milestones, selectedId]
   );
 
-  const scopeRules = useMemo(() => 
+  const scopeRules = useMemo(() =>
     (allScopeRules || []).filter((r: any) => r.milestoneId === selectedId),
     [allScopeRules, selectedId]
   );
 
-  const selectedRules = useMemo(() => 
+  const selectedRules = useMemo(() =>
     scopeRules[0] || { milestoneId: selectedId!, rules: [] },
     [scopeRules, selectedId]
   );
 
-  const taskLinks = useMemo(() => 
+  const taskLinks = useMemo(() =>
     (allTaskLinks || []).filter((l: any) => l.milestoneId === selectedId) as MilestoneTaskLink[],
     [allTaskLinks, selectedId]
   );
@@ -1159,7 +1159,7 @@ export default function MilestonesManagementPage() {
       const totalTasks = linkedTasks.length;
       const completedTasks = linkedTasks.filter((t: any) => isTaskComplete(t?.status)).length;
       const percentComplete = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-      
+
       return {
         ...m,
         progress: { totalTasks, completedTasks, percentComplete },
@@ -1197,7 +1197,7 @@ export default function MilestonesManagementPage() {
         completionTargetPercent: 100,
         tags: []
       });
-      
+
       if (newMilestone?.id) {
         toast({ title: "Milestone Created", description: "Redirecting to edit details..." });
         navigate(`/projects/${projectId}/milestones/${newMilestone.id}`);
@@ -1237,14 +1237,14 @@ export default function MilestonesManagementPage() {
     // In a real app you might want batch operations
     const currentLinkIds = taskLinks.map(l => l.id);
     const newLinkIds = updatedLinks.map(l => l.id);
-    
+
     // Delete removed links
     currentLinkIds.forEach(id => {
       if (!newLinkIds.includes(id)) {
         deleteTaskLink(id);
       }
     });
-    
+
     // Add new links
     updatedLinks.forEach(link => {
       if (!currentLinkIds.includes(link.id)) {
@@ -1263,10 +1263,10 @@ export default function MilestonesManagementPage() {
     if (selectedMilestone) {
       const total = updatedLinks.length;
       const completed = updatedLinks.filter(l => {
-         const t = tasks.find(task => task.id === l.taskId);
-         return isTaskComplete(t?.status);
+        const t = tasks.find(task => task.id === l.taskId);
+        return isTaskComplete(t?.status);
       }).length;
-      
+
       const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
       updateMilestone({
@@ -1324,17 +1324,17 @@ export default function MilestonesManagementPage() {
   return (
     <Shell>
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
-        <MilestoneListPanel 
+        <MilestoneListPanel
           milestones={milestonesWithProgress}
           selectedId={selectedId || undefined}
           onSelect={setSelectedId}
           onCreate={handleCreateMilestone}
           onDelete={handleDelete}
         />
-        
+
         <div className="flex-1 flex flex-col min-w-0">
           {selectedMilestone ? (
-            <MilestoneDetailPanel 
+            <MilestoneDetailPanel
               milestone={selectedMilestone}
               onSave={handleUpdateMilestone}
               tasks={tasks}

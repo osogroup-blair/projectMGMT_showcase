@@ -109,24 +109,24 @@ export function useExport() {
 
     const filteredProjects = allProjects.filter((p: any) => selectedProjectIds.has(p.id));
     const projectIdSet = selectedProjectIds;
-    
+
     const filteredDeliverables = allDeliverables.filter((d: any) => projectIdSet.has(d.projectId || d.project_id));
     const deliverableIds = new Set(filteredDeliverables.map((d: any) => d.id));
-    
+
     const filteredEpics = allEpics.filter((e: any) => deliverableIds.has(e.deliverableId || e.deliverable_id));
     const epicIds = new Set(filteredEpics.map((e: any) => e.id));
-    
+
     const filteredTasks = allTasks.filter((t: any) => epicIds.has(t.epicId || t.epic_id) || projectIdSet.has(t.projectId || t.project_id));
     const taskIds = new Set(filteredTasks.map((t: any) => t.id));
-    
+
     const filteredMilestones = allMilestones.filter((m: any) => projectIdSet.has(m.projectId || m.project_id));
     const milestoneIds = new Set(filteredMilestones.map((m: any) => m.id));
-    
+
     const filteredMilestoneScopeRules = allMilestoneScopeRules.filter((r: any) => milestoneIds.has(r.milestoneId || r.milestone_id));
     const filteredMilestoneTaskLinks = allMilestoneTaskLinks.filter((l: any) => milestoneIds.has(l.milestoneId || l.milestone_id));
     const filteredProjectStages = allProjectStages.filter((s: any) => projectIdSet.has(s.projectId || s.project_id));
     const filteredSprints = allSprints.filter((s: any) => projectIdSet.has(s.projectId || s.project_id));
-    
+
     const filteredComments = allComments.filter((c: any) => taskIds.has(c.taskId || c.task_id));
     const filteredAttachments = allAttachments.filter((a: any) => taskIds.has(a.taskId || a.task_id));
     const filteredHistory = allHistory.filter((h: any) => taskIds.has(h.taskId || h.task_id));
@@ -193,7 +193,7 @@ export function useExport() {
         DeliverableTypes: await safeGetAll("deliverableTypes"),
         Users: await safeGetAll("users"),
         ProjectRoles: await safeGetAll("projectRoles"),
-        RoleAssignments: await safeGetAll("roleAssignments"),
+        ProjectTeamMembers: await safeGetAll("projectTeamMembers"),
         UserRoleEligibility: await safeGetAll("userRoleEligibility"),
         UserPreferences: await safeGetAll("userPreferences"),
         ProjectFavorites: await safeGetAll("projectFavorites"),
@@ -278,7 +278,7 @@ export function useExport() {
       data = {
         Users: await safeGetAll("users"),
         ProjectRoles: await safeGetAll("projectRoles"),
-        RoleAssignments: await safeGetAll("roleAssignments"),
+        ProjectTeamMembers: await safeGetAll("projectTeamMembers"),
         UserRoleEligibility: await safeGetAll("userRoleEligibility"),
         UserPreferences: await safeGetAll("userPreferences"),
         ProjectFavorites: await safeGetAll("projectFavorites"),
@@ -343,7 +343,7 @@ export function useExport() {
         });
 
       const projectStagesData = projectStages.filter((s: any) => s.projectId === project.id || s.project_id === project.id);
-      
+
       const projectSprints = sprints
         .filter((s: any) => s.projectId === project.id || s.project_id === project.id)
         .map((sprint: any) => {
@@ -384,7 +384,7 @@ export function useExport() {
         users: {
           users: await safeGet("users"),
           projectRoles: await safeGet("projectRoles"),
-          roleAssignments: await safeGet("roleAssignments"),
+          projectTeamMembers: await safeGet("projectTeamMembers"),
           userRoleEligibility: await safeGet("userRoleEligibility"),
           userPreferences: await safeGet("userPreferences"),
           projectFavorites: await safeGet("projectFavorites"),
@@ -409,7 +409,7 @@ export function useExport() {
         const shouldUseNested = useNestedExport && exportFormat !== "xlsx" && (activeTab === "all" || activeTab === "projects");
         const data = shouldUseNested ? await generateNestedExportData() : await generateExportData();
         setProgress(80);
-        
+
         const baseFilename = `Nexus_${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}_Export_${new Date().toISOString().split('T')[0]}`;
 
         if (exportFormat === "xlsx") {
@@ -435,7 +435,7 @@ export function useExport() {
 
         setProgress(100);
         setTimeout(() => setIsExporting(false), 500);
-        
+
         toast({
           title: "Export Complete",
           description: `Successfully exported ${activeTab} data as ${exportFormat.toUpperCase()}.`,
@@ -476,7 +476,7 @@ export function useExport() {
         });
         templateData[def.sheet] = [sampleRecord];
       });
-      
+
       const jsonString = JSON.stringify(templateData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
       saveAs(blob, `Nexus_${activeTab}_Import_Template.json`);
@@ -500,7 +500,7 @@ export function useExport() {
       });
       referenceData[def.sheet] = [sampleRecord];
     });
-    
+
     const jsonString = JSON.stringify(referenceData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     saveAs(blob, `Nexus_${activeTab}_Schema_Reference.json`);

@@ -29,7 +29,7 @@ export function registerSearchRoutes(
 
       const query = (req.query.q as string || "").toLowerCase().trim();
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
-      
+
       if (!query || query.length < 2) {
         return res.json({ results: [], query, totalCount: 0 });
       }
@@ -50,14 +50,13 @@ export function registerSearchRoutes(
       for (const project of projects) {
         const nameMatch = project.name?.toLowerCase().includes(query);
         const descMatch = project.description?.toLowerCase().includes(query);
-        const clientMatch = project.client?.toLowerCase().includes(query);
-        
-        if (nameMatch || descMatch || clientMatch) {
+
+        if (nameMatch || descMatch) {
           results.push({
             id: project.id,
             type: "project",
             title: project.name,
-            subtitle: project.client || project.description?.slice(0, 60),
+            subtitle: project.description?.slice(0, 60),
             url: `/projects/${project.id}`,
           });
         }
@@ -66,7 +65,7 @@ export function registerSearchRoutes(
       for (const task of tasks) {
         const titleMatch = task.title?.toLowerCase().includes(query);
         const descMatch = task.description?.toLowerCase().includes(query);
-        
+
         if (titleMatch || descMatch) {
           const project = task.projectId ? projectMap.get(task.projectId) : null;
           results.push({
@@ -82,11 +81,11 @@ export function registerSearchRoutes(
       for (const epic of epics) {
         const titleMatch = epic.title?.toLowerCase().includes(query);
         const descMatch = epic.description?.toLowerCase().includes(query);
-        
+
         if (titleMatch || descMatch) {
           const deliverable = deliverables.find(d => d.id === epic.deliverableId);
           const project = deliverable?.projectId ? projectMap.get(deliverable.projectId) : null;
-          
+
           results.push({
             id: epic.id,
             type: "epic",
@@ -100,7 +99,7 @@ export function registerSearchRoutes(
       for (const milestone of milestones) {
         const nameMatch = milestone.name?.toLowerCase().includes(query);
         const descMatch = milestone.description?.toLowerCase().includes(query);
-        
+
         if (nameMatch || descMatch) {
           const project = milestone.projectId ? projectMap.get(milestone.projectId) : null;
           results.push({
@@ -117,7 +116,7 @@ export function registerSearchRoutes(
         const nameMatch = user.name?.toLowerCase().includes(query);
         const firstNameMatch = user.firstName?.toLowerCase().includes(query);
         const lastNameMatch = user.lastName?.toLowerCase().includes(query);
-        
+
         if (nameMatch || firstNameMatch || lastNameMatch) {
           results.push({
             id: user.id,
@@ -132,7 +131,7 @@ export function registerSearchRoutes(
       for (const deliverable of deliverables) {
         const titleMatch = deliverable.title?.toLowerCase().includes(query);
         const descMatch = deliverable.description?.toLowerCase().includes(query);
-        
+
         if (titleMatch || descMatch) {
           const project = deliverable.projectId ? projectMap.get(deliverable.projectId) : null;
           results.push({

@@ -8,7 +8,7 @@ import {
   milestones,
   projects,
   sprints,
-  roleAssignments,
+  projectTeamMembers,
   sprintMembers,
   sprintScopeEvents,
   sprintPulseUpdates,
@@ -238,7 +238,7 @@ export interface UserDeletionPreflight {
     assignedTasks: number;
     comments: number;
     identities: number;
-    roleAssignments: number;
+    projectMemberships: number;
     sprintMemberships: number;
   };
 }
@@ -303,7 +303,7 @@ export async function getUserDeletionPreflight(userId: string): Promise<UserDele
   const [assignedTasksCount] = await db.select({ count: sql<number>`count(*)` }).from(tasks).where(eq(tasks.assigneeId, userId));
   const [commentsCount] = await db.select({ count: sql<number>`count(*)` }).from(comments).where(eq(comments.authorId, userId));
   const [identitiesCount] = await db.select({ count: sql<number>`count(*)` }).from(userIdentities).where(eq(userIdentities.userId, userId));
-  const [roleAssignmentsCount] = await db.select({ count: sql<number>`count(*)` }).from(roleAssignments).where(eq(roleAssignments.userId, userId));
+  const [projectMembershipsCount] = await db.select({ count: sql<number>`count(*)` }).from(projectTeamMembers).where(eq(projectTeamMembers.userId, userId));
   const [sprintMembershipsCount] = await db.select({ count: sql<number>`count(*)` }).from(sprintMembers).where(eq(sprintMembers.userId, userId));
 
   const hasBlockers = isLastAdmin ||
@@ -327,7 +327,7 @@ export async function getUserDeletionPreflight(userId: string): Promise<UserDele
       assignedTasks: Number(assignedTasksCount?.count || 0),
       comments: Number(commentsCount?.count || 0),
       identities: Number(identitiesCount?.count || 0),
-      roleAssignments: Number(roleAssignmentsCount?.count || 0),
+      projectMemberships: Number(projectMembershipsCount?.count || 0),
       sprintMemberships: Number(sprintMembershipsCount?.count || 0),
     },
   };
@@ -389,7 +389,7 @@ export async function deleteUser(id: string): Promise<boolean> {
 
   // 1. Delete user-owned records that should be removed with the user
   await db.delete(comments).where(eq(comments.authorId, id));
-  await db.delete(roleAssignments).where(eq(roleAssignments.userId, id));
+  await db.delete(projectTeamMembers).where(eq(projectTeamMembers.userId, id));
   await db.delete(sprintMembers).where(eq(sprintMembers.userId, id));
   await db.delete(sprintScopeEvents).where(eq(sprintScopeEvents.userId, id));
   await db.delete(sprintPulseUpdates).where(eq(sprintPulseUpdates.userId, id));

@@ -722,15 +722,7 @@ export async function seedDatabase() {
                   await storage.createProjectRole(role);
             }
 
-            // Seed Role Assignments
-            const roleAssignments = [
-                  { id: "ra1", roleId: "r1", userId: "2", isPrimary: true, allocationPercent: 100 },
-                  { id: "ra2", roleId: "r2", userId: "3", isPrimary: true, allocationPercent: 80 },
-                  { id: "ra3", roleId: "r3", userId: "4", isPrimary: true, allocationPercent: 100 },
-            ];
-            for (const assignment of roleAssignments) {
-                  await storage.createRoleAssignment(assignment);
-            }
+            // Seed Role Assignments removed
 
             // Seed Saved Views
             const views: any[] = [

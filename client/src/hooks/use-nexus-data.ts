@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 // Helper to invalidate all queries related to a collection
 function invalidateCollectionQueries(queryClient: ReturnType<typeof useQueryClient>, collection: string) {
   // Invalidate all queries that start with the collection name
-  queryClient.invalidateQueries({ 
+  queryClient.invalidateQueries({
     predicate: (query) => {
       const key = query.queryKey;
       if (Array.isArray(key) && key[0] === collection) return true;
@@ -93,7 +93,7 @@ export const useMilestones = () => useCollection("milestones");
 export const useUsers = () => useCollection("users");
 export const useActivity = () => useCollection("activity");
 export const useProjectRoles = () => useCollection("projectRoles");
-export const useRoleAssignments = () => useCollection("roleAssignments");
+export const useProjectTeamMembers = () => useCollection("projectTeamMembers");
 export const useSavedViews = () => useCollection("savedViews");
 export const useGuidanceItems = () => useCollection("guidanceItems");
 export const useProjectStages = () => useCollection("projectStages");
@@ -428,7 +428,7 @@ export function useProjectDetails(projectId: string) {
       return all.filter((d: any) => d.projectId === projectId);
     }
   });
-  
+
   // This is a simplified "join" - in a real app this might be more complex
   return {
     project: project.data,
@@ -460,7 +460,7 @@ export function useTaskHistory(taskId: string) {
 // Task Attachments Hook
 export function useTaskAttachments(taskId: string) {
   const queryClient = useQueryClient();
-  
+
   const query = useQuery({
     queryKey: ["taskAttachments", taskId],
     queryFn: async () => {
@@ -513,7 +513,7 @@ export function useTaskAttachments(taskId: string) {
 // Project Pulse Updates Hook (aggregates pulse updates across all sprints in a project)
 export function useProjectPulseUpdates(projectId: string) {
   const queryClient = useQueryClient();
-  
+
   const query = useQuery({
     queryKey: ["projectPulse", projectId],
     queryFn: async () => {
@@ -527,13 +527,13 @@ export function useProjectPulseUpdates(projectId: string) {
   });
 
   const postUpdate = useMutation({
-    mutationFn: async (data: { 
-      userId: string; 
-      date: string; 
-      didText?: string; 
-      nextText?: string; 
-      blockersText?: string; 
-      referencedTaskIds?: string[] 
+    mutationFn: async (data: {
+      userId: string;
+      date: string;
+      didText?: string;
+      nextText?: string;
+      blockersText?: string;
+      referencedTaskIds?: string[]
     }) => {
       const response = await fetch(`/api/projects/${projectId}/pulse`, {
         method: "POST",
@@ -862,19 +862,19 @@ export function useProjectTasksPaginated(
   filters?: TaskFilters
 ) {
   const queryClient = useQueryClient();
-  
+
   const query = useQuery({
     queryKey: ['projectTasksPaginated', projectId, page, pageSize, sortBy, sortDirection, filters],
     queryFn: async (): Promise<PaginatedTasksResult> => {
       if (!projectId) return { tasks: [], total: 0, page: 1, pageSize, totalPages: 0 };
-      
+
       const params = new URLSearchParams({
         page: page.toString(),
         limit: pageSize.toString(),
       });
       if (sortBy) params.set('sortBy', sortBy);
       if (sortDirection) params.set('sortDirection', sortDirection);
-      
+
       if (filters) {
         if (filters.search) params.set('search', filters.search);
         if (filters.statuses?.length) params.set('statuses', filters.statuses.join(','));
@@ -888,23 +888,23 @@ export function useProjectTasksPaginated(
         if (filters.dueDateTo) params.set('dueDateTo', filters.dueDateTo);
         if (filters.myTasksOnly) params.set('myTasksOnly', filters.myTasksOnly);
       }
-      
+
       const response = await fetch(`/api/projects/${projectId}/tasks?${params}`);
       if (!response.ok) throw new Error('Failed to fetch tasks');
       return response.json();
     },
     enabled: !!projectId,
   });
-  
+
   const invalidate = () => {
-    queryClient.invalidateQueries({ 
+    queryClient.invalidateQueries({
       predicate: (q) => {
         const key = q.queryKey;
         return Array.isArray(key) && key[0] === 'projectTasksPaginated' && key[1] === projectId;
       }
     });
   };
-  
+
   return {
     ...query,
     invalidate,

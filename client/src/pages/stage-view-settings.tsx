@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Shell } from "@/components/layout/shell";
-import { 
-  ArrowLeft, 
-  Save, 
-  Layout, 
-  List, 
-  Kanban, 
-  Calendar, 
+import {
+  ArrowLeft,
+  Save,
+  Layout,
+  List,
+  Kanban,
+  Calendar,
   GanttChart,
   Eye,
   ArrowUpDown,
@@ -15,10 +15,10 @@ import {
   Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
   CardDescription
 } from "@/components/ui/card";
@@ -86,8 +86,8 @@ export default function StageViewSettings() {
   const handleSave = (asPersonal: boolean = false) => {
     toast({
       title: asPersonal ? "Personal View Saved" : "Stage View Updated",
-      description: asPersonal 
-        ? "This view has been saved to your personal collection." 
+      description: asPersonal
+        ? "This view has been saved to your personal collection."
         : "The default view configuration for this stage has been updated.",
     });
   };
@@ -174,17 +174,17 @@ export default function StageViewSettings() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Sort Field</Label>
-                    <SearchableSelect 
-                      value={config.sortField} 
+                    <SearchableSelect
+                      value={config.sortField}
                       onValueChange={(v) => setConfig({ ...config, sortField: v })}
                       options={AVAILABLE_FIELDS.map(f => ({ value: f.id, label: f.label }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Direction</Label>
-                    <SearchableSelect 
-                      value={config.sortDirection} 
-                      onValueChange={(v: "asc" | "desc") => setConfig({ ...config, sortDirection: v })}
+                    <SearchableSelect
+                      value={config.sortDirection}
+                      onValueChange={(v) => setConfig({ ...config, sortDirection: v as "asc" | "desc" })}
                       options={[
                         { value: "asc", label: "Ascending (A-Z)" },
                         { value: "desc", label: "Descending (Z-A)" }
@@ -204,9 +204,9 @@ export default function StageViewSettings() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Primary Metric</Label>
-                    <SearchableSelect 
+                    <SearchableSelect
                       value="count"
-                      onValueChange={() => {}}
+                      onValueChange={() => { }}
                       placeholder="Select metric..."
                       options={[
                         { value: "count", label: "Item Count" },
@@ -238,12 +238,12 @@ export default function StageViewSettings() {
                 <div className="space-y-4">
                   {AVAILABLE_FIELDS.map((field) => (
                     <div key={field.id} className="flex items-center space-x-3 p-2 hover:bg-muted/50 rounded-md transition-colors">
-                      <Checkbox 
-                        id={`field-${field.id}`} 
+                      <Checkbox
+                        id={`field-${field.id}`}
                         checked={config.visibleFields.includes(field.id)}
                         onCheckedChange={() => toggleField(field.id)}
                       />
-                      <Label 
+                      <Label
                         htmlFor={`field-${field.id}`}
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
                       >
@@ -252,14 +252,14 @@ export default function StageViewSettings() {
                     </div>
                   ))}
                 </div>
-                
+
                 <div className="mt-6 pt-6 border-t space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label className="text-base">Default View</Label>
                       <p className="text-xs text-muted-foreground">Apply to all users</p>
                     </div>
-                    <Switch 
+                    <Switch
                       checked={config.isDefault}
                       onCheckedChange={(c) => setConfig({ ...config, isDefault: c })}
                     />
@@ -276,19 +276,19 @@ export default function StageViewSettings() {
 
 function ChevronRight({ className }: { className?: string }) {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
-      <path d="m9 18 6-6-6-6"/>
+      <path d="m9 18 6-6-6-6" />
     </svg>
   )
 }

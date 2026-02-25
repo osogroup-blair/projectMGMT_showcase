@@ -24,6 +24,7 @@ export interface NexusDB {
   projectTaskTypes: any[];
   projectTaskStatuses: any[];
   projectSettings: any[];
+  taskDependencyScopeRules: any[];
   // Activity & Comments
   users: any[];
   activity: any[];
@@ -32,7 +33,7 @@ export interface NexusDB {
   history: any[];
   // Roles & Assignments
   projectRoles: any[];
-  roleAssignments: any[];
+  projectTeamMembers: any[];
   userRoleEligibility: any[];
   userPreferences: any[];
   projectFavorites: any[];
@@ -70,31 +71,31 @@ class StorageEngine {
         ...options?.headers,
       },
     });
-    
+
     if (!response.ok && response.status !== 204) {
       throw new Error(`API error: ${response.statusText}`);
     }
-    
+
     if (response.status === 204) {
       return null;
     }
-    
+
     // Check content-type to ensure we're getting JSON, not HTML
     const contentType = response.headers.get('content-type');
     if (contentType && !contentType.includes('application/json')) {
       throw new Error(`Expected JSON response but got ${contentType} for ${path}`);
     }
-    
+
     const text = await response.text();
     if (!text) {
       return [];
     }
-    
+
     // Check if response looks like HTML (common error when endpoint doesn't exist)
     if (text.startsWith('<!DOCTYPE') || text.startsWith('<html') || text.startsWith('<')) {
       throw new Error(`Received HTML instead of JSON for ${path}. The API endpoint may not exist.`);
     }
-    
+
     try {
       return JSON.parse(text);
     } catch (e) {
@@ -105,8 +106,8 @@ class StorageEngine {
   // Generic Get All
   async getAll<K extends keyof NexusDB>(collection: K): Promise<NexusDB[K]> {
     // For users, use a larger pageSize to ensure all users are returned
-    const url = collection === 'users' 
-      ? `/api/${collection}?pageSize=1000` 
+    const url = collection === 'users'
+      ? `/api/${collection}?pageSize=1000`
       : `/api/${collection}`;
     const response = await this.fetchAPI(url);
     if (collection === 'users' && response && 'users' in response) {

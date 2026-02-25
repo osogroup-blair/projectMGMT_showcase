@@ -7,7 +7,6 @@ import {
   insertAttachmentSchema,
   insertHistorySchema,
   insertProjectRoleSchema,
-  insertRoleAssignmentSchema,
   insertSavedViewSchema,
   insertGuidanceItemSchema,
   insertProjectStageSchema,
@@ -305,40 +304,10 @@ export function registerImportExportRoutes(
     res.status(204).send();
   });
 
-  // Role Assignments
-  app.get("/api/roleAssignments", async (req, res) => {
-    const assignments = await storage.getRoleAssignments();
-    res.json(assignments);
-  });
-
   // Project Team Members (global - for team size aggregation)
   app.get("/api/projectTeamMembers", async (req, res) => {
     const members = await storage.getAllProjectTeamMembers();
     res.json(members);
-  });
-
-  app.post("/api/roleAssignments", async (req, res) => {
-    try {
-      const validated = insertRoleAssignmentSchema.parse(req.body);
-      const assignment = await storage.createRoleAssignment(validated);
-      res.status(201).json(assignment);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.patch("/api/roleAssignments/:id", async (req, res) => {
-    try {
-      const assignment = await storage.updateRoleAssignment(req.params.id, req.body);
-      res.json(assignment);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.delete("/api/roleAssignments/:id", async (req, res) => {
-    await storage.deleteRoleAssignment(req.params.id);
-    res.status(204).send();
   });
 
   // Saved Views
@@ -540,8 +509,7 @@ export function registerImportExportRoutes(
       const subtaskData = {
         ...req.body,
         parentTaskId,
-        // Inherit project from parent if not provided
-        project: req.body.project || parentTask.project,
+        // Legacy field 'project' removed, using projectId only
         projectId: projectId,
         // Make deadline optional, inherit from parent if not provided
         deadline: req.body.deadline || parentTask.deadline || null,
@@ -2684,7 +2652,7 @@ export function registerImportExportRoutes(
         { name: 'task_dependencies', getData: () => storage.getTaskDependencies() },
         { name: 'activity', getData: () => storage.getActivity() },
         { name: 'project_roles', getData: () => storage.getProjectRoles() },
-        { name: 'role_assignments', getData: () => storage.getRoleAssignments() },
+        { name: 'project_team_members', getData: () => storage.getAllProjectTeamMembers() },
         { name: 'user_role_eligibility', getData: () => storage.getUserRoleEligibility() },
         { name: 'saved_views', getData: () => storage.getSavedViews() },
         { name: 'guidance_items', getData: () => storage.getGuidanceItems() },

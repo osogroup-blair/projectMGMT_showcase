@@ -178,21 +178,21 @@ function getFieldValue<T>(
 
 function parseDate(value: any): string | null {
   if (!value) return null;
-  
+
   if (typeof value === 'string') {
     const parsed = new Date(value);
     if (!isNaN(parsed.getTime())) {
       return parsed.toISOString().split('T')[0];
     }
   }
-  
+
   if (typeof value === 'number') {
     const date = new Date(value);
     if (!isNaN(date.getTime())) {
       return date.toISOString().split('T')[0];
     }
   }
-  
+
   return null;
 }
 
@@ -259,9 +259,9 @@ export function suggestExecutionRole(
   if (taskTitles.length === 0 || roleTypes.length === 0) {
     return { roleId: undefined, roleName: undefined, confidence: 0 };
   }
-  
+
   const patternScores: Record<string, number> = {};
-  
+
   for (const title of taskTitles) {
     for (const pattern of TASK_ROLE_PATTERNS) {
       for (const regex of pattern.patterns) {
@@ -272,28 +272,28 @@ export function suggestExecutionRole(
       }
     }
   }
-  
+
   let bestRole: string | undefined;
   let bestScore = 0;
-  
+
   for (const [roleLabel, score] of Object.entries(patternScores)) {
     if (score > bestScore) {
       bestScore = score;
       bestRole = roleLabel;
     }
   }
-  
+
   if (!bestRole) {
     return { roleId: undefined, roleName: undefined, confidence: 0 };
   }
-  
-  const matchedRoleType = roleTypes.find(rt => 
+
+  const matchedRoleType = roleTypes.find(rt =>
     rt.label.toLowerCase().includes(bestRole!.toLowerCase()) ||
     bestRole!.toLowerCase().includes(rt.label.toLowerCase())
   );
-  
+
   const confidence = Math.min(bestScore / taskTitles.length, 1);
-  
+
   return {
     roleId: matchedRoleType?.id,
     roleName: matchedRoleType?.label || bestRole,
@@ -304,14 +304,14 @@ export function suggestExecutionRole(
 function extractProjectData(
   entities: ParsedEntity[]
 ): ImportedProjectData {
-  const projectEntity = entities.find(e => 
+  const projectEntity = entities.find(e =>
     e.entityType === 'Projects' || e.entityType.toLowerCase() === 'project'
   );
-  
+
   const today = new Date().toISOString().split('T')[0];
   const defaultDue = new Date();
   defaultDue.setDate(defaultDue.getDate() + 84);
-  
+
   if (!projectEntity || projectEntity.rows.length === 0) {
     return {
       name: { value: '', confidence: 'unmapped' },
@@ -323,19 +323,19 @@ function extractProjectData(
       client: { value: undefined, confidence: 'unmapped' }
     };
   }
-  
+
   const row = projectEntity.rows[0];
-  
+
   const nameField = getFieldValue<string>(row, ['name', 'title', 'projectName', 'project_name'], '');
   const descField = getFieldValue<string>(row, ['description', 'desc', 'summary', 'overview'], '');
   const startField = getFieldValue<string>(row, ['startDate', 'start_date', 'startAt', 'start'], today);
   const dueField = getFieldValue<string>(row, ['deadline', 'dueDate', 'due_date', 'endDate', 'end_date', 'end'], '');
   const ownerField = getFieldValue<string>(row, ['ownerId', 'owner_id', 'owner', 'managerId', 'manager'], '');
   const clientField = getFieldValue<string>(row, ['client', 'clientName', 'customer', 'account'], '');
-  
+
   const parsedStart = parseDate(startField.value) || today;
   const parsedDue = parseDate(dueField.value) || defaultDue.toISOString().split('T')[0];
-  
+
   return {
     name: {
       value: nameField.value,
@@ -381,18 +381,18 @@ function extractProjectData(
 }
 
 function extractDeliverables(entities: ParsedEntity[]): ImportedDeliverable[] {
-  const deliverableEntity = entities.find(e => 
+  const deliverableEntity = entities.find(e =>
     e.entityType === 'Deliverables' || e.entityType.toLowerCase().includes('deliverable')
   );
-  
+
   if (!deliverableEntity) return [];
-  
+
   return deliverableEntity.rows.map((row, index) => {
     const titleField = getFieldValue<string>(row, ['title', 'name', 'deliverableName'], `Deliverable ${index + 1}`);
     const descField = getFieldValue<string>(row, ['description', 'desc', 'summary'], '');
     const startDateField = getFieldValue<string>(row, ['startDate', 'start_date', 'startAt', 'start'], '');
     const endDateField = getFieldValue<string>(row, ['endDate', 'end_date', 'deadline', 'dueDate', 'due_date'], '');
-    
+
     return {
       id: generateId('d'),
       title: titleField.value,
@@ -411,26 +411,26 @@ function extractEpics(
   entities: ParsedEntity[],
   deliverables: ImportedDeliverable[]
 ): ImportedDeliverable[] {
-  const epicEntity = entities.find(e => 
+  const epicEntity = entities.find(e =>
     e.entityType === 'Epics' || e.entityType.toLowerCase().includes('epic')
   );
-  
+
   if (!epicEntity) return deliverables;
-  
+
   const deliverableMap = new Map<string, ImportedDeliverable>();
   deliverables.forEach(d => {
     if (d.sourceId) deliverableMap.set(d.sourceId, d);
   });
-  
+
   const orphanEpics: ImportedEpic[] = [];
-  
+
   epicEntity.rows.forEach((row, index) => {
     const titleField = getFieldValue<string>(row, ['title', 'name', 'epicName'], `Epic ${index + 1}`);
     const descField = getFieldValue<string>(row, ['description', 'desc', 'summary'], '');
     const deliverableIdField = getFieldValue<string>(row, ['deliverableId', 'deliverable_id', 'parentId'], '');
     const startDateField = getFieldValue<string>(row, ['startDate', 'start_date', 'startAt', 'start'], '');
     const endDateField = getFieldValue<string>(row, ['endDate', 'end_date', 'deadline', 'dueDate', 'due_date'], '');
-    
+
     const epic: ImportedEpic = {
       id: generateId('e'),
       title: titleField.value,
@@ -442,7 +442,7 @@ function extractEpics(
       confidence: titleField.sourceField ? 'high' : 'medium',
       warnings: []
     };
-    
+
     const parentDeliverable = deliverableMap.get(deliverableIdField.value);
     if (parentDeliverable) {
       parentDeliverable.epics.push(epic);
@@ -450,7 +450,7 @@ function extractEpics(
       orphanEpics.push(epic);
     }
   });
-  
+
   if (orphanEpics.length > 0) {
     let defaultDeliverable = deliverables.find(d => d.title === 'Imported Work');
     if (!defaultDeliverable) {
@@ -466,21 +466,21 @@ function extractEpics(
     }
     defaultDeliverable.epics.push(...orphanEpics);
   }
-  
+
   return deliverables;
 }
 
 function extractStagesFromStatuses(entities: ParsedEntity[]): ImportedStage[] {
   const taskEntity = entities.find(e => e.entityType === 'Tasks');
   if (!taskEntity) return [];
-  
+
   const statuses = new Set<string>();
   taskEntity.rows.forEach(row => {
     if (row.status) statuses.add(normalizeStatus(row.status));
   });
-  
+
   if (statuses.size === 0) return [];
-  
+
   const defaultOrder = ['Backlog', 'To Do', 'In Progress', 'In Review', 'Done', 'Completed'];
   const sortedStatuses = Array.from(statuses).sort((a, b) => {
     const aIdx = defaultOrder.indexOf(a);
@@ -490,7 +490,7 @@ function extractStagesFromStatuses(entities: ParsedEntity[]): ImportedStage[] {
     if (bIdx === -1) return -1;
     return aIdx - bIdx;
   });
-  
+
   return sortedStatuses.map((status, index) => ({
     id: generateId('s'),
     name: status,
@@ -504,17 +504,17 @@ function extractStagesFromStatuses(entities: ParsedEntity[]): ImportedStage[] {
 }
 
 function extractStages(entities: ParsedEntity[]): ImportedStage[] {
-  const stageEntity = entities.find(e => 
-    e.entityType === 'ProjectStages' || 
+  const stageEntity = entities.find(e =>
+    e.entityType === 'ProjectStages' ||
     e.entityType === 'Stages' ||
     e.entityType.toLowerCase().includes('stage')
   );
-  
+
   if (stageEntity && stageEntity.rows.length > 0) {
     return stageEntity.rows.map((row, index) => {
       const nameField = getFieldValue<string>(row, ['name', 'title', 'stageName', 'stage_name'], `Stage ${index + 1}`);
       const descField = getFieldValue<string>(row, ['description', 'desc'], '');
-      
+
       return {
         id: generateId('s'),
         name: nameField.value,
@@ -531,7 +531,7 @@ function extractStages(entities: ParsedEntity[]): ImportedStage[] {
       };
     });
   }
-  
+
   return extractStagesFromStatuses(entities);
 }
 
@@ -543,14 +543,14 @@ function extractTasks(
 ): ImportedTask[] {
   const taskEntity = entities.find(e => e.entityType === 'Tasks');
   if (!taskEntity) return [];
-  
+
   const stageByName = new Map<string, ImportedStage>();
   const stageBySourceId = new Map<string, ImportedStage>();
   stages.forEach(s => {
     stageByName.set(s.name.toLowerCase(), s);
     if (s.sourceId) stageBySourceId.set(s.sourceId, s);
   });
-  
+
   // Build sprint lookup maps for task-sprint mapping
   // Normalize all IDs to trimmed strings for consistent matching
   const sprintBySourceId = new Map<string, ImportedSprint>();
@@ -562,16 +562,16 @@ function extractTasks(
     }
     sprintByName.set(sp.name.toLowerCase().trim(), sp);
   });
-  
+
   const epicBySourceId = new Map<string, { id: string; title: string }>();
   const epicByNormalizedTitle = new Map<string, { id: string; title: string }>();
   const allEpics: { id: string; title: string; normalizedTitle: string }[] = [];
-  
+
   deliverables.forEach(d => {
     d.epics.forEach(e => {
       const imported = e as ImportedEpic;
       const normalizedTitle = e.title.toLowerCase().trim().replace(/\s+/g, ' ');
-      
+
       if (imported.sourceId) {
         epicBySourceId.set(imported.sourceId, { id: e.id, title: e.title });
       }
@@ -579,7 +579,7 @@ function extractTasks(
       allEpics.push({ id: e.id, title: e.title, normalizedTitle });
     });
   });
-  
+
   function fuzzyMatchEpic(searchTitle: string): { id: string; title: string } | undefined {
     const normalized = searchTitle.toLowerCase().trim().replace(/\s+/g, ' ');
     if (epicByNormalizedTitle.has(normalized)) {
@@ -592,7 +592,7 @@ function extractTasks(
     }
     return undefined;
   }
-  
+
   return taskEntity.rows.map((row, index) => {
     const titleField = getFieldValue<string>(row, ['title', 'name', 'taskName', 'summary'], `Task ${index + 1}`);
     const descField = getFieldValue<string>(row, ['description', 'desc', 'details'], '');
@@ -600,10 +600,10 @@ function extractTasks(
     const estimateField = getFieldValue<number>(row, ['estimateHours', 'estimate_hours', 'estimate', 'hours'], 0);
     const deadlineField = getFieldValue<string>(row, ['deadline', 'dueDate', 'due_date', 'endDate', 'end_date'], '');
     const startDateField = getFieldValue<string>(row, ['startDate', 'start_date', 'startAt', 'start'], '');
-    
+
     let matchedStage = stages[0];
     const warnings: string[] = [];
-    
+
     if (row.stageId) {
       const stageMatch = stageBySourceId.get(row.stageId);
       if (stageMatch) matchedStage = stageMatch;
@@ -613,14 +613,14 @@ function extractTasks(
       const stageMatch = stageByName.get(normalizedStatus.toLowerCase());
       if (stageMatch) matchedStage = stageMatch;
     }
-    
+
     const sourceEpicId = row.epicId || row.epic_id || row.parentEpicId;
     const sourceEpicName = row.epicName || row.epic_name || row.epicTitle || row.epic_title;
     let sourceEpicTitle: string | undefined = sourceEpicName;
     let assignedEpicId: string | undefined;
     let assignedEpicTitle: string | undefined;
     let mappingStatus: 'mapped' | 'orphaned' = 'orphaned';
-    
+
     if (sourceEpicId) {
       const epicMatch = epicBySourceId.get(sourceEpicId);
       if (epicMatch) {
@@ -632,7 +632,7 @@ function extractTasks(
         warnings.push(`Epic ID "${sourceEpicId}" not found - attempting title match`);
       }
     }
-    
+
     if (!assignedEpicId && sourceEpicName) {
       const fuzzyMatch = fuzzyMatchEpic(sourceEpicName);
       if (fuzzyMatch) {
@@ -643,13 +643,13 @@ function extractTasks(
         warnings.push(`Epic "${sourceEpicName}" not found - task needs manual assignment`);
       }
     }
-    
+
     // Map sprint ID from import - try ID fields first, then name fields
     const sourceSprintIdField = row.sprintId || row.sprint_id;
     const sourceSprintNameField = row.sprintName || row.sprint_name;
     let sprintId: string | undefined;
     let sourceSprintRef: string | undefined = sourceSprintIdField || sourceSprintNameField;
-    
+
     if (sourceSprintIdField) {
       // First try to match by source ID (normalized to string)
       const normalizedId = String(sourceSprintIdField).trim();
@@ -658,7 +658,7 @@ function extractTasks(
         sprintId = sprintMatch.id;
       }
     }
-    
+
     // If ID match failed, try name match (either from ID field value or explicit name field)
     if (!sprintId && sourceSprintRef) {
       const normalizedSprintName = String(sourceSprintRef).toLowerCase().trim();
@@ -674,11 +674,11 @@ function extractTasks(
         }
       }
     }
-    
+
     if (sourceSprintRef && !sprintId) {
       warnings.push(`Sprint "${sourceSprintRef}" not found - task sprint assignment skipped`);
     }
-    
+
     return {
       id: generateId('t'),
       title: titleField.value,
@@ -707,18 +707,18 @@ function extractTasks(
 }
 
 function extractMilestones(entities: ParsedEntity[]): ImportedMilestone[] {
-  const milestoneEntity = entities.find(e => 
+  const milestoneEntity = entities.find(e =>
     e.entityType === 'Milestones' || e.entityType.toLowerCase().includes('milestone')
   );
-  
+
   if (!milestoneEntity) return [];
-  
+
   return milestoneEntity.rows.map((row, index) => {
     const nameField = getFieldValue<string>(row, ['name', 'title', 'milestoneName'], `Milestone ${index + 1}`);
     const descField = getFieldValue<string>(row, ['description', 'desc'], '');
     const dateField = getFieldValue<string>(row, ['targetDate', 'target_date', 'dueDate', 'date'], '');
     const phaseField = getFieldValue<string>(row, ['phase', 'stage'], 'General');
-    
+
     return {
       id: generateId('m'),
       name: nameField.value,
@@ -750,7 +750,7 @@ const SPRINT_STATUS_MAPPING: Record<string, SprintStatus> = {
   'pending': 'Planned',
   'future': 'Planned',
   'backlog': 'Planned',
-  
+
   'active': 'Active',
   'in progress': 'Active',
   'inprogress': 'Active',
@@ -759,14 +759,14 @@ const SPRINT_STATUS_MAPPING: Record<string, SprintStatus> = {
   'running': 'Active',
   'started': 'Active',
   'open': 'Active',
-  
+
   'completed': 'Completed',
   'complete': 'Completed',
   'done': 'Completed',
   'finished': 'Completed',
   'closed': 'Completed',
   'ended': 'Completed',
-  
+
   'cancelled': 'Cancelled',
   'canceled': 'Cancelled',
   'abandoned': 'Cancelled',
@@ -777,14 +777,14 @@ function normalizeSprintStatus(rawStatus: string | null | undefined): { status: 
   if (!rawStatus) {
     return { status: 'Planned', normalized: false };
   }
-  
+
   const cleanStatus = rawStatus.toString().toLowerCase().trim();
   const mappedStatus = SPRINT_STATUS_MAPPING[cleanStatus];
-  
+
   if (mappedStatus) {
     return { status: mappedStatus, normalized: cleanStatus !== mappedStatus.toLowerCase() };
   }
-  
+
   // Try partial matching for common patterns
   if (cleanStatus.includes('progress') || cleanStatus.includes('active') || cleanStatus.includes('current')) {
     return { status: 'Active', normalized: true };
@@ -795,61 +795,61 @@ function normalizeSprintStatus(rawStatus: string | null | undefined): { status: 
   if (cleanStatus.includes('cancel') || cleanStatus.includes('abort')) {
     return { status: 'Cancelled', normalized: true };
   }
-  
+
   // Default to Planned for unknown statuses
   return { status: 'Planned', normalized: true };
 }
 
 function validateSprintDates(sprints: ImportedSprint[]): ImportedSprint[] {
   if (sprints.length === 0) return sprints;
-  
+
   // Create sorted view for overlap detection (preserves original order in result)
-  const sortedByDate = [...sprints].sort((a, b) => 
+  const sortedByDate = [...sprints].sort((a, b) =>
     new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
   );
-  
+
   // Build a map of sprint ID to warnings from overlap detection
   const overlapWarnings = new Map<string, string[]>();
-  
+
   for (let i = 0; i < sortedByDate.length - 1; i++) {
     const current = sortedByDate[i];
     const next = sortedByDate[i + 1];
     const currentEnd = new Date(current.endDate);
     const nextStart = new Date(next.startDate);
-    
+
     if (currentEnd > nextStart) {
       // Add warning to both sprints involved in the overlap
       const currentWarnings = overlapWarnings.get(current.id) || [];
       currentWarnings.push(`Overlaps with sprint "${next.name}" (${next.startDate})`);
       overlapWarnings.set(current.id, currentWarnings);
-      
+
       const nextWarnings = overlapWarnings.get(next.id) || [];
       nextWarnings.push(`Overlaps with sprint "${current.name}" (ends ${current.endDate})`);
       overlapWarnings.set(next.id, nextWarnings);
     }
   }
-  
+
   // Validate each sprint in original order and merge warnings
   return sprints.map(sprint => {
     const warnings = [...(sprint.warnings || [])];
     const startDate = new Date(sprint.startDate);
     const endDate = new Date(sprint.endDate);
-    
+
     // Check for invalid date range (end before start)
     if (endDate < startDate) {
       warnings.push(`Invalid date range: end date (${sprint.endDate}) is before start date (${sprint.startDate})`);
     }
-    
+
     // Check for very long sprints (> 6 weeks)
     const durationDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     if (durationDays > 42) {
       warnings.push(`Sprint duration is ${durationDays} days (${Math.round(durationDays / 7)} weeks) - unusually long`);
     }
-    
+
     // Add any overlap warnings for this sprint
     const sprintOverlapWarnings = overlapWarnings.get(sprint.id) || [];
     warnings.push(...sprintOverlapWarnings);
-    
+
     return {
       ...sprint,
       warnings
@@ -860,10 +860,10 @@ function validateSprintDates(sprints: ImportedSprint[]): ImportedSprint[] {
 function extractSprints(entities: ParsedEntity[], projectStartDate?: string, projectEndDate?: string): ImportedSprint[] {
   const sprintsEntity = entities.find(e => e.entityType === 'Sprints');
   if (!sprintsEntity || sprintsEntity.rows.length === 0) return [];
-  
+
   const sprints: ImportedSprint[] = [];
   const totalSprintRows = sprintsEntity.rows.length;
-  
+
   for (let i = 0; i < sprintsEntity.rows.length; i++) {
     const row = sprintsEntity.rows[i];
     const sprintName = getFieldValue(row, ['name', 'sprintName', 'title'], `Sprint ${sprints.length + 1}`);
@@ -872,13 +872,13 @@ function extractSprints(entities: ParsedEntity[], projectStartDate?: string, pro
     const sprintEndDate = getFieldValue(row, ['endDate', 'end_date', 'end', 'dueDate'], null);
     const sprintStatusRaw = getFieldValue(row, ['status', 'state'], null);
     const sprintCapacity = getFieldValue(row, ['capacityHours', 'capacity', 'capacity_hours'], null);
-    
+
     let parsedStartDate = parseDate(sprintStartDate.value);
     let parsedEndDate = parseDate(sprintEndDate.value);
-    
+
     const warnings: string[] = [];
     let dateSource: 'imported' | 'parsed_from_name' | 'calculated' = 'imported';
-    
+
     if (!parsedStartDate || !parsedEndDate) {
       const parsedDates = parseDatesFromSprintName(sprintName.value, {
         projectStartDate,
@@ -886,25 +886,25 @@ function extractSprints(entities: ParsedEntity[], projectStartDate?: string, pro
         sprintIndex: i,
         totalSprints: totalSprintRows
       });
-      
+
       if (parsedDates.startDate && parsedDates.endDate) {
         parsedStartDate = parsedDates.startDate;
         parsedEndDate = parsedDates.endDate;
         dateSource = parsedDates.method === 'distributed_across_project' ? 'calculated' : 'parsed_from_name';
-        
-        const confidenceLabel = parsedDates.confidence === 'high' ? 'high confidence' : 
-                                parsedDates.confidence === 'medium' ? 'medium confidence' : 'low confidence';
+
+        const confidenceLabel = parsedDates.confidence === 'high' ? 'high confidence' :
+          parsedDates.confidence === 'medium' ? 'medium confidence' : 'low confidence';
         warnings.push(`Dates auto-detected from sprint name using "${parsedDates.method}" (${confidenceLabel})`);
       }
     }
-    
+
     if (parsedStartDate && parsedEndDate) {
       const { status: normalizedStatus, normalized } = normalizeSprintStatus(sprintStatusRaw.value);
-      
+
       if (normalized && sprintStatusRaw.value) {
         warnings.push(`Status normalized from "${sprintStatusRaw.value}" to "${normalizedStatus}"`);
       }
-      
+
       sprints.push({
         id: generateId('sprint'),
         name: sprintName.value,
@@ -937,7 +937,7 @@ function extractSprints(entities: ParsedEntity[], projectStartDate?: string, pro
       });
     }
   }
-  
+
   const validSprints = sprints.filter(s => s.startDate && s.endDate);
   return validateSprintDates(validSprints);
 }
@@ -957,7 +957,7 @@ function matchUserByNameOrEmail(
   const normalizedName = normalizeString(sourceName);
   const normalizedEmail = normalizeString(sourceEmail);
   const normalizedExternalId = sourceExternalId?.trim();
-  
+
   if (normalizedExternalId) {
     const identityMatch = userIdentities.find(
       i => i.externalUserId === normalizedExternalId
@@ -967,7 +967,7 @@ function matchUserByNameOrEmail(
       return { userId: identityMatch.userId, userName: user?.name, confidence: 'high' };
     }
   }
-  
+
   if (normalizedEmail) {
     const emailMatch = systemUsers.find(
       u => normalizeString(u.email) === normalizedEmail
@@ -975,7 +975,7 @@ function matchUserByNameOrEmail(
     if (emailMatch) {
       return { userId: emailMatch.id, userName: emailMatch.name, confidence: 'high' };
     }
-    
+
     const identityEmailMatch = userIdentities.find(
       i => normalizeString(i.externalEmail) === normalizedEmail
     );
@@ -984,7 +984,7 @@ function matchUserByNameOrEmail(
       return { userId: identityEmailMatch.userId, userName: user?.name, confidence: 'high' };
     }
   }
-  
+
   if (normalizedName) {
     const exactNameMatch = systemUsers.find(
       u => normalizeString(u.name) === normalizedName
@@ -992,7 +992,7 @@ function matchUserByNameOrEmail(
     if (exactNameMatch) {
       return { userId: exactNameMatch.id, userName: exactNameMatch.name, confidence: 'high' };
     }
-    
+
     const identityNameMatch = userIdentities.find(
       i => normalizeString(i.externalDisplayName) === normalizedName
     );
@@ -1000,7 +1000,7 @@ function matchUserByNameOrEmail(
       const user = systemUsers.find(u => u.id === identityNameMatch.userId);
       return { userId: identityNameMatch.userId, userName: user?.name, confidence: 'high' };
     }
-    
+
     const fuzzyNameMatch = systemUsers.find(u => {
       const userName = normalizeString(u.name);
       if (!userName || !normalizedName) return false;
@@ -1009,7 +1009,7 @@ function matchUserByNameOrEmail(
     if (fuzzyNameMatch) {
       return { userId: fuzzyNameMatch.id, userName: fuzzyNameMatch.name, confidence: 'medium' };
     }
-    
+
     const usernameMatch = systemUsers.find(
       u => normalizeString(u.username) === normalizedName
     );
@@ -1017,18 +1017,18 @@ function matchUserByNameOrEmail(
       return { userId: usernameMatch.id, userName: usernameMatch.name, confidence: 'medium' };
     }
   }
-  
+
   return { confidence: 'low' };
 }
 
 function splitMultipleAssignees(assigneeString: string): string[] {
   if (!assigneeString || typeof assigneeString !== 'string') return [];
-  
+
   let parts = assigneeString
     .split(/[,;]/)
     .map(s => s.trim())
     .filter(Boolean);
-  
+
   const finalParts: string[] = [];
   for (const part of parts) {
     const andSplit = part.split(/\s+and\s+/i);
@@ -1038,7 +1038,7 @@ function splitMultipleAssignees(assigneeString: string): string[] {
       finalParts.push(part);
     }
   }
-  
+
   return finalParts;
 }
 
@@ -1049,15 +1049,15 @@ function extractUsers(
 ): UserMappingEntry[] {
   const userEntity = entities.find(e => e.entityType === 'Users');
   const userRefs = new Map<string, { name?: string; email?: string; externalId?: string; taskCount: number }>();
-  
+
   const addUserRef = (
-    key: string, 
-    info: { name?: string; email?: string; externalId?: string }, 
+    key: string,
+    info: { name?: string; email?: string; externalId?: string },
     incrementTaskCount: boolean
   ) => {
     const normalizedKey = key.trim();
     if (!normalizedKey) return;
-    
+
     const existing = userRefs.get(normalizedKey);
     userRefs.set(normalizedKey, {
       name: existing?.name || info.name,
@@ -1066,12 +1066,12 @@ function extractUsers(
       taskCount: (existing?.taskCount || 0) + (incrementTaskCount ? 1 : 0)
     });
   };
-  
+
   const extractUserFromRow = (row: any, isTask: boolean = false) => {
     if (row.assigneeId) {
       const assigneeIdStr = String(row.assigneeId);
       const individuals = splitMultipleAssignees(assigneeIdStr);
-      
+
       if (individuals.length > 1) {
         individuals.forEach((individual, idx) => {
           const isPrimaryOwner = idx === individuals.length - 1;
@@ -1080,7 +1080,7 @@ function extractUsers(
             externalId: individual
           }, isTask && isPrimaryOwner);
         });
-        
+
         row.multipleAssignees = individuals;
         row.primaryAssignee = individuals[individuals.length - 1];
       } else {
@@ -1091,23 +1091,23 @@ function extractUsers(
         }, isTask);
       }
     }
-    
+
     if (row.assignee && typeof row.assignee === 'string' && !row.assigneeId) {
       const individuals = splitMultipleAssignees(row.assignee);
-      
+
       if (individuals.length > 1) {
         individuals.forEach((individual, idx) => {
           const isPrimaryOwner = idx === individuals.length - 1;
           addUserRef(individual, { name: individual }, isTask && isPrimaryOwner);
         });
-        
+
         row.multipleAssignees = individuals;
         row.primaryAssignee = individuals[individuals.length - 1];
       } else if (individuals.length === 1) {
         addUserRef(individuals[0], { name: individuals[0] }, isTask);
       }
     }
-    
+
     if (row.ownerId) {
       const individuals = splitMultipleAssignees(String(row.ownerId));
       individuals.forEach((individual, idx) => {
@@ -1119,7 +1119,7 @@ function extractUsers(
         }, false);
       });
     }
-    
+
     if (row.managerId) {
       const individuals = splitMultipleAssignees(String(row.managerId));
       individuals.forEach((individual, idx) => {
@@ -1131,7 +1131,7 @@ function extractUsers(
         }, false);
       });
     }
-    
+
     if (Array.isArray(row.assigneeIds)) {
       row.assigneeIds.forEach((id: string, idx: number) => {
         const isPrimaryOwner = idx === row.assigneeIds.length - 1;
@@ -1139,14 +1139,14 @@ function extractUsers(
       });
     }
   };
-  
+
   entities.forEach(entity => {
-    const isTaskEntity = entity.entityType === 'Tasks' || 
-                         entity.entityType.toLowerCase() === 'tasks';
-    
+    const isTaskEntity = entity.entityType === 'Tasks' ||
+      entity.entityType.toLowerCase() === 'tasks';
+
     entity.rows.forEach(row => {
       extractUserFromRow(row, isTaskEntity);
-      
+
       if (Array.isArray(row.tasks)) {
         row.tasks.forEach((task: any) => extractUserFromRow(task, true));
       }
@@ -1160,7 +1160,7 @@ function extractUsers(
       }
     });
   });
-  
+
   if (userEntity) {
     userEntity.rows.forEach(row => {
       const id = row.id || row.email || row.name;
@@ -1175,9 +1175,9 @@ function extractUsers(
       }
     });
   }
-  
+
   const mappings: UserMappingEntry[] = [];
-  
+
   userRefs.forEach((info, sourceId) => {
     const match = matchUserByNameOrEmail(
       info.name,
@@ -1186,7 +1186,7 @@ function extractUsers(
       systemUsers,
       userIdentities
     );
-    
+
     mappings.push({
       sourceId,
       sourceName: info.name,
@@ -1198,7 +1198,7 @@ function extractUsers(
       taskCount: info.taskCount || 0
     });
   });
-  
+
   return mappings;
 }
 
@@ -1207,14 +1207,14 @@ function matchStatusToSystemStatus(
   systemStatuses: SystemStatus[]
 ): { mappedStatus: string; mappedStatusId?: string; confidence: ConfidenceLevel } {
   const normalized = normalizeString(sourceStatus);
-  
+
   const exactMatch = systemStatuses.find(
     s => normalizeString(s.label) === normalized
   );
   if (exactMatch) {
     return { mappedStatus: exactMatch.label, mappedStatusId: exactMatch.id, confidence: 'high' };
   }
-  
+
   const partialMatch = systemStatuses.find(s => {
     const statusLabel = normalizeString(s.label);
     return statusLabel.includes(normalized) || normalized.includes(statusLabel);
@@ -1222,7 +1222,7 @@ function matchStatusToSystemStatus(
   if (partialMatch) {
     return { mappedStatus: partialMatch.label, mappedStatusId: partialMatch.id, confidence: 'medium' };
   }
-  
+
   const statusCategories: Record<string, string[]> = {
     'not_started': ['todo', 'to do', 'to_do', 'backlog', 'pending', 'open', 'new', 'not started'],
     'in_progress': ['in progress', 'in_progress', 'inprogress', 'active', 'working', 'doing', 'started'],
@@ -1230,7 +1230,7 @@ function matchStatusToSystemStatus(
     'blocked': ['blocked', 'on hold', 'on_hold', 'waiting', 'paused', 'stalled'],
     'done': ['done', 'completed', 'complete', 'finished', 'closed', 'resolved', 'approved']
   };
-  
+
   let category: string | undefined;
   for (const [cat, patterns] of Object.entries(statusCategories)) {
     if (patterns.some(p => normalized === p || normalized.includes(p) || p.includes(normalized))) {
@@ -1238,7 +1238,7 @@ function matchStatusToSystemStatus(
       break;
     }
   }
-  
+
   if (category) {
     const categoryMatch = systemStatuses.find(s => {
       const sNorm = normalizeString(s.label);
@@ -1249,17 +1249,17 @@ function matchStatusToSystemStatus(
       return { mappedStatus: categoryMatch.label, mappedStatusId: categoryMatch.id, confidence: 'medium' };
     }
   }
-  
+
   const defaultStatus = systemStatuses.find(s => s.isDefault);
   if (defaultStatus) {
     return { mappedStatus: defaultStatus.label, mappedStatusId: defaultStatus.id, confidence: 'low' };
   }
-  
+
   if (systemStatuses.length > 0) {
     const first = systemStatuses[0];
     return { mappedStatus: first.label, mappedStatusId: first.id, confidence: 'low' };
   }
-  
+
   return { mappedStatus: normalizeStatus(sourceStatus), confidence: 'low' };
 }
 
@@ -1268,13 +1268,13 @@ function extractStatuses(
   systemStatuses: SystemStatus[] = []
 ): StatusMappingEntry[] {
   const statuses = new Set<string>();
-  
+
   entities.forEach(entity => {
     entity.rows.forEach(row => {
       if (row.status) statuses.add(String(row.status));
     });
   });
-  
+
   return Array.from(statuses).map(status => {
     if (systemStatuses.length > 0) {
       const match = matchStatusToSystemStatus(status, systemStatuses);
@@ -1298,36 +1298,36 @@ export function convertImportToWizardData(
   options: ImportAdapterOptions = {}
 ): ImportAdapterResult {
   const { systemUsers = [], userIdentities = [], systemStatuses = [] } = options;
-  
+
   const warnings: string[] = [...parseResult.warnings];
   const errors: string[] = [...parseResult.errors];
-  
+
   const validation = validateParseResult(parseResult);
-  
+
   if (!validation.isValid) {
     errors.push(...formatValidationErrorsForUser(validation.errors));
   }
   warnings.push(...formatValidationWarningsForUser(validation.warnings));
-  
+
   const duplicateResults = detectAndResolveDuplicateIds(parseResult.entities);
   for (const result of duplicateResults) {
     warnings.push(...result.warnings.map(w => w.message));
   }
-  
+
   const circularWarnings = detectCircularDependencies(parseResult.entities);
   warnings.push(...circularWarnings.map(w => w.message));
-  
+
   const dateResults = collectDateParseWarnings(parseResult.entities);
   warnings.push(...dateResults.warnings.map(w => w.message));
-  
+
   const entitiesWithDates = dateResults.parsedEntities;
-  
+
   const referenceResolution = resolveAllReferences(
     entitiesWithDates.map(e => ({ entityType: e.entityType, rows: e.rows }))
   );
-  
+
   warnings.push(...referenceResolution.warnings);
-  
+
   const resolvedParseResult: ParseResult = {
     ...parseResult,
     entities: referenceResolution.resolvedEntities.map((e, i) => ({
@@ -1335,22 +1335,22 @@ export function convertImportToWizardData(
       rows: e.rows
     }))
   };
-  
+
   const projectData = extractProjectData(resolvedParseResult.entities);
   let deliverables = extractDeliverables(resolvedParseResult.entities);
   deliverables = extractEpics(resolvedParseResult.entities, deliverables);
   const stages = extractStages(resolvedParseResult.entities);
-  
+
   // Extract sprints BEFORE tasks so we can map task-sprint associations
   const projectStartDate = projectData.startDate?.value;
   const projectEndDate = projectData.dueDate?.value;
   const sprints = extractSprints(resolvedParseResult.entities, projectStartDate, projectEndDate);
-  
+
   const tasks = extractTasks(resolvedParseResult.entities, stages, deliverables, sprints);
   const milestones = extractMilestones(resolvedParseResult.entities);
   const userMappings = extractUsers(resolvedParseResult.entities, systemUsers, userIdentities);
   const statusMappings = extractStatuses(resolvedParseResult.entities, systemStatuses);
-  
+
   // Associate tasks with stages
   tasks.forEach(task => {
     const stage = stages.find(s => s.id === task.stageId);
@@ -1358,7 +1358,7 @@ export function convertImportToWizardData(
       stage.tasks.push(task);
     }
   });
-  
+
   // Populate taskIds array on each sprint for bidirectional relationship
   tasks.forEach(task => {
     if (task.sprintId) {
@@ -1368,7 +1368,7 @@ export function convertImportToWizardData(
       }
     }
   });
-  
+
   if (deliverables.length === 0) {
     deliverables.push({
       id: generateId('d'),
@@ -1384,11 +1384,11 @@ export function convertImportToWizardData(
     });
     warnings.push('No deliverables found in import - created empty placeholder');
   }
-  
+
   if (stages.some(s => s.reconstructedFrom === 'statuses')) {
     warnings.push('Stages were reconstructed from task status values');
   }
-  
+
   // Add reference resolution stats summary to warnings if there are unresolved references
   if (referenceResolution.stats.unresolved > 0) {
     warnings.push(
@@ -1398,7 +1398,7 @@ export function convertImportToWizardData(
       `${referenceResolution.stats.resolvedByPartialName + referenceResolution.stats.resolvedByFuzzyName} by fuzzy match)`
     );
   }
-  
+
   // Check for skipped sprints (those with missing dates)
   const sprintsEntity = resolvedParseResult.entities.find(e => e.entityType === 'Sprints');
   if (sprintsEntity) {
@@ -1408,7 +1408,7 @@ export function convertImportToWizardData(
       warnings.push(`${totalSprintRows - extractedCount} sprint(s) skipped: missing start or end date`);
     }
   }
-  
+
   const stats = {
     totalEntitiesFound: parseResult.entities.reduce((sum, e) => sum + e.rowCount, 0),
     projectsFound: parseResult.entities.find(e => e.entityType === 'Projects')?.rowCount || 0,
@@ -1420,7 +1420,7 @@ export function convertImportToWizardData(
     usersFound: parseResult.entities.find(e => e.entityType === 'Users')?.rowCount || 0,
     stagesFound: parseResult.entities.find(e => e.entityType === 'ProjectStages' || e.entityType === 'Stages')?.rowCount || 0
   };
-  
+
   return {
     projectData,
     deliverables,
@@ -1447,7 +1447,7 @@ export function toWizardProjectData(imported: ImportedProjectData): ProjectData 
     dueDate: imported.dueDate.value,
     sprintDurationWeeks: imported.sprintDurationWeeks.value,
     ownerId: imported.ownerId.value,
-    client: imported.client.value
+    clientId: imported.client.value
   };
 }
 
@@ -1465,7 +1465,7 @@ export function toWizardDeliverables(
       userMappingLookup.set(m.sourceId, m.mappedToId);
     }
   });
-  
+
   // Build status mapping lookup (sourceStatus -> mappedStatus)
   const statusMappingLookup = new Map<string, string>();
   statusMappings.forEach(m => {
@@ -1473,7 +1473,7 @@ export function toWizardDeliverables(
       statusMappingLookup.set(m.sourceStatus, m.mappedStatus);
     }
   });
-  
+
   // Collect all imported tasks from stages and organize by assignedEpicId
   const tasksByEpicId = new Map<string, Array<{
     id: string;
@@ -1489,7 +1489,7 @@ export function toWizardDeliverables(
     taskTypeId?: string;
     status?: string;
   }>>();
-  
+
   importedStages.forEach(stage => {
     (stage.tasks || []).forEach(task => {
       const importedTask = task as ImportedTask;
@@ -1497,7 +1497,7 @@ export function toWizardDeliverables(
         if (!tasksByEpicId.has(importedTask.assignedEpicId)) {
           tasksByEpicId.set(importedTask.assignedEpicId, []);
         }
-        
+
         // Resolve assignee
         let assigneeId: string | undefined = undefined;
         if (importedTask.sourceAssigneeId) {
@@ -1506,13 +1506,13 @@ export function toWizardDeliverables(
         if (!assigneeId && defaultUnassignedTo) {
           assigneeId = defaultUnassignedTo;
         }
-        
+
         // Apply status mapping: convert sourceStatus to mapped status
         let mappedStatus: string | undefined = undefined;
         if (importedTask.sourceStatus) {
           mappedStatus = statusMappingLookup.get(importedTask.sourceStatus) || importedTask.sourceStatus;
         }
-        
+
         tasksByEpicId.get(importedTask.assignedEpicId)!.push({
           id: task.id,
           title: task.title,
@@ -1530,7 +1530,7 @@ export function toWizardDeliverables(
       }
     });
   });
-  
+
   return imported.map(d => ({
     id: d.id,
     title: d.title,
@@ -1557,7 +1557,7 @@ export function toWizardStages(
   // Note: Imported tasks are now handled by toWizardDeliverables and placed directly into epics.
   // Stage.tasks should only contain template-based tasks (created in Stage Configuration).
   // This prevents task duplication: imported tasks go to epics, template tasks go to stages.
-  
+
   return imported.map(s => ({
     id: s.id,
     name: s.name,

@@ -22,7 +22,7 @@ export async function getMilestonesByProjectId(projectId: string): Promise<Miles
 
 export async function createMilestone(milestone: InsertMilestone): Promise<Milestone> {
   const id = (milestone as any).id || crypto.randomUUID();
-  const [created] = await db.insert(schema.milestones).values({ ...milestone, id }).returning();
+  const [created] = await db.insert(schema.milestones).values({ ...(milestone as any), id }).returning();
   return created;
 }
 
