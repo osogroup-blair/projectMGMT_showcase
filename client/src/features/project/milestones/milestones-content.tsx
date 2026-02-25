@@ -1,9 +1,9 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
-import { 
-  Flag, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
+import {
+  Flag,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
   Circle,
   Calendar as CalendarIcon,
   ChevronRight,
@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link, useLocation } from "wouter";
@@ -113,17 +114,6 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   // Add Task Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMilestoneId, setDialogMilestoneId] = useState<string | null>(null);
-  const [dialogMode, setDialogMode] = useState<"search" | "create">("search");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEpicId, setSelectedEpicId] = useState<string>("");
-  const [selectedStageId, setSelectedStageId] = useState<string>("");
-  const [isCreating, setIsCreating] = useState(false);
-
-  // New task form state
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
-  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(3);
 
   // Milestone search state
   const [milestoneSearchQuery, setMilestoneSearchQuery] = useState("");
@@ -147,7 +137,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const { data: allScopeRules, create: createScopeRule, update: updateScopeRule } = useMilestoneScopeRules();
 
   // Project-specific sprints
-  const projectSprints = useMemo(() => 
+  const projectSprints = useMemo(() =>
     (allSprints || []).filter((s: any) => s.projectId === projectId),
     [allSprints, projectId]
   );
@@ -166,6 +156,15 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
     try {
       await updateTask({ id: taskId, updates: { sprintId: sprintId || null } });
       toast({ title: "Sprint updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleTaskDeliverableChange = async (taskId: string, deliverableId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { deliverableId: deliverableId || null } });
+      toast({ title: "Deliverable updated" });
     } catch (error: any) {
       toast({ title: "Failed to update", description: error.message, variant: "destructive" });
     }
@@ -190,7 +189,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
     }
   };
 
-  const milestones = useMemo(() => 
+  const milestones = useMemo(() =>
     (allMilestones || []).filter((m: any) => m.projectId === projectId),
     [allMilestones, projectId]
   );
@@ -199,8 +198,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
     let result = milestones;
     if (milestoneSearchQuery.trim()) {
       const q = milestoneSearchQuery.toLowerCase();
-      result = result.filter((m: any) => 
-        m.name?.toLowerCase().includes(q) || 
+      result = result.filter((m: any) =>
+        m.name?.toLowerCase().includes(q) ||
         m.description?.toLowerCase().includes(q)
       );
     }
@@ -268,8 +267,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   };
 
   const SortableHeader = ({ field, children, width }: { field: SortField; children: React.ReactNode; width: string }) => (
-    <TableHead 
-      style={{ width }} 
+    <TableHead
+      style={{ width }}
       className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
       onClick={() => handleSort(field)}
       data-testid={`sort-header-${field}`}
@@ -289,22 +288,22 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
     </TableHead>
   );
 
-  const projectTasks = useMemo(() => 
+  const projectTasks = useMemo(() =>
     (allTasks || []).filter((t: any) => t.projectId === projectId || t.project === projectId),
     [allTasks, projectId]
   );
 
-  const projectDeliverables = useMemo(() => 
+  const projectDeliverables = useMemo(() =>
     (allDeliverables || []).filter((d: any) => d.projectId === projectId),
     [allDeliverables, projectId]
   );
 
-  const projectDeliverableIds = useMemo(() => 
+  const projectDeliverableIds = useMemo(() =>
     projectDeliverables.map((d: any) => d.id),
     [projectDeliverables]
   );
 
-  const projectEpics = useMemo(() => 
+  const projectEpics = useMemo(() =>
     (allEpics || []).filter((e: any) => projectDeliverableIds.includes(e.deliverableId)),
     [allEpics, projectDeliverableIds]
   );
@@ -325,12 +324,12 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
       const task = (allTasks || []).find((t: any) => t.id === link.taskId);
       return task;
     }).filter(Boolean);
-    
+
     // Also get tasks with milestoneId set directly on the task record
-    const tasksWithDirectMilestone = (allTasks || []).filter((t: any) => 
+    const tasksWithDirectMilestone = (allTasks || []).filter((t: any) =>
       t.milestoneId === milestoneId && !linkedTaskIds.has(t.id)
     );
-    
+
     // Combine both sources, avoiding duplicates
     return [...tasksFromLinks, ...tasksWithDirectMilestone];
   };
@@ -349,6 +348,11 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   const getOwner = (ownerId?: string) => {
     if (!ownerId) return null;
     return (users || []).find((u: any) => u.id === ownerId);
+  };
+
+  const getDeliverable = (deliverableId?: string) => {
+    if (!deliverableId) return null;
+    return (allDeliverables || []).find((d: any) => d.id === deliverableId);
   };
 
   const getEpic = (epicId?: string) => {
@@ -378,7 +382,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
         completionTargetPercent: 100,
         tags: []
       });
-      
+
       if (newMilestone?.id) {
         toast({ title: "Milestone Created", description: "Redirecting to edit details..." });
         navigate(`/projects/${projectId}/milestones/${newMilestone.id}`);
@@ -468,117 +472,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   // Add Task Dialog handlers
   const openAddTaskDialog = (milestoneId: string) => {
     setDialogMilestoneId(milestoneId);
-    setDialogMode("search");
-    setSearchQuery("");
-    setSelectedEpicId("");
-    setSelectedStageId("");
-    setNewTaskTitle("");
-    setNewTaskDescription("");
-    setNewTaskPriority("Medium");
-    setNewTaskEffort(3);
     setDialogOpen(true);
-  };
-
-  const currentLinkedTaskIds = useMemo(() => {
-    if (!dialogMilestoneId) return [];
-    const links = getLinksForMilestone(dialogMilestoneId);
-    return links.map((l: any) => l.taskId);
-  }, [dialogMilestoneId, allTaskLinks]);
-
-  const searchableTasks = useMemo(() => {
-    return projectTasks.filter((t: any) => !currentLinkedTaskIds.includes(t.id));
-  }, [projectTasks, currentLinkedTaskIds]);
-
-  const filteredSearchTasks = useMemo(() => {
-    let result = searchableTasks;
-    
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter((t: any) => 
-        t.title?.toLowerCase().includes(q) || 
-        t.description?.toLowerCase().includes(q)
-      );
-    }
-    
-    if (selectedEpicId) {
-      result = result.filter((t: any) => t.epicId === selectedEpicId);
-    }
-    
-    if (selectedStageId) {
-      result = result.filter((t: any) => t.stageId === selectedStageId);
-    }
-    
-    return result.slice(0, 20);
-  }, [searchableTasks, searchQuery, selectedEpicId, selectedStageId]);
-
-  const handleLinkTask = (taskId: string) => {
-    if (!dialogMilestoneId) return;
-    
-    createLink({
-      milestoneId: dialogMilestoneId,
-      taskId,
-      projectId,
-      source: "manual_add",
-      locked: false
-    });
-    
-    toast({ title: "Task linked", description: "Task has been added to the milestone." });
-    setDialogOpen(false);
-  };
-
-  const handleCreateTask = async () => {
-    if (!dialogMilestoneId) return;
-    
-    if (!newTaskTitle.trim()) {
-      toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
-      return;
-    }
-    if (!selectedEpicId) {
-      toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
-      return;
-    }
-    if (!newTaskEffort) {
-      toast({ title: "Error", description: "Effort is required.", variant: "destructive" });
-      return;
-    }
-
-    // Default to "Action" task type, or isDefault, or first available
-    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
-    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
-
-    setIsCreating(true);
-    try {
-      const newTask = await createTaskAsync({
-        title: newTaskTitle,
-        description: newTaskDescription || "",
-        project: projectId,
-        projectId: projectId,
-        epicId: selectedEpicId,
-        stageId: selectedStageId,
-        status: "BACKLOGGED",
-        priority: newTaskPriority,
-        effort: newTaskEffort,
-        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        tags: [],
-        taskTypeId: defaultTaskType?.id || null,
-        assigneeId: currentUser?.id || null
-      });
-
-      createLink({
-        milestoneId: dialogMilestoneId,
-        taskId: newTask.id,
-        projectId,
-        source: "manual_add",
-        locked: false
-      });
-      
-      toast({ title: "Task created and linked", description: "New task has been created and added to the milestone." });
-      setDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to create task.", variant: "destructive" });
-    } finally {
-      setIsCreating(false);
-    }
   };
 
   if (isLoading) {
@@ -592,10 +486,10 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
   return (
     <>
       {/* Hidden trigger for tab-level Add button */}
-      <button 
-        data-testid="button-create-milestones" 
-        onClick={handleCreateMilestone} 
-        className="hidden" 
+      <button
+        data-testid="button-create-milestones"
+        onClick={handleCreateMilestone}
+        className="hidden"
         aria-hidden="true"
       />
 
@@ -621,7 +515,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                 {milestones.length === 0 ? "No milestones defined" : "No milestones match your search"}
               </h3>
               <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">
-                {milestones.length === 0 
+                {milestones.length === 0
                   ? "Milestones help track key project deliverables and deadlines."
                   : "Try adjusting your search terms."}
               </p>
@@ -654,8 +548,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
 
                   return (
                     <React.Fragment key={milestone.id}>
-                      <TableRow 
-                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30")} 
+                      <TableRow
+                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30")}
                         data-testid={`row-milestone-${milestone.id}`}
                       >
                         <TableCell className="p-2">
@@ -700,7 +594,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                           ) : (
                             <div className="space-y-0.5 group">
                               <div className="flex items-center gap-1.5">
-                                <span 
+                                <span
                                   className="font-medium hover:text-primary cursor-pointer"
                                   onClick={() => startEditing(milestone.id, "name", milestone.name)}
                                   data-testid={`editable-name-${milestone.id}`}
@@ -732,17 +626,17 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                               data-testid={`select-milestone-status-${milestone.id}`}
                             />
                           ) : (
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className={cn(
                                 "font-normal text-xs cursor-pointer hover:ring-1 hover:ring-primary/50",
-                                milestone.status === "achieved" || milestone.status === "Completed" 
-                                  ? "bg-green-50 text-green-700 border-green-200" 
+                                milestone.status === "achieved" || milestone.status === "Completed"
+                                  ? "bg-green-50 text-green-700 border-green-200"
                                   : milestone.status === "in_progress" || milestone.status === "In Progress"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                  : milestone.status === "slipped" || milestone.status === "Blocked"
-                                  ? "bg-red-50 text-red-700 border-red-200"
-                                  : "bg-slate-50 text-slate-700 border-slate-200"
+                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                    : milestone.status === "slipped" || milestone.status === "Blocked"
+                                      ? "bg-red-50 text-red-700 border-red-200"
+                                      : "bg-slate-50 text-slate-700 border-slate-200"
                               )}
                               onClick={() => startEditing(milestone.id, "status", milestone.status || "planned")}
                               data-testid={`editable-status-${milestone.id}`}
@@ -755,7 +649,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                         <TableCell className="text-sm text-muted-foreground">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <div 
+                              <div
                                 className="flex items-center gap-1.5 cursor-pointer hover:text-primary group"
                                 data-testid={`editable-date-${milestone.id}`}
                               >
@@ -793,7 +687,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                               data-testid={`select-milestone-owner-${milestone.id}`}
                             />
                           ) : (
-                            <div 
+                            <div
                               className="flex items-center gap-2 cursor-pointer hover:text-primary group"
                               onClick={() => startEditing(milestone.id, "owner", milestone.ownerId || "")}
                               data-testid={`editable-owner-${milestone.id}`}
@@ -825,9 +719,9 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="h-7"
                               onClick={() => openAddTaskDialog(milestone.id)}
                               data-testid={`add-task-to-milestone-${milestone.id}`}
@@ -839,9 +733,9 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </Button>
                             </Link>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
                               onClick={() => openDeleteDialog(milestone)}
                               data-testid={`delete-milestone-${milestone.id}`}
@@ -872,9 +766,9 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                     <div className="text-center py-6 text-muted-foreground">
                                       <ListTodo className="h-8 w-8 mx-auto mb-2 opacity-50" />
                                       <p className="text-sm">No tasks linked to this milestone</p>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
                                         className="mt-3"
                                         onClick={() => openAddTaskDialog(milestone.id)}
                                       >
@@ -886,8 +780,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                     <div className="space-y-2">
                                       <div className="flex items-center justify-between mb-3">
                                         <span className="text-sm text-muted-foreground">{milestoneTasks.length} linked task{milestoneTasks.length !== 1 ? 's' : ''}</span>
-                                        <Button 
-                                          variant="outline" 
+                                        <Button
+                                          variant="outline"
                                           size="sm"
                                           onClick={() => openAddTaskDialog(milestone.id)}
                                         >
@@ -899,23 +793,25 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                         <Table>
                                           <TableHeader>
                                             <TableRow className="hover:bg-transparent bg-muted/30">
-                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "30%" }}>Task</TableHead>
-                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "15%" }}>Status</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "24%" }}>Task</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "12%" }}>Status</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "14%" }}>Deliverable</TableHead>
                                               <TableHead className="h-8 text-xs font-semibold" style={{ width: "15%" }}>Sprint</TableHead>
-                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "20%" }}>Assignee</TableHead>
+                                              <TableHead className="h-8 text-xs font-semibold" style={{ width: "15%" }}>Assignee</TableHead>
                                               <TableHead className="h-8 text-xs font-semibold" style={{ width: "15%" }}>Due Date</TableHead>
                                               <TableHead className="h-8 text-xs font-semibold" style={{ width: "5%" }}></TableHead>
                                             </TableRow>
                                           </TableHeader>
                                           <TableBody>
                                             {milestoneTasks.map((task: any) => {
+                                              const deliverable = getDeliverable(task.deliverableId);
                                               const taskEpic = getEpic(task.epicId);
                                               const assignee = getAssignee(task.assigneeId);
                                               return (
                                                 <TableRow key={task.id} className="hover:bg-muted/30" data-testid={`row-task-${task.id}`}>
                                                   <TableCell className="py-2">
                                                     <div className="flex items-center gap-2 min-w-0">
-                                                      <div 
+                                                      <div
                                                         className="w-2 h-2 rounded-full shrink-0"
                                                         style={{ backgroundColor: getStatusAccentColor(task.status) }}
                                                       />
@@ -928,8 +824,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                                     )}
                                                   </TableCell>
                                                   <TableCell className="py-2">
-                                                    <Select 
-                                                      value={task.status} 
+                                                    <Select
+                                                      value={task.status}
                                                       onValueChange={(v) => handleTaskStatusChange(task.id, v)}
                                                     >
                                                       <SelectTrigger className={cn("h-6 text-[10px] border px-2 w-auto rounded-full", getStatusBgColor(task.status), getStatusTextColor(task.status))}>
@@ -945,6 +841,18 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                                         ))}
                                                       </SelectContent>
                                                     </Select>
+                                                  </TableCell>
+                                                  <TableCell className="py-2">
+                                                    <SearchableSelect
+                                                      value={task.deliverableId || ""}
+                                                      onValueChange={(v) => handleTaskDeliverableChange(task.id, v || null)}
+                                                      className="h-6 text-xs w-[100px]"
+                                                      placeholder="No deliverable"
+                                                      options={[
+                                                        { value: "", label: "No deliverable" },
+                                                        ...projectDeliverables.map((d: any) => ({ value: d.id, label: d.title }))
+                                                      ]}
+                                                    />
                                                   </TableCell>
                                                   <TableCell className="py-2">
                                                     <SearchableSelect
@@ -970,9 +878,9 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                                   <TableCell className="py-2">
                                                     <Popover>
                                                       <PopoverTrigger asChild>
-                                                        <Button 
-                                                          variant="ghost" 
-                                                          size="sm" 
+                                                        <Button
+                                                          variant="ghost"
+                                                          size="sm"
                                                           className="h-6 px-2 text-xs justify-start font-normal"
                                                         >
                                                           <CalendarIcon className="h-3 w-3 mr-1 text-muted-foreground" />
@@ -988,9 +896,9 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                                                             initialFocus
                                                           />
                                                           {task.deadline && (
-                                                            <Button 
-                                                              variant="ghost" 
-                                                              size="sm" 
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
                                                               className="w-full mt-2 text-xs text-muted-foreground"
                                                               onClick={() => handleTaskDeadlineChange(task.id, undefined)}
                                                             >
@@ -1053,8 +961,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
               const progress = getMilestoneProgress(milestone.id);
 
               return (
-                <Card 
-                  key={milestone.id} 
+                <Card
+                  key={milestone.id}
                   className="hover:shadow-md transition-shadow group"
                   data-testid={`card-milestone-${milestone.id}`}
                 >
@@ -1092,17 +1000,17 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                       <Progress value={progress.percent} className="h-1.5" />
 
                       <div className="flex flex-wrap gap-1.5">
-                        <Badge 
+                        <Badge
                           variant="secondary"
                           className={cn(
                             "text-[10px]",
-                            milestone.status === "achieved" || milestone.status === "Completed" 
-                              ? "bg-green-100 text-green-700" 
+                            milestone.status === "achieved" || milestone.status === "Completed"
+                              ? "bg-green-100 text-green-700"
                               : milestone.status === "in_progress" || milestone.status === "In Progress"
-                              ? "bg-blue-100 text-blue-700"
-                              : milestone.status === "slipped" || milestone.status === "Blocked"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-slate-100 text-slate-700"
+                                ? "bg-blue-100 text-blue-700"
+                                : milestone.status === "slipped" || milestone.status === "Blocked"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-slate-100 text-slate-700"
                           )}
                         >
                           {status.label}
@@ -1126,8 +1034,8 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
                         </div>
                         <div className="flex items-center gap-1">
                           <CalendarIcon className="h-3 w-3" />
-                          {milestone.targetDate 
-                            ? new Date(milestone.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) 
+                          {milestone.targetDate
+                            ? new Date(milestone.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                             : '—'}
                         </div>
                       </div>
@@ -1141,200 +1049,12 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
       </div>
 
       {/* Add Task Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Add Task to Milestone</DialogTitle>
-            <DialogDescription>
-              Search for an existing task or create a new one.
-            </DialogDescription>
-          </DialogHeader>
-
-          <Tabs value={dialogMode} onValueChange={(v) => setDialogMode(v as "search" | "create")} className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="search" data-testid="tab-search-task">
-                <Search className="h-4 w-4 mr-2" />
-                Search Existing
-              </TabsTrigger>
-              <TabsTrigger value="create" data-testid="tab-create-task">
-                <Plus className="h-4 w-4 mr-2" />
-                Create New
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="search" className="flex-1 overflow-hidden flex flex-col mt-4">
-              <div className="space-y-3">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search tasks by title..."
-                    className="pl-9"
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    data-testid="input-search-task"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <SearchableSelect 
-                    value={selectedEpicId || "all"} 
-                    onValueChange={(v) => setSelectedEpicId(v === "all" ? "" : v)}
-                    className="w-[200px]"
-                    data-testid="select-search-epic"
-                    placeholder="Filter by Epic"
-                    options={[
-                      { value: "all", label: "All Epics" },
-                      ...projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))
-                    ]}
-                  />
-                  <SearchableSelect 
-                    value={selectedStageId || "all"} 
-                    onValueChange={(v) => setSelectedStageId(v === "all" ? "" : v)}
-                    className="w-[200px]"
-                    data-testid="select-search-stage"
-                    placeholder="Filter by Stage"
-                    options={[
-                      { value: "all", label: "All Stages" },
-                      ...projectStages.map((stage: any) => ({ value: stage.id, label: stage.label }))
-                    ]}
-                  />
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto mt-3 border rounded-md">
-                {filteredSearchTasks.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No matching tasks found.</p>
-                    <p className="text-xs mt-1">Try adjusting your search or filters.</p>
-                  </div>
-                ) : (
-                  <div className="divide-y">
-                    {filteredSearchTasks.map((task: any) => {
-                      const epic = getEpic(task.epicId);
-                      const stage = projectStages.find((s: any) => s.id === task.stageId);
-                      return (
-                        <div 
-                          key={task.id} 
-                          className="p-3 hover:bg-muted/50 flex items-center justify-between cursor-pointer"
-                          onClick={() => handleLinkTask(task.id)}
-                          data-testid={`search-result-task-${task.id}`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium truncate">{task.title}</h4>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                              {epic && <span>{epic.title}</span>}
-                              {stage && (
-                                <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                                  {stage.label}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <Button size="sm" variant="ghost" className="shrink-0">
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="create" className="flex-1 overflow-y-auto mt-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="new-task-title">Title <span className="text-red-500">*</span></Label>
-                  <Input 
-                    id="new-task-title"
-                    placeholder="Enter task title..."
-                    value={newTaskTitle}
-                    onChange={e => setNewTaskTitle(e.target.value)}
-                    data-testid="input-new-task-title"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="new-task-description">Description</Label>
-                  <Textarea 
-                    id="new-task-description"
-                    placeholder="Enter task description..."
-                    value={newTaskDescription}
-                    onChange={e => setNewTaskDescription(e.target.value)}
-                    rows={2}
-                    data-testid="input-new-task-description"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Epic <span className="text-red-500">*</span></Label>
-                    <SearchableSelect 
-                      value={selectedEpicId} 
-                      onValueChange={(v) => { setSelectedEpicId(v); setSelectedStageId(""); }}
-                      data-testid="select-new-task-epic"
-                      placeholder="Select Epic first"
-                      options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Stage</Label>
-                    <SearchableSelect 
-                      value={selectedStageId} 
-                      onValueChange={setSelectedStageId}
-                      disabled={!selectedEpicId}
-                      data-testid="select-new-task-stage"
-                      placeholder={selectedEpicId ? "Select Stage" : "Select Epic first"}
-                      options={projectStages.map((stage: any) => ({ value: stage.id, label: stage.label }))}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Priority</Label>
-                    <SearchableSelect 
-                      value={newTaskPriority} 
-                      onValueChange={setNewTaskPriority}
-                      data-testid="select-new-task-priority"
-                      options={[
-                        { value: "Low", label: "Low" },
-                        { value: "Medium", label: "Medium" },
-                        { value: "High", label: "High" },
-                        { value: "Critical", label: "Critical" }
-                      ]}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Effort (Fibonacci) <span className="text-red-500">*</span></Label>
-                    <SearchableSelect 
-                      value={newTaskEffort?.toString() || ""} 
-                      onValueChange={(v) => setNewTaskEffort(v ? parseInt(v) : null)}
-                      data-testid="select-new-task-effort"
-                      placeholder="Select effort"
-                      options={EFFORT_VALUES.map((val) => ({ value: val.toString(), label: val.toString() }))}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <DialogFooter className="mt-6">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                <Button 
-                  onClick={handleCreateTask}
-                  loading={isCreating}
-                  disabled={!newTaskTitle.trim() || !selectedEpicId || !selectedStageId || !newTaskEffort}
-                  data-testid="button-create-task"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {isCreating ? "Creating..." : "Create & Link"}
-                </Button>
-              </DialogFooter>
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+      <TaskQuickCreateDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        defaultProjectId={projectId}
+        defaultMilestoneId={dialogMilestoneId || undefined}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -1347,7 +1067,7 @@ export function MilestonesContent({ projectId }: { projectId: string }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setMilestoneToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleDeleteMilestone}
               className="bg-red-600 hover:bg-red-700"
               data-testid="confirm-delete-milestone"

@@ -3,21 +3,21 @@ import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card";
-import { 
-  Check, 
-  ChevronRight, 
-  ChevronLeft, 
-  Package, 
-  Layers, 
-  Users, 
+import {
+  Check,
+  ChevronRight,
+  ChevronLeft,
+  Package,
+  Layers,
+  Users,
   Settings,
   Save,
   Loader2,
@@ -48,10 +48,10 @@ import * as XLSX from "xlsx";
 import { useImportOptional } from "@/context/import-context";
 import { useCurrentUser } from "@/context/current-user-context";
 import { useCreationReport } from "@/context/creation-report-context";
-import { 
-  toWizardProjectData, 
-  toWizardDeliverables, 
-  toWizardStages, 
+import {
+  toWizardProjectData,
+  toWizardDeliverables,
+  toWizardStages,
   toWizardMilestones,
   toWizardRoles,
   toWizardSprints
@@ -59,7 +59,7 @@ import {
 import { ImportSummaryBanner } from "@/components/import/ImportFieldIndicator";
 import type { CreationReport, FullProjectCreatePayload } from "@shared/creation-result-types";
 
-import { 
+import {
   useProjects,
   useDeliverables,
   useEpics,
@@ -80,11 +80,11 @@ import {
   useTaskTypes
 } from "@/hooks/use-nexus-data";
 
-import { 
-  ProjectData, 
-  WizardDeliverable, 
-  WizardStage, 
-  WizardMilestone, 
+import {
+  ProjectData,
+  WizardDeliverable,
+  WizardStage,
+  WizardMilestone,
   WizardRole,
   WizardTemplateSnippet,
   WizardRoleType,
@@ -117,13 +117,13 @@ export default function ProjectWizard() {
   const [unassignedTasksStats, setUnassignedTasksStats] = useState({ total: 0, unassigned: 0, fromImport: false });
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [pendingLeaveLocation, setPendingLeaveLocation] = useState<string | null>(null);
-  
+
   const importContext = useImportOptional();
   const isImportMode = importContext?.state?.isImportMode || false;
   const { setReport, startCreating, finishCreating, failCreating } = useCreationReport();
   const queryClient = useQueryClient();
   const { currentUserId } = useCurrentUser();
-  
+
   const { data: frameworkTemplates = [], isLoading: loadingFrameworks } = useFrameworkTemplates();
   const { data: stageTemplates = [], isLoading: loadingStages } = useStageTemplates();
   const { data: projectTemplatesData = [], isLoading: loadingProjects } = useProjectTemplates();
@@ -133,29 +133,29 @@ export default function ProjectWizard() {
   const { data: roleTemplates = [], isLoading: loadingRoles } = useRoleTemplates();
   const { data: milestoneTemplatesData = [], isLoading: loadingMilestoneTemplates } = useMilestoneTemplates();
   const { data: users = [], isLoading: loadingUsers } = useUsers();
-  
+
   // Types from admin defaults (for type selectors in wizard)
   const { data: deliverableTypes = [], isLoading: loadingDeliverableTypes } = useDeliverableTypes();
   const { data: epicTypes = [], isLoading: loadingEpicTypes } = useEpicTypes();
   const { data: taskTypes = [], isLoading: loadingTaskTypes } = useTaskTypes();
-  
+
   const { createAsync: createProject } = useProjects();
   const { createAsync: createDeliverable } = useDeliverables();
   const { createAsync: createEpic } = useEpics();
   const { createAsync: createTask } = useTasks();
   const { createAsync: createProjectStage } = useProjectStages();
   const { createAsync: createMilestone } = useMilestones();
-  
-  const isLoading = loadingFrameworks || loadingStages || loadingProjects || 
-                    loadingDeliverables || loadingEpics || loadingTasks || 
-                    loadingRoles || loadingMilestoneTemplates || loadingUsers || 
-                    loadingDeliverableTypes || loadingEpicTypes || loadingTaskTypes;
-  
+
+  const isLoading = loadingFrameworks || loadingStages || loadingProjects ||
+    loadingDeliverables || loadingEpics || loadingTasks ||
+    loadingRoles || loadingMilestoneTemplates || loadingUsers ||
+    loadingDeliverableTypes || loadingEpicTypes || loadingTaskTypes;
+
   const [projectData, setProjectData] = useState<ProjectData>({
     name: "",
     description: "",
     templateId: "",
-    client: "",
+    clientId: "",
     startDate: new Date().toISOString().split('T')[0],
     dueDate: "",
     sprintDurationWeeks: 2,
@@ -197,17 +197,17 @@ export default function ProjectWizard() {
 
   // Track previous project dates to detect changes
   const prevDatesRef = useRef({ startDate: projectData.startDate, dueDate: projectData.dueDate });
-  
+
   // Check if user has unsaved work in the wizard
   const hasUnsavedWork = useMemo(() => {
-    return projectData.name.trim() !== '' || 
-           projectData.description.trim() !== '' ||
-           deliverables.length > 0 ||
-           stages.length > 0 ||
-           roles.length > 0 ||
-           milestones.length > 0;
+    return projectData.name.trim() !== '' ||
+      projectData.description.trim() !== '' ||
+      deliverables.length > 0 ||
+      stages.length > 0 ||
+      roles.length > 0 ||
+      milestones.length > 0;
   }, [projectData.name, projectData.description, deliverables, stages, roles, milestones]);
-  
+
   // Warn user when trying to leave the page with unsaved work
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -217,28 +217,28 @@ export default function ProjectWizard() {
         return '';
       }
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedWork, isCreating]);
-  
+
   // Recalculate stage dates when project dates change
   useEffect(() => {
     const prevDates = prevDatesRef.current;
-    const datesChanged = prevDates.startDate !== projectData.startDate || 
-                         prevDates.dueDate !== projectData.dueDate;
-    
+    const datesChanged = prevDates.startDate !== projectData.startDate ||
+      prevDates.dueDate !== projectData.dueDate;
+
     if (datesChanged && stages.length > 0 && projectData.startDate && projectData.dueDate) {
       setStagesRaw(calculateStageDates(stages, projectData.startDate, projectData.dueDate));
     }
-    
+
     prevDatesRef.current = { startDate: projectData.startDate, dueDate: projectData.dueDate };
   }, [projectData.startDate, projectData.dueDate]);
 
   useEffect(() => {
     if (isImportMode && !importInitialized && importContext?.state?.adapterResult) {
       const adapter = importContext.state.adapterResult;
-      
+
       // Debug logging for import flow
       console.log('[WIZARD-IMPORT] Adapter result received:', {
         projectName: adapter.projectData?.name?.value,
@@ -248,7 +248,7 @@ export default function ProjectWizard() {
         rolesCount: adapter.roles?.length || 0,
         warnings: adapter.warnings
       });
-      
+
       if (adapter.deliverables?.length > 0) {
         console.log('[WIZARD-IMPORT] Deliverables:', adapter.deliverables.map((d: any) => ({
           id: d.id,
@@ -256,7 +256,7 @@ export default function ProjectWizard() {
           epicsCount: d.epics?.length || 0
         })));
       }
-      
+
       if (adapter.stages?.length > 0) {
         console.log('[WIZARD-IMPORT] Stages:', adapter.stages.map((s: any) => ({
           id: s.id,
@@ -264,7 +264,7 @@ export default function ProjectWizard() {
           tasksCount: s.tasks?.length || 0
         })));
       }
-      
+
       const importedProject = toWizardProjectData(adapter.projectData);
       if (importedProject.name || importedProject.description) {
         setProjectData(prev => ({
@@ -274,21 +274,21 @@ export default function ProjectWizard() {
           startDate: importedProject.startDate || prev.startDate,
           dueDate: importedProject.dueDate || prev.dueDate,
           sprintDurationWeeks: importedProject.sprintDurationWeeks || prev.sprintDurationWeeks,
-          client: importedProject.client || prev.client,
+          clientId: importedProject.clientId || prev.clientId,
           ownerId: importedProject.ownerId || currentUserId || prev.ownerId
         }));
       }
-      
+
       // Convert stages first (now returns empty tasks array - just stage metadata)
       const importedStages = toWizardStages(
-        adapter.stages, 
+        adapter.stages,
         importContext.state.userMappings,
         importContext.state.defaultUnassignedTo?.userId
       );
       if (importedStages.length > 0) {
         setStagesRaw(importedStages);
       }
-      
+
       // Convert deliverables with imported tasks placed directly into epic.tasks
       // This prevents task duplication: imported tasks go to epics, template tasks go to stages
       const importedDeliverables = toWizardDeliverables(
@@ -301,25 +301,25 @@ export default function ProjectWizard() {
       if (importedDeliverables.length > 0) {
         setDeliverables(importedDeliverables);
       }
-      
+
       const importedMilestones = toWizardMilestones(adapter.milestones);
       if (importedMilestones.length > 0) {
         setMilestones(importedMilestones);
       }
-      
+
       const importedRoles = toWizardRoles(adapter.roles);
       if (importedRoles.length > 0) {
         setRoles(importedRoles);
       }
-      
+
       // Initialize sprints from import data
       if (adapter.sprints && adapter.sprints.length > 0) {
         const importedSprints = toWizardSprints(adapter.sprints);
         setSprints(importedSprints);
       }
-      
+
       setImportInitialized(true);
-      
+
       toast({
         title: "Import data loaded",
         description: `Loaded data from ${importContext.state.sourceFileName}. Review and adjust as needed.`,
@@ -338,9 +338,9 @@ export default function ProjectWizard() {
       const hasMgmtActivities = deliverables.some(d => d.id.startsWith('d-mgmt-') || d.title === 'Management Activities');
       if (!hasMgmtActivities) {
         const timestamp = Date.now();
-        
+
         // Get all "once" tasks from stages to apply to Product Management epic
-        const onceTasks = stages.flatMap(stage => 
+        const onceTasks = stages.flatMap(stage =>
           stage.tasks.filter(t => t.scope === 'once').map(task => ({
             id: `t-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             title: task.title,
@@ -353,7 +353,7 @@ export default function ProjectWizard() {
             taskTypeId: task.taskTypeId
           }))
         );
-        
+
         const mgmtActivitiesDeliverable: WizardDeliverable = {
           id: `d-mgmt-${timestamp}`,
           title: 'Management Activities',
@@ -387,10 +387,10 @@ export default function ProjectWizard() {
 
   const syncRolesFromStagesAndTasks = () => {
     const uniqueRoleIds = new Set<string>();
-    
+
     stages.forEach(stage => {
       (stage.defaultRoles || []).forEach((rid: string) => uniqueRoleIds.add(rid));
-      
+
       (stage.tasks || []).forEach(task => {
         if (task.assigneeRoleTypeId) {
           uniqueRoleIds.add(task.assigneeRoleTypeId);
@@ -399,14 +399,14 @@ export default function ProjectWizard() {
     });
 
     const existingTemplateIds = new Set(roles.map(r => r.templateId).filter(Boolean));
-    
+
     const coreRoles: WizardRole[] = CORE_PROJECT_ROLES.map(core => {
       // Match existing roles by templateId OR by roleType (for roles created by buildRolesArray)
-      const existingRole = roles.find(r => 
+      const existingRole = roles.find(r =>
         r.templateId === core.templateId || r.roleType === core.roleType
       );
       if (existingRole) return existingRole;
-      
+
       return {
         id: `r-${Date.now()}-${Math.random()}`,
         templateId: core.templateId,
@@ -423,10 +423,10 @@ export default function ProjectWizard() {
       .map(rid => {
         const rTemplate = roleTemplates.find((rt: any) => rt.id === rid);
         if (!rTemplate) return null;
-        
+
         const existingRole = roles.find(r => r.templateId === rid);
         if (existingRole) return existingRole;
-        
+
         return {
           id: `r-${Date.now()}-${Math.random()}`,
           templateId: rTemplate.id,
@@ -439,8 +439,8 @@ export default function ProjectWizard() {
       })
       .filter(Boolean) as WizardRole[];
 
-    const existingNonCoreRoles = roles.filter(r => 
-      !r.isCore && 
+    const existingNonCoreRoles = roles.filter(r =>
+      !r.isCore &&
       !CORE_PROJECT_ROLES.some(c => c.templateId === r.templateId || c.roleType === r.roleType) &&
       !stageRoles.some(sr => sr.templateId === r.templateId)
     );
@@ -461,18 +461,18 @@ export default function ProjectWizard() {
         return;
       }
     }
-    
+
     // Step 3 is Team Assignment - sync roles from stages for team assignment dropdowns
     if (currentStep === 3) {
       syncRolesFromStagesAndTasks();
     }
-    
+
     // Step 4 is Stage Configuration - no special validation needed
-    
+
     // Step 5 is Work Breakdown - ensure deliverables have epics
     if (currentStep === 5) {
       const deliverablesWithoutEpics = deliverables.filter(d => !d.epics || d.epics.length === 0);
-      
+
       if (deliverablesWithoutEpics.length > 0) {
         const updatedDeliverables = deliverables.map(d => {
           if (!d.epics || d.epics.length === 0) {
@@ -493,11 +493,11 @@ export default function ProjectWizard() {
           description: `Created default epics for ${deliverablesWithoutEpics.length} deliverable(s) that had none.`,
         });
       }
-      
-      const deliverablesWithEmptyEpicTitles = deliverables.filter(d => 
+
+      const deliverablesWithEmptyEpicTitles = deliverables.filter(d =>
         d.epics && d.epics.length > 0 && d.epics.every(e => !e.title.trim())
       );
-      
+
       if (deliverablesWithEmptyEpicTitles.length > 0) {
         toast({
           title: "Epic Names Required",
@@ -507,24 +507,24 @@ export default function ProjectWizard() {
         return;
       }
     }
-    
+
     // Step 6 is Task Alignment - validate orphan tasks are resolved
     if (currentStep === 6) {
-      const hasImportedTasks = stages.some(stage => 
-        stage.tasks.some(task => 
+      const hasImportedTasks = stages.some(stage =>
+        stage.tasks.some(task =>
           task.mappingStatus && ['mapped', 'orphaned', 'manual', 'skipped'].includes(task.mappingStatus)
         )
       );
-      
+
       if (hasImportedTasks) {
-        const hasUnresolvedPerEpicTasks = stages.some(stage => 
-          stage.tasks.some(task => 
-            task.scope === 'per_epic' && 
-            !task.assignedEpicId && 
+        const hasUnresolvedPerEpicTasks = stages.some(stage =>
+          stage.tasks.some(task =>
+            task.scope === 'per_epic' &&
+            !task.assignedEpicId &&
             task.mappingStatus === 'orphaned'
           )
         );
-        
+
         if (hasUnresolvedPerEpicTasks) {
           toast({
             title: "Unassigned Tasks",
@@ -535,7 +535,7 @@ export default function ProjectWizard() {
         }
       }
     }
-    
+
     proceedToNextStep();
   };
 
@@ -543,7 +543,7 @@ export default function ProjectWizard() {
     let total = 0;
     let assigned = 0;
     let fromImport = false;
-    
+
     stages.forEach(stage => {
       if (stage.tasks) {
         stage.tasks.forEach(task => {
@@ -558,7 +558,7 @@ export default function ProjectWizard() {
         });
       }
     });
-    
+
     deliverables?.forEach(deliverable => {
       deliverable.epics?.forEach(epic => {
         if (epic.tasks) {
@@ -571,30 +571,30 @@ export default function ProjectWizard() {
         }
       });
     });
-    
+
     return { total, unassigned: total - assigned, fromImport };
   };
 
   const hasOrphanedImportedTasks = (): boolean => {
-    return stages.some(stage => 
-      stage.tasks.some(task => 
-        task.mappingStatus === 'orphaned' && 
-        task.scope === 'per_epic' && 
+    return stages.some(stage =>
+      stage.tasks.some(task =>
+        task.mappingStatus === 'orphaned' &&
+        task.scope === 'per_epic' &&
         !task.assignedEpicId
       )
     );
   };
-  
+
   const shouldShowTaskAlignment = hasOrphanedImportedTasks();
 
   const proceedToNextStep = () => {
     if (currentStep < STEPS.length) {
       let nextStep = currentStep + 1;
-      
+
       if (currentStep === 5 && nextStep === 6 && !shouldShowTaskAlignment) {
         nextStep = 7;
       }
-      
+
       // Show transition state for user feedback
       setIsTransitioning(true);
       // Use setTimeout to allow UI to update before heavy render
@@ -614,9 +614,9 @@ export default function ProjectWizard() {
 
   const getStepResetWarning = (fromStep: number, toStep: number): string | null => {
     if (toStep >= fromStep) return null;
-    
+
     const warnings: string[] = [];
-    
+
     if (toStep <= 3 && fromStep >= 5) {
       warnings.push("Stage configurations and task assignments");
     }
@@ -626,16 +626,16 @@ export default function ProjectWizard() {
     if (toStep <= 1 && fromStep >= 3) {
       warnings.push("Work breakdown structure (deliverables and epics)");
     }
-    
+
     if (warnings.length === 0) return null;
     return warnings.join(", ");
   };
 
   const handleStepSelect = (stepId: number) => {
     if (stepId === currentStep) return;
-    
+
     let targetStep = stepId;
-    
+
     if (stepId === 6 && !shouldShowTaskAlignment) {
       if (currentStep < 6) {
         targetStep = 7;
@@ -643,9 +643,9 @@ export default function ProjectWizard() {
         targetStep = 5;
       }
     }
-    
+
     if (targetStep === currentStep) return;
-    
+
     if (targetStep < currentStep) {
       if (targetStep === 5 && !shouldShowTaskAlignment && currentStep > 5) {
         targetStep = 4;
@@ -657,7 +657,7 @@ export default function ProjectWizard() {
         return;
       }
     }
-    
+
     if (targetStep > currentStep) {
       for (let i = currentStep; i < targetStep; i++) {
         setCurrentStep(i);
@@ -687,11 +687,11 @@ export default function ProjectWizard() {
   const handleBack = () => {
     if (currentStep > 1) {
       let prevStep = currentStep - 1;
-      
+
       if (currentStep === 7 && prevStep === 6 && !shouldShowTaskAlignment) {
         prevStep = 5;
       }
-      
+
       const warning = getStepResetWarning(currentStep, prevStep);
       if (warning) {
         setPendingStepChange(prevStep);
@@ -716,7 +716,7 @@ export default function ProjectWizard() {
       });
       return;
     }
-    
+
     if (!projectData.startDate || !projectData.dueDate) {
       toast({
         title: "Validation Error",
@@ -725,9 +725,9 @@ export default function ProjectWizard() {
       });
       return;
     }
-    
+
     setIsCreating(true);
-    
+
     startCreating({
       projectName: projectData.name,
       expectedCounts: {
@@ -739,9 +739,9 @@ export default function ProjectWizard() {
         roles: 0
       }
     });
-    
+
     setLocation('/projects/new/summary');
-    
+
     try {
       const response = await fetch('/api/projects/full-create', {
         method: 'POST',
@@ -756,7 +756,7 @@ export default function ProjectWizard() {
             frameworkId: null,
             sprintDurationWeeks: projectData.sprintDurationWeeks || null,
             ownerId: projectData.ownerId || null,
-            client: projectData.client || null,
+            clientId: projectData.clientId || null,
             riskLevel: null
           },
           stages: [],
@@ -765,16 +765,16 @@ export default function ProjectWizard() {
           roles: []
         })
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || 'Failed to create project');
       }
-      
+
       const result = await response.json();
-      
+
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      
+
       finishCreating({
         projectId: result.project?.id || null,
         projectName: projectData.name,
@@ -789,7 +789,7 @@ export default function ProjectWizard() {
         entityResults: [],
         breakdownByType: {}
       });
-      
+
     } catch (error: any) {
       console.error('Project creation failed:', error);
       failCreating(`Failed to create project: ${error.message}`, projectData.name);
@@ -802,21 +802,21 @@ export default function ProjectWizard() {
     for (const name of possibleNames) {
       if (row[name] !== undefined) return row[name];
     }
-    
+
     const rowKeys = Object.keys(row);
     const normalizedMap = new Map<string, string>();
     rowKeys.forEach(key => {
       const normalized = key.toLowerCase().replace(/[\s_-]/g, '');
       normalizedMap.set(normalized, key);
     });
-    
+
     for (const name of possibleNames) {
       const normalized = name.toLowerCase().replace(/[\s_-]/g, '');
       if (normalizedMap.has(normalized)) {
         return row[normalizedMap.get(normalized)!];
       }
     }
-    
+
     return undefined;
   };
 
@@ -829,7 +829,7 @@ export default function ProjectWizard() {
       try {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
-        
+
         const processedDeliverables = new Map<string, WizardDeliverable>();
         const deliverableIdMap = new Map<string, string>();
 
@@ -837,129 +837,129 @@ export default function ProjectWizard() {
         const epicsSheetName = wb.SheetNames.find(n => n.toLowerCase().includes('epic - epics') || n.toLowerCase().includes('epic'));
 
         if (deliverablesSheetName && epicsSheetName) {
-            const dData = XLSX.utils.sheet_to_json(wb.Sheets[deliverablesSheetName]);
-            const eData = XLSX.utils.sheet_to_json(wb.Sheets[epicsSheetName]);
+          const dData = XLSX.utils.sheet_to_json(wb.Sheets[deliverablesSheetName]);
+          const eData = XLSX.utils.sheet_to_json(wb.Sheets[epicsSheetName]);
 
-            dData.forEach((row: any) => {
-                const title = getRowValue(row, 'Deliverable Name', 'deliverable_name', 'Title', 'Name', 'Deliverable');
-                const externalId = getRowValue(row, 'Deliverable ID', 'deliverable_id', 'ID');
-                const description = getRowValue(row, 'Deliverable Description', 'deliverable_description', 'Description') || "";
+          dData.forEach((row: any) => {
+            const title = getRowValue(row, 'Deliverable Name', 'deliverable_name', 'Title', 'Name', 'Deliverable');
+            const externalId = getRowValue(row, 'Deliverable ID', 'deliverable_id', 'ID');
+            const description = getRowValue(row, 'Deliverable Description', 'deliverable_description', 'Description') || "";
 
-                if (title) {
-                    const id = `d-${Date.now()}-${Math.random()}`;
-                    const d: WizardDeliverable = {
-                        id,
-                        title,
-                        description,
-                        epics: []
-                    };
-                    
-                    if (!processedDeliverables.has(title)) {
-                        processedDeliverables.set(title, d);
-                    }
-                    
-                    if (externalId) {
-                        deliverableIdMap.set(String(externalId), title);
-                    }
-                }
-            });
+            if (title) {
+              const id = `d-${Date.now()}-${Math.random()}`;
+              const d: WizardDeliverable = {
+                id,
+                title,
+                description,
+                epics: []
+              };
 
-            eData.forEach((row: any) => {
-                const epicTitle = getRowValue(row, 'Epic Name', 'epic_name', 'Title', 'Name', 'Epic');
-                const description = getRowValue(row, 'Epic User Story', 'epic_user_story', 'Epic Description', 'Description') || "";
-                
-                const parentId = getRowValue(row, 'Deliverable ID', 'deliverable_id');
-                const parentName = getRowValue(row, 'Deliverable Name', 'deliverable_name', 'Deliverable', 'Parent');
-                
-                let targetDeliverableName = null;
+              if (!processedDeliverables.has(title)) {
+                processedDeliverables.set(title, d);
+              }
 
-                if (parentId && deliverableIdMap.has(String(parentId))) {
-                    targetDeliverableName = deliverableIdMap.get(String(parentId));
-                } else if (parentName && processedDeliverables.has(parentName)) {
-                    targetDeliverableName = parentName;
-                }
-                
-                if (epicTitle && targetDeliverableName && processedDeliverables.has(targetDeliverableName)) {
-                     processedDeliverables.get(targetDeliverableName)!.epics.push({
-                        id: `e-${Date.now()}-${Math.random()}`,
-                        title: epicTitle,
-                        description: description
-                     });
-                }
-            });
+              if (externalId) {
+                deliverableIdMap.set(String(externalId), title);
+              }
+            }
+          });
+
+          eData.forEach((row: any) => {
+            const epicTitle = getRowValue(row, 'Epic Name', 'epic_name', 'Title', 'Name', 'Epic');
+            const description = getRowValue(row, 'Epic User Story', 'epic_user_story', 'Epic Description', 'Description') || "";
+
+            const parentId = getRowValue(row, 'Deliverable ID', 'deliverable_id');
+            const parentName = getRowValue(row, 'Deliverable Name', 'deliverable_name', 'Deliverable', 'Parent');
+
+            let targetDeliverableName = null;
+
+            if (parentId && deliverableIdMap.has(String(parentId))) {
+              targetDeliverableName = deliverableIdMap.get(String(parentId));
+            } else if (parentName && processedDeliverables.has(parentName)) {
+              targetDeliverableName = parentName;
+            }
+
+            if (epicTitle && targetDeliverableName && processedDeliverables.has(targetDeliverableName)) {
+              processedDeliverables.get(targetDeliverableName)!.epics.push({
+                id: `e-${Date.now()}-${Math.random()}`,
+                title: epicTitle,
+                description: description
+              });
+            }
+          });
 
         } else {
-            const wsname = wb.SheetNames[0];
-            const ws = wb.Sheets[wsname];
-            const data = XLSX.utils.sheet_to_json(ws);
+          const wsname = wb.SheetNames[0];
+          const ws = wb.Sheets[wsname];
+          const data = XLSX.utils.sheet_to_json(ws);
 
-            const hasDeliverableCol = data.length > 0 && (getRowValue(data[0], 'Deliverable', 'Deliverable Name', 'deliverable_name') !== undefined);
-            
-            if (hasDeliverableCol) {
-                data.forEach((row: any) => {
-                    const dName = getRowValue(row, 'Deliverable', 'Deliverable Name', 'deliverable_name');
-                    const eName = getRowValue(row, 'Epic', 'Epic Name', 'epic_name', 'Title');
-                    
-                    if (dName) {
-                        if (!processedDeliverables.has(dName)) {
-                            processedDeliverables.set(dName, {
-                                id: `d-${Date.now()}-${Math.random()}`,
-                                title: dName,
-                                description: getRowValue(row, 'Deliverable Description', 'deliverable_description') || "",
-                                epics: []
-                            });
-                        }
+          const hasDeliverableCol = data.length > 0 && (getRowValue(data[0], 'Deliverable', 'Deliverable Name', 'deliverable_name') !== undefined);
 
-                        if (eName) {
-                            processedDeliverables.get(dName)!.epics.push({
-                                id: `e-${Date.now()}-${Math.random()}`,
-                                title: eName,
-                                description: getRowValue(row, 'Description', 'Epic Description', 'epic_description') || ""
-                            });
-                        }
-                    }
+          if (hasDeliverableCol) {
+            data.forEach((row: any) => {
+              const dName = getRowValue(row, 'Deliverable', 'Deliverable Name', 'deliverable_name');
+              const eName = getRowValue(row, 'Epic', 'Epic Name', 'epic_name', 'Title');
+
+              if (dName) {
+                if (!processedDeliverables.has(dName)) {
+                  processedDeliverables.set(dName, {
+                    id: `d-${Date.now()}-${Math.random()}`,
+                    title: dName,
+                    description: getRowValue(row, 'Deliverable Description', 'deliverable_description') || "",
+                    epics: []
+                  });
+                }
+
+                if (eName) {
+                  processedDeliverables.get(dName)!.epics.push({
+                    id: `e-${Date.now()}-${Math.random()}`,
+                    title: eName,
+                    description: getRowValue(row, 'Description', 'Epic Description', 'epic_description') || ""
+                  });
+                }
+              }
+            });
+          } else {
+            data.forEach((row: any) => {
+              const title = getRowValue(row, 'Title', 'Name') || Object.values(row)[0];
+              if (title && typeof title === 'string') {
+                processedDeliverables.set(title, {
+                  id: `d-${Date.now()}-${Math.random()}`,
+                  title: title,
+                  description: getRowValue(row, 'Description') || "",
+                  epics: []
                 });
-            } else {
-                 data.forEach((row: any) => {
-                    const title = getRowValue(row, 'Title', 'Name') || Object.values(row)[0];
-                    if (title && typeof title === 'string') {
-                         processedDeliverables.set(title, {
-                                id: `d-${Date.now()}-${Math.random()}`,
-                                title: title,
-                                description: getRowValue(row, 'Description') || "",
-                                epics: []
-                            });
-                    }
-                 });
-            }
+              }
+            });
+          }
         }
 
         if (processedDeliverables.size > 0) {
-            const epicCount = Array.from(processedDeliverables.values()).reduce((sum, d) => sum + d.epics.length, 0);
-            setDeliverables([...deliverables, ...Array.from(processedDeliverables.values())]);
-            toast({
-                title: "Import Successful",
-                description: `Imported ${processedDeliverables.size} deliverables with ${epicCount} epics from Excel.`,
-            });
+          const epicCount = Array.from(processedDeliverables.values()).reduce((sum, d) => sum + d.epics.length, 0);
+          setDeliverables([...deliverables, ...Array.from(processedDeliverables.values())]);
+          toast({
+            title: "Import Successful",
+            description: `Imported ${processedDeliverables.size} deliverables with ${epicCount} epics from Excel.`,
+          });
         } else {
-            toast({
-                title: "Import Failed",
-                description: "Could not find valid data structure. Please check column headers.",
-                variant: "destructive"
-            });
+          toast({
+            title: "Import Failed",
+            description: "Could not find valid data structure. Please check column headers.",
+            variant: "destructive"
+          });
         }
 
       } catch (error) {
         console.error("Error reading file:", error);
         toast({
-            title: "Import Error",
-            description: "Failed to parse the Excel file.",
-            variant: "destructive"
+          title: "Import Error",
+          description: "Failed to parse the Excel file.",
+          variant: "destructive"
         });
       }
     };
     reader.readAsBinaryString(file);
-    
+
     e.target.value = '';
   };
 
@@ -976,23 +976,23 @@ export default function ProjectWizard() {
 
       const framework = frameworkTemplates.find(f => f.id === template.defaultFrameworkId);
       const stageTemplateIds = framework?.defaultStages || [];
-      
+
       if (framework) {
         const frameworkStages = stageTemplateIds
-            .map((sid: string) => stageTemplates.find((st: any) => st.id === sid))
-            .filter(Boolean)
-            .map((st: any) => ({...st, taskCreationMode: 'per_epic' as const}));
+          .map((sid: string) => stageTemplates.find((st: any) => st.id === sid))
+          .filter(Boolean)
+          .map((st: any) => ({ ...st, taskCreationMode: 'per_epic' as const }));
         setStages(frameworkStages);
-        
+
         // Load milestone templates linked to these stages
         const linkedMilestoneTemplates = milestoneTemplatesData.filter(
           (mt: any) => mt.stageTemplateId && stageTemplateIds.includes(mt.stageTemplateId)
         );
-        
+
         if (linkedMilestoneTemplates.length > 0) {
           const wizardMilestones: WizardMilestone[] = linkedMilestoneTemplates.map((mt: any, idx: number) => {
             const linkedStage = frameworkStages.find((stage: any) => stage.id === mt.stageTemplateId);
-            
+
             return {
               id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
               name: mt.name,
@@ -1018,20 +1018,20 @@ export default function ProjectWizard() {
         const templateDeliverables = template.defaultDeliverables.map((did: string) => {
           const dTemplate = deliverableTemplates.find((dt: any) => dt.id === did);
           if (!dTemplate) return null;
-          
+
           return {
             id: `d-${Date.now()}-${Math.random()}`,
             title: dTemplate.title,
             description: dTemplate.description,
             epics: (dTemplate.defaultEpics || []).map((eid: string) => {
-                const eTemplate = epicTemplates.find((et: any) => et.id === eid);
-                if (!eTemplate) return null;
-                return {
-                    id: `e-${Date.now()}-${Math.random()}`,
-                    title: eTemplate.title,
-                    description: eTemplate.description,
-                    tasks: [] 
-                };
+              const eTemplate = epicTemplates.find((et: any) => et.id === eid);
+              if (!eTemplate) return null;
+              return {
+                id: `e-${Date.now()}-${Math.random()}`,
+                title: eTemplate.title,
+                description: eTemplate.description,
+                tasks: []
+              };
             }).filter(Boolean)
           };
         }).filter(Boolean);
@@ -1039,39 +1039,39 @@ export default function ProjectWizard() {
       }
 
       const uniqueRoleIds = new Set<string>();
-      
+
       if (template.defaultRoles) {
         template.defaultRoles.forEach((rid: string) => uniqueRoleIds.add(rid));
       }
 
       if (framework) {
         stageTemplateIds.forEach((sid: string) => {
-            const stage = stageTemplates.find((st: any) => st.id === sid);
-            if (stage) {
-                (stage.defaultRoles || []).forEach((rid: string) => uniqueRoleIds.add(rid));
-                
-                (stage.defaultTasks || []).forEach((tid: string) => {
-                    const task = taskTemplates.find((t: any) => t.id === tid);
-                    if (task?.assignedRoleId) {
-                        uniqueRoleIds.add(task.assignedRoleId);
-                    }
-                });
-            }
+          const stage = stageTemplates.find((st: any) => st.id === sid);
+          if (stage) {
+            (stage.defaultRoles || []).forEach((rid: string) => uniqueRoleIds.add(rid));
+
+            (stage.defaultTasks || []).forEach((tid: string) => {
+              const task = taskTemplates.find((t: any) => t.id === tid);
+              if (task?.assignedRoleId) {
+                uniqueRoleIds.add(task.assignedRoleId);
+              }
+            });
+          }
         });
       }
 
       const aggregatedRoles = Array.from(uniqueRoleIds).map(rid => {
-          const rTemplate = roleTemplates.find((rt: any) => rt.id === rid);
-          if (!rTemplate) return null;
-          return {
-              id: `r-${Date.now()}-${Math.random()}`,
-              name: rTemplate.name,
-              description: rTemplate.description,
-              roleType: rTemplate.defaultRoleType,
-              assigneeId: null
-          };
+        const rTemplate = roleTemplates.find((rt: any) => rt.id === rid);
+        if (!rTemplate) return null;
+        return {
+          id: `r-${Date.now()}-${Math.random()}`,
+          name: rTemplate.name,
+          description: rTemplate.description,
+          roleType: rTemplate.defaultRoleType,
+          assigneeId: null
+        };
       }).filter(Boolean) as WizardRole[];
-      
+
       setRoles(aggregatedRoles);
     }
   };
@@ -1084,18 +1084,18 @@ export default function ProjectWizard() {
       const frameworkStages = stageTemplateIds
         .map((sid: string) => stageTemplates.find((st: any) => st.id === sid))
         .filter(Boolean)
-        .map((st: any) => ({...st, taskCreationMode: 'per_epic' as const}));
+        .map((st: any) => ({ ...st, taskCreationMode: 'per_epic' as const }));
       setStages(frameworkStages);
 
       // Load milestone templates linked to these stages
       const linkedMilestoneTemplates = milestoneTemplatesData.filter(
         (mt: any) => mt.stageTemplateId && stageTemplateIds.includes(mt.stageTemplateId)
       );
-      
+
       if (linkedMilestoneTemplates.length > 0) {
         const wizardMilestones: WizardMilestone[] = linkedMilestoneTemplates.map((mt: any, idx: number) => {
           const linkedStage = frameworkStages.find((stage: any) => stage.id === mt.stageTemplateId);
-          
+
           return {
             id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
             name: mt.name,
@@ -1117,37 +1117,37 @@ export default function ProjectWizard() {
       }
 
       const uniqueRoleIds = new Set<string>();
-      
+
       if (projectData.templateId) {
-          const template = projectTemplatesData.find(t => t.id === projectData.templateId);
-          template?.defaultRoles?.forEach((rid: string) => uniqueRoleIds.add(rid));
+        const template = projectTemplatesData.find(t => t.id === projectData.templateId);
+        template?.defaultRoles?.forEach((rid: string) => uniqueRoleIds.add(rid));
       }
 
       stageTemplateIds.forEach((sid: string) => {
-          const stage = stageTemplates.find((st: any) => st.id === sid);
-          if (stage) {
-              (stage.defaultRoles || []).forEach((rid: string) => uniqueRoleIds.add(rid));
-              (stage.defaultTasks || []).forEach((tid: string) => {
-                  const task = taskTemplates.find((t: any) => t.id === tid);
-                  if (task?.assignedRoleId) {
-                      uniqueRoleIds.add(task.assignedRoleId);
-                  }
-              });
-          }
+        const stage = stageTemplates.find((st: any) => st.id === sid);
+        if (stage) {
+          (stage.defaultRoles || []).forEach((rid: string) => uniqueRoleIds.add(rid));
+          (stage.defaultTasks || []).forEach((tid: string) => {
+            const task = taskTemplates.find((t: any) => t.id === tid);
+            if (task?.assignedRoleId) {
+              uniqueRoleIds.add(task.assignedRoleId);
+            }
+          });
+        }
       });
 
       const aggregatedRoles = Array.from(uniqueRoleIds).map(rid => {
-          const rTemplate = roleTemplates.find((rt: any) => rt.id === rid);
-          if (!rTemplate) return null;
-          return {
-              id: `r-${Date.now()}-${Math.random()}`,
-              name: rTemplate.name,
-              description: rTemplate.description,
-              roleType: rTemplate.defaultRoleType,
-              assigneeId: null
-          };
+        const rTemplate = roleTemplates.find((rt: any) => rt.id === rid);
+        if (!rTemplate) return null;
+        return {
+          id: `r-${Date.now()}-${Math.random()}`,
+          name: rTemplate.name,
+          description: rTemplate.description,
+          roleType: rTemplate.defaultRoleType,
+          assigneeId: null
+        };
       }).filter(Boolean) as WizardRole[];
-      
+
       setRoles(aggregatedRoles);
     }
   };
@@ -1161,7 +1161,7 @@ export default function ProjectWizard() {
       });
       return;
     }
-    
+
     if (!projectData.startDate || !projectData.dueDate) {
       toast({
         title: "Validation Error",
@@ -1170,7 +1170,7 @@ export default function ProjectWizard() {
       });
       return;
     }
-    
+
     if (new Date(projectData.startDate) > new Date(projectData.dueDate)) {
       toast({
         title: "Validation Error",
@@ -1179,9 +1179,9 @@ export default function ProjectWizard() {
       });
       return;
     }
-    
+
     setIsCreating(true);
-    
+
     const taskAssignees = new Set<string>();
     stages.forEach(stage => {
       (stage.tasks || []).forEach(task => {
@@ -1195,10 +1195,10 @@ export default function ProjectWizard() {
         });
       });
     });
-    
+
     const rolesWithAssignees = [...roles];
     const existingUserIds = new Set(roles.filter(r => r.assigneeId).map(r => r.assigneeId));
-    
+
     // Ensure owner is in roles array if projectData.ownerId is set
     const hasOwnerRole = roles.some(r => r.roleType === 'owner' && r.assigneeId);
     if (projectData.ownerId && !hasOwnerRole) {
@@ -1213,7 +1213,7 @@ export default function ProjectWizard() {
       });
       existingUserIds.add(projectData.ownerId);
     }
-    
+
     let autoRoleCounter = 0;
     taskAssignees.forEach(assigneeId => {
       if (!existingUserIds.has(assigneeId)) {
@@ -1228,13 +1228,13 @@ export default function ProjectWizard() {
         });
       }
     });
-    
+
     const totalEpics = deliverables.reduce((sum, d) => sum + (d.epics?.length || 0), 0);
     const stageTasks = stages.reduce((sum, s) => sum + (s.tasks?.length || 0), 0);
-    const epicTasks = deliverables.reduce((sum, d) => 
+    const epicTasks = deliverables.reduce((sum, d) =>
       sum + d.epics.reduce((eSum, e) => eSum + (e.tasks?.length || 0), 0), 0);
     const totalTasks = stageTasks + epicTasks;
-    
+
     startCreating({
       projectName: projectData.name,
       expectedCounts: {
@@ -1247,9 +1247,9 @@ export default function ProjectWizard() {
         sprints: sprints.length
       }
     });
-    
+
     setLocation('/projects/new/summary');
-    
+
     try {
       const payload: FullProjectCreatePayload = {
         project: {
@@ -1258,10 +1258,10 @@ export default function ProjectWizard() {
           status: 'Upcoming',
           startDate: projectData.startDate || new Date().toISOString().split('T')[0],
           deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
-          frameworkId: projectData.frameworkId && projectData.frameworkId.trim() !== '' ? projectData.frameworkId : null,
-          sprintDurationWeeks: projectData.sprintDurationWeeks || null,
+          frameworkId: projectData.frameworkId || null,
+          sprintDurationWeeks: projectData.sprintDurationWeeks || 2,
           ownerId: projectData.ownerId || null,
-          client: projectData.client || null,
+          clientId: projectData.clientId || null,
           riskLevel: null
         },
         stages: stages.map((stage, index) => ({
@@ -1345,39 +1345,39 @@ export default function ProjectWizard() {
           status: s.status || 'planned',
           capacityHours: s.capacityHours || undefined
         })) : undefined,
-        userMappings: isImportMode && importContext?.state?.userMappings && importContext.state.userMappings.length > 0 
+        userMappings: isImportMode && importContext?.state?.userMappings && importContext.state.userMappings.length > 0
           ? importContext.state.userMappings.map(m => ({
-              sourceId: m.sourceId,
-              sourceName: m.sourceName,
-              sourceEmail: m.sourceEmail,
-              mappedToId: m.mappedToId,
-              mappedToName: m.mappedToName,
-              confidence: m.confidence,
-              action: m.action
-            }))
+            sourceId: m.sourceId,
+            sourceName: m.sourceName,
+            sourceEmail: m.sourceEmail,
+            mappedToId: m.mappedToId,
+            mappedToName: m.mappedToName,
+            confidence: m.confidence,
+            action: m.action
+          }))
           : undefined,
         importMetadata: isImportMode && importContext?.state?.sourceFileName ? {
           source: importContext.state.sourceFileName || 'imported',
           importedAt: new Date().toISOString()
         } : undefined
       };
-      
+
       const response = await fetch('/api/projects/full-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
+
       const report: CreationReport = await response.json();
-      
+
       if (!response.ok && !report.projectId) {
         throw new Error(report.fatalError || 'Failed to create project');
       }
-      
+
       if (isImportMode && importContext?.clearImport) {
         importContext.clearImport();
       }
-      
+
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["deliverables"] });
       queryClient.invalidateQueries({ queryKey: ["epics"] });
@@ -1395,13 +1395,13 @@ export default function ProjectWizard() {
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${report.projectId}/stages`] });
         queryClient.invalidateQueries({ queryKey: [`/api/projects/${report.projectId}/sprints`] });
       }
-      
+
       finishCreating(report);
-      
+
     } catch (error) {
       console.error("Error creating project:", error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : typeof error === 'object' && error !== null && 'message' in error
           ? String((error as any).message)
           : 'An unexpected error occurred';
@@ -1412,7 +1412,7 @@ export default function ProjectWizard() {
   };
 
   const templateSnippets: WizardTemplateSnippet[] = [];
-  
+
   const roleTypes: WizardRoleType[] = useMemo(() => {
     if (roleTemplates && roleTemplates.length > 0) {
       return roleTemplates.map((rt: any) => ({
@@ -1429,7 +1429,7 @@ export default function ProjectWizard() {
       { id: "rt-5", label: "Analysis", description: "Business analysis roles" },
     ];
   }, [roleTemplates]);
-  
+
   const eligibleUsers = useMemo(() => {
     const map = new Map<string, any[]>();
     roleTypes.forEach(rt => {
@@ -1441,7 +1441,7 @@ export default function ProjectWizard() {
   const handleSnippetApply = (snippetId: string) => {
     const snippet = templateSnippets.find(s => s.id === snippetId);
     if (!snippet) return;
-    
+
     const newStages = snippet.stageTemplateIds.map((sid, idx) => {
       const template = stageTemplates.find((t: any) => t.id === sid);
       if (!template) return null;
@@ -1456,9 +1456,9 @@ export default function ProjectWizard() {
         tasks: []
       };
     }).filter(Boolean) as WizardStage[];
-    
+
     setStages([...stages, ...newStages]);
-    
+
     toast({
       title: "Template Applied",
       description: `Applied "${snippet.name}" snippet with ${newStages.length} stages.`,
@@ -1470,17 +1470,17 @@ export default function ProjectWizard() {
     if (isImportMode && importContext?.state?.adapterResult) {
       // Re-import from the original adapter result
       const adapter = importContext.state.adapterResult;
-      
+
       // Regenerate stages (now returns empty tasks array - just stage metadata)
       const importedStages = toWizardStages(
-        adapter.stages, 
+        adapter.stages,
         importContext.state.userMappings,
         importContext.state.defaultUnassignedTo?.userId
       );
       if (importedStages.length > 0) {
         setStagesRaw(importedStages);
       }
-      
+
       // Regenerate deliverables with imported tasks placed directly into epic.tasks
       const importedDeliverables = toWizardDeliverables(
         adapter.deliverables,
@@ -1492,7 +1492,7 @@ export default function ProjectWizard() {
       if (importedDeliverables.length > 0) {
         setDeliverables(importedDeliverables);
       }
-      
+
       toast({
         title: "Configuration Reset",
         description: "Tasks have been regenerated from the original import file.",
@@ -1503,7 +1503,7 @@ export default function ProjectWizard() {
         ...d,
         epics: d.epics.map(e => ({
           ...e,
-          tasks: stages.flatMap((stage: WizardStage) => 
+          tasks: stages.flatMap((stage: WizardStage) =>
             stage.tasks
               .filter(t => t.scope === 'per_epic')
               .map(task => ({
@@ -1521,7 +1521,7 @@ export default function ProjectWizard() {
         }))
       }));
       setDeliverables(resetDeliverables);
-      
+
       toast({
         title: "Configuration Reset",
         description: "Tasks have been regenerated from stage templates.",
@@ -1588,14 +1588,14 @@ export default function ProjectWizard() {
     <Shell>
       <div className="py-6">
         <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight text-primary">
-              {isImportMode ? 'Import Project' : 'New Project Wizard'}
-            </h1>
-            <p className="text-muted-foreground">
-              {isImportMode 
-                ? 'Review and adjust the imported data, then create your project.'
-                : 'Follow the steps to set up your new project structure.'}
-            </p>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">
+            {isImportMode ? 'Import Project' : 'New Project Wizard'}
+          </h1>
+          <p className="text-muted-foreground">
+            {isImportMode
+              ? 'Review and adjust the imported data, then create your project.'
+              : 'Follow the steps to set up your new project structure.'}
+          </p>
         </div>
 
         {isImportMode && importContext?.state?.adapterResult && (
@@ -1609,7 +1609,7 @@ export default function ProjectWizard() {
                 name: "",
                 description: "",
                 templateId: "",
-                client: "",
+                clientId: "",
                 startDate: new Date().toISOString().split('T')[0],
                 dueDate: "",
                 sprintDurationWeeks: 2,
@@ -1625,41 +1625,41 @@ export default function ProjectWizard() {
         )}
 
         <div className="sticky top-0 z-20 bg-background pb-4 pt-2 -mt-2 mb-8 border-b">
-            <div className="flex items-center justify-between relative">
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted -z-10" />
-                {STEPS.map((step, idx) => {
-                    const isActive = currentStep === step.id;
-                    const isCompleted = currentStep > step.id;
-                    const Icon = STEP_ICONS[idx];
-                    const isTaskAlignmentStep = step.id === 6;
-                    const willBeSkipped = isTaskAlignmentStep && !shouldShowTaskAlignment;
-                    const isSkippedAndPast = willBeSkipped && currentStep > 6;
+          <div className="flex items-center justify-between relative">
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted -z-10" />
+            {STEPS.map((step, idx) => {
+              const isActive = currentStep === step.id;
+              const isCompleted = currentStep > step.id;
+              const Icon = STEP_ICONS[idx];
+              const isTaskAlignmentStep = step.id === 6;
+              const willBeSkipped = isTaskAlignmentStep && !shouldShowTaskAlignment;
+              const isSkippedAndPast = willBeSkipped && currentStep > 6;
 
-                    return (
-                        <div key={step.id} className={cn(
-                            "flex flex-col items-center gap-2 bg-background px-2",
-                            willBeSkipped && currentStep < 6 && "opacity-50"
-                        )}>
-                            <div 
-                                className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
-                                    isActive ? "border-primary bg-primary text-primary-foreground" : 
-                                    isCompleted || isSkippedAndPast ? "border-primary bg-primary/20 text-primary" : 
-                                    willBeSkipped && currentStep < 6 ? "border-dashed border-muted" : "border-muted bg-background text-muted-foreground"
-                                )}
-                            >
-                                {isCompleted || isSkippedAndPast ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
-                            </div>
-                            <div className="text-center hidden sm:block">
-                                <div className={cn("text-sm font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
-                                    {step.title}
-                                    {willBeSkipped && currentStep < 6 && <span className="text-xs ml-1">(skip)</span>}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+              return (
+                <div key={step.id} className={cn(
+                  "flex flex-col items-center gap-2 bg-background px-2",
+                  willBeSkipped && currentStep < 6 && "opacity-50"
+                )}>
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
+                      isActive ? "border-primary bg-primary text-primary-foreground" :
+                        isCompleted || isSkippedAndPast ? "border-primary bg-primary/20 text-primary" :
+                          willBeSkipped && currentStep < 6 ? "border-dashed border-muted" : "border-muted bg-background text-muted-foreground"
+                    )}
+                  >
+                    {isCompleted || isSkippedAndPast ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                  </div>
+                  <div className="text-center hidden sm:block">
+                    <div className={cn("text-sm font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
+                      {step.title}
+                      {willBeSkipped && currentStep < 6 && <span className="text-xs ml-1">(skip)</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <AlertDialog open={showBackWarning} onOpenChange={setShowBackWarning}>
@@ -1694,7 +1694,7 @@ export default function ProjectWizard() {
                 Unassigned Tasks
               </AlertDialogTitle>
               <AlertDialogDescription>
-                <strong>{unassignedTasksStats.unassigned}</strong> of <strong>{unassignedTasksStats.total}</strong> tasks 
+                <strong>{unassignedTasksStats.unassigned}</strong> of <strong>{unassignedTasksStats.total}</strong> tasks
                 do not have assignees yet.
                 {unassignedTasksStats.fromImport && (
                   <span className="block mt-2 text-green-600">
@@ -1735,14 +1735,14 @@ export default function ProjectWizard() {
               <AlertDialogCancel onClick={() => { setShowLeaveWarning(false); setPendingLeaveLocation(null); }}>
                 Stay and Continue
               </AlertDialogCancel>
-              <AlertDialogAction 
+              <AlertDialogAction
                 onClick={() => {
                   setShowLeaveWarning(false);
                   if (pendingLeaveLocation) {
                     setLocation(pendingLeaveLocation);
                   }
                   setPendingLeaveLocation(null);
-                }} 
+                }}
                 className="bg-destructive hover:bg-destructive/90"
               >
                 Leave Anyway
@@ -1752,143 +1752,143 @@ export default function ProjectWizard() {
         </AlertDialog>
 
         <Card className="flex flex-col">
-            <CardHeader className="sticky top-[88px] z-30 bg-muted/50 border-b py-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  {currentStep > 1 && (
-                    <Button 
-                        variant="outline" 
-                        onClick={handleBack} 
-                        disabled={isCreating || isTransitioning}
-                        loading={isTransitioning}
-                        data-testid="button-back"
-                    >
-                        <ChevronLeft className="h-4 w-4 mr-2" /> Back
-                    </Button>
-                  )}
-                  {(currentStep === 1 || currentStep === 3) && (
-                    <div className="flex items-center gap-1 ml-2">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              onClick={handleImportTrigger}
-                              disabled={isCreating}
-                            >
-                              <Upload className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <p className="text-xs">Import {currentStep === 1 ? 'settings' : 'team'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              onClick={handleExport}
-                              disabled={isCreating}
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <p className="text-xs">Export {currentStep === 1 ? 'settings' : 'team'}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex-1 flex justify-center">
-                  <Select 
-                    value={String(currentStep)} 
-                    onValueChange={(val) => handleStepSelect(Number(val))}
-                    disabled={isCreating}
+          <CardHeader className="sticky top-[88px] z-30 bg-muted/50 border-b py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                {currentStep > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    disabled={isCreating || isTransitioning}
+                    loading={isTransitioning}
+                    data-testid="button-back"
                   >
-                    <SelectTrigger className="w-[280px] bg-background shadow-sm" data-testid="select-step">
-                      <SelectValue>
-                        Step {currentStep}: {STEPS[currentStep - 1]?.title}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STEPS.map((step) => {
-                        const isCompleted = currentStep > step.id;
-                        const isCurrent = currentStep === step.id;
-                        return (
-                          <SelectItem 
-                            key={step.id} 
-                            value={String(step.id)}
-                            className={cn(
-                              isCurrent && "bg-primary/10",
-                              step.id > currentStep && "text-muted-foreground"
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              {isCompleted && <Check className="h-4 w-4 text-primary" />}
-                              <span>Step {step.id}: {step.title}</span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {currentStep === 1 && (
-                    <Button 
-                      variant="outline" 
-                      onClick={handleSkipWizard}
-                      data-testid="button-skip-wizard"
-                      disabled={!projectData.name.trim() || !projectData.startDate || !projectData.dueDate}
-                      loading={isCreating}
-                    >
-                      <Zap className="h-4 w-4 mr-2" />
-                      Start Blank
-                    </Button>
-                  )}
-                  <Button 
-                    onClick={handleNext} 
-                    loading={isCreating || isTransitioning}
-                    disabled={isTransitioning}
-                    data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}
-                  >
-                      {currentStep === STEPS.length ? (
-                          <>{isCreating ? "Creating..." : "Create Project"} <Save className="h-4 w-4 ml-2" /></>
-                      ) : (
-                          <>{isTransitioning ? "Loading..." : "Next"} <ChevronRight className="h-4 w-4 ml-2" /></>
-                      )}
+                    <ChevronLeft className="h-4 w-4 mr-2" /> Back
                   </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 pt-6">
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center h-64">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                        <p className="text-muted-foreground">Loading templates...</p>
-                    </div>
-                ) : (
-                  <>
-                    {currentStep === 1 && <StepBasics {...stepProps} ref={basicsRef} />}
-                    {currentStep === 2 && <StepSprints projectData={projectData} setProjectData={setProjectData} sprints={sprints} setSprints={setSprints} hasImportedSprints={isImportMode && sprints.length > 0} />}
-                    {currentStep === 3 && <StepTeamRoles {...stepProps} ref={teamRef} />}
-                    {currentStep === 4 && <StepStageConfig {...stepProps} />}
-                    {currentStep === 5 && <StepWorkBreakdown {...stepProps} />}
-                    {currentStep === 6 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
-                    {currentStep === 7 && <StepReview {...stepProps} />}
-                  </>
                 )}
-            </CardContent>
+                {(currentStep === 1 || currentStep === 3) && (
+                  <div className="flex items-center gap-1 ml-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={handleImportTrigger}
+                            disabled={isCreating}
+                          >
+                            <Upload className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p className="text-xs">Import {currentStep === 1 ? 'settings' : 'team'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            onClick={handleExport}
+                            disabled={isCreating}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p className="text-xs">Export {currentStep === 1 ? 'settings' : 'team'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 flex justify-center">
+                <Select
+                  value={String(currentStep)}
+                  onValueChange={(val) => handleStepSelect(Number(val))}
+                  disabled={isCreating}
+                >
+                  <SelectTrigger className="w-[280px] bg-background shadow-sm" data-testid="select-step">
+                    <SelectValue>
+                      Step {currentStep}: {STEPS[currentStep - 1]?.title}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STEPS.map((step) => {
+                      const isCompleted = currentStep > step.id;
+                      const isCurrent = currentStep === step.id;
+                      return (
+                        <SelectItem
+                          key={step.id}
+                          value={String(step.id)}
+                          className={cn(
+                            isCurrent && "bg-primary/10",
+                            step.id > currentStep && "text-muted-foreground"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isCompleted && <Check className="h-4 w-4 text-primary" />}
+                            <span>Step {step.id}: {step.title}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {currentStep === 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={handleSkipWizard}
+                    data-testid="button-skip-wizard"
+                    disabled={!projectData.name.trim() || !projectData.startDate || !projectData.dueDate}
+                    loading={isCreating}
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Start Blank
+                  </Button>
+                )}
+                <Button
+                  onClick={handleNext}
+                  loading={isCreating || isTransitioning}
+                  disabled={isTransitioning}
+                  data-testid={currentStep === STEPS.length ? "button-create-project" : "button-next-step"}
+                >
+                  {currentStep === STEPS.length ? (
+                    <>{isCreating ? "Creating..." : "Create Project"} <Save className="h-4 w-4 ml-2" /></>
+                  ) : (
+                    <>{isTransitioning ? "Loading..." : "Next"} <ChevronRight className="h-4 w-4 ml-2" /></>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 pt-6">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Loading templates...</p>
+              </div>
+            ) : (
+              <>
+                {currentStep === 1 && <StepBasics {...stepProps} ref={basicsRef} />}
+                {currentStep === 2 && <StepSprints projectData={projectData} setProjectData={setProjectData} sprints={sprints} setSprints={setSprints} hasImportedSprints={isImportMode && sprints.length > 0} />}
+                {currentStep === 3 && <StepTeamRoles {...stepProps} ref={teamRef} />}
+                {currentStep === 4 && <StepStageConfig {...stepProps} />}
+                {currentStep === 5 && <StepWorkBreakdown {...stepProps} />}
+                {currentStep === 6 && <StepTaskAlignment {...stepProps} hasImportedTasks={isImportMode && stages.some(s => s.tasks && s.tasks.length > 0)} />}
+                {currentStep === 7 && <StepReview {...stepProps} />}
+              </>
+            )}
+          </CardContent>
         </Card>
       </div>
     </Shell>

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { 
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -14,14 +14,14 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
-  Plus, 
-  Trash2, 
-  Users, 
-  AlertCircle, 
-  Shield, 
-  Layers, 
-  CheckCircle2, 
+import {
+  Plus,
+  Trash2,
+  Users,
+  AlertCircle,
+  Shield,
+  Layers,
+  CheckCircle2,
   AlertTriangle,
   ChevronDown,
   ChevronUp,
@@ -38,6 +38,7 @@ import { StepProps, WizardRole, WizardStage, WizardTaskDraft, CORE_PROJECT_ROLES
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useImportOptional } from "@/context/import-context";
 import { useToast } from "@/hooks/use-toast";
+import { useFilteredUsers } from "@/hooks/use-filtered-users";
 
 interface TeamExportData {
   owner: { userId: string; userName?: string } | null;
@@ -73,8 +74,9 @@ export const StepTeamRoles = forwardRef(({
   stages,
   setStages,
   deliverables,
+  projectData,
   setProjectData,
-}: StepProps, ref) => {
+}: StepProps & { projectData: any }, ref) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currentUserId } = useCurrentUser();
@@ -84,16 +86,16 @@ export const StepTeamRoles = forwardRef(({
     fileInputRef
   }));
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['owner', 'manager', 'stakeholder', 'member']));
-  
+
   const [ownerUserId, setOwnerUserIdState] = useState<string>("");
   const [managerUserId, setManagerUserIdState] = useState<string>("");
   const [stakeholderUserIds, setStakeholderUserIdsState] = useState<string[]>([]);
   const [teamMembers, setTeamMembersState] = useState<{ userId: string; executionRoleId?: string }[]>([]);
-  
+
   const importContext = useImportOptional();
   const importInitializedRef = useRef(false);
   const defaultOwnerSetRef = useRef(false);
-  
+
   // Default owner to current user if not set and not from import
   useEffect(() => {
     if (currentUserId && !ownerUserId && !importContext?.state?.isImportMode && !defaultOwnerSetRef.current) {
@@ -190,8 +192,8 @@ export const StepTeamRoles = forwardRef(({
     if (ownerUserId || managerUserId || stakeholderUserIds.length > 0 || teamMembers.length > 0) {
       const newRoles = buildRolesArray(ownerUserId, managerUserId, stakeholderUserIds, teamMembers);
       // Only update if the roles are different to avoid infinite loops
-      if (JSON.stringify(newRoles.map(r => ({ roleType: r.roleType, assigneeId: r.assigneeId, roleTypeId: r.roleTypeId }))) !== 
-          JSON.stringify(roles.map(r => ({ roleType: r.roleType, assigneeId: r.assigneeId, roleTypeId: r.roleTypeId })))) {
+      if (JSON.stringify(newRoles.map(r => ({ roleType: r.roleType, assigneeId: r.assigneeId, roleTypeId: r.roleTypeId }))) !==
+        JSON.stringify(roles.map(r => ({ roleType: r.roleType, assigneeId: r.assigneeId, roleTypeId: r.roleTypeId })))) {
         setRoles(newRoles);
       }
     }
@@ -200,41 +202,41 @@ export const StepTeamRoles = forwardRef(({
   useEffect(() => {
     if (importInitializedRef.current) return;
     if (!importContext?.state?.isImportMode) return;
-    
+
     const userMappings = importContext.state.userMappings || [];
     const mappedUsers = userMappings.filter(m => m.mappedToId && m.action === 'map');
-    
+
     if (mappedUsers.length === 0) return;
-    
+
     console.log('[TEAM-ROLES] Initializing from import with', mappedUsers.length, 'mapped users');
-    
+
     let newOwnerUserId = ownerUserId;
     let newManagerUserId = managerUserId;
     const newStakeholderUserIds: string[] = [...stakeholderUserIds];
     const importedTeamMembers: { userId: string; executionRoleId?: string }[] = [];
-    
+
     mappedUsers.forEach(mapping => {
       if (!mapping.mappedToId) return;
-      
+
       const projectRoles = mapping.projectRoles || [];
-      
+
       if (projectRoles.includes('owner') && !newOwnerUserId) {
         newOwnerUserId = mapping.mappedToId;
         console.log('[TEAM-ROLES] Set owner from import:', mapping.mappedToName);
       }
-      
+
       if (projectRoles.includes('manager') && !newManagerUserId) {
         newManagerUserId = mapping.mappedToId;
         console.log('[TEAM-ROLES] Set manager from import:', mapping.mappedToName);
       }
-      
+
       if (projectRoles.includes('stakeholder')) {
         if (!newStakeholderUserIds.includes(mapping.mappedToId)) {
           newStakeholderUserIds.push(mapping.mappedToId);
           console.log('[TEAM-ROLES] Added stakeholder from import:', mapping.mappedToName);
         }
       }
-      
+
       if (projectRoles.includes('member')) {
         const userTaskRoleIds: string[] = [];
         stages.forEach(stage => {
@@ -247,9 +249,9 @@ export const StepTeamRoles = forwardRef(({
             }
           });
         });
-        
+
         const executionRoleId = userTaskRoleIds.length > 0 ? userTaskRoleIds[0] : undefined;
-        
+
         if (!importedTeamMembers.find(m => m.userId === mapping.mappedToId)) {
           importedTeamMembers.push({
             userId: mapping.mappedToId,
@@ -259,7 +261,7 @@ export const StepTeamRoles = forwardRef(({
         }
       }
     });
-    
+
     if (newOwnerUserId !== ownerUserId) {
       setOwnerUserIdState(newOwnerUserId);
       // Also update projectData.ownerId for imported owner
@@ -271,14 +273,14 @@ export const StepTeamRoles = forwardRef(({
     if (newStakeholderUserIds.length > stakeholderUserIds.length) {
       setStakeholderUserIdsState(newStakeholderUserIds);
     }
-    
+
     if (importedTeamMembers.length > 0) {
       setTeamMembersState(importedTeamMembers);
     }
-    
+
     setRoles(buildRolesArray(newOwnerUserId, newManagerUserId, newStakeholderUserIds, importedTeamMembers));
     console.log('[TEAM-ROLES] Initialized roles from import - owner:', newOwnerUserId, 'manager:', newManagerUserId, 'stakeholders:', newStakeholderUserIds.length, 'members:', importedTeamMembers.length);
-    
+
     importInitializedRef.current = true;
   }, [importContext?.state?.isImportMode, importContext?.state?.userMappings, stages, buildRolesArray, ownerUserId, managerUserId, stakeholderUserIds, setRoles, setProjectData]);
 
@@ -292,23 +294,23 @@ export const StepTeamRoles = forwardRef(({
     if (rolesInitializedRef.current) return;
     // Skip if roles array is empty
     if (!roles || roles.length === 0) return;
-    
+
     console.log('[TEAM-ROLES] Initializing local state from roles prop:', roles.length, 'roles');
-    
+
     // Extract owner by roleType
     const ownerRole = roles.find(r => r.roleType === 'owner');
     const extractedOwner = ownerRole?.assigneeId || '';
-    
+
     // Extract manager by roleType
     const managerRole = roles.find(r => r.roleType === 'manager');
     const extractedManager = managerRole?.assigneeId || '';
-    
+
     // Extract stakeholders by roleType
     const stakeholderRoles = roles.filter(r => r.roleType === 'stakeholder');
     const extractedStakeholders = stakeholderRoles
       .map(r => r.assigneeId)
       .filter((id): id is string => !!id);
-    
+
     // Extract team members:
     // - Roles with roleTypeId set (execution roles with template)
     // - Roles with roleType === 'member' (generic team members)
@@ -321,14 +323,14 @@ export const StepTeamRoles = forwardRef(({
       // Include everything else (members and execution roles)
       return true;
     });
-    
+
     const extractedMembers = memberRoles
       .filter(r => r.assigneeId)
       .map(r => ({
         userId: r.assigneeId!,
         executionRoleId: r.roleTypeId
       }));
-    
+
     // Restore each field that is currently empty (allows partial restoration)
     if (!ownerUserId && extractedOwner) {
       setOwnerUserIdState(extractedOwner);
@@ -348,7 +350,7 @@ export const StepTeamRoles = forwardRef(({
       setTeamMembersState(extractedMembers);
       console.log('[TEAM-ROLES] Restored team members:', extractedMembers.length);
     }
-    
+
     rolesInitializedRef.current = true;
   }, [roles, ownerUserId, managerUserId, stakeholderUserIds, teamMembers, setProjectData]);
 
@@ -356,7 +358,7 @@ export const StepTeamRoles = forwardRef(({
     let totalTasks = 0;
     let assignedTasks = 0;
     let hasImportedAssignees = false;
-    
+
     stages.forEach(stage => {
       if (stage.tasks) {
         stage.tasks.forEach(task => {
@@ -384,7 +386,7 @@ export const StepTeamRoles = forwardRef(({
         }
       });
     });
-    
+
     return {
       totalTasks,
       assignedTasks,
@@ -395,10 +397,10 @@ export const StepTeamRoles = forwardRef(({
 
   const roleTaskSummary = useMemo(() => {
     const summary: Record<string, { roleName: string; roleTypeId: string; tasks: { title: string; stageName: string }[] }> = {};
-    
+
     roleTypes.forEach(roleType => {
       const tasksForRole: { title: string; stageName: string }[] = [];
-      
+
       stages.forEach(stage => {
         stage.tasks.forEach(task => {
           if (task.assigneeRoleTypeId === roleType.id) {
@@ -406,7 +408,7 @@ export const StepTeamRoles = forwardRef(({
           }
         });
       });
-      
+
       if (tasksForRole.length > 0) {
         summary[roleType.id] = {
           roleName: roleType.label,
@@ -415,7 +417,7 @@ export const StepTeamRoles = forwardRef(({
         };
       }
     });
-    
+
     return summary;
   }, [roleTypes, stages]);
 
@@ -423,12 +425,14 @@ export const StepTeamRoles = forwardRef(({
     return roleTaskSummary[executionRoleId] || null;
   };
 
+  const { filteredUsers } = useFilteredUsers(users, projectData?.clientId);
+
   const userOptions = useMemo(() => {
-    return users.map((user: any) => ({
+    return filteredUsers.map((user: any) => ({
       value: user.id,
       label: user.name || user.email || user.id
     }));
-  }, [users]);
+  }, [filteredUsers]);
 
   const executionRoleOptions = useMemo(() => {
     return roleTypes.map(rt => ({
@@ -580,36 +584,36 @@ export const StepTeamRoles = forwardRef(({
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string) as Partial<TeamExportData>;
-        
+
         if (data.owner?.userId) {
           const userExists = users.some((u: any) => u.id === data.owner?.userId);
           if (userExists) setOwnerUserId(data.owner.userId);
         }
-        
+
         if (data.manager?.userId) {
           const userExists = users.some((u: any) => u.id === data.manager?.userId);
           if (userExists) setManagerUserId(data.manager.userId);
         }
-        
+
         if (data.stakeholders?.length) {
           const validStakeholders = data.stakeholders
             .filter(s => users.some((u: any) => u.id === s.userId))
             .map(s => s.userId);
           if (validStakeholders.length) setStakeholderUserIds(validStakeholders);
         }
-        
+
         if (data.members?.length) {
           const validMembers = data.members
             .filter(m => users.some((u: any) => u.id === m.userId))
             .map(m => ({
               userId: m.userId,
-              executionRoleId: m.executionRoleId && roleTypes.some(rt => rt.id === m.executionRoleId) 
-                ? m.executionRoleId 
+              executionRoleId: m.executionRoleId && roleTypes.some(rt => rt.id === m.executionRoleId)
+                ? m.executionRoleId
                 : undefined
             }));
           if (validMembers.length) setTeamMembers(validMembers);
         }
-        
+
         toast({ title: "Imported", description: "Team assignment imported successfully." });
       } catch {
         toast({ title: "Import Failed", description: "Invalid file format.", variant: "destructive" });
@@ -646,15 +650,15 @@ export const StepTeamRoles = forwardRef(({
                 <p className="text-xs text-muted-foreground">tasks assigned</p>
               </div>
             </div>
-            
+
             {taskAssignmentStats.totalTasks > 0 && (
               <div className="mt-4 space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Task Assignment Progress</span>
                   <span>{Math.round((taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100)}%</span>
                 </div>
-                <Progress 
-                  value={(taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100} 
+                <Progress
+                  value={(taskAssignmentStats.assignedTasks / taskAssignmentStats.totalTasks) * 100}
                   className="h-2"
                 />
               </div>
@@ -838,7 +842,7 @@ export const StepTeamRoles = forwardRef(({
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                        
+
                         {taskSummary && member.userId && (
                           <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
                             <div className="flex items-center gap-2 mb-2">
@@ -862,7 +866,7 @@ export const StepTeamRoles = forwardRef(({
                             </div>
                           </div>
                         )}
-                        
+
                         {taskSummary && !member.userId && (
                           <div className="p-3 bg-muted/50 rounded-lg border">
                             <div className="flex items-center gap-2 mb-2">
@@ -900,74 +904,74 @@ export const StepTeamRoles = forwardRef(({
 
         <Card>
           <Collapsible open={expandedSections.has('stakeholder')} onOpenChange={() => toggleSection('stakeholder')}>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                    <Eye className="h-5 w-5 text-purple-600" />
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                      <Eye className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Stakeholders</CardTitle>
+                      <CardDescription>Interested parties with view access</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-base">Stakeholders</CardTitle>
-                    <CardDescription>Interested parties with view access</CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {stakeholderUserIds.filter(id => id).length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {stakeholderUserIds.filter(id => id).length} assigned
-                    </Badge>
-                  )}
-                  {expandedSections.has('stakeholder') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </div>
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="pt-0 space-y-4">
-              {stakeholderUserIds.map((userId, idx) => (
-                <div key={idx} className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <SearchableSelect
-                      value={userId}
-                      onValueChange={(val) => updateStakeholder(idx, val)}
-                      options={getAvailableUsersForStakeholder(userId)}
-                      placeholder="Select stakeholder..."
-                      className="flex-1"
-                      data-testid={`select-stakeholder-${idx}`}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeStakeholder(idx)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {stakeholderUserIds.filter(id => id).length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {stakeholderUserIds.filter(id => id).length} assigned
+                      </Badge>
+                    )}
+                    {expandedSections.has('stakeholder') ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </div>
-                  {userId && getUserOtherRoles(userId).filter(r => r !== 'Stakeholder').length > 0 && (
-                    <p className="text-xs text-muted-foreground ml-1">
-                      Also: {getUserOtherRoles(userId).filter(r => r !== 'Stakeholder').join(', ')}
-                    </p>
-                  )}
                 </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addStakeholder}
-                className="w-full"
-                data-testid="button-add-stakeholder"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Stakeholder
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Stakeholders receive updates and can view progress but don't have edit access.
-              </p>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-4">
+                {stakeholderUserIds.map((userId, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <SearchableSelect
+                        value={userId}
+                        onValueChange={(val) => updateStakeholder(idx, val)}
+                        options={getAvailableUsersForStakeholder(userId)}
+                        placeholder="Select stakeholder..."
+                        className="flex-1"
+                        data-testid={`select-stakeholder-${idx}`}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeStakeholder(idx)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {userId && getUserOtherRoles(userId).filter(r => r !== 'Stakeholder').length > 0 && (
+                      <p className="text-xs text-muted-foreground ml-1">
+                        Also: {getUserOtherRoles(userId).filter(r => r !== 'Stakeholder').join(', ')}
+                      </p>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addStakeholder}
+                  className="w-full"
+                  data-testid="button-add-stakeholder"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Stakeholder
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Stakeholders receive updates and can view progress but don't have edit access.
+                </p>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
       </div>
 
@@ -995,7 +999,7 @@ export const StepTeamRoles = forwardRef(({
             <p className="text-xs text-muted-foreground">Team Members</p>
           </div>
         </div>
-        
+
         {taskAssignmentStats.totalTasks > 0 && (
           <div className="mt-4 pt-4 border-t">
             <div className="flex items-center justify-between text-sm">
@@ -1018,8 +1022,8 @@ export const StepTeamRoles = forwardRef(({
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-800">Execution Roles Available</AlertTitle>
           <AlertDescription className="text-amber-700">
-            There are {Object.values(roleTaskSummary).reduce((acc, r) => acc + r.tasks.length, 0)} tasks 
-            that can be automatically assigned based on execution roles. Add team members with execution roles 
+            There are {Object.values(roleTaskSummary).reduce((acc, r) => acc + r.tasks.length, 0)} tasks
+            that can be automatically assigned based on execution roles. Add team members with execution roles
             to auto-assign these tasks.
           </AlertDescription>
         </Alert>

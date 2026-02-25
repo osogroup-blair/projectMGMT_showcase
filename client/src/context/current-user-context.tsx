@@ -22,6 +22,7 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
     name: authUser.name || `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.email,
     role: authUser.jobTitle || "Team Member",
     avatar: authUser.avatar || authUser.profileImageUrl,
+    systemRole: authUser.systemRole || "member",
   } : null;
 
   const isLoading = authLoading || usersLoading;
@@ -30,12 +31,12 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <CurrentUserContext.Provider value={{ 
-      currentUserId, 
-      setCurrentUserId, 
-      currentUser, 
+    <CurrentUserContext.Provider value={{
+      currentUserId,
+      setCurrentUserId,
+      currentUser,
       users: users || [],
-      isLoading 
+      isLoading
     }}>
       {children}
     </CurrentUserContext.Provider>

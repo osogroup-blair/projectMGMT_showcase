@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "../data/storage";
-import { 
+import {
   insertProjectSchema,
   insertDeliverableSchema,
   insertEpicSchema,
@@ -33,6 +33,7 @@ import { registerSearchRoutes } from "./routes/search";
 import { registerAdminRoutes } from "./routes/admin";
 import rolesPermissionsRoutes from "./routes/roles-permissions";
 import { seedRolesAndPermissions } from "../services/roles-permissions-service";
+import { registerClientRoutes } from "./routes/clients";
 
 // Helper to extract authenticated user ID from request
 // Always use the database user ID (req.user.id), not the SSO claims.sub
@@ -45,7 +46,7 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
   // Seed endpoint (for development)
   app.post("/api/seed", async (req, res) => {
     try {
@@ -125,9 +126,9 @@ export async function registerRoutes(
       res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.set('Pragma', 'no-cache');
       res.set('Expires', '0');
-      
+
       const settings = await storage.getAppSettings();
-      res.json({ 
+      res.json({
         demoAvailable: settings?.demoDataReady === true,
         demoAdminPassthroughEnabled: settings?.demoAdminPassthroughEnabled === true,
       });
@@ -136,19 +137,19 @@ export async function registerRoutes(
     }
   });
 
-  
+
   // Get app settings (admin only - includes all settings)
   app.get("/api/admin/app-settings", async (req, res) => {
     try {
       const settings = await storage.getAppSettings();
       const allUsers = await storage.getUsers();
-      
+
       // Get list of demo users for the dropdown (only users with demo role or demo- prefix)
-      const demoUsers = allUsers.filter(u => 
+      const demoUsers = allUsers.filter(u =>
         u.systemRole === "demo" || u.id.startsWith("demo-")
       );
-      
-      res.json({ 
+
+      res.json({
         settings: settings || { id: "default", demoDataReady: false, demoLoginUserId: null },
         demoUsers: demoUsers.map(u => ({ id: u.id, name: u.name, systemRole: u.systemRole })),
       });
@@ -161,9 +162,9 @@ export async function registerRoutes(
   app.patch("/api/admin/app-settings", async (req, res) => {
     try {
       const { demoLoginUserId, completedTaskStatusIds } = req.body;
-      
+
       const updateData: any = {};
-      
+
       // Validate the user exists if provided
       if (demoLoginUserId !== undefined) {
         if (demoLoginUserId) {
@@ -174,12 +175,12 @@ export async function registerRoutes(
         }
         updateData.demoLoginUserId = demoLoginUserId;
       }
-      
+
       // Handle completedTaskStatusIds update
       if (completedTaskStatusIds !== undefined) {
         updateData.completedTaskStatusIds = completedTaskStatusIds;
       }
-      
+
       const updated = await storage.updateAppSettings(updateData);
       res.json({ success: true, settings: updated });
     } catch (error: any) {
@@ -193,10 +194,10 @@ export async function registerRoutes(
       const settings = await storage.getAppSettings();
       const statusOptions = await storage.getStatusOptions();
       const taskStatuses = statusOptions.filter(s => s.type === "task");
-      
+
       // Get the configured completed status IDs, or default to statuses containing "Done" or "Complete"
       let completedIds = settings?.completedTaskStatusIds || [];
-      
+
       // If no configured IDs, provide a fallback based on status labels (case-insensitive)
       if (completedIds.length === 0) {
         const defaultLabels = ['done', 'complete', 'completed', 'closed'];
@@ -204,12 +205,12 @@ export async function registerRoutes(
           .filter(s => defaultLabels.includes(s.label.toLowerCase()))
           .map(s => s.id);
       }
-      
+
       // Get the actual labels for these IDs
       const completedLabels = taskStatuses
         .filter(s => completedIds.includes(s.id))
         .map(s => s.label);
-      
+
       res.json({
         completedStatusIds: completedIds,
         completedStatusLabels: completedLabels,
@@ -299,6 +300,9 @@ export async function registerRoutes(
 
   // Register search routes
   registerSearchRoutes(app, getAuthUserId);
+
+  // Register client routes
+  registerClientRoutes(app);
 
   // Register admin routes (themes, etc.)
   registerAdminRoutes(app);

@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
   Calendar,
   User,
   Users,
@@ -25,11 +25,11 @@ import {
 import { TaskCard, LayoutVariant } from "@/features/tasks/task-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   CardFooter
 } from "@/components/ui/card";
 import {
@@ -60,7 +60,7 @@ import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Task } from "@/lib/mock-data";
-import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes } from "@/hooks/use-nexus-data";
+import { useTasks, useProject, useMilestones, useUsers, useProjectStages, useEpics, useDeliverables, useSprints, useResolvedTaskTypes, useProjectTeam } from "@/hooks/use-nexus-data";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
 import { useCurrentUser } from "@/context/current-user-context";
 import { useUnifiedTeamMembers } from "@/hooks/use-unified-team-members";
@@ -105,18 +105,18 @@ export default function TaskBoard() {
   const { currentUser } = useCurrentUser();
   const { statusLabels, defaultStatus } = useTaskStatuses();
   const { members: teamMembers, addMember: addToTeam } = useUnifiedTeamMembers(projectId);
-  
+
   const projectSprints = useMemo(() => {
     if (!allSprints || !project) return [];
     return allSprints.filter((s: any) => s.projectId === project.id);
   }, [allSprints, project]);
-  
+
   // Filter deliverables for this project
   const projectDeliverables = useMemo(() => {
     if (!allDeliverables || !project) return [];
     return allDeliverables.filter((d: any) => d.projectId === project.id);
   }, [allDeliverables, project]);
-  
+
   // Filter epics for the current project (via deliverables)
   const projectEpics = useMemo(() => {
     if (!allEpics || !project || projectDeliverables.length === 0) return [];
@@ -127,7 +127,7 @@ export default function TaskBoard() {
   // Get project-specific tasks first (needed to determine which stages belong to this project)
   const projectTasks = useMemo(() => {
     if (!project || !allTasks) return [];
-    return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
+    return allTasks.filter((t: any) => t.projectId === project.id);
   }, [project, allTasks]);
 
   // Extract unique stage IDs from project tasks AND project epics to scope stages to this project
@@ -179,12 +179,12 @@ export default function TaskBoard() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState<"board" | "list">("board");
-  
+
   // Filters
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [milestoneFilter, setMilestoneFilter] = useState<string>("all");
   const [sprintFilter, setSprintFilter] = useState<string>("all");
-  
+
   // Sidebar grouping
   const [groupBy, setGroupBy] = useState<"stage" | "status" | "epic" | "assignee" | "milestone">("stage");
   const [selectedSection, setSelectedSection] = useState<string>("all");
@@ -258,13 +258,13 @@ export default function TaskBoard() {
   const tasks = projectTasks;
 
   const filteredTasks = tasks.filter(t => {
-    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
     const matchesAssignee = assigneeFilter === "all" || t.assigneeId === assigneeFilter;
     const matchesMilestone = milestoneFilter === "all" || t.milestoneId === milestoneFilter;
-    const matchesSprint = sprintFilter === "all" || 
+    const matchesSprint = sprintFilter === "all" ||
       (sprintFilter === "backlog" ? !t.sprintId : t.sprintId === sprintFilter);
-    
+
     // Filter by selected section in sidebar
     let matchesSection = true;
     if (selectedSection !== "all") {
@@ -274,7 +274,7 @@ export default function TaskBoard() {
       else if (groupBy === "assignee") matchesSection = selectedSection === "unassigned" ? !t.assigneeId : t.assigneeId === selectedSection;
       else if (groupBy === "milestone") matchesSection = selectedSection === "unassigned" ? !t.milestoneId : t.milestoneId === selectedSection;
     }
-    
+
     return matchesSearch && matchesAssignee && matchesMilestone && matchesSprint && matchesSection;
   });
 
@@ -287,7 +287,6 @@ export default function TaskBoard() {
     setFormData({
       title: "",
       description: "",
-      project: project.name, // Legacy field
       projectId: project.id, // New field
       stageId: stageId || (stages[0]?.id || "st_plan"),
       epicId: epicId || (projectEpics[0]?.id || ""),
@@ -323,7 +322,6 @@ export default function TaskBoard() {
     } else {
       createTask({
         ...formData,
-        project: project?.name,
         projectId: project?.id
       });
     }
@@ -363,18 +361,18 @@ export default function TaskBoard() {
             </div>
             <div className="flex gap-2">
               <div className="flex items-center border rounded-md bg-card">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className={cn("h-9 w-9 rounded-none rounded-l-md", viewType === "board" && "bg-muted")}
                   onClick={() => setViewType("board")}
                 >
                   <Columns className="h-4 w-4" />
                 </Button>
                 <div className="w-px h-full bg-border" />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className={cn("h-9 w-9 rounded-none rounded-r-md", viewType === "list" && "bg-muted")}
                   onClick={() => setViewType("list")}
                 >
@@ -448,7 +446,7 @@ export default function TaskBoard() {
                 triggerClassName="w-[160px]"
                 data-testid="select-sprint-filter"
               />
-              
+
               <Button variant="outline" size="icon">
                 <Filter className="h-4 w-4" />
               </Button>
@@ -460,8 +458,8 @@ export default function TaskBoard() {
         <div className="flex gap-6 flex-1 min-h-0">
           {/* Left Sidebar */}
           <div className="w-56 shrink-0 space-y-1 overflow-y-auto">
-            <Button 
-              variant={selectedSection === "all" ? "secondary" : "ghost"} 
+            <Button
+              variant={selectedSection === "all" ? "secondary" : "ghost"}
               className="w-full justify-between text-sm h-9"
               onClick={() => setSelectedSection("all")}
               data-testid="sidebar-all-tasks"
@@ -471,7 +469,7 @@ export default function TaskBoard() {
             </Button>
             <div className="border-t my-2" />
             {groupedSections.map(section => (
-              <Button 
+              <Button
                 key={section.id}
                 variant={selectedSection === section.id ? "secondary" : "ghost"}
                 className="w-full justify-between text-sm h-9"
@@ -486,209 +484,209 @@ export default function TaskBoard() {
 
           {/* Main Content */}
           <div className="flex-1 min-w-0">
-        {/* Board View */}
-        {viewType === "board" ? (
-          groupBy === "status" ? (
-            <div className="h-[calc(100vh-280px)] min-h-[400px]">
-              <PortableKanban
-                tasks={filteredTasks}
-                users={users || []}
-                epics={projectEpics}
-                milestones={milestones || []}
-                projectId={projectId}
-                boardId={`taskboard-${projectId}`}
-                showFilters={false}
-                showAddTask={true}
-                onAddTask={() => handleOpenCreate()}
-                hoverCard={{
-                  enabled: true,
-                  users: users || [],
-                  onAssigneeChange: (taskId, assigneeId) => {
-                    updateTask({ id: taskId, updates: { assigneeId } });
-                  },
-                  onDueDateChange: (taskId, date) => {
-                    updateTask({ id: taskId, updates: { deadline: date?.toISOString().split('T')[0] || null } });
-                  },
-                }}
-                onTaskMove={(taskId, newStatus) => {
-                  updateTask({ id: taskId, updates: { status: newStatus } });
-                  toast({ title: "Task Updated", description: `Task moved to ${newStatus}` });
-                }}
-              />
-            </div>
-          ) : (
-          <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
-            <div className="flex gap-6 h-full min-w-max">
-              {stages.map(stage => {
-                const stageTasks = filteredTasks.filter(t => t.stageId === stage.id);
-                
-                return (
-                  <div key={stage.id} className="w-[320px] flex flex-col h-full rounded-xl bg-muted/30 border border-border/50">
-                    {/* Column Header */}
-                    <div 
-                      className={cn("p-4 border-b flex items-center justify-between shrink-0 rounded-t-xl cursor-pointer hover:opacity-80 transition-opacity", stage.color)}
-                      onClick={() => setLocation(`/projects/${projectId}?tab=stage-${stage.id}`)}
-                      title={`View ${stage.name} stage details`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm">{stage.name}</h3>
-                        <Badge variant="secondary" className="bg-background/50 text-foreground font-mono text-xs">
-                          {stageTasks.length}
-                        </Badge>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenCreate(stage.id); }}>
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
+            {/* Board View */}
+            {viewType === "board" ? (
+              groupBy === "status" ? (
+                <div className="h-[calc(100vh-280px)] min-h-[400px]">
+                  <PortableKanban
+                    tasks={filteredTasks}
+                    users={users || []}
+                    epics={projectEpics}
+                    milestones={milestones || []}
+                    projectId={projectId}
+                    boardId={`taskboard-${projectId}`}
+                    showFilters={false}
+                    showAddTask={true}
+                    onAddTask={() => handleOpenCreate()}
+                    hoverCard={{
+                      enabled: true,
+                      users: users || [],
+                      onAssigneeChange: (taskId, assigneeId) => {
+                        updateTask({ id: taskId, updates: { assigneeId } });
+                      },
+                      onDueDateChange: (taskId, date) => {
+                        updateTask({ id: taskId, updates: { deadline: date?.toISOString().split('T')[0] || null } });
+                      },
+                    }}
+                    onTaskMove={(taskId, newStatus) => {
+                      updateTask({ id: taskId, updates: { status: newStatus } });
+                      toast({ title: "Task Updated", description: `Task moved to ${newStatus}` });
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
+                  <div className="flex gap-6 h-full min-w-max">
+                    {stages.map(stage => {
+                      const stageTasks = filteredTasks.filter(t => t.stageId === stage.id);
 
-                    {/* Tasks List */}
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                      {stageTasks.map(task => {
-                        const assignee = getAssignee(task.assigneeId);
-                        const priority = PRIORITY_CONFIG[task.priority];
-
-                        return (
-                          <Card 
-                            key={task.id} 
-                            className="shadow-sm hover:shadow-md transition-shadow cursor-pointer group bg-card"
-                            onClick={() => handleOpenEdit(task)}
+                      return (
+                        <div key={stage.id} className="w-[320px] flex flex-col h-full rounded-xl bg-muted/30 border border-border/50">
+                          {/* Column Header */}
+                          <div
+                            className={cn("p-4 border-b flex items-center justify-between shrink-0 rounded-t-xl cursor-pointer hover:opacity-80 transition-opacity", stage.color)}
+                            onClick={() => setLocation(`/projects/${projectId}?tab=stage-${stage.id}`)}
+                            title={`View ${stage.name} stage details`}
                           >
-                            <CardContent className="p-3 space-y-3">
-                              <div className="flex justify-between items-start gap-2">
-                                <Badge variant="outline" className={cn("text-[10px] h-5 px-1.5 font-medium border-0", priority.color)}>
-                                  {priority.label}
-                                </Badge>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); /* Menu logic */ }}>
-                                  <MoreHorizontal className="h-3 w-3" />
-                                </Button>
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-sm">{stage.name}</h3>
+                              <Badge variant="secondary" className="bg-background/50 text-foreground font-mono text-xs">
+                                {stageTasks.length}
+                              </Badge>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleOpenCreate(stage.id); }}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
 
-                              <div>
-                                <h4 className="font-medium text-sm leading-tight mb-1 line-clamp-2">{task.title}</h4>
-                                {task.tags && task.tags.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-2">
-                                    {task.tags.map((tag: string) => (
-                                      <span key={tag} className="text-[10px] text-muted-foreground bg-muted px-1 rounded-sm">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                          {/* Tasks List */}
+                          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                            {stageTasks.map(task => {
+                              const assignee = getAssignee(task.assigneeId);
+                              const priority = PRIORITY_CONFIG[task.priority];
 
-                              <div className="flex items-center justify-between pt-1 border-t border-border/50">
-                                {assignee ? (
-                                  <div className="flex items-center gap-1.5" title={assignee.name}>
-                                    <Avatar className="h-5 w-5">
-                                      <AvatarFallback className="text-[9px]">{assignee.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-xs text-muted-foreground max-w-[80px] truncate">{assignee.name.split(' ')[0]}</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                                    <User className="h-3.5 w-3.5" />
-                                    <span className="text-xs">Unassigned</span>
-                                  </div>
-                                )}
-                                
-                                <div className={cn(
-                                  "flex items-center gap-1 text-xs",
-                                  new Date(task.deadline) < new Date() ? "text-red-500 font-medium" : "text-muted-foreground"
-                                )}>
-                                  <Clock className="h-3 w-3" />
-                                  <span>{new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                      
-                      <Button variant="ghost" className="w-full text-muted-foreground text-xs py-2 h-auto hover:bg-muted/50 border border-dashed border-border" onClick={() => handleOpenCreate(stage.id)}>
-                        <Plus className="h-3 w-3 mr-1.5" />
-                        Add Task
-                      </Button>
-                    </div>
+                              return (
+                                <Card
+                                  key={task.id}
+                                  className="shadow-sm hover:shadow-md transition-shadow cursor-pointer group bg-card"
+                                  onClick={() => handleOpenEdit(task)}
+                                >
+                                  <CardContent className="p-3 space-y-3">
+                                    <div className="flex justify-between items-start gap-2">
+                                      <Badge variant="outline" className={cn("text-[10px] h-5 px-1.5 font-medium border-0", priority.color)}>
+                                        {priority.label}
+                                      </Badge>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); /* Menu logic */ }}>
+                                        <MoreHorizontal className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+
+                                    <div>
+                                      <h4 className="font-medium text-sm leading-tight mb-1 line-clamp-2">{task.title}</h4>
+                                      {task.tags && task.tags.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                          {task.tags.map((tag: string) => (
+                                            <span key={tag} className="text-[10px] text-muted-foreground bg-muted px-1 rounded-sm">
+                                              {tag}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                                      {assignee ? (
+                                        <div className="flex items-center gap-1.5" title={assignee.name}>
+                                          <Avatar className="h-5 w-5">
+                                            <AvatarFallback className="text-[9px]">{assignee.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                          </Avatar>
+                                          <span className="text-xs text-muted-foreground max-w-[80px] truncate">{assignee.name.split(' ')[0]}</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                                          <User className="h-3.5 w-3.5" />
+                                          <span className="text-xs">Unassigned</span>
+                                        </div>
+                                      )}
+
+                                      <div className={cn(
+                                        "flex items-center gap-1 text-xs",
+                                        new Date(task.deadline) < new Date() ? "text-red-500 font-medium" : "text-muted-foreground"
+                                      )}>
+                                        <Clock className="h-3 w-3" />
+                                        <span>{new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+
+                            <Button variant="ghost" className="w-full text-muted-foreground text-xs py-2 h-auto hover:bg-muted/50 border border-dashed border-border" onClick={() => handleOpenCreate(stage.id)}>
+                              <Plus className="h-3 w-3 mr-1.5" />
+                              Add Task
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-          )
-        ) : (
-          <div className="flex-1 bg-card rounded-lg border shadow-sm flex flex-col">
-            <div className="overflow-x-auto overflow-y-hidden">
-              <div className="p-4 border-b bg-muted/30 font-medium text-sm grid gap-3 text-muted-foreground shrink-0" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", minWidth: "min-content" }}>
-                <div>Task</div>
-                <div>Stage</div>
-                <div>Assignee</div>
-                <div>Sprint</div>
-                <div>Priority</div>
-                <div>Due Date</div>
-              </div>
-            </div>
-            <div className="overflow-x-auto overflow-y-auto h-full flex-1">
-              <div style={{ minWidth: "min-content" }}>
-                {filteredTasks.map(task => {
-                  const assignee = getAssignee(task.assigneeId);
-                  const stage = stages.find(s => s.id === task.stageId);
-                  const priority = PRIORITY_CONFIG[task.priority];
-
-                  return (
-                    <div 
-                      key={task.id} 
-                      className="p-4 border-b last:border-0 grid gap-3 items-center hover:bg-muted/30 transition-colors text-sm group"
-                      style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr" }}
-                    >
-                    <div className="font-medium flex items-center gap-2 cursor-pointer" onClick={() => handleOpenEdit(task)}>
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      {task.title}
-                    </div>
-                    <div className="cursor-pointer" onClick={() => handleOpenEdit(task)}>
-                      <Badge variant="outline" className="font-normal text-muted-foreground">
-                        {stage?.name || "Unknown"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleOpenEdit(task)}>
-                      {assignee ? (
-                        <>
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-[9px]">{assignee.name.substring(0,2).toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <span className="truncate">{assignee.name}</span>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground italic">Unassigned</span>
-                      )}
-                    </div>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <SearchableSelect
-                        value={task.sprintId || "backlog"}
-                        onValueChange={(v) => updateTask({ id: task.id, updates: { sprintId: v === "backlog" ? undefined : v } })}
-                        placeholder="Backlog"
-                        options={[
-                          { value: "backlog", label: "Backlog" },
-                          ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
-                        ]}
-                        triggerClassName="h-8"
-                        data-testid={`select-sprint-${task.id}`}
-                      />
-                    </div>
-                    <div className="cursor-pointer" onClick={() => handleOpenEdit(task)}>
-                      <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priority.color)}>
-                        {priority.label}
-                      </span>
-                    </div>
-                    <div className="text-muted-foreground cursor-pointer" onClick={() => handleOpenEdit(task)}>
-                      {new Date(task.deadline).toLocaleDateString()}
-                    </div>
+                </div>
+              )
+            ) : (
+              <div className="flex-1 bg-card rounded-lg border shadow-sm flex flex-col">
+                <div className="overflow-x-auto overflow-y-hidden">
+                  <div className="p-4 border-b bg-muted/30 font-medium text-sm grid gap-3 text-muted-foreground shrink-0" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", minWidth: "min-content" }}>
+                    <div>Task</div>
+                    <div>Stage</div>
+                    <div>Assignee</div>
+                    <div>Sprint</div>
+                    <div>Priority</div>
+                    <div>Due Date</div>
                   </div>
-                  )
-                })}
+                </div>
+                <div className="overflow-x-auto overflow-y-auto h-full flex-1">
+                  <div style={{ minWidth: "min-content" }}>
+                    {filteredTasks.map(task => {
+                      const assignee = getAssignee(task.assigneeId);
+                      const stage = stages.find(s => s.id === task.stageId);
+                      const priority = PRIORITY_CONFIG[task.priority];
+
+                      return (
+                        <div
+                          key={task.id}
+                          className="p-4 border-b last:border-0 grid gap-3 items-center hover:bg-muted/30 transition-colors text-sm group"
+                          style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr" }}
+                        >
+                          <div className="font-medium flex items-center gap-2 cursor-pointer" onClick={() => handleOpenEdit(task)}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                            {task.title}
+                          </div>
+                          <div className="cursor-pointer" onClick={() => handleOpenEdit(task)}>
+                            <Badge variant="outline" className="font-normal text-muted-foreground">
+                              {stage?.name || "Unknown"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleOpenEdit(task)}>
+                            {assignee ? (
+                              <>
+                                <Avatar className="h-5 w-5">
+                                  <AvatarFallback className="text-[9px]">{assignee.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                                <span className="truncate">{assignee.name}</span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground italic">Unassigned</span>
+                            )}
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <SearchableSelect
+                              value={task.sprintId || "backlog"}
+                              onValueChange={(v) => updateTask({ id: task.id, updates: { sprintId: v === "backlog" ? undefined : v } })}
+                              placeholder="Backlog"
+                              options={[
+                                { value: "backlog", label: "Backlog" },
+                                ...projectSprints.map((s: any) => ({ value: s.id, label: s.name }))
+                              ]}
+                              triggerClassName="h-8"
+                              data-testid={`select-sprint-${task.id}`}
+                            />
+                          </div>
+                          <div className="cursor-pointer" onClick={() => handleOpenEdit(task)}>
+                            <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", priority.color)}>
+                              {priority.label}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground cursor-pointer" onClick={() => handleOpenEdit(task)}>
+                            {new Date(task.deadline).toLocaleDateString()}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
           </div>
         </div>
 
@@ -704,19 +702,19 @@ export default function TaskBoard() {
             <div className="grid gap-6 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="title">Task Title</Label>
-                <Input 
-                  id="title" 
-                  value={formData.title || ""} 
+                <Input
+                  id="title"
+                  value={formData.title || ""}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g. Implement Login Page"
                 />
               </div>
-              
+
               <div className="grid gap-2">
                 <Label htmlFor="description">Description</Label>
-                <Input 
-                  id="description" 
-                  value={formData.description || ""} 
+                <Input
+                  id="description"
+                  value={formData.description || ""}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Detailed explanation of the task..."
                 />
@@ -783,10 +781,10 @@ export default function TaskBoard() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="deadline">Due Date</Label>
-                  <Input 
-                    id="deadline" 
+                  <Input
+                    id="deadline"
                     type="date"
-                    value={formData.deadline || ""} 
+                    value={formData.deadline || ""}
                     onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                   />
                 </div>
@@ -808,30 +806,30 @@ export default function TaskBoard() {
 
                 <div className="grid gap-2">
                   <Label htmlFor="estimate">Estimate (Hours)</Label>
-                  <Input 
-                    id="estimate" 
+                  <Input
+                    id="estimate"
                     type="number"
                     min="0"
-                    value={formData.estimateHours || 0} 
+                    value={formData.estimateHours || 0}
                     onChange={(e) => setFormData({ ...formData, estimateHours: parseInt(e.target.value) })}
                   />
                 </div>
               </div>
 
               {editingTask && (
-                 <div className="flex justify-between items-center pt-2 border-t">
-                    <Button 
-                      variant="ghost" 
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => {
-                        handleDelete(editingTask.id);
-                        setIsDialogOpen(false);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Task
-                    </Button>
-                 </div>
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <Button
+                    variant="ghost"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                      handleDelete(editingTask.id);
+                      setIsDialogOpen(false);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Task
+                  </Button>
+                </div>
               )}
             </div>
             <DialogFooter>
@@ -870,13 +868,14 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const { data: allDeliverables, isLoading: isDeliverablesLoading } = useDeliverables();
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
   const { currentUser } = useCurrentUser();
+  const { members: teamMembers, addMember: addToTeam } = useUnifiedTeamMembers(projectId);
   const { statusLabels, getStatusColor, defaultStatus } = useTaskStatuses();
-  
+
   const projectDeliverables = useMemo(() => {
     if (!allDeliverables || !project) return [];
     return allDeliverables.filter((d: any) => d.projectId === project.id);
   }, [allDeliverables, project]);
-  
+
   const projectEpics = useMemo(() => {
     if (!allEpics || !project || projectDeliverables.length === 0) return [];
     const deliverableIds = new Set(projectDeliverables.map((d: any) => d.id));
@@ -885,7 +884,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
   const projectTasks = useMemo(() => {
     if (!project || !allTasks) return [];
-    return allTasks.filter((t: any) => t.project === project.name || t.projectId === project.id);
+    return allTasks.filter((t: any) => t.projectId === project.id);
   }, [project, allTasks]);
 
   const projectStageIds = useMemo(() => {
@@ -907,6 +906,21 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
       .map((stage: any) => ({ ...stage, color: getStageColor(stage.id, stage.order) }));
   }, [projectStages, projectStageIds]);
 
+  const teamMemberUserIds = useMemo(() => {
+    if (!teamMembers) return [];
+    return teamMembers.map((m: any) => m.userId);
+  }, [teamMembers]);
+
+  const handleAddToTeam = async (userId: string) => {
+    await addToTeam({
+      userId,
+      allocationPercent: 100,
+      highLevelRoles: ['member'],
+      executionRoleIds: [],
+    });
+    toast({ title: "Team member added", description: "User has been added to the project team." });
+  };
+
   const projectMilestones = useMemo(() => {
     if (!milestones || !project) return [];
     return milestones.filter((m: any) => m.projectId === project.id);
@@ -918,11 +932,11 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
-  
+
   // Filter state for chips
   const [priorityFilters, setPriorityFilters] = useState<string[]>([]);
   const [dueFilters, setDueFilters] = useState<string[]>([]);
-  
+
   // Layout variant state
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("three-column");
 
@@ -961,9 +975,9 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
   const filteredTasks = useMemo(() => {
     return projectTasks.filter(t => {
-      const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
-      
+      const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+
       // Filter by selected accordion section
       let matchesSection = true;
       if (selectedSection !== "all") {
@@ -1005,7 +1019,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
     const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
     const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
     setFormData({
-      title: "", description: "", project: project.name, projectId: project.id,
+      title: "", description: "", projectId: project.id,
       stageId: stageId || (stages[0]?.id || "st_plan"), epicId: epicId || (projectEpics[0]?.id || ""),
       status: "BACKLOGGED", assigneeId: currentUser?.id || "", deadline: new Date().toISOString().split('T')[0],
       priority: "Medium", estimateHours: 0, effort: 5, tags: [], taskTypeId: defaultTaskType?.id || null
@@ -1025,7 +1039,7 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
       return;
     }
     if (editingTask) { updateTask({ id: editingTask.id, updates: formData }); }
-    else { createTask({ ...formData, project: project?.name, projectId: project?.id }); }
+    else { createTask({ ...formData, projectId: project?.id }); }
     setIsDialogOpen(false);
   };
 
@@ -1043,161 +1057,161 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
   return (
     <>
-    <div className="flex gap-6">
-      {/* Left Accordion Sidebar */}
-      <div className="w-60 shrink-0 space-y-2">
-        <Button 
-          variant={selectedSection === "all" && activeAccordion === "" ? "secondary" : "ghost"} 
-          className="w-full justify-between text-sm h-9"
-          onClick={() => { setSelectedSection("all"); setActiveAccordion(""); }}
-          data-testid="sidebar-all-tasks"
-        >
-          <span>All Tasks</span>
-          <Badge variant="outline" className="ml-2 font-mono text-xs">{projectTasks.length}</Badge>
-        </Button>
-        
-        <Accordion 
-          type="single" 
-          value={activeAccordion} 
-          onValueChange={(val) => { setActiveAccordion(val); setSelectedSection("all"); }}
-          className="w-full"
-        >
-          {(Object.keys(GROUP_BY_CONFIG) as GroupByType[]).map(key => {
-            const config = GROUP_BY_CONFIG[key];
-            const Icon = config.icon;
-            const sections = accordionSections[key] || [];
-            const totalCount = sections.reduce((sum: number, s: any) => sum + s.count, 0);
-            
-            return (
-              <AccordionItem key={key} value={key} className="border rounded-lg mb-1 px-1">
-                <AccordionTrigger className="py-2 px-2 hover:no-underline" data-testid={`accordion-${key}`}>
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">{config.label.replace("By ", "")}</span>
-                    <Badge variant="secondary" className="ml-1 font-mono text-xs">{totalCount}</Badge>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-2 pt-0">
-                  <div className="space-y-0.5 pl-6">
-                    <Button 
-                      variant={activeAccordion === key && selectedSection === "all" ? "secondary" : "ghost"} 
-                      className="w-full justify-between text-xs h-7"
-                      onClick={() => setSelectedSection("all")}
-                      data-testid={`sidebar-${key}-all`}
-                    >
-                      <span>All</span>
-                      <span className="text-muted-foreground font-mono">{totalCount}</span>
-                    </Button>
-                    {sections.map((section: any) => (
-                      <Button 
-                        key={section.id}
-                        variant={selectedSection === section.id ? "secondary" : "ghost"}
-                        className="w-full justify-between text-xs h-7"
-                        onClick={() => setSelectedSection(section.id)}
-                        data-testid={`sidebar-section-${section.id}`}
-                      >
-                        <span className="truncate">{section.name}</span>
-                        <span className="text-muted-foreground font-mono shrink-0">{section.count}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-        </Accordion>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 space-y-4">
-        {/* Search and New Task */}
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search tasks..." 
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              data-testid="input-search-tasks"
-            />
-          </div>
-          <Button onClick={() => handleOpenCreate()} className="gap-2" data-testid="button-new-task">
-            <Plus className="h-4 w-4" />
-            New Task
+      <div className="flex gap-6">
+        {/* Left Accordion Sidebar */}
+        <div className="w-60 shrink-0 space-y-2">
+          <Button
+            variant={selectedSection === "all" && activeAccordion === "" ? "secondary" : "ghost"}
+            className="w-full justify-between text-sm h-9"
+            onClick={() => { setSelectedSection("all"); setActiveAccordion(""); }}
+            data-testid="sidebar-all-tasks"
+          >
+            <span>All Tasks</span>
+            <Badge variant="outline" className="ml-2 font-mono text-xs">{projectTasks.length}</Badge>
           </Button>
+
+          <Accordion
+            type="single"
+            value={activeAccordion}
+            onValueChange={(val) => { setActiveAccordion(val); setSelectedSection("all"); }}
+            className="w-full"
+          >
+            {(Object.keys(GROUP_BY_CONFIG) as GroupByType[]).map(key => {
+              const config = GROUP_BY_CONFIG[key];
+              const Icon = config.icon;
+              const sections = accordionSections[key] || [];
+              const totalCount = sections.reduce((sum: number, s: any) => sum + s.count, 0);
+
+              return (
+                <AccordionItem key={key} value={key} className="border rounded-lg mb-1 px-1">
+                  <AccordionTrigger className="py-2 px-2 hover:no-underline" data-testid={`accordion-${key}`}>
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{config.label.replace("By ", "")}</span>
+                      <Badge variant="secondary" className="ml-1 font-mono text-xs">{totalCount}</Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-0">
+                    <div className="space-y-0.5 pl-6">
+                      <Button
+                        variant={activeAccordion === key && selectedSection === "all" ? "secondary" : "ghost"}
+                        className="w-full justify-between text-xs h-7"
+                        onClick={() => setSelectedSection("all")}
+                        data-testid={`sidebar-${key}-all`}
+                      >
+                        <span>All</span>
+                        <span className="text-muted-foreground font-mono">{totalCount}</span>
+                      </Button>
+                      {sections.map((section: any) => (
+                        <Button
+                          key={section.id}
+                          variant={selectedSection === section.id ? "secondary" : "ghost"}
+                          className="w-full justify-between text-xs h-7"
+                          onClick={() => setSelectedSection(section.id)}
+                          data-testid={`sidebar-section-${section.id}`}
+                        >
+                          <span className="truncate">{section.name}</span>
+                          <span className="text-muted-foreground font-mono shrink-0">{section.count}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
         </div>
 
-        {/* Filter Chips */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-muted-foreground font-medium">Priority:</span>
-          {["High", "Medium", "Low"].map(p => (
-            <Button
-              key={p}
-              variant={priorityFilters.includes(p) ? "default" : "outline"}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setPriorityFilters(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
-              data-testid={`filter-priority-${p.toLowerCase()}`}
-            >
-              {p}
-            </Button>
-          ))}
-          <div className="w-px h-4 bg-border mx-1" />
-          <span className="text-xs text-muted-foreground font-medium">Due:</span>
-          {[{ id: "overdue", label: "Overdue" }, { id: "thisWeek", label: "This Week" }, { id: "later", label: "Later" }].map(d => (
-            <Button
-              key={d.id}
-              variant={dueFilters.includes(d.id) ? "default" : "outline"}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setDueFilters(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])}
-              data-testid={`filter-due-${d.id}`}
-            >
-              {d.label}
-            </Button>
-          ))}
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={clearAllFilters} data-testid="clear-filters">
-              <X className="h-3 w-3" />
-              Clear
-            </Button>
-          )}
-          
-          {/* Layout Toggle */}
-          <div className="flex items-center gap-1 ml-auto border rounded-md p-0.5 bg-muted/30">
-            <Button 
-              variant={layoutVariant === "one-column" ? "secondary" : "ghost"} 
-              size="sm" 
-              className="h-6 w-6 p-0"
-              onClick={() => setLayoutVariant("one-column")}
-              title="List view"
-              data-testid="layout-one-column"
-            >
-              <Rows3 className="h-3.5 w-3.5" />
-            </Button>
-            <Button 
-              variant={layoutVariant === "two-column" ? "secondary" : "ghost"} 
-              size="sm" 
-              className="h-6 w-6 p-0"
-              onClick={() => setLayoutVariant("two-column")}
-              title="Two column grid"
-              data-testid="layout-two-column"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-            </Button>
-            <Button 
-              variant={layoutVariant === "three-column" ? "secondary" : "ghost"} 
-              size="sm" 
-              className="h-6 w-6 p-0"
-              onClick={() => setLayoutVariant("three-column")}
-              title="Three column grid"
-              data-testid="layout-three-column"
-            >
-              <Columns className="h-3.5 w-3.5" />
+        {/* Main Content */}
+        <div className="flex-1 space-y-4">
+          {/* Search and New Task */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tasks..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search-tasks"
+              />
+            </div>
+            <Button onClick={() => handleOpenCreate()} className="gap-2" data-testid="button-new-task">
+              <Plus className="h-4 w-4" />
+              New Task
             </Button>
           </div>
-        </div>
+
+          {/* Filter Chips */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground font-medium">Priority:</span>
+            {["High", "Medium", "Low"].map(p => (
+              <Button
+                key={p}
+                variant={priorityFilters.includes(p) ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setPriorityFilters(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
+                data-testid={`filter-priority-${p.toLowerCase()}`}
+              >
+                {p}
+              </Button>
+            ))}
+            <div className="w-px h-4 bg-border mx-1" />
+            <span className="text-xs text-muted-foreground font-medium">Due:</span>
+            {[{ id: "overdue", label: "Overdue" }, { id: "thisWeek", label: "This Week" }, { id: "later", label: "Later" }].map(d => (
+              <Button
+                key={d.id}
+                variant={dueFilters.includes(d.id) ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setDueFilters(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])}
+                data-testid={`filter-due-${d.id}`}
+              >
+                {d.label}
+              </Button>
+            ))}
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={clearAllFilters} data-testid="clear-filters">
+                <X className="h-3 w-3" />
+                Clear
+              </Button>
+            )}
+
+            {/* Layout Toggle */}
+            <div className="flex items-center gap-1 ml-auto border rounded-md p-0.5 bg-muted/30">
+              <Button
+                variant={layoutVariant === "one-column" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setLayoutVariant("one-column")}
+                title="List view"
+                data-testid="layout-one-column"
+              >
+                <Rows3 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={layoutVariant === "two-column" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setLayoutVariant("two-column")}
+                title="Two column grid"
+                data-testid="layout-two-column"
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={layoutVariant === "three-column" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setLayoutVariant("three-column")}
+                title="Three column grid"
+                data-testid="layout-three-column"
+              >
+                <Columns className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
 
           {/* Flat Task List */}
           <div className={cn(
@@ -1270,19 +1284,19 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
               <Label htmlFor="title">Task Title</Label>
-              <Input 
-                id="title" 
-                value={formData.title || ""} 
+              <Input
+                id="title"
+                value={formData.title || ""}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="e.g. Implement Login Page"
               />
             </div>
-            
+
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
-              <Input 
-                id="description" 
-                value={formData.description || ""} 
+              <Input
+                id="description"
+                value={formData.description || ""}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Detailed explanation of the task..."
               />
@@ -1349,10 +1363,10 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
               <div className="grid gap-2">
                 <Label htmlFor="deadline">Deadline</Label>
-                <Input 
-                  id="deadline" 
+                <Input
+                  id="deadline"
                   type="date"
-                  value={formData.deadline || ""} 
+                  value={formData.deadline || ""}
                   onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                 />
               </div>
@@ -1374,30 +1388,30 @@ export function TaskBoardContent({ projectId }: { projectId: string }) {
 
               <div className="grid gap-2">
                 <Label htmlFor="estimate">Estimate (Hours)</Label>
-                <Input 
-                  id="estimate" 
+                <Input
+                  id="estimate"
                   type="number"
                   min="0"
-                  value={formData.estimateHours || 0} 
+                  value={formData.estimateHours || 0}
                   onChange={(e) => setFormData({ ...formData, estimateHours: parseInt(e.target.value) })}
                 />
               </div>
             </div>
 
             {editingTask && (
-               <div className="flex justify-between items-center pt-2 border-t">
-                  <Button 
-                    variant="ghost" 
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => {
-                      handleDelete(editingTask.id);
-                      setIsDialogOpen(false);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Task
-                  </Button>
-               </div>
+              <div className="flex justify-between items-center pt-2 border-t">
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => {
+                    handleDelete(editingTask.id);
+                    setIsDialogOpen(false);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Task
+                </Button>
+              </div>
             )}
           </div>
           <DialogFooter>

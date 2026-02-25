@@ -2,13 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Briefcase, 
-  Package, 
-  FileBox, 
-  Layers, 
-  ListTodo, 
-  Target, 
+import {
+  Briefcase,
+  Package,
+  FileBox,
+  Layers,
+  ListTodo,
+  Target,
   Users,
   AlertTriangle,
   Check,
@@ -24,6 +24,7 @@ import { saveAs } from "file-saver";
 import { useToast } from "@/hooks/use-toast";
 import { StepProps } from "./types";
 import { useImportOptional } from "@/context/import-context";
+import { useClients } from "@/hooks/use-clients";
 
 export function StepReview({
   projectData,
@@ -39,17 +40,18 @@ export function StepReview({
   const isImportMode = importContext?.state.isImportMode || false;
   const userMappings = importContext?.state.userMappings || [];
   const statusMappings = importContext?.state.statusMappings || [];
+  const { allClients } = useClients();
 
   const handleExportPayload = () => {
     const generateTempId = () => `temp-${crypto.randomUUID()}`;
     const projectId = generateTempId();
-    
+
     const nestedDeliverables = deliverables.map((deliverable) => {
       const deliverableId = deliverable.id || generateTempId();
-      
+
       const nestedEpics = deliverable.epics.map((epic) => {
         const epicId = epic.id || generateTempId();
-        
+
         const nestedTasks = (epic.tasks || []).map((task: any) => ({
           id: task.id || generateTempId(),
           projectId,
@@ -70,7 +72,7 @@ export function StepReview({
           history: [],
           dependencies: []
         }));
-        
+
         return {
           id: epicId,
           projectId,
@@ -83,7 +85,7 @@ export function StepReview({
           tasks: nestedTasks
         };
       });
-      
+
       return {
         id: deliverableId,
         projectId,
@@ -148,7 +150,7 @@ export function StepReview({
         id: projectId,
         name: projectData.name,
         description: projectData.description || "",
-        client: projectData.client || "",
+        clientId: projectData.clientId || "",
         status: "Not Started",
         startDate: projectData.startDate,
         deadline: projectData.dueDate,
@@ -179,33 +181,36 @@ export function StepReview({
       description: `Project payload exported as ${filename}`,
     });
   };
-  
+
   const totalEpics = deliverables.reduce((acc, d) => acc + d.epics.length, 0);
-  
-  const onceTasks = stages.flatMap(stage => 
+
+  const onceTasks = stages.flatMap(stage =>
     stage.tasks.filter(t => t.scope === 'once')
   );
-  const perEpicTasks = stages.flatMap(stage => 
+  const perEpicTasks = stages.flatMap(stage =>
     stage.tasks.filter(t => t.scope === 'per_epic')
   );
-  
-  const epicTasks = deliverables.flatMap(d => 
+
+  const epicTasks = deliverables.flatMap(d =>
     d.epics.flatMap(e => e.tasks || [])
   );
-  
+
   const onceTaskCount = onceTasks.length;
   const perEpicTaskCount = perEpicTasks.length * totalEpics;
   const epicTaskCount = epicTasks.length;
   const totalTasks = onceTaskCount + perEpicTaskCount + epicTaskCount;
-  
+
   const assignedRoles = roles.filter(r => r.assigneeId).length;
   const ownerName = users.find((u: any) => u.id === projectData.ownerId)?.name || "Not assigned";
+
+  const selectedClient = allClients?.find(c => c.id === projectData.clientId);
+  const clientName = selectedClient ? selectedClient.name : "";
 
   const isLargeProject = totalTasks > 100;
 
   const allTasks = [...onceTasks, ...epicTasks];
   const stageTasks = stages.flatMap(s => s.tasks);
-  
+
   const tasksByStatus = (() => {
     const counts: Record<string, number> = {};
     [...allTasks, ...stageTasks].forEach((task: any) => {
@@ -226,8 +231,8 @@ export function StepReview({
   const tasksBySprint = (() => {
     const counts: Record<string, { name: string; taskCount: number; startDate?: string; endDate?: string }> = {};
     sprints.forEach(sprint => {
-      counts[sprint.id] = { 
-        name: sprint.name, 
+      counts[sprint.id] = {
+        name: sprint.name,
         taskCount: 0,
         startDate: sprint.startDate,
         endDate: sprint.endDate
@@ -246,34 +251,34 @@ export function StepReview({
   const tasksByAssignee = (() => {
     const counts: Record<string, { name: string; once: number; perEpic: number; epic: number }> = {};
     const stageTasks = stages.flatMap(s => s.tasks);
-    
+
     stageTasks.forEach(task => {
       const assigneeId = task.assigneeId || 'unassigned';
       const user = users.find((u: any) => u.id === assigneeId);
       const name = user?.name || 'Unassigned';
-      
+
       if (!counts[assigneeId]) {
         counts[assigneeId] = { name, once: 0, perEpic: 0, epic: 0 };
       }
-      
+
       if (task.scope === 'per_epic') {
         counts[assigneeId].perEpic += totalEpics;
       } else {
         counts[assigneeId].once += 1;
       }
     });
-    
+
     epicTasks.forEach(task => {
       const assigneeId = task.assigneeId || 'unassigned';
       const user = users.find((u: any) => u.id === assigneeId);
       const name = user?.name || 'Unassigned';
-      
+
       if (!counts[assigneeId]) {
         counts[assigneeId] = { name, once: 0, perEpic: 0, epic: 0 };
       }
       counts[assigneeId].epic += 1;
     });
-    
+
     return Object.entries(counts)
       .map(([id, data]) => ({ id, ...data, total: data.once + data.perEpic + data.epic }))
       .sort((a, b) => b.total - a.total);
@@ -317,7 +322,7 @@ export function StepReview({
           </span>
         </div>
       )}
-      
+
       <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg p-5">
         <div className="flex items-start gap-4">
           <div className="bg-primary/10 p-2 rounded-lg">
@@ -366,10 +371,10 @@ export function StepReview({
             <span className="text-sm font-medium">Large project: {totalTasks} tasks will be created</span>
           </div>
         )}
-        
+
         <div className="flex justify-end mt-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={handleExportPayload}
             className="text-xs"
@@ -383,40 +388,40 @@ export function StepReview({
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0 h-auto">
-          <TabsTrigger 
-            value="overview" 
+          <TabsTrigger
+            value="overview"
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-3"
             data-testid="tab-overview"
           >
             <Briefcase className="h-4 w-4 mr-2" />
             Overview
           </TabsTrigger>
-          <TabsTrigger 
-            value="stages" 
+          <TabsTrigger
+            value="stages"
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-3"
             data-testid="tab-stages"
           >
             <Layers className="h-4 w-4 mr-2" />
             Stages ({stages.length})
           </TabsTrigger>
-          <TabsTrigger 
-            value="team" 
+          <TabsTrigger
+            value="team"
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-3"
             data-testid="tab-team"
           >
             <Users className="h-4 w-4 mr-2" />
             Team ({roles.length})
           </TabsTrigger>
-          <TabsTrigger 
-            value="tasks" 
+          <TabsTrigger
+            value="tasks"
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-3"
             data-testid="tab-tasks"
           >
             <ListTodo className="h-4 w-4 mr-2" />
             Tasks ({totalTasks})
           </TabsTrigger>
-          <TabsTrigger 
-            value="milestones" 
+          <TabsTrigger
+            value="milestones"
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-3"
             data-testid="tab-milestones"
           >
@@ -424,8 +429,8 @@ export function StepReview({
             Milestones ({milestones.length})
           </TabsTrigger>
           {sprints.length > 0 && (
-            <TabsTrigger 
-              value="sprints" 
+            <TabsTrigger
+              value="sprints"
               className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-3"
               data-testid="tab-sprints"
             >
@@ -464,10 +469,10 @@ export function StepReview({
                   <span className="text-muted-foreground">Owner</span>
                   <span>{ownerName}</span>
                 </div>
-                {projectData.client && (
+                {projectData.clientId && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Client</span>
-                    <span>{projectData.client}</span>
+                    <span>{clientName}</span>
                   </div>
                 )}
               </CardContent>
@@ -621,18 +626,17 @@ export function StepReview({
                         <Badge variant="outline" className="text-xs">
                           {stage.tasks.length} task{stage.tasks.length !== 1 ? 's' : ''}
                         </Badge>
-                        <Badge 
-                          variant="secondary" 
-                          className={`text-xs ${
-                            stage.taskCreationMode === 'per_epic' 
-                              ? 'bg-purple-100 text-purple-700' 
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs ${stage.taskCreationMode === 'per_epic'
+                              ? 'bg-purple-100 text-purple-700'
                               : stage.taskCreationMode === 'once'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-muted'
-                          }`}
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-muted'
+                            }`}
                         >
-                          {stage.taskCreationMode === 'per_epic' ? 'Per Epic' : 
-                           stage.taskCreationMode === 'once' ? 'Once' : 'None'}
+                          {stage.taskCreationMode === 'per_epic' ? 'Per Epic' :
+                            stage.taskCreationMode === 'once' ? 'Once' : 'None'}
                         </Badge>
                       </div>
                     </div>
@@ -843,10 +847,10 @@ export function StepReview({
                       d.epics.forEach(e => {
                         (e.tasks || []).forEach((t: any) => {
                           if (t.sprintId === sprint.id) {
-                            sprintTasks.push({ 
-                              id: t.id, 
+                            sprintTasks.push({
+                              id: t.id,
                               title: t.title,
-                              epicTitle: e.title 
+                              epicTitle: e.title
                             });
                           }
                         });
@@ -856,10 +860,10 @@ export function StepReview({
                     stages.forEach(s => {
                       (s.tasks || []).forEach(t => {
                         if (t.sprintId === sprint.id) {
-                          sprintTasks.push({ 
-                            id: t.id, 
+                          sprintTasks.push({
+                            id: t.id,
                             title: t.title,
-                            epicTitle: t.assignedEpicTitle 
+                            epicTitle: t.assignedEpicTitle
                           });
                         }
                       });
@@ -875,7 +879,7 @@ export function StepReview({
                             <div>
                               <span className="font-medium">{sprint.name || "Unnamed Sprint"}</span>
                               <div className="text-xs text-muted-foreground">
-                                {sprint.startDate && sprint.endDate 
+                                {sprint.startDate && sprint.endDate
                                   ? `${sprint.startDate} - ${sprint.endDate}`
                                   : "No dates set"}
                               </div>

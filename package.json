@@ -11,6 +11,7 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "db:seed": "node dist/seed.cjs || tsx --env-file=.env server/db/run-seed.ts",
+    "db:seed-defaults": "tsx --env-file=.env server/db/seed-app-defaults.ts",
     "docker:up": "docker compose up db -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up db -d"

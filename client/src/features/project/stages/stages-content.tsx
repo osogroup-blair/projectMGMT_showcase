@@ -1,9 +1,9 @@
 import { useMemo, useState, Fragment } from "react";
-import { 
+import {
   Layers,
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
+  CheckCircle2,
+  Clock,
+  AlertCircle,
   Circle,
   ChevronRight,
   ChevronDown,
@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "wouter";
@@ -75,12 +76,12 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const { statusLabels, getStatusBgColor, getStatusTextColor, getStatusAccentColor } = useTaskStatuses();
   const { isTaskComplete } = useCompletedStatuses();
 
-  const projectSprints = useMemo(() => 
+  const projectSprints = useMemo(() =>
     (allSprints || []).filter((s: any) => s.projectId === projectId),
     [allSprints, projectId]
   );
 
-  const projectMilestones = useMemo(() => 
+  const projectMilestones = useMemo(() =>
     (allMilestones || []).filter((m: any) => m.projectId === projectId),
     [allMilestones, projectId]
   );
@@ -101,10 +102,6 @@ export function StagesContent({ projectId }: { projectId: string }) {
   // Add Task Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogStageId, setDialogStageId] = useState<string | null>(null);
-  const [dialogMode, setDialogMode] = useState<"search" | "create">("create");
-  const [selectedEpicId, setSelectedEpicId] = useState<string>("");
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string>("");
-  const [isCreating, setIsCreating] = useState(false);
 
   // Add Stage Dialog state
   const [addStageDialogOpen, setAddStageDialogOpen] = useState(false);
@@ -135,12 +132,6 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const [editingTaskField, setEditingTaskField] = useState<"title" | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState("");
 
-  // New task form state
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
-  const [newTaskEffort, setNewTaskEffort] = useState<number | null>(3);
-
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [stageToDelete, setStageToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -151,17 +142,17 @@ export function StagesContent({ projectId }: { projectId: string }) {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
-  const projectDeliverables = useMemo(() => 
+  const projectDeliverables = useMemo(() =>
     (allDeliverables || []).filter((d: any) => d.projectId === projectId),
     [allDeliverables, projectId]
   );
 
-  const projectDeliverableIds = useMemo(() => 
+  const projectDeliverableIds = useMemo(() =>
     projectDeliverables.map((d: any) => d.id),
     [projectDeliverables]
   );
 
-  const projectEpics = useMemo(() => 
+  const projectEpics = useMemo(() =>
     (allEpics || []).filter((e: any) => projectDeliverableIds.includes(e.deliverableId)),
     [allEpics, projectDeliverableIds]
   );
@@ -176,6 +167,11 @@ export function StagesContent({ projectId }: { projectId: string }) {
     if (tasks.length === 0) return { done: 0, total: 0, percent: 0 };
     const done = tasks.filter((t: any) => isTaskComplete(t.status)).length;
     return { done, total: tasks.length, percent: Math.round((done / tasks.length) * 100) };
+  };
+
+  const getDeliverable = (deliverableId?: string) => {
+    if (!deliverableId) return null;
+    return (allDeliverables || []).find((d: any) => d.id === deliverableId);
   };
 
   const getEpic = (epicId?: string) => {
@@ -211,7 +207,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
-    return sortDirection === "asc" 
+    return sortDirection === "asc"
       ? <ArrowUp className="h-3 w-3 ml-1" />
       : <ArrowDown className="h-3 w-3 ml-1" />;
   };
@@ -223,11 +219,11 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   const handleSaveEdit = async () => {
     if (!editingCell) return;
-    
+
     try {
-      await updateStage({ 
-        id: editingCell.id, 
-        updates: { [editingCell.field]: editValue || null } 
+      await updateStage({
+        id: editingCell.id,
+        updates: { [editingCell.field]: editValue || null }
       });
       toast({ title: "Date updated" });
     } catch (error: any) {
@@ -307,6 +303,15 @@ export function StagesContent({ projectId }: { projectId: string }) {
     }
   };
 
+  const handleTaskDeliverableChange = async (taskId: string, deliverableId: string | null) => {
+    try {
+      await updateTask({ id: taskId, updates: { deliverableId: deliverableId || null } });
+      toast({ title: "Deliverable updated" });
+    } catch (error: any) {
+      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleTaskDeadlineChange = async (taskId: string, date: Date | undefined) => {
     try {
       const deadline = date ? format(date, "yyyy-MM-dd") : null;
@@ -319,14 +324,6 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   const openAddTaskDialog = (stageId: string) => {
     setDialogStageId(stageId);
-    setDialogMode("create");
-    setSearchQuery("");
-    setSelectedEpicId("");
-    setSelectedMilestoneId("");
-    setNewTaskTitle("");
-    setNewTaskDescription("");
-    setNewTaskPriority("Medium");
-    setNewTaskEffort(3);
     setDialogOpen(true);
   };
 
@@ -338,7 +335,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   const handleDeleteStage = async () => {
     if (!stageToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       await removeStageAsync(stageToDelete.id);
@@ -375,7 +372,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
   const handleBulkDelete = async () => {
     if (selectedStageIds.size === 0) return;
-    
+
     setIsBulkDeleting(true);
     try {
       const deletePromises = Array.from(selectedStageIds).map(id => removeStageAsync(id));
@@ -394,52 +391,6 @@ export function StagesContent({ projectId }: { projectId: string }) {
     setSelectedStageIds(new Set());
   };
 
-  const handleCreateTask = async () => {
-    if (!dialogStageId) return;
-    
-    if (!newTaskTitle.trim()) {
-      toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
-      return;
-    }
-    if (!selectedEpicId) {
-      toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
-      return;
-    }
-    if (!newTaskEffort) {
-      toast({ title: "Error", description: "Effort is required.", variant: "destructive" });
-      return;
-    }
-
-    // Get the first available task type for this project
-    const taskTypeId = resolvedTaskTypes.length > 0 ? resolvedTaskTypes[0].id : null;
-
-    setIsCreating(true);
-    try {
-      await createTaskAsync({
-        title: newTaskTitle,
-        description: newTaskDescription || "",
-        project: project?.name || "Project",
-        projectId: projectId,
-        epicId: selectedEpicId,
-        stageId: dialogStageId,
-        milestoneId: selectedMilestoneId || null,
-        taskTypeId,
-        status: "Todo",
-        priority: newTaskPriority,
-        effort: newTaskEffort,
-        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        tags: []
-      });
-      
-      toast({ title: "Task created", description: "New task has been created and added to the stage." });
-      setDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to create task.", variant: "destructive" });
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
   const handleCreateStage = async () => {
     if (!newStageName.trim()) {
       toast({ title: "Error", description: "Stage name is required.", variant: "destructive" });
@@ -449,7 +400,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
     setIsCreatingStage(true);
     try {
       const nextOrder = stages.length > 0 ? Math.max(...stages.map((s: any) => s.order || 0)) + 1 : 1;
-      
+
       await createStageAsync({
         projectId,
         name: newStageName.trim(),
@@ -459,7 +410,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
         startDate: newStageStartDate ? format(newStageStartDate, "yyyy-MM-dd") : null,
         endDate: newStageEndDate ? format(newStageEndDate, "yyyy-MM-dd") : null,
       });
-      
+
       toast({ title: "Stage created", description: `${newStageName} has been added.` });
       setAddStageDialogOpen(false);
       setNewStageName("");
@@ -479,11 +430,11 @@ export function StagesContent({ projectId }: { projectId: string }) {
   // Filter and sort stages
   const filteredAndSortedStages = useMemo(() => {
     let result = stages;
-    
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      result = result.filter((stage: any) => 
+      result = result.filter((stage: any) =>
         stage.name?.toLowerCase().includes(query) ||
         stage.description?.toLowerCase().includes(query)
       );
@@ -492,7 +443,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
     // Sort
     result = [...result].sort((a: any, b: any) => {
       let aVal: any, bVal: any;
-      
+
       switch (sortField) {
         case "order":
           aVal = a.order || 0;
@@ -700,7 +651,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {selectedStageIds.size} Stage{selectedStageIds.size !== 1 ? 's' : ''}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {selectedStageIds.size} selected stage{selectedStageIds.size !== 1 ? 's' : ''}? 
+              Are you sure you want to delete {selectedStageIds.size} selected stage{selectedStageIds.size !== 1 ? 's' : ''}?
               This action cannot be undone. Tasks in these stages will need to be reassigned.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -784,9 +735,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                   </TableHead>
                   <TableHead style={{ width: "3%" }}></TableHead>
                   <TableHead style={{ width: "5%" }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-7 px-1 -ml-1 font-medium"
                       onClick={() => handleSort("order")}
                     >
@@ -795,9 +746,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                     </Button>
                   </TableHead>
                   <TableHead style={{ width: "18%" }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-7 px-1 -ml-1 font-medium"
                       onClick={() => handleSort("name")}
                     >
@@ -806,9 +757,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                     </Button>
                   </TableHead>
                   <TableHead style={{ width: "10%" }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-7 px-1 -ml-1 font-medium"
                       onClick={() => handleSort("status")}
                     >
@@ -817,9 +768,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                     </Button>
                   </TableHead>
                   <TableHead style={{ width: "12%" }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-7 px-1 -ml-1 font-medium"
                       onClick={() => handleSort("startDate")}
                     >
@@ -828,9 +779,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                     </Button>
                   </TableHead>
                   <TableHead style={{ width: "12%" }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-7 px-1 -ml-1 font-medium"
                       onClick={() => handleSort("endDate")}
                     >
@@ -839,9 +790,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                     </Button>
                   </TableHead>
                   <TableHead style={{ width: "8%" }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-7 px-1 -ml-1 font-medium"
                       onClick={() => handleSort("tasks")}
                     >
@@ -850,9 +801,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                     </Button>
                   </TableHead>
                   <TableHead style={{ width: "18%" }}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="h-7 px-1 -ml-1 font-medium"
                       onClick={() => handleSort("progress")}
                     >
@@ -873,8 +824,8 @@ export function StagesContent({ projectId }: { projectId: string }) {
 
                   return (
                     <Fragment key={stage.id}>
-                      <TableRow 
-                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30", selectedStageIds.has(stage.id) && "bg-primary/5")} 
+                      <TableRow
+                        className={cn("hover:bg-muted/50", isExpanded && "bg-muted/30", selectedStageIds.has(stage.id) && "bg-primary/5")}
                         data-testid={`row-stage-${stage.id}`}
                       >
                         <TableCell className="py-2">
@@ -941,7 +892,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
                               </Button>
                             </div>
                           ) : (
-                            <div 
+                            <div
                               className="flex items-center gap-1 group cursor-pointer text-sm"
                               onClick={() => handleStartEdit(stage.id, "startDate", stage.startDate)}
                             >
@@ -968,7 +919,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
                               </Button>
                             </div>
                           ) : (
-                            <div 
+                            <div
                               className="flex items-center gap-1 group cursor-pointer text-sm"
                               onClick={() => handleStartEdit(stage.id, "endDate", stage.endDate)}
                             >
@@ -993,17 +944,17 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </Button>
                             </Link>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="h-7"
                               onClick={() => openAddTaskDialog(stage.id)}
                             >
                               <Plus className="h-3.5 w-3.5" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={() => openDeleteDialog({ id: stage.id, name: stage.name })}
                               data-testid={`button-delete-stage-${stage.id}`}
@@ -1020,18 +971,20 @@ export function StagesContent({ projectId }: { projectId: string }) {
                               <Table>
                                 <TableHeader>
                                   <TableRow className="hover:bg-transparent">
-                                    <TableHead className="h-8 text-xs" style={{ width: "24%" }}>Task</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "20%" }}>Task</TableHead>
                                     <TableHead className="h-8 text-xs" style={{ width: "10%" }}>Status</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Epic</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Milestone</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Sprint</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Assignee</TableHead>
-                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Due Date</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "12%" }}>Deliverable</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "10%" }}>Epic</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "10%" }}>Milestone</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "11%" }}>Sprint</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "11%" }}>Assignee</TableHead>
+                                    <TableHead className="h-8 text-xs" style={{ width: "10%" }}>Due Date</TableHead>
                                     <TableHead className="h-8 text-xs text-right" style={{ width: "6%" }}>Actions</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {stageTasks.map((task: any) => {
+                                    const deliverable = getDeliverable(task.deliverableId);
                                     const epic = getEpic(task.epicId);
                                     const assignee = getAssignee(task.assigneeId);
                                     const isEditingThisTask = editingTask === task.id;
@@ -1058,11 +1011,11 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                               </Button>
                                             </div>
                                           ) : (
-                                            <div 
+                                            <div
                                               className="flex items-center gap-1 group cursor-pointer"
                                               onClick={() => handleTaskTitleEdit(task.id, task.title)}
                                             >
-                                              <div 
+                                              <div
                                                 className="w-2 h-2 rounded-full shrink-0"
                                                 style={{ backgroundColor: getStatusAccentColor(task.status) }}
                                               />
@@ -1072,8 +1025,8 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                           )}
                                         </TableCell>
                                         <TableCell className="py-1.5">
-                                          <Select 
-                                            value={task.status} 
+                                          <Select
+                                            value={task.status}
                                             onValueChange={(v) => handleTaskStatusChange(task.id, v)}
                                           >
                                             <SelectTrigger className={cn("h-6 text-[10px] border px-2 w-auto rounded-full", getStatusBgColor(task.status), getStatusTextColor(task.status))}>
@@ -1091,8 +1044,20 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                           </Select>
                                         </TableCell>
                                         <TableCell className="py-1.5 text-xs">
+                                          <SearchableSelect
+                                            value={task.deliverableId || ""}
+                                            onValueChange={(v) => handleTaskDeliverableChange(task.id, v || null)}
+                                            className="h-6 text-xs w-[110px]"
+                                            placeholder="No deliverable"
+                                            options={[
+                                              { value: "", label: "No deliverable" },
+                                              ...projectDeliverables.map((d: any) => ({ value: d.id, label: d.title }))
+                                            ]}
+                                          />
+                                        </TableCell>
+                                        <TableCell className="py-1.5 text-xs">
                                           {epic ? (
-                                            <Link href={`/projects/${projectId}/epics/${epic.id}`} className="text-muted-foreground hover:text-primary">
+                                            <Link href={`/projects/${projectId}/epics/${epic.id}`} className="text-muted-foreground hover:text-primary line-clamp-1">
                                               {epic.title}
                                             </Link>
                                           ) : "—"}
@@ -1133,9 +1098,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                         <TableCell className="py-1.5">
                                           <Popover>
                                             <PopoverTrigger asChild>
-                                              <Button 
-                                                variant="ghost" 
-                                                size="sm" 
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
                                                 className="h-6 px-2 text-xs justify-start font-normal"
                                               >
                                                 <CalendarIcon className="h-3 w-3 mr-1 text-muted-foreground" />
@@ -1151,9 +1116,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                                                   initialFocus
                                                 />
                                                 {task.deadline && (
-                                                  <Button 
-                                                    variant="ghost" 
-                                                    size="sm" 
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
                                                     className="w-full mt-2 text-xs text-muted-foreground"
                                                     onClick={() => handleTaskDeadlineChange(task.id, undefined)}
                                                   >
@@ -1184,9 +1149,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                         <TableRow className="bg-muted/10 hover:bg-muted/10">
                           <TableCell colSpan={10} className="py-4 text-center text-sm text-muted-foreground">
                             No tasks in this stage.
-                            <Button 
-                              variant="link" 
-                              size="sm" 
+                            <Button
+                              variant="link"
+                              size="sm"
                               className="ml-1 h-auto p-0"
                               onClick={() => openAddTaskDialog(stage.id)}
                             >
@@ -1209,8 +1174,8 @@ export function StagesContent({ projectId }: { projectId: string }) {
               const progress = getStageProgress(stage.id);
 
               return (
-                <Card 
-                  key={stage.id} 
+                <Card
+                  key={stage.id}
                   className="hover:shadow-md transition-shadow group"
                   data-testid={`card-stage-${stage.id}`}
                 >
@@ -1242,9 +1207,9 @@ export function StagesContent({ projectId }: { projectId: string }) {
                             <ExternalLink className="h-3.5 w-3.5" />
                           </Button>
                         </Link>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => openDeleteDialog({ id: stage.id, name: stage.name })}
                           data-testid={`card-button-delete-stage-${stage.id}`}
@@ -1262,7 +1227,7 @@ export function StagesContent({ projectId }: { projectId: string }) {
                       <Progress value={progress.percent} className="h-1.5" />
 
                       <div className="flex flex-wrap gap-1.5">
-                        <Badge 
+                        <Badge
                           variant="outline"
                           className={cn("text-[10px] font-normal", statusColorClass)}
                         >
@@ -1290,110 +1255,13 @@ export function StagesContent({ projectId }: { projectId: string }) {
       </div>
 
       {/* Add Task Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
-            <DialogDescription>
-              Create a new task in this stage. Tasks must be assigned to an epic.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="task-title">Title *</Label>
-              <Input
-                id="task-title"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Enter task title"
-                data-testid="input-new-task-title"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="task-description">Description</Label>
-              <Textarea
-                id="task-description"
-                value={newTaskDescription}
-                onChange={(e) => setNewTaskDescription(e.target.value)}
-                placeholder="Enter task description"
-                className="min-h-[80px]"
-                data-testid="input-new-task-description"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task-epic">Epic *</Label>
-                <SearchableSelect 
-                  value={selectedEpicId} 
-                  onValueChange={setSelectedEpicId}
-                  data-testid="select-task-epic"
-                  placeholder="Select an epic"
-                  options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="task-milestone">Milestone</Label>
-                <SearchableSelect 
-                  value={selectedMilestoneId} 
-                  onValueChange={setSelectedMilestoneId}
-                  data-testid="select-task-milestone"
-                  placeholder="Select a milestone"
-                  options={[
-                    { value: "", label: "No milestone" },
-                    ...projectMilestones.map((m: any) => ({ value: m.id, label: m.name }))
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task-priority">Priority</Label>
-                <SearchableSelect 
-                  value={newTaskPriority} 
-                  onValueChange={setNewTaskPriority}
-                  data-testid="select-task-priority"
-                  placeholder="Select priority"
-                  options={[
-                    { value: "Low", label: "Low" },
-                    { value: "Medium", label: "Medium" },
-                    { value: "High", label: "High" },
-                    { value: "Critical", label: "Critical" }
-                  ]}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="task-effort">Effort *</Label>
-                <SearchableSelect 
-                  value={newTaskEffort?.toString() || ""} 
-                  onValueChange={(v) => setNewTaskEffort(Number(v))}
-                  data-testid="select-task-effort"
-                  placeholder="Select effort"
-                  options={EFFORT_VALUES.map((val) => ({ value: val.toString(), label: `${val} pts` }))}
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel-task">
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateTask} 
-              loading={isCreating}
-              data-testid="button-create-task"
-            >
-              {isCreating ? "Creating..." : "Create Task"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TaskQuickCreateDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        defaultProjectId={projectId}
+        defaultProjectName={project?.name}
+        defaultStageId={dialogStageId || undefined}
+      />
     </>
   );
 }

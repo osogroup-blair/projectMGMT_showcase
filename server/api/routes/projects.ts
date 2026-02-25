@@ -1,11 +1,10 @@
 import type { Express } from "express";
 import { storage } from "../../data/storage";
-import { 
+import {
   insertProjectSchema,
   insertDeliverableSchema,
   insertEpicSchema,
   insertProjectRoleSchema,
-  insertRoleAssignmentSchema,
   insertProjectTeamMemberSchema,
   insertProjectHighLevelRoleSchema,
   insertExecutionRoleAssignmentSchema,
@@ -20,12 +19,12 @@ export function registerProjectRoutes(
     const projects = await storage.getProjects();
     res.json(projects);
   });
-  
+
   // Paginated projects with server-side filtering
   app.get("/api/projects/paginated", async (req, res) => {
     try {
       const userId = getAuthUserId(req);
-      const result = await storage.getProjectsPaginated({
+      const filters = {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 25,
         offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
         search: req.query.search as string | undefined,
@@ -36,7 +35,23 @@ export function registerProjectRoutes(
         favoriteOnly: req.query.favoriteOnly === 'true',
         sortField: req.query.sortField as string | undefined,
         sortDirection: req.query.sortDirection as 'asc' | 'desc' | undefined,
-      });
+        clientId: req.query.clientId as string | undefined,
+      };
+
+      // RBAC Enforcement for Client logic
+      const user = (req as any).user;
+      if (user && user.systemRole !== 'admin' && filters.clientId && !filters.role) {
+        const clientUsers = await storage.getClientUsers(filters.clientId);
+        const clientUser = clientUsers.find(cu => cu.userId === userId);
+
+        // If not a manager on this client, force "My Projects" view
+        if (!clientUser || clientUser.role !== 'manager') {
+          filters.userId = userId || undefined;
+          filters.role = 'my';
+        }
+      }
+
+      const result = await storage.getProjectsPaginated(filters);
       res.json(result);
     } catch (error: any) {
       console.error("Error fetching paginated projects:", error);
@@ -60,10 +75,10 @@ export function registerProjectRoutes(
       if (isNaN(page) || page < 1) page = 1;
       if (isNaN(limit) || limit < 1) limit = 50;
       if (limit > 100) limit = 100; // Cap at 100 for performance
-      
+
       const sortBy = req.query.sortBy as string | undefined;
       const sortDirection = req.query.sortDirection as 'asc' | 'desc' | undefined;
-      
+
       // Extract filter parameters
       const search = req.query.search as string | undefined;
       const statuses = req.query.statuses ? (req.query.statuses as string).split(',').filter(Boolean) : undefined;
@@ -76,7 +91,7 @@ export function registerProjectRoutes(
       const dueDateFrom = req.query.dueDateFrom as string | undefined;
       const dueDateTo = req.query.dueDateTo as string | undefined;
       const myTasksOnly = req.query.myTasksOnly as string | undefined;
-      
+
       const result = await storage.getProjectTasksPaginated({
         projectId,
         page,
@@ -95,7 +110,7 @@ export function registerProjectRoutes(
         dueDateTo,
         myTasksOnly,
       });
-      
+
       res.json(result);
     } catch (error: any) {
       console.error("Error fetching paginated tasks:", error);
@@ -112,7 +127,7 @@ export function registerProjectRoutes(
         createdBy: userId,
         updatedBy: userId,
       });
-      
+
       // Auto-generate sprints if sprintDurationWeeks is set
       if (project && project.sprintDurationWeeks && project.sprintDurationWeeks > 0 && project.startDate && project.deadline) {
         const startDate = new Date(project.startDate);
@@ -120,16 +135,16 @@ export function registerProjectRoutes(
         const durationMs = project.sprintDurationWeeks * 7 * 24 * 60 * 60 * 1000;
         const totalMs = endDate.getTime() - startDate.getTime();
         const sprintCount = Math.max(1, Math.ceil(totalMs / durationMs));
-        
+
         for (let i = 0; i < sprintCount; i++) {
           const sprintStart = new Date(startDate.getTime() + (i * durationMs));
           let sprintEnd = new Date(sprintStart.getTime() + durationMs - (24 * 60 * 60 * 1000));
-          
+
           // Last sprint ends at project deadline
           if (sprintEnd > endDate || i === sprintCount - 1) {
             sprintEnd = endDate;
           }
-          
+
           await storage.createSprint({
             projectId: project.id,
             name: `Sprint ${i + 1}`,
@@ -141,7 +156,7 @@ export function registerProjectRoutes(
           });
         }
       }
-      
+
       res.status(201).json(project);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -443,10 +458,10 @@ export function registerProjectRoutes(
 
       const sprints = await storage.getSprintsByProjectId(projectId);
       const sprintIds = sprints.map(s => s.id);
-      
+
       const allPulseUpdates = await storage.getSprintPulseUpdates();
       const projectPulseUpdates = allPulseUpdates.filter(pu => sprintIds.includes(pu.sprintId));
-      
+
       res.json(projectPulseUpdates);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -465,7 +480,7 @@ export function registerProjectRoutes(
 
       const sprints = await storage.getSprintsByProjectId(projectId);
       const activeSprint = sprints.find(s => s.status === "Active" || s.status === "active" || s.status === "In Progress");
-      
+
       if (!activeSprint) {
         return res.status(400).json({ error: "No active sprint found for this project" });
       }
@@ -501,67 +516,6 @@ export function registerProjectRoutes(
     }
   });
 
-  // ============================================
-  // Project Team Management
-  // ============================================
-
-  // Get project team (all role assignments for this project)
-  app.get("/api/projects/:projectId/team", async (req, res) => {
-    try {
-      const { projectId } = req.params;
-      const project = await storage.getProjectById(projectId);
-      if (!project) return res.status(404).json({ error: "Project not found" });
-
-      const teamMembers = await storage.getRoleAssignmentsByProjectId(projectId);
-      const users = await storage.getUsers();
-      const roles = await storage.getProjectRolesByProjectId(projectId);
-
-      const enrichedTeam = teamMembers.map(member => ({
-        ...member,
-        user: users.find(u => u.id === member.userId),
-        role: roles.find(r => r.id === member.roleId),
-      }));
-
-      res.json(enrichedTeam);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Add team member
-  app.post("/api/projects/:projectId/team", async (req, res) => {
-    try {
-      const { projectId } = req.params;
-      const validated = insertRoleAssignmentSchema.parse({
-        ...req.body,
-        projectId,
-      });
-      const assignment = await storage.createRoleAssignment(validated);
-      res.status(201).json(assignment);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  // Update team member
-  app.patch("/api/projects/:projectId/team/:id", async (req, res) => {
-    try {
-      const assignment = await storage.updateRoleAssignment(req.params.id, req.body);
-      res.json(assignment);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  // Remove team member
-  app.delete("/api/projects/:projectId/team/:id", async (req, res) => {
-    try {
-      await storage.deleteRoleAssignment(req.params.id);
-      res.status(204).send();
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // ============================================
   // Project Roles
@@ -738,9 +692,9 @@ export function registerProjectRoutes(
       if (highLevelRoles !== undefined && Array.isArray(highLevelRoles)) {
         const hadOwnerRole = (await storage.getHighLevelRoles(id)).some(r => r.roleType === 'owner');
         const willHaveOwnerRole = highLevelRoles.includes('owner');
-        
+
         await storage.deleteHighLevelRolesByTeamMember(id);
-        
+
         for (const roleType of highLevelRoles) {
           // If assigning owner role, make it exclusive
           if (roleType === 'owner') {
@@ -756,7 +710,7 @@ export function registerProjectRoutes(
             roleType,
           });
         }
-        
+
         // If owner role was removed, clear project.ownerId
         if (hadOwnerRole && !willHaveOwnerRole) {
           await storage.updateProject(projectId, { ownerId: null });
@@ -785,17 +739,17 @@ export function registerProjectRoutes(
   app.delete("/api/projects/:projectId/team-members/:id", async (req, res) => {
     try {
       const { id, projectId } = req.params;
-      
+
       // Check if this member is the owner and clear project.ownerId if so
       const highLevelRoles = await storage.getHighLevelRoles(id);
       const isOwner = highLevelRoles.some(r => r.roleType === 'owner');
-      
+
       await storage.deleteProjectTeamMember(id);
-      
+
       if (isOwner) {
         await storage.updateProject(projectId, { ownerId: null });
       }
-      
+
       res.status(204).send();
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -813,7 +767,7 @@ export function registerProjectRoutes(
       }
 
       // Find the first member with owner role (only one allowed)
-      const ownerMember = members.find(m => 
+      const ownerMember = members.find(m =>
         m.highLevelRoles && Array.isArray(m.highLevelRoles) && m.highLevelRoles.includes('owner')
       );
 
@@ -830,7 +784,7 @@ export function registerProjectRoutes(
       for (const m of members) {
         // Check if already a team member
         let member = await storage.getProjectTeamMemberByUserAndProject(projectId, m.userId);
-        
+
         if (!member) {
           // Create team member
           member = await storage.createProjectTeamMember({

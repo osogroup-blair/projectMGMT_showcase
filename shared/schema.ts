@@ -16,20 +16,20 @@ import { users } from "./models/auth";
 export const userIdentities = pgTable("user_identities", {
   id: varchar("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // External system info
   systemId: varchar("system_id").notNull(), // e.g., "clickup", "jira"
   systemType: varchar("system_type"), // e.g., "project_management"
   systemName: varchar("system_name"), // Display name e.g., "ClickUp"
   workspaceId: varchar("workspace_id"), // Workspace/org in the external system
-  
+
   // External user info
   externalUserId: varchar("external_user_id").notNull(), // User ID in external system
   externalUsername: varchar("external_username"),
   externalEmail: varchar("external_email"),
   identityType: varchar("identity_type").default("user"), // user, service_account, bot
   status: varchar("status").default("active"), // active, inactive, pending
-  
+
   // Auth info (stored as JSON for flexibility)
   auth: jsonb("auth").$type<{
     authType: string;
@@ -38,11 +38,11 @@ export const userIdentities = pgTable("user_identities", {
     tokenRef?: string;
     tokenExpiresAt?: string;
   }>(),
-  
+
   // Roles and permissions in external system
   roles: jsonb("roles").$type<string[]>().default([]),
   externalPermissions: jsonb("external_permissions").$type<Record<string, boolean>>(),
-  
+
   // Profile from external system
   profile: jsonb("profile").$type<{
     displayName?: string;
@@ -50,13 +50,13 @@ export const userIdentities = pgTable("user_identities", {
     timezone?: string;
     locale?: string;
   }>(),
-  
+
   // Sync status
   syncSourceOfTruth: varchar("sync_source_of_truth").default("mixed"), // local, external, mixed
   lastSyncedAt: timestamp("last_synced_at"),
   syncStatus: varchar("sync_status").default("healthy"), // healthy, stale, error
   lastSyncError: text("last_sync_error"),
-  
+
   // Metadata
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -64,13 +64,40 @@ export const userIdentities = pgTable("user_identities", {
   updatedBy: varchar("updated_by"),
 });
 
-export const insertUserIdentitySchema = createInsertSchema(userIdentities).omit({ 
-  createdAt: true, 
-  updatedAt: true 
+export const insertUserIdentitySchema = createInsertSchema(userIdentities).omit({
+  createdAt: true,
+  updatedAt: true
 });
 
 export type UserIdentity = typeof userIdentities.$inferSelect;
 export type InsertUserIdentity = z.infer<typeof insertUserIdentitySchema>;
+
+// Clients
+export const clients = pgTable("clients", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientSchema = createInsertSchema(clients).omit({ createdAt: true, updatedAt: true });
+export type Client = typeof clients.$inferSelect;
+export type InsertClient = typeof clients.$inferInsert;
+
+// Client Users (Multi-tenant mapping)
+export const clientUsers = pgTable("client_users", {
+  id: varchar("id").primaryKey(),
+  clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: text("role").notNull().default("member"), // 'manager', 'member', 'viewer'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientUserSchema = createInsertSchema(clientUsers).omit({ createdAt: true, updatedAt: true });
+export type ClientUser = typeof clientUsers.$inferSelect;
+export type InsertClientUser = typeof clientUsers.$inferInsert;
 
 // Framework Templates
 export const frameworkTemplates = pgTable("framework_templates", {
@@ -94,9 +121,9 @@ export const projects = pgTable("projects", {
   permissions: jsonb("permissions"),
   sprintDurationWeeks: integer("sprint_duration_weeks"),
   ownerId: varchar("owner_id").references(() => users.id),
-  client: text("client"),
+  clientId: varchar("client_id").references(() => clients.id),
   riskLevel: text("risk_level"),
-  externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
+  externalRefs: jsonb("external_refs").$type<Array<{ source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any> }>>(),
   createdBy: varchar("created_by").references(() => users.id),
   updatedBy: varchar("updated_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
@@ -123,7 +150,7 @@ export const deliverables = pgTable("deliverables", {
   dueDate: text("due_date").notNull(),
   progress: integer("progress").notNull().default(0),
   typeId: varchar("type_id"),
-  externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
+  externalRefs: jsonb("external_refs").$type<Array<{ source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any> }>>(),
   createdBy: varchar("created_by").references(() => users.id),
   updatedBy: varchar("updated_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
@@ -143,7 +170,7 @@ export const epics = pgTable("epics", {
   progress: integer("progress").notNull().default(0),
   stageIds: text("stage_ids").array().notNull().default([]),
   typeId: varchar("type_id"),
-  externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
+  externalRefs: jsonb("external_refs").$type<Array<{ source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any> }>>(),
   scheduleOverride: boolean("schedule_override").default(false),
   overrideReason: text("override_reason"),
   overrideAt: timestamp("override_at"),
@@ -300,9 +327,9 @@ export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  project: text("project").notNull(),
   projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
   stageId: varchar("stage_id").references(() => projectStages.id),
+  deliverableId: varchar("deliverable_id").references(() => deliverables.id, { onDelete: "cascade" }),
   epicId: varchar("epic_id").references(() => epics.id, { onDelete: "cascade" }),
   status: text("status").notNull().default("BACKLOGGED"),
   assigneeId: varchar("assignee_id").references(() => users.id),
@@ -319,7 +346,7 @@ export const tasks = pgTable("tasks", {
   updatedAt: timestamp("updated_at").defaultNow(),
   taskTypeId: varchar("task_type_id"),
   parentTaskId: varchar("parent_task_id"),
-  externalRefs: jsonb("external_refs").$type<Array<{source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any>}>>(),
+  externalRefs: jsonb("external_refs").$type<Array<{ source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any> }>>(),
   scheduleOverride: boolean("schedule_override").default(false),
   overrideReason: text("override_reason"),
   overrideAt: timestamp("override_at"),
@@ -405,19 +432,6 @@ export const projectRoles = pgTable("project_roles", {
   isRequired: boolean("is_required").notNull().default(false),
   maxAssignees: integer("max_assignees"),
   permissions: text("permissions").array().notNull().default([]),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Role Assignments (links users to roles within a project) - LEGACY, use projectTeamMembers instead
-export const roleAssignments = pgTable("role_assignments", {
-  id: varchar("id").primaryKey(),
-  projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
-  roleId: varchar("role_id").references(() => projectRoles.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  memberType: text("member_type").notNull().default("member"), // owner, stakeholder, member
-  isPrimary: boolean("is_primary").notNull().default(false),
-  allocationPercent: integer("allocation_percent").notNull().default(100),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -800,7 +814,6 @@ export const insertCommentSchema = createInsertSchema(comments).omit({ id: true 
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({ id: true });
 export const insertHistorySchema = createInsertSchema(history).omit({ id: true });
 export const insertProjectRoleSchema = createInsertSchema(projectRoles).omit({ id: true });
-export const insertRoleAssignmentSchema = createInsertSchema(roleAssignments).omit({ id: true });
 export const insertProjectTeamMemberSchema = createInsertSchema(projectTeamMembers).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertProjectHighLevelRoleSchema = createInsertSchema(projectHighLevelRoles).omit({ id: true, createdAt: true });
 export const insertExecutionRoleAssignmentSchema = createInsertSchema(executionRoleAssignments).omit({ id: true, createdAt: true });
@@ -908,9 +921,6 @@ export type InsertHistory = z.infer<typeof insertHistorySchema>;
 
 export type ProjectRole = typeof projectRoles.$inferSelect;
 export type InsertProjectRole = z.infer<typeof insertProjectRoleSchema>;
-
-export type RoleAssignment = typeof roleAssignments.$inferSelect;
-export type InsertRoleAssignment = z.infer<typeof insertRoleAssignmentSchema>;
 
 export type ProjectTeamMember = typeof projectTeamMembers.$inferSelect;
 export type InsertProjectTeamMember = z.infer<typeof insertProjectTeamMemberSchema>;
@@ -1091,9 +1101,9 @@ export const themes = pgTable("themes", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertThemeSchema = createInsertSchema(themes).omit({ 
-  id: true, 
-  createdAt: true, 
+export const insertThemeSchema = createInsertSchema(themes).omit({
+  id: true,
+  createdAt: true,
   updatedAt: true,
   publishedAt: true,
 });

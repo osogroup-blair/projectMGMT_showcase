@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { 
+import {
   Search,
   ChevronDown,
   ChevronLeft,
@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentUser } from "@/context/current-user-context";
+import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "@/context/theme-context";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 
@@ -32,7 +33,7 @@ interface FavoriteProject {
 
 function SidebarThemeToggle() {
   const { isDark, toggleDarkMode } = useTheme();
-  
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -56,7 +57,8 @@ function SidebarThemeToggle() {
 export function Sidebar() {
   const [location] = useLocation();
   const { currentUser } = useCurrentUser();
-  
+  const { user, isAdmin, isDemoUser, canImpersonate } = useAuth();
+
   // Collapsible state with localStorage persistence
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
@@ -74,11 +76,11 @@ export function Sidebar() {
       const res = await fetch(`/api/favorites?userId=${currentUser.id}`);
       if (!res.ok) return [];
       const favorites = await res.json();
-      
+
       const projectsRes = await fetch('/api/projects');
       if (!projectsRes.ok) return [];
       const projects = await projectsRes.json();
-      
+
       return favorites.map((f: { projectId: string }) => {
         const project = projects.find((p: { id: string; name: string }) => p.id === f.projectId);
         return {
@@ -90,21 +92,21 @@ export function Sidebar() {
     enabled: !!currentUser?.id,
   });
 
-  const NavItem = ({ href, icon: Icon, label, isActive, isCollapsed }: { 
-    href: string; 
-    icon: typeof Home; 
-    label: string; 
-    isActive: boolean; 
+  const NavItem = ({ href, icon: Icon, label, isActive, isCollapsed }: {
+    href: string;
+    icon: typeof Home;
+    label: string;
+    isActive: boolean;
     isCollapsed: boolean;
   }) => {
     const content = (
-      <Link 
+      <Link
         href={href}
         className={cn(
           "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
           isCollapsed && "justify-center px-2",
-          isActive 
-            ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+          isActive
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
         )}
       >
@@ -141,14 +143,14 @@ export function Sidebar() {
               <span className="text-lg font-semibold text-sidebar-foreground">Project Management</span>
             )}
           </div>
-          
+
           {!isCollapsed && (
             <div className="flex items-center gap-2 mb-4">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-sidebar-foreground/70" />
-                <input 
+                <input
                   className="flex h-9 w-full rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-sidebar-foreground/50 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-sidebar-ring disabled:cursor-not-allowed disabled:opacity-50 pl-9 text-sidebar-foreground"
-                  placeholder="Search..." 
+                  placeholder="Search..."
                   data-testid="input-search"
                 />
                 <kbd className="pointer-events-none absolute right-2.5 top-2.5 inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar-accent px-1.5 font-mono text-[10px] font-medium text-sidebar-foreground/70 opacity-100">
@@ -157,7 +159,7 @@ export function Sidebar() {
               </div>
             </div>
           )}
-          
+
           {isCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -194,19 +196,19 @@ export function Sidebar() {
           <div className="space-y-6">
             {/* Main Navigation */}
             <div className="space-y-1">
-              <NavItem 
-                href="/" 
-                icon={Home} 
-                label="Home" 
-                isActive={location === "/"} 
-                isCollapsed={isCollapsed} 
+              <NavItem
+                href="/"
+                icon={Home}
+                label="Home"
+                isActive={location === "/"}
+                isCollapsed={isCollapsed}
               />
-              <NavItem 
-                href="/projects" 
-                icon={FolderKanban} 
-                label="All Projects" 
-                isActive={location === "/projects" || location.startsWith("/projects/")} 
-                isCollapsed={isCollapsed} 
+              <NavItem
+                href="/projects"
+                icon={FolderKanban}
+                label="All Projects"
+                isActive={location === "/projects" || location.startsWith("/projects/")}
+                isCollapsed={isCollapsed}
               />
             </div>
 
@@ -229,14 +231,14 @@ export function Sidebar() {
                 {favoriteProjects.map((project) => {
                   const isActive = location === `/projects/${project.projectId}`;
                   const content = (
-                    <Link 
+                    <Link
                       key={project.projectId}
                       href={`/projects/${project.projectId}`}
                       className={cn(
                         "flex items-center gap-3 px-3 py-1 rounded-lg text-sm transition-colors",
                         isCollapsed ? "justify-center px-2" : "ml-2",
                         isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                       )}
                       data-testid={`nav-favorite-${project.projectId}`}
@@ -265,15 +267,17 @@ export function Sidebar() {
             )}
 
             {/* Admin */}
-            <div className="space-y-1">
-              <NavItem 
-                href="/admin" 
-                icon={Settings} 
-                label="Admin" 
-                isActive={location === "/admin" || location.startsWith("/admin")} 
-                isCollapsed={isCollapsed} 
-              />
-            </div>
+            {isAdmin && (
+              <div className="space-y-1">
+                <NavItem
+                  href="/admin"
+                  icon={Settings}
+                  label="Admin"
+                  isActive={location === "/admin" || location.startsWith("/admin")}
+                  isCollapsed={isCollapsed}
+                />
+              </div>
+            )}
           </div>
         </ScrollArea>
 

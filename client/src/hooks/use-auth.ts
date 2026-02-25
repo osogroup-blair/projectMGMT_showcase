@@ -91,12 +91,15 @@ export function useAuth() {
   // Check if user is admin (considering impersonation)
   const realUserRole = user?.realUser?.systemRole || (!user?.isImpersonating ? user?.systemRole : null);
   const realUserId = user?.realUser?.id || (!user?.isImpersonating ? user?.id : null);
-  const isAdmin = realUserRole === "admin";
-  
+
+  // Effective admin status: ONLY true if the currently active profile is an admin.
+  // When impersonating a non-admin, this MUST be false to hide admin UI.
+  const isAdmin = user?.systemRole === "admin";
+
   // Demo users can impersonate but can't access admin features
   // Check both role and ID prefix for demo users
   const isDemoUser = realUserRole === "demo" || (realUserId ? realUserId.startsWith("demo-") : false);
-  const canImpersonate = isAdmin || isDemoUser;
+  const canImpersonate = (realUserRole === "admin") || isDemoUser;
 
   return {
     user,

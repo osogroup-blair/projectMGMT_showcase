@@ -1,4 +1,4 @@
-import { generateDemoData } from "../services/demo-data-generator";
+import { seedDatabase } from "./seed";
 import { connectWithRetry } from "../db";
 
 async function main() {
@@ -7,15 +7,13 @@ async function main() {
         await connectWithRetry(5, 2000);
 
         console.log("Seeding demo data...");
-        const result = await generateDemoData(true); // true = clear first
+        const result = await seedDatabase();
 
         if (result.success) {
             console.log("🎉 Seeding successful!");
-            console.log(`Created: ${result.created.projects || 0} projects, ${result.created.users || 0} users, ${result.created.tasks || 0} tasks`);
             process.exit(0);
         } else {
-            console.error("❌ Seeding failed with errors:");
-            console.error(result.errors?.join("\n"));
+            console.error("❌ Seeding failed with errors.");
             process.exit(1);
         }
     } catch (error: any) {

@@ -20,32 +20,33 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  
+
   // Authentication provider tracking
   authProvider: varchar("auth_provider").default("microsoft"), // "microsoft", "google"
   microsoftId: varchar("microsoft_id"), // Microsoft user object ID for linking
   googleId: varchar("google_id"), // Google user object ID for linking
-  
+
   // App-specific fields (migrated from existing schema)
+  userType: text("user_type").default("internal"), // "internal" | "client"
   name: text("name"), // Display name (can be set by user)
   jobTitle: text("job_title"), // Role in organization (e.g., "Project Manager")
   status: text("status").default("Offline"), // Online status
   avatar: text("avatar"), // Custom avatar (overrides profileImageUrl if set)
-  
+
   // RBAC fields (for future use)
   systemRole: text("system_role").default("member"), // admin, manager, member, viewer
   permissions: jsonb("permissions").$type<string[]>().default([]), // Granular permissions array
   roleTemplateIds: jsonb("role_template_ids").$type<string[]>().default([]), // Assigned role templates (e.g., Designer, Developer, QA)
-  
+
   // Import tracking fields (for matching imported users to authenticated users)
   externalId: varchar("external_id"), // Original ID from external system (e.g., ClickUp ID)
   importSource: varchar("import_source"), // Source system name (e.g., "clickup", "jira")
   importedAt: timestamp("imported_at"), // When this user was imported
-  
+
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-  
+
   // Login tracking
   lastLogin: timestamp("last_login"),
   loginCount: integer("login_count").default(0),

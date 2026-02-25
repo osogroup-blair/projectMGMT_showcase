@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { 
-  Plus, 
-  Search, 
+import {
+  Plus,
+  Search,
   ChevronRight,
   ChevronLeft,
   Clock,
@@ -44,6 +44,7 @@ import { Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { TaskInlineFilters, TaskFilters, emptyFilters, getActiveFilterCount } from "./task-inline-filters";
 import { PortableKanban } from "@/components/kanban";
+import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -92,23 +93,23 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { currentUserId, currentUser } = useCurrentUser();
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(50);
-  
+
   // Sorting state
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  
+
   const { data: project, isLoading: isProjectLoading } = useProject(projectId);
   const { createAsync: createTaskAsync, update: updateTask, remove: deleteTask } = useTasks();
-  
+
   // Local filter/search state - will be converted to backend format
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<TaskFilters>(emptyFilters);
   const [showMyTasksOnly, setShowMyTasksOnly] = useState(false);
-  
+
   // Convert local filters to backend format for server-side filtering
   const backendFilters: BackendTaskFilters = useMemo(() => ({
     search: searchQuery || undefined,
@@ -123,11 +124,11 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     dueDateTo: filters.dueDateRange?.to ? new Date(filters.dueDateRange.to).toISOString().split('T')[0] : undefined,
     myTasksOnly: showMyTasksOnly && currentUserId ? currentUserId : undefined,
   }), [searchQuery, filters, showMyTasksOnly, currentUserId]);
-  
+
   // Server-side paginated tasks with filtering
-  const { 
-    data: paginatedResult, 
-    isLoading: isTasksLoading 
+  const {
+    data: paginatedResult,
+    isLoading: isTasksLoading
   } = useProjectTasksPaginated(
     projectId,
     currentPage,
@@ -136,12 +137,12 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     sortDirection,
     backendFilters
   );
-  
+
   // Extract tasks and pagination info from server response
   const paginatedTasks = paginatedResult?.tasks || [];
   const totalFilteredTasks = paginatedResult?.total || 0;
   const totalPages = paginatedResult?.totalPages || 1;
-  
+
   // Also fetch all tasks for reference data (stages, etc.) but not for filtering
   const { data: allProjectTasks = [] } = useAllProjectTasks(projectId);
   const { data: milestones, isLoading: isMilestonesLoading } = useMilestones();
@@ -165,7 +166,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     },
   });
 
-  const formattedStatusOptions = useMemo(() => 
+  const formattedStatusOptions = useMemo(() =>
     taskStatuses.map((s) => ({ id: s.id, label: s.label, color: s.color })),
     [taskStatuses]
   );
@@ -248,15 +249,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     setEditValue("");
   };
 
-  // New task form state
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
-  const [newTaskEffort, setNewTaskEffort] = useState<number>(3);
-  const [newTaskEpicId, setNewTaskEpicId] = useState("");
-  const [newTaskStageId, setNewTaskStageId] = useState("");
-  const [newTaskTypeId, setNewTaskTypeId] = useState("");
-  
+
   // Task Types
   const { data: taskTypes } = useResolvedTaskTypes(projectId);
 
@@ -296,6 +289,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   }, [projectStages, projectStageIds]);
 
   const getAssignee = (id?: string) => (users || []).find((u: any) => u.id === id);
+  const getDeliverable = (id?: string) => projectDeliverables.find((d: any) => d.id === id);
   const getEpic = (id?: string) => projectEpics.find((e: any) => e.id === id);
   const getStage = (id?: string) => stages.find((s: any) => s.id === id);
   const getMilestone = (id?: string) => (milestones || []).find((m: any) => m.id === id);
@@ -343,7 +337,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) return <ArrowUpDown className="h-3.5 w-3.5 ml-1 text-muted-foreground/50" />;
-    return sortDirection === "asc" 
+    return sortDirection === "asc"
       ? <ArrowUp className="h-3.5 w-3.5 ml-1 text-primary" />
       : <ArrowDown className="h-3.5 w-3.5 ml-1 text-primary" />;
   };
@@ -365,7 +359,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           task.title?.toLowerCase().includes(q) ||
           task.description?.toLowerCase().includes(q);
         if (!matchesSearch) return false;
@@ -473,13 +467,13 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const handleBulkAssign = async (assigneeId: string | null) => {
     setIsBulkUpdating(true);
     try {
-      const updates = Array.from(selectedTaskIds).map(id => 
+      const updates = Array.from(selectedTaskIds).map(id =>
         updateTask({ id, updates: { assigneeId } })
       );
       await Promise.all(updates);
-      toast({ 
-        title: "Tasks updated", 
-        description: `${selectedTaskIds.size} task(s) assigned successfully.` 
+      toast({
+        title: "Tasks updated",
+        description: `${selectedTaskIds.size} task(s) assigned successfully.`
       });
       setSelectedTaskIds(new Set());
     } catch (error: any) {
@@ -492,13 +486,13 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const handleBulkStatus = async (status: string) => {
     setIsBulkUpdating(true);
     try {
-      const updates = Array.from(selectedTaskIds).map(id => 
+      const updates = Array.from(selectedTaskIds).map(id =>
         updateTask({ id, updates: { status } })
       );
       await Promise.all(updates);
-      toast({ 
-        title: "Tasks updated", 
-        description: `${selectedTaskIds.size} task(s) status changed to ${status}.` 
+      toast({
+        title: "Tasks updated",
+        description: `${selectedTaskIds.size} task(s) status changed to ${status}.`
       });
       setSelectedTaskIds(new Set());
     } catch (error: any) {
@@ -511,14 +505,14 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   const handleBulkSprint = async (sprintId: string | null) => {
     setIsBulkUpdating(true);
     try {
-      const updates = Array.from(selectedTaskIds).map(id => 
+      const updates = Array.from(selectedTaskIds).map(id =>
         updateTask({ id, updates: { sprintId } })
       );
       await Promise.all(updates);
       const sprintName = sprintId ? projectSprints.find((s: any) => s.id === sprintId)?.name : "Backlog";
-      toast({ 
-        title: "Tasks updated", 
-        description: `${selectedTaskIds.size} task(s) moved to ${sprintName}.` 
+      toast({
+        title: "Tasks updated",
+        description: `${selectedTaskIds.size} task(s) moved to ${sprintName}.`
       });
       setSelectedTaskIds(new Set());
     } catch (error: any) {
@@ -539,9 +533,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
     setIsDeleting(true);
     try {
       deleteTask(taskToDelete.id);
-      toast({ 
-        title: "Task deleted", 
-        description: `"${taskToDelete.title}" has been deleted.` 
+      toast({
+        title: "Task deleted",
+        description: `"${taskToDelete.title}" has been deleted.`
       });
       setDeleteConfirmOpen(false);
       setTaskToDelete(null);
@@ -563,9 +557,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       for (const id of Array.from(selectedTaskIds)) {
         deleteTask(id);
       }
-      toast({ 
-        title: "Tasks deleted", 
-        description: `${deleteCount} task(s) have been deleted.` 
+      toast({
+        title: "Tasks deleted",
+        description: `${deleteCount} task(s) have been deleted.`
       });
       setSelectedTaskIds(new Set());
       setBulkDeleteConfirmOpen(false);
@@ -577,58 +571,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   };
 
   const openCreateDialog = () => {
-    setNewTaskTitle("");
-    setNewTaskDescription("");
-    setNewTaskPriority("Medium");
-    setNewTaskEffort(3);
-    setNewTaskEpicId(projectEpics[0]?.id || "");
-    setNewTaskStageId(stages[0]?.id || "");
-    // Default to "Action" task type, or isDefault, or first available
-    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
-    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
-    setNewTaskTypeId(defaultTaskType?.id || "");
     setCreateDialogOpen(true);
-  };
-
-  const handleCreateTask = async () => {
-    if (!newTaskTitle.trim()) {
-      toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
-      return;
-    }
-    if (!newTaskEpicId) {
-      toast({ title: "Error", description: "Epic is required.", variant: "destructive" });
-      return;
-    }
-    if (!newTaskTypeId) {
-      toast({ title: "Error", description: "Task type is required.", variant: "destructive" });
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      await createTaskAsync({
-        title: newTaskTitle,
-        description: newTaskDescription || "",
-        project: project?.name,
-        projectId: project?.id,
-        epicId: newTaskEpicId,
-        stageId: newTaskStageId,
-        status: "BACKLOGGED",
-        priority: newTaskPriority,
-        effort: newTaskEffort,
-        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        tags: [],
-        taskTypeId: newTaskTypeId,
-        assigneeId: currentUser?.id || null
-      });
-      
-      toast({ title: "Task created", description: "New task has been added to the project." });
-      setCreateDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to create task.", variant: "destructive" });
-    } finally {
-      setIsCreating(false);
-    }
   };
 
   const handleTaskClick = (taskId: string) => {
@@ -648,10 +591,10 @@ export function TaskListContent({ projectId }: { projectId: string }) {
   return (
     <>
       {/* Hidden trigger for tab-level Add button */}
-      <button 
-        data-testid="button-create-tasks" 
-        onClick={openCreateDialog} 
-        className="hidden" 
+      <button
+        data-testid="button-create-tasks"
+        onClick={openCreateDialog}
+        className="hidden"
         aria-hidden="true"
       />
 
@@ -669,9 +612,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 data-testid="input-search-tasks"
               />
             </div>
-            
+
             {/* My Tasks Filter Button */}
-            <Button 
+            <Button
               variant={showMyTasksOnly ? "default" : "outline"}
               size="sm"
               className="gap-2"
@@ -684,8 +627,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 <span className="text-xs opacity-75">({currentUser.name?.split(' ')[0]})</span>
               )}
             </Button>
-            
-            <Button 
+
+            <Button
               size="sm"
               className="gap-1.5"
               onClick={openCreateDialog}
@@ -699,8 +642,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 onClick={() => setViewMode("list")}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
-                  viewMode === "list" 
-                    ? "bg-background text-foreground shadow-sm" 
+                  viewMode === "list"
+                    ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
                 data-testid="button-view-list"
@@ -712,8 +655,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 onClick={() => setViewMode("kanban")}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
-                  viewMode === "kanban" 
-                    ? "bg-background text-foreground shadow-sm" 
+                  viewMode === "kanban"
+                    ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
                 data-testid="button-view-kanban"
@@ -725,8 +668,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 onClick={() => setViewMode("card")}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded text-sm transition-colors",
-                  viewMode === "card" 
-                    ? "bg-background text-foreground shadow-sm" 
+                  viewMode === "card"
+                    ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
                 data-testid="button-view-card"
@@ -794,8 +737,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 triggerClassName="h-8 w-[140px] text-xs"
                 data-testid="bulk-sprint-select"
               />
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 size="sm"
                 onClick={handleBulkDeleteClick}
                 disabled={isBulkUpdating || isDeleting}
@@ -807,8 +750,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               </Button>
             </div>
             <div className="ml-auto">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setSelectedTaskIds(new Set())}
                 className="h-8 text-xs"
@@ -831,7 +774,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
               {allProjectTasks.length === 0 ? "No tasks yet" : "No tasks match your filters"}
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">
-              {allProjectTasks.length === 0 
+              {allProjectTasks.length === 0
                 ? "Create your first task to get started."
                 : "Try adjusting your search or filters."}
             </p>
@@ -861,8 +804,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     data-testid="checkbox-select-all"
                   />
                 </TableHead>
-                <TableHead 
-                  style={{ width: "21%" }} 
+                <TableHead
+                  style={{ width: "16%" }}
                   className="cursor-pointer select-none hover:bg-muted/50"
                   onClick={() => handleSort("title")}
                   data-testid="sort-title"
@@ -871,7 +814,15 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     Task {getSortIcon("title")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
+                  style={{ width: "10%" }}
+                  data-testid="col-deliverable"
+                >
+                  <div className="flex items-center">
+                    Deliverable
+                  </div>
+                </TableHead>
+                <TableHead
                   style={{ width: "10%" }}
                   data-testid="col-stage"
                 >
@@ -879,7 +830,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     Stage
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   style={{ width: "10%" }}
                   className="cursor-pointer select-none hover:bg-muted/50"
                   onClick={() => handleSort("status")}
@@ -889,7 +840,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     Status {getSortIcon("status")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   style={{ width: "13%" }}
                   data-testid="col-sprint"
                 >
@@ -897,7 +848,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     Sprint
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   style={{ width: "8%" }}
                   className="cursor-pointer select-none hover:bg-muted/50"
                   onClick={() => handleSort("priority")}
@@ -907,7 +858,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     Priority {getSortIcon("priority")}
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   style={{ width: "10%" }}
                   data-testid="col-assignee"
                 >
@@ -915,7 +866,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     Assignee
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   style={{ width: "10%" }}
                   data-testid="col-milestone"
                 >
@@ -923,7 +874,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     Milestone
                   </div>
                 </TableHead>
-                <TableHead 
+                <TableHead
                   style={{ width: "6%" }}
                   data-testid="col-effort"
                 >
@@ -931,8 +882,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     Effort
                   </div>
                 </TableHead>
-                <TableHead 
-                  style={{ width: "8%" }} 
+                <TableHead
+                  style={{ width: "8%" }}
                   className="text-right cursor-pointer select-none hover:bg-muted/50"
                   onClick={() => handleSort("deadline")}
                   data-testid="sort-deadline"
@@ -947,6 +898,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             <TableBody>
               {paginatedTasks.map((task: any) => {
                 const assignee = getAssignee(task.assigneeId);
+                const deliverable = getDeliverable(task.deliverableId);
                 const epic = getEpic(task.epicId);
                 const stage = getStage(task.stageId);
                 const taskType = getTaskType(task.taskTypeId);
@@ -955,8 +907,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                 const isOverdue = new Date(task.deadline) < new Date() && task.status !== "Done";
 
                 return (
-                  <TableRow 
-                    key={task.id} 
+                  <TableRow
+                    key={task.id}
                     className={cn(
                       "hover:bg-muted/50 transition-colors",
                       selectedTaskIds.has(task.id) && "bg-primary/5"
@@ -991,7 +943,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                             />
                           </div>
                         ) : (
-                          <div 
+                          <div
                             className="font-medium flex items-center gap-2 cursor-pointer hover:text-primary"
                             onClick={() => startEditingTitle(task.id, task.title)}
                             data-testid={`edit-title-${task.id}`}
@@ -1001,11 +953,11 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                         )}
                         <div className="flex items-center gap-2 flex-wrap">
                           {taskType && (
-                            <span 
+                            <span
                               className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                              style={{ 
-                                backgroundColor: `${taskType.color}20`, 
-                                color: taskType.color 
+                              style={{
+                                backgroundColor: `${taskType.color}20`,
+                                color: taskType.color
                               }}
                               data-testid={`task-type-badge-${task.id}`}
                             >
@@ -1019,6 +971,21 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                           )}
                         </div>
                       </div>
+                    </TableCell>
+
+                    {/* Deliverable - Inline Dropdown */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <SearchableSelect
+                        value={task.deliverableId || "none"}
+                        onValueChange={(v) => updateTask({ id: task.id, updates: { deliverableId: v === "none" ? null : v } })}
+                        placeholder="—"
+                        options={[
+                          { value: "none", label: "—" },
+                          ...projectDeliverables.map((d: any) => ({ value: d.id, label: d.title }))
+                        ]}
+                        triggerClassName="h-7 w-full border-0 bg-transparent hover:bg-muted/50 px-2 line-clamp-1"
+                        data-testid={`select-deliverable-${task.id}`}
+                      />
                     </TableCell>
 
                     {/* Stage - Inline Dropdown */}
@@ -1138,9 +1105,9 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                     <TableCell className="px-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="h-7 w-7 p-0"
                             data-testid={`actions-task-${task.id}`}
                           >
@@ -1154,7 +1121,7 @@ export function TaskListContent({ projectId }: { projectId: string }) {
                               View Task
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => handleDeleteClick({ id: task.id, title: task.title })}
                             className="text-destructive focus:text-destructive cursor-pointer"
                             data-testid={`delete-task-${task.id}`}
@@ -1212,8 +1179,8 @@ export function TaskListContent({ projectId }: { projectId: string }) {
             const isOverdue = new Date(task.deadline) < new Date() && task.status !== "Done";
 
             return (
-              <Card 
-                key={task.id} 
+              <Card
+                key={task.id}
                 className={cn(
                   "hover:shadow-md transition-shadow cursor-pointer group",
                   selectedTaskIds.has(task.id) && "ring-2 ring-primary"
@@ -1249,23 +1216,23 @@ export function TaskListContent({ projectId }: { projectId: string }) {
 
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {taskType && (
-                      <span 
+                      <span
                         className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                        style={{ 
-                          backgroundColor: `${taskType.color}20`, 
-                          color: taskType.color 
+                        style={{
+                          backgroundColor: `${taskType.color}20`,
+                          color: taskType.color
                         }}
                       >
                         {taskType.name}
                       </span>
                     )}
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={cn("text-[10px]", statusConfig.bgColor, statusConfig.color)}
                     >
                       {task.status}
                     </Badge>
-                    <Badge 
+                    <Badge
                       variant="secondary"
                       className={cn("text-[10px]", priorityConfig.bgColor, priorityConfig.color)}
                     >
@@ -1391,120 +1358,12 @@ export function TaskListContent({ projectId }: { projectId: string }) {
       )}
 
       {/* Create Task Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
-            <DialogDescription>
-              Add a new task to your project.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="task-title">Title *</Label>
-              <Input
-                id="task-title"
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Enter task title"
-                data-testid="input-create-task-title"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="task-description">Description</Label>
-              <Textarea
-                id="task-description"
-                value={newTaskDescription}
-                onChange={(e) => setNewTaskDescription(e.target.value)}
-                placeholder="Enter task description"
-                className="min-h-[80px]"
-                data-testid="input-create-task-description"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task-epic">Epic *</Label>
-                <SearchableSelect
-                  value={newTaskEpicId}
-                  onValueChange={setNewTaskEpicId}
-                  placeholder="Select an epic"
-                  options={projectEpics.map((epic: any) => ({ value: epic.id, label: epic.title }))}
-                  data-testid="select-create-task-epic"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="task-stage">Stage</Label>
-                <SearchableSelect
-                  value={newTaskStageId}
-                  onValueChange={setNewTaskStageId}
-                  placeholder="Select a stage"
-                  options={stages.map((stage: any) => ({ value: stage.id, label: stage.name }))}
-                  data-testid="select-create-task-stage"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task-type">Task Type</Label>
-                <SearchableSelect
-                  value={newTaskTypeId}
-                  onValueChange={setNewTaskTypeId}
-                  placeholder="Select type"
-                  options={(taskTypes || []).map((tt: any) => ({ value: tt.id, label: tt.name }))}
-                  data-testid="select-create-task-type"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="task-priority">Priority</Label>
-                <SearchableSelect
-                  value={newTaskPriority}
-                  onValueChange={setNewTaskPriority}
-                  placeholder="Select priority"
-                  options={[
-                    { value: "Low", label: "Low" },
-                    { value: "Medium", label: "Medium" },
-                    { value: "High", label: "High" },
-                    { value: "Critical", label: "Critical" }
-                  ]}
-                  data-testid="select-create-task-priority"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="task-effort">Effort</Label>
-                <SearchableSelect
-                  value={newTaskEffort.toString()}
-                  onValueChange={(v) => setNewTaskEffort(Number(v))}
-                  placeholder="Select effort"
-                  options={EFFORT_VALUES.map(val => ({ value: val.toString(), label: `${val} pts` }))}
-                  data-testid="select-create-task-effort"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} data-testid="button-cancel-create-task">
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleCreateTask} 
-              loading={isCreating}
-              data-testid="button-submit-create-task"
-            >
-              {isCreating ? "Creating..." : "Create Task"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TaskQuickCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        defaultProjectId={projectId}
+        defaultProjectName={project?.name}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

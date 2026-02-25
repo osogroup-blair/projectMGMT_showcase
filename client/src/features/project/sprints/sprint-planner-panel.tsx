@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 import { computeSprintStatus } from "@/lib/constants";
 import { PlanTab } from "@/features/sprints/detail/tabs/plan-tab";
 import { useSprintData } from "@/features/sprints/detail/hooks/use-sprint-data";
-import { AddTasksDialog, CreateTaskDialog } from "@/features/sprints/detail";
+import { AddTasksDialog } from "@/features/sprints/detail";
+import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
 
 interface SprintPlannerPanelProps {
   projectId: string;
@@ -103,13 +104,9 @@ export function SprintPlannerPanel({
   }, [sprintData.updateTask, selectedSprintId]);
 
   const handleCreateNewTask = useCallback(async (taskData: any) => {
-    await createTaskAsync({
-      ...taskData,
-      sprintId: selectedSprintId,
-      projectId,
-    });
+    // Handled internally by TaskQuickCreateDialog now
     setShowCreateTaskDialog(false);
-  }, [createTaskAsync, selectedSprintId, projectId]);
+  }, []);
 
   const handleRemoveTask = useCallback((taskId: string) => {
     sprintData.updateTask({ id: taskId, updates: { sprintId: null } });
@@ -259,12 +256,12 @@ export function SprintPlannerPanel({
         }}
       />
 
-      <CreateTaskDialog
+      <TaskQuickCreateDialog
         open={showCreateTaskDialog}
         onOpenChange={setShowCreateTaskDialog}
-        projectEpics={sprintData.projectEpics}
-        projectStages={sprintData.projectStages}
-        onCreateTask={handleCreateNewTask}
+        defaultProjectId={projectId}
+        defaultSprintId={selectedSprintId}
+        onSuccess={() => setShowCreateTaskDialog(false)}
       />
     </div>
   );

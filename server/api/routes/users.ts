@@ -67,11 +67,12 @@ export function registerUserRoutes(
   // Users (with permission middleware)
   app.get("/api/users", async (req, res) => {
     try {
-      const { search, role, status, page, pageSize, sortBy, sortOrder, limit, offset } = req.query;
+      const { search, role, status, userType, page, pageSize, sortBy, sortOrder, limit, offset } = req.query;
       const result = await userManagementService.listUsers({
         search: search as string,
         role: role as string,
         status: status as string,
+        userType: userType as any,
         page: page ? parseInt(page as string) : 1,
         pageSize: pageSize ? parseInt(pageSize as string) : 20,
         sortBy: sortBy as any,

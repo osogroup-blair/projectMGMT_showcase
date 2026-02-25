@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { Shell } from "@/components/layout/shell";
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  MoreHorizontal, 
+import {
+  Users,
+  Search,
+  Plus,
+  MoreHorizontal,
   Mail,
   Download,
   Upload,
@@ -85,10 +85,10 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { 
-  useUsers, 
-  useCreateUser, 
-  useUpdateUser, 
+import {
+  useUsers,
+  useCreateUser,
+  useUpdateUser,
   useDeactivateUser,
   useBulkUpdateRole,
   useBulkDeactivate,
@@ -143,21 +143,21 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-const SearchInput = React.memo(function SearchInput({ 
+const SearchInput = React.memo(function SearchInput({
   onSearch,
   externalValue = ""
-}: { 
+}: {
   onSearch: (val: string) => void;
   externalValue?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localValue, setLocalValue] = useState(externalValue);
-  
+
   // Update local value only when externalValue changes from outside (e.g. filters cleared)
   useEffect(() => {
     setLocalValue(externalValue);
   }, [externalValue]);
-  
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       onSearch(localValue);
@@ -187,7 +187,7 @@ const SearchInput = React.memo(function SearchInput({
         data-testid="input-search-users"
       />
       {localValue && (
-        <button 
+        <button
           type="button"
           onClick={handleClear}
           className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
@@ -202,11 +202,12 @@ const SearchInput = React.memo(function SearchInput({
 function UserManagementContent({ embedded = false }: UserManagementProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [userTypeFilter, setUserTypeFilter] = useState<string>("");
   const [hasEmailFilter, setHasEmailFilter] = useState<string>("");
   const [hasTasksFilter, setHasTasksFilter] = useState<string>("");
   const [emailDomainFilter, setEmailDomainFilter] = useState<string>("");
@@ -216,13 +217,13 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const [pageSize, setPageSize] = useState(50);
   const [sortBy, setSortBy] = useState<SortColumn>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserPublic | null>(null);
   const [formData, setFormData] = useState<Partial<CreateUserRequest & UpdateUserRequest>>({});
-  
+
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importResults, setImportResults] = useState<ImportResults | null>(null);
@@ -252,6 +253,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     search: searchQuery || undefined,
     role: roleFilter || undefined,
     status: statusFilter || undefined,
+    userType: userTypeFilter || undefined,
     hasEmail: hasEmailFilter as "yes" | "no" | undefined || undefined,
     hasTasks: hasTasksFilter as "yes" | "no" | undefined || undefined,
     emailDomain: debouncedEmailDomain || undefined,
@@ -313,11 +315,11 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
+  }, [searchQuery, roleFilter, statusFilter, userTypeFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, searchQuery, roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
+  }, [page, searchQuery, roleFilter, statusFilter, userTypeFilter, hasEmailFilter, hasTasksFilter, debouncedEmailDomain]);
 
   const handleSort = useCallback((column: SortColumn) => {
     if (sortBy === column) {
@@ -395,18 +397,18 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       const ids = bulkPreflightData.users.map(u => u.id);
       const result = await bulkDeleteWithPreflight.mutateAsync({ ids, mode });
       setBulkDeleteResult(result);
-      
+
       const msgs: string[] = [];
       if (result.deleted.length > 0) msgs.push(`${result.deleted.length} deleted`);
       if (result.archived.length > 0) msgs.push(`${result.archived.length} archived`);
       if (result.failed.length > 0) msgs.push(`${result.failed.length} failed`);
-      
-      toast({ 
-        title: "Bulk Delete Complete", 
+
+      toast({
+        title: "Bulk Delete Complete",
         description: msgs.join(", "),
         variant: result.failed.length > 0 ? "destructive" : "default"
       });
-      
+
       if (result.failed.length === 0) {
         setBulkPreflightData(null);
         setSelectedIds(new Set());
@@ -447,6 +449,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
             name: formData.name,
             jobTitle: formData.jobTitle,
             systemRole: formData.systemRole as any,
+            userType: formData.userType as any,
             permissions: formData.permissions as string[]
           }
         });
@@ -466,6 +469,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
           email: formData.email!,
           jobTitle: formData.jobTitle,
           systemRole: (formData.systemRole as any) || "member",
+          userType: (formData.userType as any) || "internal",
           permissions: formData.permissions as string[]
         });
         toast({ title: "User Created", description: "New user added to the system." });
@@ -542,7 +546,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
   const handleTransferAll = async () => {
     if (!preflightUser || !preflightData || !transferTargetId) return;
     const { blockers } = preflightData;
-    
+
     try {
       if (blockers.ownedProjects.length > 0) {
         await transferOwnership.mutateAsync({
@@ -584,7 +588,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
           entityIds: blockers.ownedSprints.map(s => s.id),
         });
       }
-      
+
       toast({ title: "Ownership Transferred", description: "All owned entities have been transferred to the new owner." });
       const newData = await deletionPreflight.mutateAsync(preflightUser.id);
       setPreflightData(newData);
@@ -598,16 +602,16 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     try {
       const freshPreflight = await deletionPreflight.mutateAsync(preflightUser.id);
       setPreflightData(freshPreflight);
-      
+
       if (!freshPreflight.canDelete) {
-        toast({ 
-          title: "Cannot Delete", 
+        toast({
+          title: "Cannot Delete",
           description: "There are still blocking dependencies. Please transfer ownership first.",
-          variant: "destructive" 
+          variant: "destructive"
         });
         return;
       }
-      
+
       await permanentDelete.mutateAsync(preflightUser.id);
       toast({ title: "User Deleted", description: `${preflightUser.name || preflightUser.email} has been permanently deleted.` });
       setPreflightUser(null);
@@ -626,9 +630,9 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
 
   const handleLinkIdentity = async () => {
     if (!identityUserId || !linkForm.systemId || !linkForm.externalUserId) return;
-    
+
     const selectedSystem = systems.find(s => s.id === linkForm.systemId);
-    
+
     try {
       await linkIdentity.mutateAsync({
         userId: identityUserId,
@@ -685,8 +689,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       setIsMergeDialogOpen(false);
       setMergeSource(null);
       setMergeTargetId("");
-      toast({ 
-        title: "Users merged successfully", 
+      toast({
+        title: "Users merged successfully",
         description: `Moved ${result.identitiesMoved} identities to target user`
       });
     } catch (error: any) {
@@ -734,22 +738,22 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       });
 
       const results = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(results.error || results.message || 'Import failed');
       }
 
       setImportResults(results);
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      toast({ 
-        title: "Import Complete", 
-        description: `Created ${results.created} users, updated ${results.updated} users.` 
+      toast({
+        title: "Import Complete",
+        description: `Created ${results.created} users, updated ${results.updated} users.`
       });
     } catch (error: any) {
-      toast({ 
-        title: "Import Failed", 
-        description: error.message, 
-        variant: "destructive" 
+      toast({
+        title: "Import Failed",
+        description: error.message,
+        variant: "destructive"
       });
     } finally {
       setIsImporting(false);
@@ -771,7 +775,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       }
 
       const exportData = await response.json();
-      
+
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -783,15 +787,15 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast({ 
-        title: "Export Complete", 
-        description: `Exported ${exportData.Users?.length || 0} users to file.` 
+      toast({
+        title: "Export Complete",
+        description: `Exported ${exportData.Users?.length || 0} users to file.`
       });
     } catch (error: any) {
-      toast({ 
-        title: "Export Failed", 
-        description: error.message, 
-        variant: "destructive" 
+      toast({
+        title: "Export Failed",
+        description: error.message,
+        variant: "destructive"
       });
     }
   };
@@ -809,23 +813,25 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
     setSearchQuery("");
     setRoleFilter("");
     setStatusFilter("");
+    setUserTypeFilter("");
     setHasEmailFilter("");
     setHasTasksFilter("");
     setEmailDomainFilter("");
     setPage(1);
   };
 
-  const hasActiveFilters = searchQuery || roleFilter || statusFilter || hasEmailFilter || hasTasksFilter || emailDomainFilter;
-  
+  const hasActiveFilters = searchQuery || roleFilter || statusFilter || userTypeFilter || hasEmailFilter || hasTasksFilter || emailDomainFilter;
+
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (roleFilter) count++;
     if (statusFilter) count++;
+    if (userTypeFilter) count++;
     if (hasEmailFilter) count++;
     if (hasTasksFilter) count++;
     if (emailDomainFilter) count++;
     return count;
-  }, [roleFilter, statusFilter, hasEmailFilter, hasTasksFilter, emailDomainFilter]);
+  }, [roleFilter, statusFilter, userTypeFilter, hasEmailFilter, hasTasksFilter, emailDomainFilter]);
 
   const applyQuickFilter = (preset: string) => {
     clearFilters();
@@ -895,11 +901,11 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
         <div className="bg-card border rounded-lg">
           <div className="p-3 border-b space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <SearchInput 
+              <SearchInput
                 onSearch={setSearchQuery}
                 externalValue={searchQuery}
               />
-              
+
               {embedded && (
                 <div className="flex gap-1.5 ml-auto">
                   <Button variant="outline" size="sm" className="gap-1.5" onClick={handleImportClick} data-testid="button-import-users">
@@ -916,7 +922,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   </Button>
                 </div>
               )}
-              
+
               <Select value={roleFilter || "all"} onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}>
                 <SelectTrigger className="w-[130px] h-9">
                   <SelectValue placeholder="All roles" />
@@ -943,9 +949,20 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 </SelectContent>
               </Select>
 
-              <Button 
-                variant={showAdvancedFilters ? "secondary" : "outline"} 
-                size="sm" 
+              <Select value={userTypeFilter || "all"} onValueChange={(v) => setUserTypeFilter(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-[130px] h-9">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="internal">Internal</SelectItem>
+                  <SelectItem value="client">Client</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant={showAdvancedFilters ? "secondary" : "outline"}
+                size="sm"
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 className="h-9 gap-1.5"
               >
@@ -978,36 +995,36 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               <div className="pt-3 border-t space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-sm font-medium text-muted-foreground mr-2">Quick Filters:</div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-7 text-xs gap-1"
                     onClick={() => applyQuickFilter("deactivation-candidates")}
                   >
                     <UserX className="h-3 w-3" />
                     Deactivation Candidates
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-7 text-xs gap-1"
                     onClick={() => applyQuickFilter("active-contributors")}
                   >
                     <ListTodo className="h-3 w-3" />
                     Active Contributors
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-7 text-xs gap-1"
                     onClick={() => applyQuickFilter("deactivated")}
                   >
                     <UserX className="h-3 w-3 text-red-500" />
                     Already Deactivated
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-7 text-xs gap-1"
                     onClick={() => applyQuickFilter("no-email")}
                   >
@@ -1050,7 +1067,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       onChange={(e) => setEmailDomainFilter(e.target.value)}
                     />
                     {emailDomainFilter && (
-                      <button 
+                      <button
                         onClick={() => setEmailDomainFilter("")}
                         className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
                       >
@@ -1077,6 +1094,14 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   <Badge variant="secondary" className="gap-1 text-xs h-6">
                     Status: {statusFilter}
                     <button onClick={() => setStatusFilter("")} className="ml-0.5 hover:text-destructive">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {userTypeFilter && (
+                  <Badge variant="secondary" className="gap-1 text-xs h-6">
+                    Type: {userTypeFilter === 'internal' ? 'Internal' : 'Client'}
+                    <button onClick={() => setUserTypeFilter("")} className="ml-0.5 hover:text-destructive">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
@@ -1118,8 +1143,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       {systemRoles.map(role => (
-                        <DropdownMenuItem 
-                          key={role.id} 
+                        <DropdownMenuItem
+                          key={role.id}
                           onClick={() => handleBulkRoleChange(role.name)}
                         >
                           Set as {role.label}
@@ -1145,9 +1170,9 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={handleOpenBulkPreflight}
                     disabled={bulkDeletionPreflight.isPending}
@@ -1173,15 +1198,15 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-10">
-                    <Checkbox 
-                      checked={allSelected} 
+                    <Checkbox
+                      checked={allSelected}
                       onCheckedChange={handleSelectAll}
                       aria-label="Select all"
                       className={someSelected ? "data-[state=checked]:bg-primary/50" : ""}
                     />
                   </TableHead>
                   <TableHead className="min-w-[250px]">
-                    <button 
+                    <button
                       className="flex items-center hover:text-foreground transition-colors"
                       onClick={() => handleSort("name")}
                     >
@@ -1189,7 +1214,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                     </button>
                   </TableHead>
                   <TableHead className="w-[120px]">
-                    <button 
+                    <button
                       className="flex items-center hover:text-foreground transition-colors"
                       onClick={() => handleSort("systemRole")}
                     >
@@ -1197,7 +1222,10 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                     </button>
                   </TableHead>
                   <TableHead className="w-[100px]">
-                    <button 
+                    User Type
+                  </TableHead>
+                  <TableHead className="w-[100px]">
+                    <button
                       className="flex items-center hover:text-foreground transition-colors"
                       onClick={() => handleSort("status")}
                     >
@@ -1205,7 +1233,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                     </button>
                   </TableHead>
                   <TableHead className="w-[140px]">
-                    <button 
+                    <button
                       className="flex items-center hover:text-foreground transition-colors"
                       onClick={() => handleSort("lastLogin")}
                     >
@@ -1213,7 +1241,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                     </button>
                   </TableHead>
                   <TableHead className="w-[80px]">
-                    <button 
+                    <button
                       className="flex items-center hover:text-foreground transition-colors"
                       onClick={() => handleSort("loginCount")}
                     >
@@ -1230,6 +1258,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       <TableCell><div className="h-4 w-4 bg-muted rounded animate-pulse" /></TableCell>
                       <TableCell><div className="h-8 w-48 bg-muted rounded animate-pulse" /></TableCell>
                       <TableCell><div className="h-5 w-16 bg-muted rounded animate-pulse" /></TableCell>
+                      <TableCell><div className="h-5 w-16 bg-muted rounded animate-pulse" /></TableCell>
                       <TableCell><div className="h-5 w-14 bg-muted rounded animate-pulse" /></TableCell>
                       <TableCell><div className="h-5 w-20 bg-muted rounded animate-pulse" /></TableCell>
                       <TableCell><div className="h-5 w-8 bg-muted rounded animate-pulse" /></TableCell>
@@ -1238,7 +1267,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   ))
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
+                    <TableCell colSpan={8} className="text-center py-12">
                       <Users className="h-10 w-10 mx-auto mb-2 text-muted-foreground/50" />
                       <p className="text-muted-foreground">
                         {hasActiveFilters ? "No users match your filters" : "No users found"}
@@ -1252,13 +1281,13 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   </TableRow>
                 ) : (
                   users.map(user => (
-                    <TableRow 
-                      key={user.id} 
+                    <TableRow
+                      key={user.id}
                       data-testid={`row-user-${user.id}`}
                       className={selectedIds.has(user.id) ? "bg-muted/50" : ""}
                     >
                       <TableCell>
-                        <Checkbox 
+                        <Checkbox
                           checked={selectedIds.has(user.id)}
                           onCheckedChange={(checked) => handleSelectOne(user.id, !!checked)}
                           aria-label={`Select ${getDisplayName(user)}`}
@@ -1282,25 +1311,31 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant="secondary" 
-                          className={`text-xs font-normal ${
-                            user.systemRole === "admin" ? "bg-purple-100 text-purple-700" :
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs font-normal ${user.systemRole === "admin" ? "bg-purple-100 text-purple-700" :
                             user.systemRole === "manager" ? "bg-blue-100 text-blue-700" :
-                            "bg-slate-100 text-slate-700"
-                          }`}
+                              "bg-slate-100 text-slate-700"
+                            }`}
                         >
                           {user.systemRole || "member"}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant="secondary" 
-                          className={`text-xs font-normal ${
-                            user.status === "Online" || user.status === "Active" ? "bg-green-100 text-green-700" :
+                        <Badge
+                          variant={user.userType === "client" ? "outline" : "default"}
+                          className={`text-xs font-medium ${user.userType === "client" ? "" : "bg-blue-50 text-blue-700 border-transparent hover:bg-blue-100"}`}
+                        >
+                          {user.userType === "client" ? "Client" : "Internal"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs font-normal ${user.status === "Online" || user.status === "Active" ? "bg-green-100 text-green-700" :
                             user.status === "Deactivated" ? "bg-red-100 text-red-700" :
-                            "bg-slate-100 text-slate-700"
-                          }`}
+                              "bg-slate-100 text-slate-700"
+                            }`}
                         >
                           {user.status || "Offline"}
                         </Badge>
@@ -1340,14 +1375,14 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                               Merge User
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-amber-600"
                               onClick={() => handleDeactivate(user.id)}
                             >
                               <UserX className="h-4 w-4 mr-2" />
                               Deactivate
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-destructive"
                               onClick={() => handleOpenPreflight(user)}
                             >
@@ -1434,9 +1469,9 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
-                  value={formData.name || ""} 
+                <Input
+                  id="name"
+                  value={formData.name || ""}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="John Doe"
                   data-testid="input-user-name"
@@ -1445,10 +1480,10 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               {!editingUser && (
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input 
-                    id="email" 
+                  <Input
+                    id="email"
                     type="email"
-                    value={formData.email || ""} 
+                    value={formData.email || ""}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="john@company.com"
                     data-testid="input-user-email"
@@ -1457,13 +1492,28 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               )}
               <div className="grid gap-2">
                 <Label htmlFor="jobTitle">Job Title</Label>
-                <Input 
-                  id="jobTitle" 
-                  value={formData.jobTitle || ""} 
+                <Input
+                  id="jobTitle"
+                  value={formData.jobTitle || ""}
                   onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
                   placeholder="Project Manager"
                   data-testid="input-user-job-title"
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="userType">User Type</Label>
+                <Select
+                  value={formData.userType || "internal"}
+                  onValueChange={(v) => setFormData({ ...formData, userType: v as any })}
+                >
+                  <SelectTrigger data-testid="select-user-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="internal">Internal (Service Org)</SelectItem>
+                    <SelectItem value="client">External (Client User)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="systemRole">System Role</Label>
@@ -1514,8 +1564,8 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button 
-                onClick={handleSave} 
+              <Button
+                onClick={handleSave}
                 disabled={createUser.isPending || updateUser.isPending}
                 data-testid="button-save-user"
               >
@@ -1543,7 +1593,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 className="hidden"
                 data-testid="input-import-file"
               />
-              
+
               {!importResults ? (
                 <div className="flex flex-col items-center gap-4 py-8 border-2 border-dashed rounded-lg">
                   <Upload className="h-12 w-12 text-muted-foreground" />
@@ -1553,7 +1603,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       Supports user exports from ClickUp, Jira, and other systems
                     </p>
                   </div>
-                  <Button 
+                  <Button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isImporting}
                     data-testid="button-select-import-file"
@@ -1580,7 +1630,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                       </p>
                     </div>
                   </div>
-                  
+
                   {importResults.errors.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-red-600 flex items-center gap-1">
@@ -1623,13 +1673,13 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 View and manage external account connections for this user
               </DialogDescription>
             </DialogHeader>
-            
+
             <Tabs defaultValue="identities" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="identities">Linked Accounts</TabsTrigger>
                 <TabsTrigger value="link">Link New Account</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="identities" className="mt-4">
                 <ScrollArea className="h-[300px] pr-4">
                   {profileData?.identities.length === 0 ? (
@@ -1691,7 +1741,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   )}
                 </ScrollArea>
               </TabsContent>
-              
+
               <TabsContent value="link" className="mt-4 space-y-4">
                 <div className="space-y-2">
                   <Label>System</Label>
@@ -1863,7 +1913,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete User Permanently</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to permanently delete <strong>{deleteConfirmUser?.name || deleteConfirmUser?.email}</strong>? 
+                Are you sure you want to permanently delete <strong>{deleteConfirmUser?.name || deleteConfirmUser?.email}</strong>?
                 This action cannot be undone and will remove all associated data.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -1997,7 +2047,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                               }))}
                             />
                           </div>
-                          <Button 
+                          <Button
                             onClick={handleTransferAll}
                             disabled={!transferTargetId || transferOwnership.isPending}
                             data-testid="button-transfer-ownership"
@@ -2011,32 +2061,32 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   </div>
                 )}
 
-                {(preflightData.warnings.assignedTasks > 0 || 
-                  preflightData.warnings.comments > 0 || 
+                {(preflightData.warnings.assignedTasks > 0 ||
+                  preflightData.warnings.comments > 0 ||
                   preflightData.warnings.identities > 0 ||
                   preflightData.warnings.roleAssignments > 0 ||
                   preflightData.warnings.sprintMemberships > 0) && (
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <div className="text-sm font-medium mb-2">Data that will be affected:</div>
-                    <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                      {preflightData.warnings.assignedTasks > 0 && (
-                        <div>Task assignments: {preflightData.warnings.assignedTasks} (will be unassigned)</div>
-                      )}
-                      {preflightData.warnings.comments > 0 && (
-                        <div>Comments: {preflightData.warnings.comments} (will be deleted)</div>
-                      )}
-                      {preflightData.warnings.identities > 0 && (
-                        <div>Linked identities: {preflightData.warnings.identities} (will be removed)</div>
-                      )}
-                      {preflightData.warnings.roleAssignments > 0 && (
-                        <div>Role assignments: {preflightData.warnings.roleAssignments} (will be removed)</div>
-                      )}
-                      {preflightData.warnings.sprintMemberships > 0 && (
-                        <div>Sprint memberships: {preflightData.warnings.sprintMemberships} (will be removed)</div>
-                      )}
+                    <div className="bg-muted/50 rounded-lg p-4">
+                      <div className="text-sm font-medium mb-2">Data that will be affected:</div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                        {preflightData.warnings.assignedTasks > 0 && (
+                          <div>Task assignments: {preflightData.warnings.assignedTasks} (will be unassigned)</div>
+                        )}
+                        {preflightData.warnings.comments > 0 && (
+                          <div>Comments: {preflightData.warnings.comments} (will be deleted)</div>
+                        )}
+                        {preflightData.warnings.identities > 0 && (
+                          <div>Linked identities: {preflightData.warnings.identities} (will be removed)</div>
+                        )}
+                        {preflightData.warnings.roleAssignments > 0 && (
+                          <div>Role assignments: {preflightData.warnings.roleAssignments} (will be removed)</div>
+                        )}
+                        {preflightData.warnings.sprintMemberships > 0 && (
+                          <div>Sprint memberships: {preflightData.warnings.sprintMemberships} (will be removed)</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {preflightData.canDelete && (
                   <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
@@ -2056,7 +2106,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               <Button variant="outline" onClick={() => { setPreflightUser(null); setPreflightData(null); }}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 variant="secondary"
                 onClick={handleArchiveUser}
                 disabled={archiveUser.isPending}
@@ -2065,7 +2115,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                 {archiveUser.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Archive Instead
               </Button>
-              <Button 
+              <Button
                 variant="destructive"
                 onClick={handlePermanentDelete}
                 disabled={!preflightData?.canDelete || permanentDelete.isPending}
@@ -2090,7 +2140,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
             {bulkDeleteResult ? (
               <div className="space-y-4">
                 <div className="text-lg font-medium">Delete Results</div>
-                
+
                 {bulkDeleteResult.deleted.length > 0 && (
                   <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
                     <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium mb-2">
@@ -2134,23 +2184,22 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                   <div className="space-y-3">
                     {bulkPreflightData.users.map(user => {
                       const hasBlockers = !user.canDelete;
-                      const blockerCount = 
+                      const blockerCount =
                         user.blockers.ownedProjects.length +
                         user.blockers.ownedDeliverables.length +
                         user.blockers.ownedEpics.length +
                         user.blockers.ownedMilestones.length +
                         user.blockers.ownedSprints.length;
-                      
+
                       return (
-                        <div 
+                        <div
                           key={user.id}
-                          className={`p-3 rounded-lg border ${
-                            user.blockers.isLastAdmin 
-                              ? "bg-destructive/10 border-destructive" 
-                              : hasBlockers 
-                                ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
-                                : "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
-                          }`}
+                          className={`p-3 rounded-lg border ${user.blockers.isLastAdmin
+                            ? "bg-destructive/10 border-destructive"
+                            : hasBlockers
+                              ? "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+                              : "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="font-medium">{user.name}</div>
@@ -2215,7 +2264,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
               </Button>
               {!bulkDeleteResult && (
                 <>
-                  <Button 
+                  <Button
                     variant="secondary"
                     onClick={() => handleBulkDelete("archive")}
                     disabled={bulkDeleteWithPreflight.isPending}
@@ -2224,7 +2273,7 @@ function UserManagementContent({ embedded = false }: UserManagementProps) {
                     {bulkDeleteWithPreflight.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Delete & Archive Blocked
                   </Button>
-                  <Button 
+                  <Button
                     variant="destructive"
                     onClick={() => handleBulkDelete("delete")}
                     disabled={bulkDeleteWithPreflight.isPending || bulkPreflightData?.users.every(u => !u.canDelete)}

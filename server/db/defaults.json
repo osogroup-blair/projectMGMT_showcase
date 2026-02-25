@@ -1,0 +1,453 @@
+{
+  "StatusOptions": [
+    {
+      "id": "e2558f19-f7e0-48f4-a675-6ee670368008",
+      "label": "Upcoming",
+      "color": "bg-slate-100 text-slate-700",
+      "isDefault": true,
+      "type": "project",
+      "order": 0,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "0d61186a-2090-46ba-a9b3-1d60c5e8d758",
+      "label": "BACKLOGGED",
+      "color": "bg-slate-100 text-slate-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 1,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "2c77dee1-0cff-4e96-9b8e-dbeb0eda1a43",
+      "label": "IN PROGRESS",
+      "color": "bg-amber-50 text-amber-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 3,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "3caae050-d721-42d6-aea3-01e9477ebe97",
+      "label": "NEXT UP",
+      "color": "bg-blue-50 text-blue-700",
+      "isDefault": true,
+      "type": "task",
+      "order": 2,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "02c73e64-1cbf-479a-96ab-2a3af9169355",
+      "label": "BLOCKED",
+      "color": "bg-red-50 text-red-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 4,
+      "kanbanCollapsed": true
+    },
+    {
+      "id": "35bcc0c4-e411-4909-ae91-c38ac80a6500",
+      "label": "IN REVIEW",
+      "color": "bg-purple-50 text-purple-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 5,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "6c3f30de-3757-445d-854a-e9587cbeaa86",
+      "label": "ARCHIVED",
+      "color": "bg-slate-100 text-slate-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 0,
+      "kanbanCollapsed": true
+    },
+    {
+      "id": "20ee1a2a-830c-4a40-8248-11e92acd4337",
+      "label": "ACCEPTED",
+      "color": "bg-green-50 text-green-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 6,
+      "kanbanCollapsed": true
+    },
+    {
+      "id": "3310cf8f-443d-476f-8b2a-cbef99f95c24",
+      "label": "DONE",
+      "color": "bg-green-50 text-green-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 7,
+      "kanbanCollapsed": true
+    },
+    {
+      "id": "04fced90-9d41-4305-a4b0-ed842b005c25",
+      "label": "DEFERRED",
+      "color": "bg-slate-100 text-slate-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 8,
+      "kanbanCollapsed": true
+    },
+    {
+      "id": "039d532e-cd95-4b4e-ac3a-f55aa677b425",
+      "label": "ONGOING",
+      "color": "bg-slate-100 text-slate-700",
+      "isDefault": false,
+      "type": "task",
+      "order": 9,
+      "kanbanCollapsed": true
+    },
+    {
+      "id": "07ed839f-097f-4a29-bdef-612813463dd1",
+      "label": "Not Started",
+      "color": "bg-slate-100 text-slate-700",
+      "isDefault": true,
+      "type": "deliverable",
+      "order": 0,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "140663bf-6a53-48cb-b464-112dfe7e51d2",
+      "label": "In Progress",
+      "color": "bg-blue-50 text-blue-700",
+      "isDefault": false,
+      "type": "deliverable",
+      "order": 1,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "6d63bec7-9c44-4fbb-9b75-a686ad928127",
+      "label": "Blocked",
+      "color": "bg-red-50 text-red-700",
+      "isDefault": false,
+      "type": "deliverable",
+      "order": 2,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "38598d12-3c6f-4216-8bb3-fa0a1c332f8e",
+      "label": "Completed",
+      "color": "bg-green-50 text-green-700",
+      "isDefault": false,
+      "type": "deliverable",
+      "order": 3,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "70f75f9b-d17a-4a21-b888-6d92e7593386",
+      "label": "In Progress",
+      "color": "bg-amber-50 text-amber-700",
+      "isDefault": false,
+      "type": "project",
+      "order": 2,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "773ca1fe-4317-4adb-9f13-22ed741e91dd",
+      "label": "On Hold",
+      "color": "bg-orange-50 text-orange-700",
+      "isDefault": false,
+      "type": "project",
+      "order": 3,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "2b507458-b8ca-48b3-84ab-80014d1221f5",
+      "label": "Completed",
+      "color": "bg-green-50 text-green-700",
+      "isDefault": false,
+      "type": "project",
+      "order": 4,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "f9981f08-69aa-43a0-987d-99fb6bb0dbec",
+      "label": "Not Started",
+      "color": "bg-slate-100 text-slate-700",
+      "isDefault": true,
+      "type": "epic",
+      "order": 0,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "a41971d6-e370-4192-87d2-9dad69444ec7",
+      "label": "In Progress",
+      "color": "bg-blue-50 text-blue-700",
+      "isDefault": false,
+      "type": "epic",
+      "order": 1,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "6f97e748-cf85-4f1b-8176-06a08f501de8",
+      "label": "Blocked",
+      "color": "bg-red-50 text-red-700",
+      "isDefault": false,
+      "type": "epic",
+      "order": 2,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "47f4ad25-4d8e-41c7-bb23-f35e0f6bf30c",
+      "label": "Completed",
+      "color": "bg-green-50 text-green-700",
+      "isDefault": false,
+      "type": "epic",
+      "order": 3,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "c9f2cf26-f3ea-4993-b7db-2567d8579b48",
+      "label": "Active",
+      "color": "bg-blue-50 text-blue-700",
+      "isDefault": false,
+      "type": "project",
+      "order": 1,
+      "kanbanCollapsed": false
+    },
+    {
+      "id": "422b08fc-cb2d-4ca7-9486-0fb9cb5c3d54",
+      "label": "Archived",
+      "color": "bg-gray-50 text-gray-700",
+      "isDefault": false,
+      "type": "project",
+      "order": 5,
+      "kanbanCollapsed": false
+    }
+  ],
+  "RoleTypes": [
+    {
+      "id": "051f8377-8145-47ff-8ad8-2aa05c0d8d73",
+      "label": "Solution Consultant",
+      "description": "",
+      "isDefault": false
+    }
+  ],
+  "MappingTemplates": [],
+  "GuidanceItems": [],
+  "SavedViews": [
+    {
+      "id": "v1",
+      "name": "Default Kanban",
+      "description": "Standard board view for daily standups",
+      "stageIds": "[\"s1\",\"s2\",\"s3\",\"s4\"]",
+      "viewType": "Kanban",
+      "visibility": "Global",
+      "isDefault": true,
+      "config": "{\"groupBy\":\"stage\"}"
+    },
+    {
+      "id": "v2",
+      "name": "My Tasks List",
+      "description": "List of tasks assigned to me",
+      "stageIds": "[]",
+      "viewType": "List",
+      "visibility": "Personal",
+      "isDefault": false,
+      "config": "{\"filterBy\":\"assignee:me\"}"
+    },
+    {
+      "id": "4ff85119-6962-4be7-b529-4070812ec035",
+      "name": "Default Kanban",
+      "description": "Standard board view for daily standups",
+      "stageIds": "[\"s1\",\"s2\",\"s3\",\"s4\"]",
+      "viewType": "Kanban",
+      "visibility": "Global",
+      "isDefault": true,
+      "config": "{\"groupBy\":\"stage\"}"
+    },
+    {
+      "id": "ac2c5f48-1e35-4453-a2a8-4bb473163edc",
+      "name": "My Tasks List",
+      "description": "List of tasks assigned to me",
+      "stageIds": "[]",
+      "viewType": "List",
+      "visibility": "Personal",
+      "isDefault": false,
+      "config": "{\"filterBy\":\"assignee:me\"}"
+    },
+    {
+      "id": "ea62d33c-9f33-412b-9375-0837dec496ab",
+      "name": "Default Kanban",
+      "description": "Standard board view for daily standups",
+      "stageIds": "[\"s1\",\"s2\",\"s3\",\"s4\"]",
+      "viewType": "Kanban",
+      "visibility": "Global",
+      "isDefault": true,
+      "config": "{\"groupBy\":\"stage\"}"
+    },
+    {
+      "id": "1910c26b-9907-4fad-af94-b0ab3d9eb749",
+      "name": "My Tasks List",
+      "description": "List of tasks assigned to me",
+      "stageIds": "[]",
+      "viewType": "List",
+      "visibility": "Personal",
+      "isDefault": false,
+      "config": "{\"filterBy\":\"assignee:me\"}"
+    },
+    {
+      "id": "cfacc3f8-767e-4e29-92c8-e19888f7d31a",
+      "name": "Default Kanban",
+      "description": "Standard board view for daily standups",
+      "stageIds": "[\"s1\",\"s2\",\"s3\",\"s4\"]",
+      "viewType": "Kanban",
+      "visibility": "Global",
+      "isDefault": true,
+      "config": "{\"groupBy\":\"stage\"}"
+    },
+    {
+      "id": "b69873a0-2b3f-41e7-a7de-eedd2da03ade",
+      "name": "My Tasks List",
+      "description": "List of tasks assigned to me",
+      "stageIds": "[]",
+      "viewType": "List",
+      "visibility": "Personal",
+      "isDefault": false,
+      "config": "{\"filterBy\":\"assignee:me\"}"
+    }
+  ],
+  "TaskTypes": [
+    {
+      "id": "b30b1ce2-c18a-4ddb-b900-9ef6a7852f85",
+      "name": "Requirements Task",
+      "color": "bg-blue-50 text-blue-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-10T22:57:16.643Z"
+    },
+    {
+      "id": "6e038b95-2b27-4061-acfd-796350807502",
+      "name": "QA Task",
+      "color": "bg-blue-50 text-blue-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-10T22:57:28.880Z"
+    },
+    {
+      "id": "6b015872-67a0-46f6-870f-5826150e13b4",
+      "name": "Action",
+      "color": "bg-slate-100 text-slate-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T06:53:42.108Z"
+    },
+    {
+      "id": "8e6bceb5-36cc-4dcc-9f99-36d2d7214169",
+      "name": "Development",
+      "color": "bg-amber-50 text-amber-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-10T22:56:49.783Z"
+    },
+    {
+      "id": "b20a2c37-4e02-4b24-bafb-ef4409642ce3",
+      "name": "Management",
+      "color": "bg-red-50 text-red-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-10T22:57:08.038Z"
+    },
+    {
+      "id": "85843765-89fe-4483-88d9-7b475b03c05d",
+      "name": "Design",
+      "color": "bg-purple-50 text-purple-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-10T22:57:24.062Z"
+    }
+  ],
+  "EpicTypes": [
+    {
+      "id": "4e06a685-89d5-4118-b5ed-0af576650105",
+      "name": "Use Case",
+      "color": "bg-indigo-50 text-indigo-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-10T22:58:10.539Z"
+    },
+    {
+      "id": "4e41d691-2c25-4720-b667-1352b2cbc187",
+      "name": "Workflow",
+      "color": "bg-indigo-50 text-indigo-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T04:45:29.966Z"
+    },
+    {
+      "id": "bad1efc8-4a08-4434-a906-ffe3f72f3dd4",
+      "name": "Skill",
+      "color": "bg-indigo-50 text-indigo-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T04:49:43.701Z"
+    },
+    {
+      "id": "6456542e-ea9d-4b81-8345-5206630cbbbb",
+      "name": "System",
+      "color": "bg-indigo-50 text-indigo-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T04:49:49.579Z"
+    },
+    {
+      "id": "a04ec45b-0520-4970-9957-3ae58666982a",
+      "name": "Foundation",
+      "color": "bg-indigo-50 text-indigo-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T04:49:55.582Z"
+    }
+  ],
+  "DeliverableTypes": [
+    {
+      "id": "656acaf1-3644-4be8-94c1-bdfcfc4980f7",
+      "name": "Experience",
+      "color": "bg-teal-50 text-teal-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T04:50:03.456Z"
+    },
+    {
+      "id": "ccf6dbb6-ef7c-4ff6-9a2f-a20a15e6e809",
+      "name": "Workflow",
+      "color": "bg-teal-50 text-teal-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T04:56:34.728Z"
+    },
+    {
+      "id": "be97a372-a292-4b47-a524-4b02d613e051",
+      "name": "System",
+      "color": "bg-teal-50 text-teal-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T04:56:40.324Z"
+    },
+    {
+      "id": "20ece184-0a4d-4210-93ae-7fdbbca92785",
+      "name": "Foundations",
+      "color": "bg-teal-50 text-teal-700",
+      "icon": null,
+      "isDefault": false,
+      "order": 0,
+      "createdAt": "2026-01-11T07:27:00.970Z"
+    }
+  ]
+}

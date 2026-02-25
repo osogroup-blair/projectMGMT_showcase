@@ -1,10 +1,10 @@
 import { Shell } from "@/components/layout/shell";
-import { 
-  ArrowLeft, 
-  Calendar, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Clock, 
+import {
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
   MoreHorizontal,
   ChevronRight,
   ChevronDown,
@@ -27,21 +27,21 @@ import {
   FolderKanban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
   CardDescription
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
 } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -49,7 +49,9 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRoute, Link, useSearch, useLocation } from "wouter";
-import { useProject, useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes, useStatusOptions, useProjectPulseUpdates } from "@/hooks/use-nexus-data";
+import { useProjects, useTasks, useMilestones, useUsers, useDeliverables, useEpics, useProjectStages, useFrameworkTemplates, useSprints, useResolvedTaskTypes, useStatusOptions, useProjectPulseUpdates } from "@/hooks/use-nexus-data";
+import { useProject } from "@/hooks/use-nexus-data";
+import { useClients } from "@/hooks/use-clients";
 import { useCompletedStatuses } from "@/hooks/use-completed-statuses";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -81,6 +83,7 @@ import { StagesContent } from "@/features/project/stages/stages-content";
 import { TeamContent } from "@/features/project/team/team-content";
 import { SprintsContent } from "@/features/project/sprints/sprints-content";
 import { PortableKanban } from "@/components/kanban";
+import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
 import { BlockerReasonDialog } from "@/features/project/sprints/blocker-reason-dialog";
 import { LivePulseCheck } from "@/features/project/sprints/live-pulse-check";
 import { SprintPlannerPanel } from "@/features/project/sprints/sprint-planner-panel";
@@ -94,26 +97,26 @@ export default function ProjectOverview() {
   const projectId = params?.projectId || "1";
   const searchString = useSearch();
   const [, setLocation] = useLocation();
-  
+
   // Parse tab from URL search params - always ensure we have a valid default
   const tabFromUrl = useMemo(() => {
     const params = new URLSearchParams(searchString);
     return params.get("tab") || "overview";
   }, [searchString]);
-  
+
   // Initialize state from URL
   const [activeTab, setActiveTab] = useState<string>(() => {
     const params = new URLSearchParams(searchString);
     return params.get("tab") || "overview";
   });
-  
+
   // Sync tab state when URL changes externally (e.g., navigation from task board)
   useEffect(() => {
     if (tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl, activeTab]);
-  
+
   // Handle tab changes and sync URL
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab);
@@ -127,6 +130,7 @@ export default function ProjectOverview() {
 
   const { data: project, isLoading: isProjectLoading, refetch: refetchProject } = useProject(projectId);
   const { update: updateProject } = useProjects();
+  const { allClients } = useClients();
   const { data: allTasks, isLoading: isTasksLoading } = useTasks();
   const { data: allMilestones, isLoading: isMilestonesLoading } = useMilestones();
   const { data: users, isLoading: isUsersLoading } = useUsers();
@@ -155,7 +159,7 @@ export default function ProjectOverview() {
     },
   });
 
-  const formattedStatusOptions = useMemo(() => 
+  const formattedStatusOptions = useMemo(() =>
     (statusOptions || [])
       .filter((s: any) => s.type === "task")
       .map((s: any) => ({ id: s.id, label: s.label, color: s.color })),
@@ -190,10 +194,12 @@ export default function ProjectOverview() {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingStartDate, setIsEditingStartDate] = useState(false);
   const [isEditingDeadline, setIsEditingDeadline] = useState(false);
+  const [isEditingClient, setIsEditingClient] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
   const [editDeadline, setEditDeadline] = useState("");
+  const [editClientId, setEditClientId] = useState("");
 
   // Dashboard filters state (lifted up for tab row display)
   const [dashboardFilters, setDashboardFilters] = useState<DashboardFilters>({
@@ -204,27 +210,27 @@ export default function ProjectOverview() {
 
   // Metrics accordion state
   const [metricsOpen, setMetricsOpen] = useState(false);
-  
+
   // Blocker dialog for flow board
   const [blockerTaskId, setBlockerTaskId] = useState<string | null>(null);
-  
+
   // Team Pulse sidebar state
   const [teamPulseOpen, setTeamPulseOpen] = useState(true);
-  
+
   // Team Pulse input state
   const [pulseDid, setPulseDid] = useState("");
   const [pulseNext, setPulseNext] = useState("");
   const [pulseBlockers, setPulseBlockers] = useState("");
-  
+
   // Team Pulse updates filter state
   const [pulseSearch, setPulseSearch] = useState("");
   const [pulseTypeFilter, setPulseTypeFilter] = useState<"all" | "accomplishments" | "blockers" | "next-steps">("all");
   const [pulseUserFilter, setPulseUserFilter] = useState<string>("all");
-  
+
   // Transform raw pulse updates (composite format) to UI format (individual items by type)
   const pulseUpdates = useMemo(() => {
     if (!rawPulseUpdates || rawPulseUpdates.length === 0) return [];
-    
+
     const items: Array<{
       id: string;
       userId: string;
@@ -234,13 +240,13 @@ export default function ProjectOverview() {
       content: string;
       timestamp: Date;
     }> = [];
-    
+
     rawPulseUpdates.forEach((update: any) => {
       const user = users?.find((u: any) => u.id === update.userId);
       const userName = user?.name || user?.firstName || "Team Member";
       const userAvatar = user?.avatar || user?.profileImageUrl;
       const timestamp = new Date(update.createdAt || update.date);
-      
+
       if (update.didText) {
         items.push({
           id: `${update.id}-did`,
@@ -275,27 +281,16 @@ export default function ProjectOverview() {
         });
       }
     });
-    
+
     return items.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }, [rawPulseUpdates, users]);
-  
+
   // Dashboard sidebar state
   const [dashboardSidebarOpen, setDashboardSidebarOpen] = useState(true);
   const [dashboardSection, setDashboardSection] = useState<"team-pulse" | "assigned-work" | "current-sprint" | "upcoming-work" | "activity">("current-sprint");
 
   // Add Task to Sprint Dialog state
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
-  const [addTaskMode, setAddTaskMode] = useState<"link" | "create">("link");
-  const [selectedExistingTaskId, setSelectedExistingTaskId] = useState("");
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [newTaskPriority, setNewTaskPriority] = useState("Medium");
-  const [newTaskEffort, setNewTaskEffort] = useState<number>(3);
-  const [newTaskEpicId, setNewTaskEpicId] = useState("");
-  const [newTaskStageId, setNewTaskStageId] = useState("");
-  const [newTaskTypeId, setNewTaskTypeId] = useState("");
-  const [isAddingTask, setIsAddingTask] = useState(false);
-
   // Initialize edit values when project loads
   useEffect(() => {
     if (project) {
@@ -303,6 +298,7 @@ export default function ProjectOverview() {
       setEditDescription(project.description || "");
       setEditStartDate(project.startDate || "");
       setEditDeadline(project.deadline || "");
+      setEditClientId(project.clientId || "");
     }
   }, [project]);
 
@@ -338,6 +334,13 @@ export default function ProjectOverview() {
     refetchProject();
   };
 
+  const handleSaveClient = () => {
+    updateProject({ id: projectId, updates: { clientId: editClientId || null } });
+    setIsEditingClient(false);
+    toast({ title: "Updated", description: "Assigned client has been updated." });
+    refetchProject();
+  };
+
   // Derived Data
   const { tasks, milestones, stats, dashboardData } = useMemo(() => {
     if (!project) return { tasks: [], milestones: [], stats: { total: 0, completed: 0, inProgress: 0, atRisk: 0 }, dashboardData: null };
@@ -345,10 +348,10 @@ export default function ProjectOverview() {
     const projectTasks = allTasks.filter((t: any) => t.projectId === project.id);
     const projectMilestones = allMilestones.filter((m: any) => m.projectId === project.id);
     const projectDeliverables = allDeliverables.filter((d: any) => d.projectId === project.id);
-    const projectEpics = allEpics.filter((e: any) => 
+    const projectEpics = allEpics.filter((e: any) =>
       projectDeliverables.some((d: any) => d.id === e.deliverableId)
     );
-    
+
     const stats = {
       total: projectTasks.length,
       completed: projectTasks.filter((t: any) => isTaskComplete(t.status)).length,
@@ -358,7 +361,7 @@ export default function ProjectOverview() {
 
     const percentComplete = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
     const daysRemaining = project.deadline ? differenceInDays(parseISO(project.deadline), new Date()) : 0;
-    
+
     const getAssigneeName = (id?: string) => {
       const user = users.find((u: any) => u.id === id);
       return user?.name || "Unassigned";
@@ -582,8 +585,8 @@ export default function ProjectOverview() {
   // Get tasks assigned to current user for "Assigned Work" section
   const myAssignedTasks = useMemo(() => {
     if (!allTasks || !currentUser?.id) return [];
-    return allTasks.filter((t: any) => 
-      t.projectId === projectId && 
+    return allTasks.filter((t: any) =>
+      t.projectId === projectId &&
       t.assigneeId === currentUser.id &&
       !isTaskComplete(t.status)
     );
@@ -592,19 +595,19 @@ export default function ProjectOverview() {
   // Sprint metrics for the selected sprint
   const sprintMetrics = useMemo(() => {
     if (!selectedSprint || !sprintTasks) return null;
-    
+
     const totalTasks = sprintTasks.length;
     const completedTasks = sprintTasks.filter((t: any) => isTaskComplete(t.status)).length;
     const inProgressTasks = sprintTasks.filter((t: any) => t.status === "In Progress").length;
     const blockedTasks = sprintTasks.filter((t: any) => t.status === "Blocked" || t.blocked).length;
     const todoTasks = sprintTasks.filter((t: any) => t.status === "Todo" || t.status === "BACKLOGGED").length;
-    
+
     // Calculate workload by assignee
     const workloadByUser: Record<string, { name: string; total: number; completed: number; inProgress: number; blocked: number }> = {};
     sprintTasks.forEach((task: any) => {
       const userId = task.assigneeId || "unassigned";
       const userName = users?.find((u: any) => u.id === task.assigneeId)?.name || "Unassigned";
-      
+
       if (!workloadByUser[userId]) {
         workloadByUser[userId] = { name: userName, total: 0, completed: 0, inProgress: 0, blocked: 0 };
       }
@@ -613,13 +616,13 @@ export default function ProjectOverview() {
       if (task.status === "In Progress") workloadByUser[userId].inProgress++;
       if (task.status === "Blocked" || task.blocked) workloadByUser[userId].blocked++;
     });
-    
+
     // Calculate total effort/story points
     const totalEffort = sprintTasks.reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
     const completedEffort = sprintTasks.filter((t: any) => isTaskComplete(t.status)).reduce((sum: number, t: any) => sum + (t.effort || 0), 0);
-    
+
     const percentComplete = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-    
+
     return {
       totalTasks,
       completedTasks,
@@ -636,87 +639,15 @@ export default function ProjectOverview() {
   // Get available tasks (any project task not already in the selected sprint)
   const availableTasks = useMemo(() => {
     if (!allTasks || !selectedSprint) return [];
-    return allTasks.filter((t: any) => 
-      t.projectId === projectId && 
+    return allTasks.filter((t: any) =>
+      t.projectId === projectId &&
       t.sprintId !== selectedSprint.id
     );
   }, [allTasks, selectedSprint, projectId]);
 
   // Add Task dialog handlers
   const openAddTaskDialog = () => {
-    setAddTaskMode("link");
-    setSelectedExistingTaskId("");
-    setNewTaskTitle("");
-    setNewTaskDescription("");
-    setNewTaskPriority("Medium");
-    setNewTaskEffort(3);
-    setNewTaskEpicId(projectEpics[0]?.id || "");
-    setNewTaskStageId(stages[0]?.id || "");
-    // Default to "Action" task type, or isDefault, or first available
-    const actionType = (taskTypes || []).find((tt: any) => tt.name === "Action");
-    const defaultTaskType = actionType || (taskTypes || []).find((tt: any) => tt.isDefault) || (taskTypes || [])[0];
-    setNewTaskTypeId(defaultTaskType?.id || "");
     setAddTaskDialogOpen(true);
-  };
-
-  const handleAddTaskToSprint = async () => {
-    if (!selectedSprint) return;
-    setIsAddingTask(true);
-    
-    try {
-      if (addTaskMode === "link") {
-        if (!selectedExistingTaskId) {
-          toast({ title: "Error", description: "Please select a task to add.", variant: "destructive" });
-          setIsAddingTask(false);
-          return;
-        }
-        await updateTask({ id: selectedExistingTaskId, updates: { sprintId: selectedSprint.id } });
-        toast({ title: "Task Added", description: "Task has been added to the sprint." });
-      } else {
-        if (!newTaskTitle.trim()) {
-          toast({ title: "Error", description: "Task title is required.", variant: "destructive" });
-          setIsAddingTask(false);
-          return;
-        }
-        if (!newTaskEpicId) {
-          toast({ title: "Error", description: "Please select an epic.", variant: "destructive" });
-          setIsAddingTask(false);
-          return;
-        }
-        if (!newTaskStageId) {
-          toast({ title: "Error", description: "Please select a stage.", variant: "destructive" });
-          setIsAddingTask(false);
-          return;
-        }
-        if (!newTaskTypeId) {
-          toast({ title: "Error", description: "Please select a task type.", variant: "destructive" });
-          setIsAddingTask(false);
-          return;
-        }
-        await createTaskAsync({
-          title: newTaskTitle,
-          description: newTaskDescription || "",
-          project: project?.name,
-          projectId: project?.id,
-          epicId: newTaskEpicId,
-          stageId: newTaskStageId,
-          sprintId: selectedSprint.id,
-          status: "BACKLOGGED",
-          priority: newTaskPriority,
-          effort: newTaskEffort,
-          deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          tags: [],
-          taskTypeId: newTaskTypeId || null,
-          assigneeId: currentUser?.id || null
-        });
-        toast({ title: "Task Created", description: "New task has been added to the sprint." });
-      }
-      setAddTaskDialogOpen(false);
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to add task.", variant: "destructive" });
-    } finally {
-      setIsAddingTask(false);
-    }
   };
 
   // Handle task move in flow board
@@ -750,10 +681,10 @@ export default function ProjectOverview() {
       const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       const startDate = new Date(today);
       startDate.setDate(today.getDate() + mondayOffset);
-      
+
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + (sprintDurationWeeks * 7) - 1);
-      
+
       // Calculate sprint number
       const sprintNumbers = projectSprints
         .map((s: any) => {
@@ -762,7 +693,7 @@ export default function ProjectOverview() {
         })
         .filter((n: number) => n > 0);
       const nextNumber = sprintNumbers.length > 0 ? Math.max(...sprintNumbers) + 1 : 1;
-      
+
       const newSprint = await createSprintAsync({
         projectId,
         name: `Sprint ${nextNumber}`,
@@ -772,7 +703,7 @@ export default function ProjectOverview() {
         status: "active",
         capacityHours: null,
       });
-      
+
       if (newSprint?.id) {
         setSelectedSprintId(newSprint.id);
         toast({ title: "Sprint Created", description: `Sprint ${nextNumber} has been created and is now active.` });
@@ -805,13 +736,13 @@ export default function ProjectOverview() {
   if (!project) {
     return (
       <Shell>
-         <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
-            <h1 className="text-2xl font-bold">Project Not Found</h1>
-            <p className="text-muted-foreground">The project you are looking for does not exist.</p>
-            <Link href="/projects">
-              <Button>Return to Projects</Button>
-            </Link>
-         </div>
+        <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+          <h1 className="text-2xl font-bold">Project Not Found</h1>
+          <p className="text-muted-foreground">The project you are looking for does not exist.</p>
+          <Link href="/projects">
+            <Button>Return to Projects</Button>
+          </Link>
+        </div>
       </Shell>
     );
   }
@@ -852,10 +783,10 @@ export default function ProjectOverview() {
                     <div className="flex items-center gap-2 group flex-1">
                       <FolderKanban className="h-7 w-7 text-primary/70 shrink-0" />
                       <h1 className="text-3xl font-bold tracking-tight text-primary" data-testid="text-project-title">{project.name}</h1>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="opacity-0 group-hover:opacity-100 transition-opacity" 
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => setIsEditingTitle(true)}
                         data-testid="button-edit-title"
                       >
@@ -899,10 +830,10 @@ export default function ProjectOverview() {
                     <p className="text-sm text-muted-foreground" data-testid="text-project-description">
                       {project.description || <span className="italic">Click to add description...</span>}
                     </p>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6" 
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
                       onClick={() => setIsEditingDescription(true)}
                       data-testid="button-edit-description"
                     >
@@ -938,10 +869,10 @@ export default function ProjectOverview() {
                     <div className="flex items-center gap-1.5 group">
                       <Calendar className="h-4 w-4" />
                       <span data-testid="text-start-date">Start: {project.startDate || "Not set"}</span>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5" 
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5"
                         onClick={() => setIsEditingStartDate(true)}
                         data-testid="button-edit-start-date"
                       >
@@ -976,12 +907,48 @@ export default function ProjectOverview() {
                     <div className="flex items-center gap-1.5 group">
                       <Calendar className="h-4 w-4" />
                       <span data-testid="text-deadline">Due {project.deadline || "Not set"}</span>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5" 
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5"
                         onClick={() => setIsEditingDeadline(true)}
                         data-testid="button-edit-deadline"
+                      >
+                        <Pencil className="h-3 w-3 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  )}
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                  {isEditingClient ? (
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="h-4 w-4" />
+                      <div className="w-48">
+                        <SearchableSelect
+                          options={allClients.map(c => ({ value: c.id, label: c.name }))}
+                          value={editClientId}
+                          onValueChange={setEditClientId}
+                          placeholder="Select client"
+                          searchPlaceholder="Search clients..."
+                          className="h-7 text-sm"
+                        />
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveClient} data-testid="button-save-client">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setIsEditingClient(false); setEditClientId(project.clientId || ""); }} data-testid="button-cancel-client">
+                        <X className="h-3 w-3 text-red-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 group">
+                      <Briefcase className="h-4 w-4" />
+                      <span data-testid="text-client">Client: {allClients?.find(c => c.id === project.clientId)?.name || "Not set"}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5"
+                        onClick={() => setIsEditingClient(true)}
+                        data-testid="button-edit-client"
                       >
                         <Pencil className="h-3 w-3 text-muted-foreground" />
                       </Button>
@@ -1060,57 +1027,57 @@ export default function ProjectOverview() {
           <div className="sticky top-0 z-30 bg-background border-b shadow-sm">
             <div className="px-6 flex items-center justify-between">
               <TabsList className="justify-start rounded-none h-auto p-0 bg-transparent gap-6 overflow-x-auto no-scrollbar">
-                <TabsTrigger 
-                  value="overview" 
+                <TabsTrigger
+                  value="overview"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Dashboard
                 </TabsTrigger>
 
-                <TabsTrigger 
-                  value="timeline" 
+                <TabsTrigger
+                  value="timeline"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Timeline
                 </TabsTrigger>
 
-                <TabsTrigger 
-                  value="sprints" 
+                <TabsTrigger
+                  value="sprints"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Sprints
                 </TabsTrigger>
 
-                <TabsTrigger 
-                  value="milestones" 
+                <TabsTrigger
+                  value="milestones"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Milestones
                 </TabsTrigger>
 
-                <TabsTrigger 
-                  value="tasks" 
+                <TabsTrigger
+                  value="tasks"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Tasks
                 </TabsTrigger>
 
-                <TabsTrigger 
-                  value="deliverables" 
+                <TabsTrigger
+                  value="deliverables"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Deliverables
                 </TabsTrigger>
 
-                <TabsTrigger 
-                  value="stages" 
+                <TabsTrigger
+                  value="stages"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Stages
                 </TabsTrigger>
 
-                <TabsTrigger 
-                  value="team" 
+                <TabsTrigger
+                  value="team"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-0 py-3 font-medium transition-none shadow-none"
                 >
                   Team
@@ -1126,9 +1093,9 @@ export default function ProjectOverview() {
                   <div className="w-56 border-r pr-4 shrink-0">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dashboard</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-6 w-6"
                         onClick={() => setDashboardSidebarOpen(false)}
                         data-testid="button-collapse-dashboard-nav"
@@ -1141,8 +1108,8 @@ export default function ProjectOverview() {
                         onClick={() => setDashboardSection("current-sprint")}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          dashboardSection === "current-sprint" 
-                            ? "bg-primary text-primary-foreground" 
+                          dashboardSection === "current-sprint"
+                            ? "bg-primary text-primary-foreground"
                             : "hover:bg-muted text-muted-foreground hover:text-foreground"
                         )}
                         data-testid="nav-current-sprint"
@@ -1154,8 +1121,8 @@ export default function ProjectOverview() {
                         onClick={() => setDashboardSection("team-pulse")}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          dashboardSection === "team-pulse" 
-                            ? "bg-primary text-primary-foreground" 
+                          dashboardSection === "team-pulse"
+                            ? "bg-primary text-primary-foreground"
                             : "hover:bg-muted text-muted-foreground hover:text-foreground"
                         )}
                         data-testid="nav-team-pulse"
@@ -1167,8 +1134,8 @@ export default function ProjectOverview() {
                         onClick={() => setDashboardSection("assigned-work")}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          dashboardSection === "assigned-work" 
-                            ? "bg-primary text-primary-foreground" 
+                          dashboardSection === "assigned-work"
+                            ? "bg-primary text-primary-foreground"
                             : "hover:bg-muted text-muted-foreground hover:text-foreground"
                         )}
                         data-testid="nav-workload"
@@ -1180,8 +1147,8 @@ export default function ProjectOverview() {
                         onClick={() => setDashboardSection("upcoming-work")}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          dashboardSection === "upcoming-work" 
-                            ? "bg-primary text-primary-foreground" 
+                          dashboardSection === "upcoming-work"
+                            ? "bg-primary text-primary-foreground"
                             : "hover:bg-muted text-muted-foreground hover:text-foreground"
                         )}
                         data-testid="nav-upcoming-work"
@@ -1193,8 +1160,8 @@ export default function ProjectOverview() {
                         onClick={() => setDashboardSection("activity")}
                         className={cn(
                           "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
-                          dashboardSection === "activity" 
-                            ? "bg-primary text-primary-foreground" 
+                          dashboardSection === "activity"
+                            ? "bg-primary text-primary-foreground"
                             : "hover:bg-muted text-muted-foreground hover:text-foreground"
                         )}
                         data-testid="nav-activity"
@@ -1206,9 +1173,9 @@ export default function ProjectOverview() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center border-r shrink-0 w-10 py-1">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-7 w-7 mb-1"
                       onClick={() => setDashboardSidebarOpen(true)}
                       data-testid="button-expand-dashboard-nav"
@@ -1216,41 +1183,41 @@ export default function ProjectOverview() {
                       <ChevronRightIcon className="h-3.5 w-3.5" />
                     </Button>
                     <div className="flex flex-col items-center gap-0.5">
-                      <Button 
-                        variant={dashboardSection === "current-sprint" ? "default" : "ghost"} 
-                        size="icon" 
+                      <Button
+                        variant={dashboardSection === "current-sprint" ? "default" : "ghost"}
+                        size="icon"
                         className="h-7 w-7"
                         onClick={() => setDashboardSection("current-sprint")}
                       >
                         <Zap className="h-3.5 w-3.5" />
                       </Button>
-                      <Button 
-                        variant={dashboardSection === "team-pulse" ? "default" : "ghost"} 
-                        size="icon" 
+                      <Button
+                        variant={dashboardSection === "team-pulse" ? "default" : "ghost"}
+                        size="icon"
                         className="h-7 w-7"
                         onClick={() => setDashboardSection("team-pulse")}
                       >
                         <Send className="h-3.5 w-3.5" />
                       </Button>
-                      <Button 
-                        variant={dashboardSection === "assigned-work" ? "default" : "ghost"} 
-                        size="icon" 
+                      <Button
+                        variant={dashboardSection === "assigned-work" ? "default" : "ghost"}
+                        size="icon"
                         className="h-7 w-7"
                         onClick={() => setDashboardSection("assigned-work")}
                       >
                         <ClipboardList className="h-3.5 w-3.5" />
                       </Button>
-                      <Button 
-                        variant={dashboardSection === "upcoming-work" ? "default" : "ghost"} 
-                        size="icon" 
+                      <Button
+                        variant={dashboardSection === "upcoming-work" ? "default" : "ghost"}
+                        size="icon"
                         className="h-7 w-7"
                         onClick={() => setDashboardSection("upcoming-work")}
                       >
                         <Clock className="h-3.5 w-3.5" />
                       </Button>
-                      <Button 
-                        variant={dashboardSection === "activity" ? "default" : "ghost"} 
-                        size="icon" 
+                      <Button
+                        variant={dashboardSection === "activity" ? "default" : "ghost"}
+                        size="icon"
                         className="h-7 w-7"
                         onClick={() => setDashboardSection("activity")}
                       >
@@ -1394,7 +1361,7 @@ export default function ProjectOverview() {
                               </Card>
                             </Collapsible>
                           )}
-                          
+
                           <PortableKanban
                             tasks={sprintTasks}
                             users={users || []}
@@ -1439,7 +1406,7 @@ export default function ProjectOverview() {
                                 )}
                               </div>
                             }
-                            timeframe={selectedSprint?.startDate && selectedSprint?.endDate 
+                            timeframe={selectedSprint?.startDate && selectedSprint?.endDate
                               ? `${format(parseISO(selectedSprint.startDate), "MMM d")} - ${format(parseISO(selectedSprint.endDate), "MMM d, yyyy")}`
                               : undefined}
                             showAddTask={true}
@@ -1476,7 +1443,7 @@ export default function ProjectOverview() {
                           <p className="text-muted-foreground mb-4 max-w-sm">
                             There's no sprint covering the current period. Create one to start tracking your work.
                           </p>
-                          <Button 
+                          <Button
                             onClick={handleCreateCurrentSprint}
                             disabled={isCreatingCurrentSprint}
                             data-testid="button-create-current-sprint"
@@ -1566,7 +1533,7 @@ export default function ProjectOverview() {
                             <div className="px-4 pb-4 space-y-4">
                               <div className="space-y-2">
                                 <Label className="text-xs text-green-600 font-medium">What did you accomplish?</Label>
-                                <Textarea 
+                                <Textarea
                                   placeholder="Completed tasks, delivered features, resolved issues..."
                                   className="min-h-[60px] text-sm resize-none"
                                   value={pulseDid}
@@ -1576,7 +1543,7 @@ export default function ProjectOverview() {
                               </div>
                               <div className="space-y-2">
                                 <Label className="text-xs text-blue-600 font-medium">What's next?</Label>
-                                <Textarea 
+                                <Textarea
                                   placeholder="Upcoming tasks, goals for today/tomorrow..."
                                   className="min-h-[60px] text-sm resize-none"
                                   value={pulseNext}
@@ -1586,7 +1553,7 @@ export default function ProjectOverview() {
                               </div>
                               <div className="space-y-2">
                                 <Label className="text-xs text-amber-600 font-medium">Any blockers?</Label>
-                                <Textarea 
+                                <Textarea
                                   placeholder="Issues preventing progress, dependencies needed..."
                                   className="min-h-[60px] text-sm resize-none"
                                   value={pulseBlockers}
@@ -1594,9 +1561,9 @@ export default function ProjectOverview() {
                                   data-testid="input-pulse-blockers"
                                 />
                               </div>
-                              <Button 
-                                size="sm" 
-                                className="gap-2" 
+                              <Button
+                                size="sm"
+                                className="gap-2"
                                 data-testid="button-send-pulse"
                                 disabled={!pulseDid.trim() && !pulseNext.trim() && !pulseBlockers.trim()}
                                 onClick={() => {
@@ -1685,17 +1652,17 @@ export default function ProjectOverview() {
                               <div className="space-y-3">
                                 {(() => {
                                   const filtered = pulseUpdates.filter(update => {
-                                    const matchesSearch = !pulseSearch || 
+                                    const matchesSearch = !pulseSearch ||
                                       update.content.toLowerCase().includes(pulseSearch.toLowerCase()) ||
                                       update.userName.toLowerCase().includes(pulseSearch.toLowerCase());
-                                    
-                                    const matchesType = pulseTypeFilter === "all" || 
+
+                                    const matchesType = pulseTypeFilter === "all" ||
                                       (pulseTypeFilter === "accomplishments" && update.type === "accomplishment") ||
                                       (pulseTypeFilter === "next-steps" && update.type === "next-step") ||
                                       (pulseTypeFilter === "blockers" && update.type === "blocker");
-                                    
+
                                     const matchesUser = pulseUserFilter === "all" || update.userName === pulseUserFilter;
-                                    
+
                                     return matchesSearch && matchesType && matchesUser;
                                   });
 
@@ -1705,8 +1672,8 @@ export default function ProjectOverview() {
                                         <Send className="h-10 w-10 mx-auto mb-3 opacity-50" />
                                         <p className="text-sm">No updates found</p>
                                         <p className="text-xs mt-1">
-                                          {pulseSearch || pulseTypeFilter !== "all" || pulseUserFilter !== "all" 
-                                            ? "Try adjusting your filters" 
+                                          {pulseSearch || pulseTypeFilter !== "all" || pulseUserFilter !== "all"
+                                            ? "Try adjusting your filters"
                                             : "Be the first to share progress with your team!"}
                                         </p>
                                       </div>
@@ -1715,26 +1682,26 @@ export default function ProjectOverview() {
 
                                   return filtered.map(update => {
                                     const typeConfig = {
-                                      accomplishment: { 
-                                        icon: CheckCircle2, 
-                                        color: "text-green-600", 
+                                      accomplishment: {
+                                        icon: CheckCircle2,
+                                        color: "text-green-600",
                                         bg: "bg-green-50 dark:bg-green-900/20",
                                         label: "Accomplishment"
                                       },
-                                      blocker: { 
-                                        icon: AlertTriangle, 
-                                        color: "text-amber-600", 
+                                      blocker: {
+                                        icon: AlertTriangle,
+                                        color: "text-amber-600",
                                         bg: "bg-amber-50 dark:bg-amber-900/20",
                                         label: "Blocker"
                                       },
-                                      "next-step": { 
-                                        icon: ChevronRight, 
-                                        color: "text-blue-600", 
+                                      "next-step": {
+                                        icon: ChevronRight,
+                                        color: "text-blue-600",
                                         bg: "bg-blue-50 dark:bg-blue-900/20",
                                         label: "Next Step"
                                       },
                                     }[update.type];
-                                    
+
                                     const Icon = typeConfig.icon;
                                     const timeAgo = (() => {
                                       const diff = Date.now() - update.timestamp.getTime();
@@ -1746,8 +1713,8 @@ export default function ProjectOverview() {
                                     })();
 
                                     return (
-                                      <div 
-                                        key={update.id} 
+                                      <div
+                                        key={update.id}
                                         className={cn("p-3 rounded-lg border", typeConfig.bg)}
                                         data-testid={`pulse-update-${update.id}`}
                                       >
@@ -1762,8 +1729,8 @@ export default function ProjectOverview() {
                                             <div className="flex items-center justify-between gap-2">
                                               <div className="flex items-center gap-2">
                                                 <span className="font-medium text-sm">{update.userName}</span>
-                                                <Badge 
-                                                  variant="outline" 
+                                                <Badge
+                                                  variant="outline"
                                                   className={cn("text-[10px] px-1.5 py-0", typeConfig.color)}
                                                 >
                                                   <Icon className="h-3 w-3 mr-1" />
@@ -1791,7 +1758,7 @@ export default function ProjectOverview() {
             </TabsContent>
 
             <TabsContent value="timeline" className="mt-0 outline-none">
-              <UnifiedTimeline 
+              <UnifiedTimeline
                 project={project}
                 sprints={projectSprints}
                 milestones={milestones}
@@ -1812,7 +1779,7 @@ export default function ProjectOverview() {
             <TabsContent value="tasks" className="mt-0 outline-none">
               <TaskListContent projectId={projectId} />
             </TabsContent>
-            
+
             <TabsContent value="deliverables" className="mt-0 outline-none">
               <DeliverablesContent projectId={projectId} />
             </TabsContent>
@@ -1828,147 +1795,13 @@ export default function ProjectOverview() {
         </Tabs>
       </div>
 
-      <Dialog open={addTaskDialogOpen} onOpenChange={setAddTaskDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add Task to Sprint</DialogTitle>
-            <DialogDescription>
-              Add an existing task or create a new one for {selectedSprint?.name}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Tabs value={addTaskMode} onValueChange={(v) => setAddTaskMode(v as "link" | "create")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="link">Link Existing</TabsTrigger>
-              <TabsTrigger value="create">Create New</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="link" className="mt-4 space-y-4">
-              <div className="space-y-2">
-                <Label>Select Existing Task</Label>
-                <Select value={selectedExistingTaskId} onValueChange={setSelectedExistingTaskId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a task..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTasks.map((t: any) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {availableTasks.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No available tasks to add. All tasks are already in this sprint.</p>
-                )}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="create" className="mt-4 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="task-title">Title *</Label>
-                <Input
-                  id="task-title"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Enter task title"
-                  data-testid="input-new-task-title"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="task-description">Description</Label>
-                <Textarea
-                  id="task-description"
-                  value={newTaskDescription}
-                  onChange={(e) => setNewTaskDescription(e.target.value)}
-                  placeholder="Optional description"
-                  className="min-h-[80px]"
-                  data-testid="input-new-task-description"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Epic *</Label>
-                  <SearchableSelect
-                    options={projectEpics.map((e: any) => ({
-                      value: e.id,
-                      label: e.title
-                    }))}
-                    value={newTaskEpicId}
-                    onValueChange={setNewTaskEpicId}
-                    placeholder="Select epic"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Stage</Label>
-                  <SearchableSelect
-                    options={stages.map((s: any) => ({
-                      value: s.id,
-                      label: s.name
-                    }))}
-                    value={newTaskStageId}
-                    onValueChange={setNewTaskStageId}
-                    placeholder="Select stage"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Priority</Label>
-                  <SearchableSelect
-                    options={[
-                      { value: "Low", label: "Low" },
-                      { value: "Medium", label: "Medium" },
-                      { value: "High", label: "High" },
-                      { value: "Critical", label: "Critical" }
-                    ]}
-                    value={newTaskPriority}
-                    onValueChange={setNewTaskPriority}
-                    placeholder="Select priority"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Effort (1-5)</Label>
-                  <SearchableSelect
-                    options={EFFORT_VALUES.map((v) => ({
-                      value: v.toString(),
-                      label: v.toString()
-                    }))}
-                    value={newTaskEffort.toString()}
-                    onValueChange={(v) => setNewTaskEffort(parseInt(v))}
-                    placeholder="Select effort"
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddTaskDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAddTaskToSprint} 
-              disabled={isAddingTask}
-              data-testid="button-confirm-add-task"
-            >
-              {isAddingTask ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                addTaskMode === "link" ? "Add to Sprint" : "Create & Add"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TaskQuickCreateDialog
+        open={addTaskDialogOpen}
+        onOpenChange={setAddTaskDialogOpen}
+        defaultProjectId={projectId}
+        defaultProjectName={project?.name}
+        defaultSprintId={selectedSprint?.id}
+      />
     </Shell>
   );
 }

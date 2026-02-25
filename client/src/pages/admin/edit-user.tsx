@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useRoute, useLocation, Link } from "wouter";
 import { Shell } from "@/components/layout/shell";
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { 
-  ArrowLeft, 
-  Save, 
+import {
+  ArrowLeft,
+  Save,
   User,
   Mail,
   Briefcase,
@@ -46,8 +46,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
   useUserProfile,
   useUpdateUser,
   useLinkIdentity,
@@ -55,6 +55,7 @@ import {
   useAvailableSystems,
 } from "@/features/user-management";
 import { useRoleTemplates } from "@/hooks/use-nexus-data";
+import { useClients } from "@/hooks/use-clients";
 import type { IdentityPublic, LinkIdentityRequest } from "@shared/contracts/user-identity";
 
 const getSystemIcon = (systemId: string) => {
@@ -81,7 +82,7 @@ export default function EditUserPage() {
   const linkIdentity = useLinkIdentity();
   const unlinkIdentity = useUnlinkIdentity();
   const { data: systems = [] } = useAvailableSystems();
-  
+
   const { data: systemRoles = [] } = useQuery<{ id: string; name: string; label: string; description: string }[]>({
     queryKey: ["/api/roles-permissions/roles"],
     queryFn: async () => {
@@ -106,6 +107,7 @@ export default function EditUserPage() {
     name: "",
     jobTitle: "",
     systemRole: "member",
+    userType: "internal",
     permissions: [] as string[],
     roleTemplateIds: [] as string[]
   });
@@ -117,7 +119,59 @@ export default function EditUserPage() {
     externalEmail: "",
   });
 
+  const [clientForm, setClientForm] = useState({
+    clientId: "",
+    role: "member",
+  });
+
+  const {
+    allClients,
+  } = useClients();
+
+  const { data: editedUserClients = [], isLoading: isLoadingClients } = useQuery({
+    queryKey: ["/api/users", userId, "clients"],
+    queryFn: async () => {
+      if (!userId) return [];
+      const res = await fetch(`/api/users/${userId}/clients`);
+      if (!res.ok) throw new Error("Failed to fetch user clients");
+      return res.json();
+    },
+    enabled: !!userId,
+  });
+
+  // Create mutations for assigning and removing clients
+  const queryClient = useQueryClient();
+  const assignClientMutation = useMutation({
+    mutationFn: async ({ clientId, userId, role }: { clientId: string; userId: string; role: string }) => {
+      const res = await fetch(`/api/clients/${clientId}/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users", userId, "clients"] });
+      toast({ title: "Successfully linked user to client." });
+      setClientForm({ clientId: "", role: "member" });
+    },
+    onError: (err: any) => toast({ title: "Error linking client", description: err.message, variant: "destructive" }),
+  });
+
+  const removeClientMutation = useMutation({
+    mutationFn: async (clientId: string) => {
+      const res = await fetch(`/api/clients/${clientId}/users/${userId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await res.text());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users", userId, "clients"] });
+      toast({ title: "Successfully removed user from client." });
+    },
+    onError: (err: any) => toast({ title: "Error removing client", description: err.message, variant: "destructive" }),
+  });
+
   const [unlinkConfirm, setUnlinkConfirm] = useState<IdentityPublic | null>(null);
+  const [removeClientConfirm, setRemoveClientConfirm] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("profile");
 
@@ -127,6 +181,7 @@ export default function EditUserPage() {
         name: profileData.name || "",
         jobTitle: profileData.jobTitle || "",
         systemRole: (profileData as any).systemRole || "member",
+        userType: (profileData as any).userType || "internal",
         permissions: (profileData as any).permissions || [],
         roleTemplateIds: (profileData as any).roleTemplateIds || []
       });
@@ -170,7 +225,7 @@ export default function EditUserPage() {
 
   const handleSave = async () => {
     if (!userId) return;
-    
+
     setIsSaving(true);
     try {
       await updateUser.mutateAsync({
@@ -179,6 +234,7 @@ export default function EditUserPage() {
           name: formData.name,
           jobTitle: formData.jobTitle,
           systemRole: formData.systemRole as any,
+          userType: formData.userType as any,
           permissions: formData.permissions,
           roleTemplateIds: formData.roleTemplateIds
         }
@@ -224,6 +280,24 @@ export default function EditUserPage() {
     }
   };
 
+  const handleLinkClient = async () => {
+    if (!userId || !clientForm.clientId || !clientForm.role) {
+      toast({ title: "Validation Error", description: "Client and Role are required.", variant: "destructive" });
+      return;
+    }
+    await assignClientMutation.mutateAsync({
+      clientId: clientForm.clientId,
+      userId,
+      role: clientForm.role,
+    });
+  };
+
+  const handleRemoveClient = async () => {
+    if (!removeClientConfirm) return;
+    await removeClientMutation.mutateAsync(removeClientConfirm);
+    setRemoveClientConfirm(null);
+  };
+
   if (profileLoading) {
     return (
       <Shell>
@@ -237,7 +311,7 @@ export default function EditUserPage() {
   if (!profileData) {
     const errorMessage = profileError?.message || "User not found";
     const isAccessError = errorMessage.includes("Access denied") || errorMessage.includes("Authentication");
-    
+
     return (
       <Shell>
         <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4">
@@ -298,6 +372,10 @@ export default function EditUserPage() {
                   <User className="h-4 w-4" />
                   Profile
                 </TabsTrigger>
+                <TabsTrigger value="clients" className="gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Clients
+                </TabsTrigger>
                 <TabsTrigger value="permissions" className="gap-2">
                   <Shield className="h-4 w-4" />
                   Role & Permissions
@@ -322,9 +400,9 @@ export default function EditUserPage() {
                       <CardContent className="space-y-4">
                         <div className="grid gap-2">
                           <Label htmlFor="name">Full Name</Label>
-                          <Input 
-                            id="name" 
-                            value={formData.name} 
+                          <Input
+                            id="name"
+                            value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             placeholder="Enter full name"
                             data-testid="input-edit-user-name"
@@ -340,13 +418,31 @@ export default function EditUserPage() {
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="jobTitle">Job Title</Label>
-                          <Input 
-                            id="jobTitle" 
-                            value={formData.jobTitle} 
+                          <Input
+                            id="jobTitle"
+                            value={formData.jobTitle}
                             onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
                             placeholder="e.g. Project Manager"
                             data-testid="input-edit-user-job-title"
                           />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="userType">User Classification</Label>
+                          <Select
+                            value={formData.userType}
+                            onValueChange={(v) => setFormData({ ...formData, userType: v })}
+                          >
+                            <SelectTrigger data-testid="select-edit-user-type">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="internal">Internal (Service Org)</SelectItem>
+                              <SelectItem value="client">External (Client User)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Client Users can only be assigned to projects within their matching Client Org.
+                          </p>
                         </div>
                       </CardContent>
                     </Card>
@@ -426,18 +522,18 @@ export default function EditUserPage() {
                             <CardDescription>Roles this user can perform in projects</CardDescription>
                           </div>
                           <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={handleSelectAllRoles}
                               disabled={formData.roleTemplateIds.length === roleTemplates.length}
                               data-testid="button-select-all-roles"
                             >
                               Select All
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={handleClearAllRoles}
                               disabled={formData.roleTemplateIds.length === 0}
                               data-testid="button-clear-all-roles"
@@ -457,8 +553,8 @@ export default function EditUserPage() {
                           ) : (
                             <div className="space-y-2">
                               {roleTemplates.map(role => (
-                                <div 
-                                  key={role.id} 
+                                <div
+                                  key={role.id}
                                   className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors"
                                 >
                                   <Checkbox
@@ -512,8 +608,8 @@ export default function EditUserPage() {
                               <p className="text-xs font-semibold text-muted-foreground uppercase mb-3 tracking-wider">{category}</p>
                               <div className="space-y-2">
                                 {perms.map(perm => (
-                                  <div 
-                                    key={perm.key} 
+                                  <div
+                                    key={perm.key}
                                     className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors"
                                   >
                                     <Checkbox
@@ -635,8 +731,8 @@ export default function EditUserPage() {
                             data-testid="input-link-email"
                           />
                         </div>
-                        <Button 
-                          onClick={handleLinkIdentity} 
+                        <Button
+                          onClick={handleLinkIdentity}
                           className="w-full gap-2"
                           disabled={linkIdentity.isPending || !linkForm.systemId || !linkForm.externalUserId}
                           data-testid="button-link-account"
@@ -652,6 +748,106 @@ export default function EditUserPage() {
                     </Card>
                   </div>
                 </TabsContent>
+
+                {/* Clients Tab UI */}
+                <TabsContent value="clients" className="m-0 h-full">
+                  <div className="flex-1 overflow-y-auto px-2 lg:px-8 max-w-5xl mx-auto w-full pb-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Briefcase className="h-5 w-5 text-muted-foreground" />
+                            Assigned Clients
+                          </CardTitle>
+                          <CardDescription>Clients this user currently belongs to</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {isLoadingClients ? (
+                            <div className="flex justify-center py-8 text-muted-foreground">
+                              <Loader2 className="h-6 w-6 animate-spin" />
+                            </div>
+                          ) : editedUserClients.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Briefcase className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                              <p>Not assigned to any clients</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {editedUserClients.map((client: any) => (
+                                <div key={client.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{client.name}</span>
+                                    <span className="text-sm text-muted-foreground">{client.description || "No description"}</span>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setRemoveClientConfirm(client.id)}
+                                    className="text-muted-foreground hover:text-destructive"
+                                    data-testid={`button-unlink-client-${client.id}`}
+                                  >
+                                    <Unlink className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Plus className="h-5 w-5 text-muted-foreground" />
+                            Assign to Client
+                          </CardTitle>
+                          <CardDescription>Link this user to an existing client</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid gap-2">
+                            <Label>Select Client</Label>
+                            <SearchableSelect
+                              value={clientForm.clientId || ""}
+                              onValueChange={(v) => setClientForm({ ...clientForm, clientId: v })}
+                              placeholder="Search accessible clients"
+                              options={allClients.map(c => ({ value: c.id, label: c.name }))}
+                              data-testid="select-assign-client"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Client Role</Label>
+                            <Select
+                              value={clientForm.role}
+                              onValueChange={(v) => setClientForm({ ...clientForm, role: v })}
+                            >
+                              <SelectTrigger data-testid="select-assign-client-role">
+                                <SelectValue placeholder="Select client role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {systemRoles.map(r => (
+                                  <SelectItem key={r.id} value={r.name}>{r.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button
+                            onClick={handleLinkClient}
+                            className="w-full gap-2"
+                            disabled={assignClientMutation.isPending || !clientForm.clientId}
+                            data-testid="button-link-client"
+                          >
+                            {assignClientMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Link2 className="h-4 w-4" />
+                            )}
+                            Assign to Client
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </TabsContent>
               </div>
             </Tabs>
           </div>
@@ -662,13 +858,28 @@ export default function EditUserPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Unlink Account</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to unlink this {unlinkConfirm?.systemName || unlinkConfirm?.systemId} account? 
+                Are you sure you want to unlink this {unlinkConfirm?.systemName || unlinkConfirm?.systemId} account?
                 This won't delete any data but the user won't be able to sign in with this account.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleUnlinkIdentity}>Unlink</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={!!removeClientConfirm} onOpenChange={(open) => !open && setRemoveClientConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove from Client</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove this user from the selected client?
+                They will lose all access to the client's projects.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRemoveClient}>Remove</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

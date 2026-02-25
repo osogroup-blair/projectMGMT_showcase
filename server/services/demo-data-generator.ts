@@ -262,7 +262,10 @@ const FRAMEWORK_CONFIGS: Record<string, FrameworkConfig> = {
 export async function hasDemoData(): Promise<boolean> {
   try {
     const projects = await storage.getProjects();
-    return projects.some(p => Object.values(DEMO_PROJECT_IDS).includes(p.id));
+    const hasProjects = projects.some(p => Object.values(DEMO_PROJECT_IDS).includes(p.id));
+    const clients = await storage.getAllClients();
+    const hasClient = clients.some((c: any) => c.id === "demo-client");
+    return hasProjects || hasClient;
   } catch (error) {
     return false;
   }
@@ -357,6 +360,14 @@ export async function clearDemoData(): Promise<{ success: boolean; deleted: Reco
       } catch (e) {
         // User might not exist
       }
+    }
+
+    // Delete demo client
+    try {
+      await storage.deleteClient("demo-client");
+      deleted.clients = (deleted.clients || 0) + 1;
+    } catch (e) {
+      // Client might not exist
     }
 
     // Reset app settings
@@ -556,6 +567,34 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
           demoUsers.push(existing);
         }
       }
+    }
+
+    // 1.5 Create Demo Client and assign users
+    try {
+      const existingClients = await storage.getAllClients();
+      let demoClient = existingClients.find((c: any) => c.id === "demo-client");
+      if (!demoClient) {
+        demoClient = await storage.createClient({
+          id: "demo-client",
+          name: "Demo Client",
+          description: "Default client for all demo users."
+        } as any);
+      }
+
+      for (const user of demoUsers) {
+        const userClients = await storage.getClientUsers(user.id);
+        const alreadyAssigned = userClients.some(cu => cu.clientId === "demo-client");
+        if (!alreadyAssigned) {
+          await storage.createClientUser({
+            id: generateId("cu"),
+            clientId: "demo-client",
+            userId: user.id,
+            role: "member"
+          } as any);
+        }
+      }
+    } catch (e: any) {
+      console.error("Failed to seed demo client", e);
     }
 
     // 2. Load framework templates from database

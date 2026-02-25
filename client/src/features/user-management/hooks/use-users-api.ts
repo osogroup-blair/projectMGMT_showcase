@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { 
-  ListUsersResponse, 
-  UserPublic, 
+import type {
+  ListUsersResponse,
+  UserPublic,
   UpdateUserRequest,
-  CreateUserRequest 
+  CreateUserRequest
 } from "@shared/contracts/user-management";
 
 const USERS_QUERY_KEY = "/api/users";
@@ -12,6 +12,7 @@ export interface UseUsersOptions {
   search?: string;
   role?: string;
   status?: string;
+  userType?: string;
   page?: number;
   pageSize?: number;
   sortBy?: "name" | "email" | "systemRole" | "status" | "createdAt" | "lastLogin" | "loginCount";
@@ -31,7 +32,7 @@ export function useAllUsersForAssignment() {
       params.set("pageSize", "1000");
       params.set("sortBy", "name");
       params.set("sortOrder", "asc");
-      
+
       const response = await fetch(`${USERS_QUERY_KEY}?${params.toString()}`);
       if (!response.ok) {
         const error = await response.json();
@@ -45,19 +46,20 @@ export function useAllUsersForAssignment() {
 }
 
 export function useUsers(options: UseUsersOptions = {}) {
-  const { 
-    search, role, status, page = 1, pageSize = 50, 
+  const {
+    search, role, status, userType, page = 1, pageSize = 50,
     sortBy = "createdAt", sortOrder = "desc",
     hasEmail, hasTasks, emailDomain, createdBefore, createdAfter
   } = options;
-  
+
   return useQuery<ListUsersResponse>({
-    queryKey: [USERS_QUERY_KEY, { search, role, status, page, pageSize, sortBy, sortOrder, hasEmail, hasTasks, emailDomain, createdBefore, createdAfter }],
+    queryKey: [USERS_QUERY_KEY, { search, role, status, userType, page, pageSize, sortBy, sortOrder, hasEmail, hasTasks, emailDomain, createdBefore, createdAfter }],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (role) params.set("role", role);
       if (status) params.set("status", status);
+      if (userType) params.set("userType", userType);
       params.set("page", String(page));
       params.set("pageSize", String(pageSize));
       params.set("sortBy", sortBy);
@@ -67,9 +69,9 @@ export function useUsers(options: UseUsersOptions = {}) {
       if (emailDomain) params.set("emailDomain", emailDomain);
       if (createdBefore) params.set("createdBefore", createdBefore);
       if (createdAfter) params.set("createdAfter", createdAfter);
-      
+
       const url = `${USERS_QUERY_KEY}?${params.toString()}`;
-        
+
       const response = await fetch(url);
       if (!response.ok) {
         const error = await response.json();
@@ -97,7 +99,7 @@ export function useUser(id: string) {
 
 export function useCreateUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: CreateUserRequest) => {
       const response = await fetch(USERS_QUERY_KEY, {
@@ -119,7 +121,7 @@ export function useCreateUser() {
 
 export function useUpdateUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateUserRequest }) => {
       const response = await fetch(`${USERS_QUERY_KEY}/${id}`, {
@@ -142,7 +144,7 @@ export function useUpdateUser() {
 
 export function useDeactivateUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
       const response = await fetch(`${USERS_QUERY_KEY}/${id}`, {
@@ -162,7 +164,7 @@ export function useDeactivateUser() {
 
 export function useBulkUpdateRole() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ ids, role }: { ids: string[]; role: string }) => {
       const response = await fetch(`${USERS_QUERY_KEY}/bulk/role`, {
@@ -184,7 +186,7 @@ export function useBulkUpdateRole() {
 
 export function useBulkDeactivate() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (ids: string[]) => {
       const response = await fetch(`${USERS_QUERY_KEY}/bulk/deactivate`, {
@@ -206,7 +208,7 @@ export function useBulkDeactivate() {
 
 export function useBulkActivate() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (ids: string[]) => {
       const response = await fetch(`${USERS_QUERY_KEY}/bulk/activate`, {
@@ -228,7 +230,7 @@ export function useBulkActivate() {
 
 export function useBulkDelete() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (ids: string[]) => {
       const response = await fetch(`${USERS_QUERY_KEY}/bulk`, {
@@ -286,7 +288,7 @@ export function useDeletionPreflight() {
 
 export function useArchiveUser() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (userId: string) => {
       const response = await fetch(`${USERS_QUERY_KEY}/${userId}/archive`, {
@@ -306,18 +308,18 @@ export function useArchiveUser() {
 
 export function useTransferOwnership() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      userId, 
-      targetUserId, 
-      entityType, 
-      entityIds 
-    }: { 
-      userId: string; 
-      targetUserId: string; 
-      entityType: "projects" | "deliverables" | "epics" | "milestones" | "sprints"; 
-      entityIds: string[] 
+    mutationFn: async ({
+      userId,
+      targetUserId,
+      entityType,
+      entityIds
+    }: {
+      userId: string;
+      targetUserId: string;
+      entityType: "projects" | "deliverables" | "epics" | "milestones" | "sprints";
+      entityIds: string[]
     }) => {
       const response = await fetch(`${USERS_QUERY_KEY}/${userId}/transfer-ownership`, {
         method: "POST",
@@ -338,7 +340,7 @@ export function useTransferOwnership() {
 
 export function usePermanentDelete() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (userId: string) => {
       const response = await fetch(`${USERS_QUERY_KEY}/${userId}/permanent`, {
@@ -393,7 +395,7 @@ export interface BulkDeleteResult {
 
 export function useBulkDeleteWithPreflight() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ ids, mode = "archive" }: { ids: string[]; mode?: "archive" | "delete" }): Promise<BulkDeleteResult> => {
       const response = await fetch(`${USERS_QUERY_KEY}/bulk`, {

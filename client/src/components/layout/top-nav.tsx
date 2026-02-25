@@ -13,13 +13,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCurrentUser } from "@/context/current-user-context";
 import { useTheme } from "@/context/theme-context";
+import { useClientContext } from "@/contexts/client-context";
+import { useClients } from "@/hooks/use-clients";
+import { useAuth } from "@/hooks/use-auth";
 import { SearchCommandPalette } from "./search-command-palette";
+import { Building2 } from "lucide-react";
 
 export function TopNav() {
   const { currentUser } = useCurrentUser();
   const { themes, activeTheme, isDark, setTheme, toggleDarkMode } = useTheme();
+  const { activeClientId, setActiveClientId } = useClientContext();
+  const { visibleClients } = useClients();
+  const { isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const [searchOpen, setSearchOpen] = React.useState(false);
+
+  const activeClientName = visibleClients?.find(c => c.id === activeClientId)?.name || "All Clients";
+
+  const showClientDropdown = isAdmin ? visibleClients.length > 0 : visibleClients.length > 1;
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -31,10 +42,10 @@ export function TopNav() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
-  
-  const displayName = currentUser?.name || 
-    `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 
-    currentUser?.email || 
+
+  const displayName = currentUser?.name ||
+    `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() ||
+    currentUser?.email ||
     "User";
   const firstName = displayName.split(" ")[0] || "User";
   const initials = displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) || "U";
@@ -66,7 +77,7 @@ export function TopNav() {
         >
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-sidebar-foreground/70" />
-            <div 
+            <div
               className="flex h-9 w-full rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-1 text-sm shadow-xs transition-colors pl-9 text-sidebar-foreground/50 text-left cursor-pointer hover:bg-sidebar-accent/70"
             >
               Search...
@@ -84,7 +95,7 @@ export function TopNav() {
         <div className="text-right hidden sm:block">
           <p className="text-sm text-sidebar-foreground/70 mr-2">{getTimeGreeting()}, <span className="font-medium text-sidebar-foreground">{firstName}!</span></p>
         </div>
-        
+
         {/* Theme Controls */}
         <div className="flex items-center gap-1">
           <Button
@@ -96,12 +107,12 @@ export function TopNav() {
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                 data-testid="theme-switcher-trigger"
               >
@@ -146,7 +157,7 @@ export function TopNav() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        
+
         <Button
           variant="ghost"
           size="icon"
@@ -156,6 +167,43 @@ export function TopNav() {
         >
           <HelpCircle className="h-5 w-5" />
         </Button>
+
+        {/* Client Selector (Visible to admins, or users with > 1 client) */}
+        {showClientDropdown && (
+          <div className="flex items-center gap-2 pl-4 border-l border-sidebar-border">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-8 gap-2 border-sidebar-border bg-sidebar text-sidebar-foreground hover:bg-sidebar-accent">
+                  <Building2 className="h-4 w-4" />
+                  <span className="hidden sm:inline break-words max-w-[120px] truncate">{activeClientName}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Select Client</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setActiveClientId(null)} className="cursor-pointer">
+                  <div className="flex items-center justify-between w-full">
+                    <span>All Clients</span>
+                    {activeClientId === null && <Check className="h-4 w-4" />}
+                  </div>
+                </DropdownMenuItem>
+                {visibleClients.map((client) => (
+                  <DropdownMenuItem
+                    key={client.id}
+                    onClick={() => setActiveClientId(client.id)}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="truncate">{client.name}</span>
+                      {activeClientId === client.id && <Check className="h-4 w-4 shrink-0" />}
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 pl-4 border-l border-sidebar-border">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -187,7 +235,7 @@ export function TopNav() {
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={handleLogout}
                 className="text-destructive focus:text-destructive"
                 data-testid="menu-item-logout"

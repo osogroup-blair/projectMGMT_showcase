@@ -7,6 +7,7 @@ import { CurrentUserProvider } from "@/context/current-user-context";
 import { ImportProvider } from "@/context/import-context";
 import { CreationReportProvider } from "@/context/creation-report-context";
 import { ThemeProvider } from "@/context/theme-context";
+import { ClientProvider } from "@/contexts/client-context";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
@@ -44,6 +45,7 @@ import StageTemplateDesigner from "@/pages/admin/stage-template-designer";
 import FrameworkTemplateDetail from "@/pages/admin/framework-template-detail";
 import DataViewerPage from "@/pages/admin/data-viewer";
 import EditUserPage from "@/pages/admin/edit-user";
+import AdminClientDetail from "@/pages/admin/client-detail";
 import ProjectTools from "@/pages/project-tools";
 import ImportWizard from "@/pages/import-wizard";
 import ImportUpload from "@/pages/import-upload";
@@ -91,6 +93,7 @@ function ProtectedRoutes() {
       <Route path="/admin" component={AdminHub} />
       <Route path="/admin/data-viewer" component={DataViewerPage} />
       <Route path="/admin/users/:userId/edit" component={EditUserPage} />
+      <Route path="/admin/clients/:clientId" component={AdminClientDetail} />
       <Route path="/admin/:section" component={AdminHub} />
       <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
       <Route path="/admin/templates/frameworks/:frameworkId" component={FrameworkTemplateDetail} />
@@ -118,16 +121,18 @@ function AuthenticatedApp() {
   }
 
   return (
-    <CurrentUserProvider>
-      <ImportProvider>
-        <CreationReportProvider>
-          <TooltipProvider>
-            <Toaster />
-            <ProtectedRoutes />
-          </TooltipProvider>
-        </CreationReportProvider>
-      </ImportProvider>
-    </CurrentUserProvider>
+    <ClientProvider>
+      <CurrentUserProvider>
+        <ImportProvider>
+          <CreationReportProvider>
+            <TooltipProvider>
+              <Toaster />
+              <ProtectedRoutes />
+            </TooltipProvider>
+          </CreationReportProvider>
+        </ImportProvider>
+      </CurrentUserProvider>
+    </ClientProvider>
   );
 }
 

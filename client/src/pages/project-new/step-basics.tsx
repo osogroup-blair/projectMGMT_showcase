@@ -7,13 +7,15 @@ import { StepProps, getDefaultDueDate, DEFAULT_PROJECT_DURATION_WEEKS } from "./
 import { useEffect, useRef } from "react";
 import { Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useClients } from "@/hooks/use-clients";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface ProjectBasicsData {
   name: string;
   description: string;
   startDate: string;
   dueDate: string;
-  client: string;
+  clientId?: string;
 }
 
 import { forwardRef, useImperativeHandle } from "react";
@@ -24,6 +26,7 @@ export const StepBasics = forwardRef(({
 }: StepProps, ref) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { allClients } = useClients();
 
   useImperativeHandle(ref, () => ({
     handleExport,
@@ -52,7 +55,7 @@ export const StepBasics = forwardRef(({
       description: projectData.description || "",
       startDate: projectData.startDate,
       dueDate: projectData.dueDate,
-      client: projectData.client || "",
+      clientId: projectData.clientId || "",
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -80,7 +83,7 @@ export const StepBasics = forwardRef(({
           description: data.description || prev.description,
           startDate: data.startDate || prev.startDate,
           dueDate: data.dueDate || prev.dueDate,
-          client: data.client || prev.client,
+          clientId: data.clientId || prev.clientId,
         }));
         toast({ title: "Imported", description: "Project settings imported successfully." });
       } catch {
@@ -97,22 +100,22 @@ export const StepBasics = forwardRef(({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="projectName">Project Name *</Label>
-            <Input 
-              id="projectName" 
-              placeholder="e.g. Website Rebrand 2024" 
+            <Input
+              id="projectName"
+              placeholder="e.g. Website Rebrand 2024"
               value={projectData.name}
-              onChange={(e) => setProjectData({...projectData, name: e.target.value})}
+              onChange={(e) => setProjectData({ ...projectData, name: e.target.value })}
               data-testid="input-project-name"
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Textarea 
-              id="description" 
-              placeholder="Describe the goals and scope of this project..." 
+            <Textarea
+              id="description"
+              placeholder="Describe the goals and scope of this project..."
               className="h-32"
               value={projectData.description}
-              onChange={(e) => setProjectData({...projectData, description: e.target.value})}
+              onChange={(e) => setProjectData({ ...projectData, description: e.target.value })}
               data-testid="input-project-description"
             />
           </div>
@@ -122,8 +125,8 @@ export const StepBasics = forwardRef(({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Start Date *</Label>
-              <Input 
-                type="date" 
+              <Input
+                type="date"
                 value={projectData.startDate}
                 onChange={(e) => handleStartDateChange(e.target.value)}
                 data-testid="input-project-start-date"
@@ -134,10 +137,10 @@ export const StepBasics = forwardRef(({
             </div>
             <div className="space-y-2">
               <Label>End Date *</Label>
-              <Input 
-                type="date" 
+              <Input
+                type="date"
                 value={projectData.dueDate}
-                onChange={(e) => setProjectData({...projectData, dueDate: e.target.value})}
+                onChange={(e) => setProjectData({ ...projectData, dueDate: e.target.value })}
                 data-testid="input-project-due-date"
               />
               <p className="text-xs text-muted-foreground">
@@ -145,15 +148,16 @@ export const StepBasics = forwardRef(({
               </p>
             </div>
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="client">Client (Optional)</Label>
-            <Input 
-              id="client" 
-              placeholder="e.g. Acme Corporation" 
-              value={projectData.client || ""}
-              onChange={(e) => setProjectData({...projectData, client: e.target.value})}
-              data-testid="input-project-client"
+            <Label htmlFor="clientId">Client (Optional)</Label>
+            <SearchableSelect
+              options={allClients.map(c => ({ value: c.id, label: c.name }))}
+              value={projectData.clientId || ""}
+              onValueChange={(val) => setProjectData({ ...projectData, clientId: val })}
+              placeholder="Select a client..."
+              searchPlaceholder="Search clients..."
+              emptyMessage="No clients found."
             />
           </div>
         </div>
@@ -162,7 +166,7 @@ export const StepBasics = forwardRef(({
       <div className="bg-muted/30 rounded-lg p-4 mt-6">
         <h4 className="font-medium text-sm mb-2">What's next?</h4>
         <p className="text-sm text-muted-foreground">
-          In the following steps, you'll configure sprints, assign team members, set up stages with tasks and milestones, 
+          In the following steps, you'll configure sprints, assign team members, set up stages with tasks and milestones,
           and define deliverables and epics. You can apply templates in Stage Configuration or build everything from scratch.
         </p>
       </div>

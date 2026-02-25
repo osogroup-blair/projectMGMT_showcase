@@ -11,12 +11,12 @@ import {
   SprintHeader,
   SprintNavigator,
   AddTasksDialog,
-  CreateTaskDialog,
   BulkEditDialog,
   PlanTab,
   RunTab,
   SettingsTab,
 } from "@/features/sprints/detail";
+import { TaskQuickCreateDialog } from "@/components/task-quick-create-dialog";
 
 export default function SprintDetailPage() {
   const [, params] = useRoute("/projects/:projectId/sprints/:sprintId");
@@ -177,12 +177,12 @@ export default function SprintDetailPage() {
         }}
       />
 
-      <CreateTaskDialog
+      <TaskQuickCreateDialog
         open={showCreateTaskDialog}
         onOpenChange={setShowCreateTaskDialog}
-        projectEpics={sprintData.projectEpics}
-        projectStages={sprintData.projectStages}
-        onCreateTask={sprintActions.handleCreateNewTask}
+        defaultProjectId={projectId}
+        defaultSprintId={sprintId}
+        onSuccess={() => setShowCreateTaskDialog(false)}
       />
 
       <BulkEditDialog

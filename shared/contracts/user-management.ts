@@ -45,6 +45,7 @@ export const listUsersRequestSchema = z.object({
   search: z.string().optional(),
   role: z.string().optional(),
   status: z.string().optional(),
+  userType: z.enum(["internal", "client"]).optional(),
   page: z.number().optional().default(1),
   pageSize: z.number().optional().default(50),
   sortBy: z.enum(["name", "email", "systemRole", "status", "createdAt", "lastLogin", "loginCount"]).optional().default("createdAt"),
@@ -79,6 +80,7 @@ export interface UserPublic {
   jobTitle: string | null;
   status: string | null;
   systemRole: string | null;
+  userType: string | null;
   permissions: string[] | null;
   roleTemplateIds: string[] | null;
   createdAt: Date | null;
@@ -90,6 +92,7 @@ export const updateUserRequestSchema = z.object({
   name: z.string().optional(),
   jobTitle: z.string().optional(),
   systemRole: z.enum(["admin", "manager", "member", "viewer", "demo"]).optional(),
+  userType: z.enum(["internal", "client"]).optional(),
   permissions: z.array(z.string()).optional(),
   roleTemplateIds: z.array(z.string()).optional(),
 });
@@ -105,6 +108,7 @@ export const createUserRequestSchema = z.object({
   name: z.string().min(1),
   jobTitle: z.string().optional(),
   systemRole: z.enum(["admin", "manager", "member", "viewer", "demo"]).default("member"),
+  userType: z.enum(["internal", "client"]).default("internal"),
   permissions: z.array(z.string()).optional(),
 });
 

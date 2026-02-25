@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Tag } from "lucide-react";
 import { useTaskStatuses } from "@/hooks/use-task-statuses";
+import { useQuery } from "@tanstack/react-query";
 
 interface TaskPropertiesTabProps {
   task: any;
@@ -13,14 +14,24 @@ interface TaskPropertiesTabProps {
   allEpics: any[];
 }
 
-export function TaskPropertiesTab({ 
-  task, 
-  projectId, 
+export function TaskPropertiesTab({
+  task,
+  projectId,
   updateTask,
   stages,
   allEpics
 }: TaskPropertiesTabProps) {
   const { statusLabels } = useTaskStatuses();
+
+  const { data: deliverables = [] } = useQuery({
+    queryKey: ["/api/projects", projectId, "deliverables"],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/deliverables`);
+      if (!response.ok) throw new Error("Failed to fetch deliverables");
+      return response.json();
+    },
+    enabled: !!projectId,
+  });
 
   return (
     <Card>
@@ -64,12 +75,29 @@ export function TaskPropertiesTab({
           </div>
 
           <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Deliverable</Label>
+            <SearchableSelect
+              value={task.deliverableId || "none"}
+              onValueChange={(v) => updateTask("deliverableId", v === "none" ? null : v)}
+              placeholder="Select deliverable"
+              options={[
+                { value: "none", label: "None" },
+                ...deliverables.map((d: any) => ({ value: d.id, label: d.title }))
+              ]}
+              data-testid="select-deliverable"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Epic</Label>
             <SearchableSelect
-              value={task.epicId || ""}
-              onValueChange={(v) => updateTask("epicId", v)}
+              value={task.epicId || "none"}
+              onValueChange={(v) => updateTask("epicId", v === "none" ? null : v)}
               placeholder="Select epic"
-              options={(allEpics || []).map((e: any) => ({ value: e.id, label: e.title }))}
+              options={[
+                { value: "none", label: "None" },
+                ...(allEpics || []).map((e: any) => ({ value: e.id, label: e.title }))
+              ]}
               data-testid="select-epic"
             />
           </div>

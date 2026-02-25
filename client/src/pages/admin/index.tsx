@@ -1,18 +1,20 @@
 import { useState, useMemo, useEffect } from "react";
 import { Shell } from "@/components/layout/shell";
-import { 
-  Users, 
-  LayoutTemplate, 
-  Settings, 
+import {
+  Users,
+  LayoutTemplate,
+  Settings,
   Download,
   KeyRound,
-  Palette
+  Palette,
+  Building2,
+  Shield
 } from "lucide-react";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
 } from "@/components/ui/tabs";
 import { useSearch, useLocation } from "wouter";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -23,8 +25,12 @@ import AdminAppDefaultsContent from "./app-defaults";
 import AdminImportExportContent from "./import-export";
 import AdminAuthenticationContent from "./authentication";
 import AdminThemesContent from "./themes";
+import AdminClientsContent from "./clients";
+import AdminServiceOrgContent from "./service-org";
 
 const ADMIN_TABS = [
+  { id: "clients", label: "Clients", icon: Building2 },
+  { id: "service-org", label: "Service Org", icon: Shield },
   { id: "users", label: "Users", icon: Users },
   { id: "templates", label: "Templates", icon: LayoutTemplate },
   { id: "defaults", label: "App Defaults", icon: Settings },
@@ -36,6 +42,8 @@ const ADMIN_TABS = [
 type AdminTab = typeof ADMIN_TABS[number]["id"];
 
 const PATH_TO_TAB: Record<string, AdminTab> = {
+  "clients": "clients",
+  "service-org": "service-org",
   "users": "users",
   "templates": "templates",
   "defaults": "defaults",
@@ -52,7 +60,7 @@ export default function AdminHub({ params }: AdminHubProps) {
   const searchString = useSearch();
   const [, setLocation] = useLocation();
   const section = params?.section;
-  
+
   const tabFromUrl = useMemo(() => {
     if (section && PATH_TO_TAB[section]) {
       return PATH_TO_TAB[section];
@@ -62,20 +70,20 @@ export default function AdminHub({ params }: AdminHubProps) {
     if (tabParam && PATH_TO_TAB[tabParam]) {
       return PATH_TO_TAB[tabParam];
     }
-    return "users";
+    return "clients";
   }, [searchString, section]);
-  
+
   const [activeTab, setActiveTab] = useState<AdminTab>(tabFromUrl);
-  
+
   useEffect(() => {
     if (tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
   }, [tabFromUrl, activeTab]);
-  
+
   const handleTabChange = (newTab: string) => {
     setActiveTab(newTab as AdminTab);
-    const target = newTab === "users" ? "/admin" : `/admin/${newTab}`;
+    const target = newTab === "clients" ? "/admin" : `/admin/${newTab}`;
     setLocation(target);
   };
 
@@ -91,10 +99,10 @@ export default function AdminHub({ params }: AdminHubProps) {
           </div>
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-            <TabsList className="grid w-full max-w-4xl grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7 max-w-5xl">
               {ADMIN_TABS.map((tab) => (
-                <TabsTrigger 
-                  key={tab.id} 
+                <TabsTrigger
+                  key={tab.id}
                   value={tab.id}
                   className="flex items-center gap-2"
                   data-testid={`admin-tab-${tab.id}`}
@@ -104,6 +112,14 @@ export default function AdminHub({ params }: AdminHubProps) {
                 </TabsTrigger>
               ))}
             </TabsList>
+
+            <TabsContent value="clients" className="space-y-6">
+              <AdminClientsContent embedded />
+            </TabsContent>
+
+            <TabsContent value="service-org" className="space-y-6">
+              <AdminServiceOrgContent embedded />
+            </TabsContent>
 
             <TabsContent value="users" className="space-y-6">
               <UserManagementContent embedded />

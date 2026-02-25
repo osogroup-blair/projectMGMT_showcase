@@ -28,22 +28,26 @@ interface TaskQuickCreateDialogProps {
   defaultProjectId?: string;
   defaultProjectName?: string;
   defaultMilestoneId?: string;
+  defaultSprintId?: string;
+  defaultStageId?: string;
   onSuccess?: () => void;
 }
 
-export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, defaultProjectName, defaultMilestoneId, onSuccess }: TaskQuickCreateDialogProps) {
+export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, defaultProjectName, defaultMilestoneId, defaultSprintId, defaultStageId, onSuccess }: TaskQuickCreateDialogProps) {
   const queryClient = useQueryClient();
   const { currentUserId } = useCurrentUser();
-  
+
   const [title, setTitle] = useState("");
   const [projectId, setProjectId] = useState(defaultProjectId || "");
+  const [deliverableId, setDeliverableId] = useState("");
   const [epicId, setEpicId] = useState("");
-  const [stageId, setStageId] = useState("");
+  const [stageId, setStageId] = useState(defaultStageId || "");
   const [milestoneId, setMilestoneId] = useState(defaultMilestoneId || "");
+  const [sprintId, setSprintId] = useState(defaultSprintId || "");
   const [deadline, setDeadline] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
   const [priority, setPriority] = useState("Medium");
   const [error, setError] = useState("");
-  
+
   useEffect(() => {
     if (defaultProjectId) {
       setProjectId(defaultProjectId);
@@ -56,6 +60,18 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
     }
   }, [defaultMilestoneId]);
 
+  useEffect(() => {
+    if (defaultSprintId) {
+      setSprintId(defaultSprintId);
+    }
+  }, [defaultSprintId]);
+
+  useEffect(() => {
+    if (defaultStageId) {
+      setStageId(defaultStageId);
+    }
+  }, [defaultStageId]);
+
   const { data: projects = [] } = useQuery({
     queryKey: ["/api/projects"],
     queryFn: async () => {
@@ -63,6 +79,16 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
       if (!response.ok) throw new Error("Failed to fetch projects");
       return response.json();
     },
+  });
+
+  const { data: deliverables = [], isLoading: deliverablesLoading } = useQuery({
+    queryKey: ["/api/projects", projectId, "deliverables"],
+    queryFn: async () => {
+      const response = await fetch(`/api/projects/${projectId}/deliverables`);
+      if (!response.ok) throw new Error("Failed to fetch deliverables");
+      return response.json();
+    },
+    enabled: !!projectId,
   });
 
   const { data: epics = [], isLoading: epicsLoading } = useQuery({
@@ -86,9 +112,10 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
   });
 
   useEffect(() => {
+    setDeliverableId("");
     setEpicId("");
-    setStageId("");
-  }, [projectId]);
+    setStageId(defaultStageId || "");
+  }, [projectId, defaultStageId]);
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: any) => {
@@ -117,9 +144,11 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
   const resetForm = () => {
     setTitle("");
     setProjectId(defaultProjectId || "");
+    setDeliverableId("");
     setEpicId("");
-    setStageId("");
+    setStageId(defaultStageId || "");
     setMilestoneId(defaultMilestoneId || "");
+    setSprintId(defaultSprintId || "");
     setDeadline(format(addDays(new Date(), 7), "yyyy-MM-dd"));
     setPriority("Medium");
     setError("");
@@ -144,21 +173,23 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
       setError("Please select a project");
       return;
     }
-    if (!epicId) {
-      setError("Please select an epic");
+    if (!deliverableId || deliverableId === "none") {
+      setError("Please select a deliverable");
       return;
     }
 
     const selectedProject = projects.find((p: any) => p.id === projectId);
     const projectName = defaultProjectName || selectedProject?.name || "Unknown Project";
-    
+
     createTaskMutation.mutate({
       title: title.trim(),
       projectId,
       project: projectName,
-      epicId,
-      stageId,
+      deliverableId,
+      epicId: epicId === "none" ? undefined : (epicId || undefined),
+      stageId: stageId === "none" ? undefined : (stageId || undefined),
       milestoneId: milestoneId || undefined,
+      sprintId: sprintId || undefined,
       deadline,
       priority,
       assigneeId: currentUserId,
@@ -208,30 +239,52 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
                 </Select>
               )}
             </div>
-            
+
             {projectId && (
               <>
                 <div className="grid gap-2">
-                  <Label htmlFor="epic">Epic</Label>
-                  <Select value={epicId} onValueChange={setEpicId} disabled={epicsLoading}>
-                    <SelectTrigger data-testid="select-epic">
-                      <SelectValue placeholder={epicsLoading ? "Loading epics..." : "Select an epic"} />
+                  <Label htmlFor="deliverable">Deliverable *</Label>
+                  <Select value={deliverableId} onValueChange={(val) => { setDeliverableId(val); setEpicId("none"); }} disabled={deliverablesLoading}>
+                    <SelectTrigger data-testid="select-deliverable">
+                      <SelectValue placeholder={deliverablesLoading ? "Loading deliverables..." : "Select a deliverable"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {epics.map((epic: any) => (
-                        <SelectItem key={epic.id} value={epic.id}>
-                          {epic.title}
+                      {deliverables.map((deliverable: any) => (
+                        <SelectItem key={deliverable.id} value={deliverable.id}>
+                          {deliverable.title}
                         </SelectItem>
                       ))}
-                      {epics.length === 0 && !epicsLoading && (
+                      {deliverables.length === 0 && !deliverablesLoading && (
                         <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                          No epics found for this project
+                          No deliverables found for this project
                         </div>
                       )}
                     </SelectContent>
                   </Select>
                 </div>
-                
+
+                <div className="grid gap-2">
+                  <Label htmlFor="epic">Epic</Label>
+                  <Select value={epicId} onValueChange={setEpicId} disabled={epicsLoading || !deliverableId || deliverableId === "none"}>
+                    <SelectTrigger data-testid="select-epic">
+                      <SelectValue placeholder={epicsLoading ? "Loading epics..." : "Select an epic (optional)"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {epics.filter((e: any) => e.deliverableId === deliverableId).map((epic: any) => (
+                        <SelectItem key={epic.id} value={epic.id}>
+                          {epic.title}
+                        </SelectItem>
+                      ))}
+                      {epics.filter((e: any) => e.deliverableId === deliverableId).length === 0 && !epicsLoading && deliverableId && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No epics found for this deliverable
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="stage">Stage</Label>
                   <Select value={stageId} onValueChange={setStageId} disabled={stagesLoading}>
@@ -239,6 +292,7 @@ export function TaskQuickCreateDialog({ open, onOpenChange, defaultProjectId, de
                       <SelectValue placeholder={stagesLoading ? "Loading stages..." : "Select a stage"} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
                       {stages.map((stage: any) => (
                         <SelectItem key={stage.id} value={stage.id}>
                           {stage.name}

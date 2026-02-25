@@ -25,7 +25,6 @@ import type {
   Attachment, InsertAttachment,
   History, InsertHistory,
   ProjectRole, InsertProjectRole,
-  RoleAssignment, InsertRoleAssignment,
   ProjectTeamMember, InsertProjectTeamMember,
   ProjectHighLevelRole, InsertProjectHighLevelRole,
   ExecutionRoleAssignment, InsertExecutionRoleAssignment,
@@ -58,6 +57,8 @@ import type {
   DeliverableType, InsertDeliverableType,
   UserIdentity, InsertUserIdentity,
   UserRoleEligibility,
+  Client, InsertClient,
+  ClientUser, InsertClientUser,
   AppSettings, InsertAppSettings,
   Theme, InsertTheme,
 } from "@shared/schema";
@@ -75,6 +76,20 @@ export interface IStorage {
   getUserIdentitiesByUserId(userId: string): Promise<UserIdentity[]>;
   createUserIdentity(identity: InsertUserIdentity): Promise<UserIdentity>;
   deleteUserIdentity(id: string): Promise<void>;
+
+  // Clients
+  getAllClients(): Promise<Client[]>;
+  getClient(id: string): Promise<Client | undefined>;
+  createClient(client: InsertClient): Promise<Client>;
+  updateClient(id: string, client: Partial<Client>): Promise<Client | undefined>;
+  deleteClient(id: string): Promise<void>;
+
+  // Client Users
+  getClientUsers(clientId: string): Promise<ClientUser[]>;
+  getUserClients(userId: string): Promise<Client[]>;
+  createClientUser(clientUser: InsertClientUser): Promise<ClientUser>;
+  updateClientUserRole(clientId: string, userId: string, role: string): Promise<ClientUser | undefined>;
+  deleteClientUser(clientId: string, userId: string): Promise<void>;
 
   // Projects
   getProjects(): Promise<Project[]>;
@@ -115,11 +130,11 @@ export interface IStorage {
   getTasks(): Promise<Task[]>;
   getTaskById(id: string): Promise<Task | undefined>;
   getTasksByProjectId(projectId: string): Promise<Task[]>;
-  getProjectTasksPaginated(options: { 
-    projectId: string; 
-    page?: number; 
-    limit?: number; 
-    sortBy?: string; 
+  getProjectTasksPaginated(options: {
+    projectId: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
     sortDirection?: 'asc' | 'desc';
     search?: string;
     statuses?: string[];
@@ -197,15 +212,6 @@ export interface IStorage {
   updateProjectRole(id: string, role: Partial<ProjectRole>): Promise<ProjectRole>;
   deleteProjectRole(id: string): Promise<void>;
 
-  // Role Assignments (Team Members) - LEGACY
-  getRoleAssignments(): Promise<RoleAssignment[]>;
-  getRoleAssignmentById(id: string): Promise<RoleAssignment | undefined>;
-  getRoleAssignmentsByRoleId(roleId: string): Promise<RoleAssignment[]>;
-  getRoleAssignmentsByProjectId(projectId: string): Promise<RoleAssignment[]>;
-  getRoleAssignmentsByMemberType(projectId: string, memberType: string): Promise<RoleAssignment[]>;
-  createRoleAssignment(assignment: InsertRoleAssignment): Promise<RoleAssignment>;
-  updateRoleAssignment(id: string, assignment: Partial<RoleAssignment>): Promise<RoleAssignment>;
-  deleteRoleAssignment(id: string): Promise<void>;
 
   // Project Team Members (unified membership)
   getProjectTeamMembers(projectId: string): Promise<ProjectTeamMember[]>;
@@ -258,7 +264,7 @@ export interface IStorage {
   createProjectStage(stage: InsertProjectStage): Promise<ProjectStage>;
   updateProjectStage(id: string, stage: Partial<ProjectStage>): Promise<ProjectStage>;
   deleteProjectStage(id: string): Promise<void>;
-  
+
   // Project Epics (by project)
   getEpicsByProjectId(projectId: string): Promise<Epic[]>;
 
@@ -334,7 +340,7 @@ export interface IStorage {
   createStatusOption(option: InsertStatusOption): Promise<StatusOption>;
   updateStatusOption(id: string, option: Partial<StatusOption>): Promise<StatusOption>;
   deleteStatusOption(id: string): Promise<void>;
-  
+
   // Status Usage and Remapping
   getStatusUsageCounts(statusLabel: string): Promise<{
     projects: number;
@@ -539,11 +545,95 @@ export class DatabaseStorage implements IStorage {
     return userRepository.deleteUserIdentity(id);
   }
 
-  // Projects
+  // --- Clients ---
+  async getAllClients(): Promise<Client[]> {
+    return await db.select().from(schema.clients).orderBy(schema.clients.name);
+  }
+
+  async getClient(id: string): Promise<Client | undefined> {
+    const [client] = await db.select().from(schema.clients).where(eq(schema.clients.id, id));
+    return client;
+  }
+
+  async createClient(client: InsertClient): Promise<Client> {
+    const [created] = await db.insert(schema.clients).values(client).returning();
+    return created;
+  }
+
+  async updateClient(id: string, client: Partial<Client>): Promise<Client | undefined> {
+    const [updated] = await db
+      .update(schema.clients)
+      .set({ ...client, updatedAt: new Date() })
+      .where(eq(schema.clients.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteClient(id: string): Promise<void> {
+    await db.delete(schema.clients).where(eq(schema.clients.id, id));
+  }
+
+  // --- Client Users ---
+  async getClientUsers(clientId: string): Promise<ClientUser[]> {
+    return await db.select().from(schema.clientUsers).where(eq(schema.clientUsers.clientId, clientId));
+  }
+
+  async getUserClients(userId: string): Promise<Client[]> {
+    const userClients = await db
+      .select({ client: schema.clients })
+      .from(schema.clientUsers)
+      .innerJoin(schema.clients, eq(schema.clientUsers.clientId, schema.clients.id))
+      .where(eq(schema.clientUsers.userId, userId));
+    return userClients.map(row => row.client);
+  }
+
+  async createClientUser(clientUser: InsertClientUser): Promise<ClientUser> {
+    const [created] = await db.insert(schema.clientUsers).values(clientUser).returning();
+    return created;
+  }
+
+  async updateClientUserRole(clientId: string, userId: string, role: string): Promise<ClientUser | undefined> {
+    const [updated] = await db
+      .update(schema.clientUsers)
+      .set({ role, updatedAt: new Date() })
+      .where(and(eq(schema.clientUsers.clientId, clientId), eq(schema.clientUsers.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteClientUser(clientId: string, userId: string): Promise<void> {
+    await db.delete(schema.clientUsers)
+      .where(and(eq(schema.clientUsers.clientId, clientId), eq(schema.clientUsers.userId, userId)));
+  }
+
   async getProjects(): Promise<Project[]> {
     return await db.select().from(schema.projects);
   }
-  
+
+  async recalculateProjectProgress(projectId: string): Promise<void> {
+    if (!projectId) return;
+
+    try {
+      const [result] = await db
+        .select({
+          total: sql<number>`count(*)::int`,
+          completed: sql<number>`count(*) filter (where status = 'DONE')::int`
+        })
+        .from(schema.tasks)
+        .where(eq(schema.tasks.projectId, projectId));
+
+      const progress = result.total > 0
+        ? Math.round((result.completed / result.total) * 100)
+        : 0;
+
+      await db.update(schema.projects)
+        .set({ progress, updatedAt: new Date() })
+        .where(eq(schema.projects.id, projectId));
+    } catch (error) {
+      console.error(`[PROGRESS] Error recalculating progress for ${projectId}:`, error);
+    }
+  }
+
   async getProjectsPaginated(params: {
     limit?: number;
     offset?: number;
@@ -555,37 +645,42 @@ export class DatabaseStorage implements IStorage {
     favoriteOnly?: boolean;
     sortField?: string;
     sortDirection?: 'asc' | 'desc';
+    clientId?: string | null;
   }): Promise<{ data: Project[]; total: number; limit: number; offset: number }> {
     const limit = params.limit || 25;
     const offset = params.offset || 0;
     const conditions: any[] = [];
-    
+
     // Text search on name and client
     if (params.search) {
       const searchPattern = `%${params.search.toLowerCase()}%`;
       conditions.push(
         or(
-          sql`LOWER(${schema.projects.name}) LIKE ${searchPattern}`,
-          sql`LOWER(${schema.projects.client}) LIKE ${searchPattern}`
+          sql`LOWER(${schema.projects.name}) LIKE ${searchPattern}`
         )
       );
     }
-    
+
     // Status filter
     if (params.status && params.status !== 'all') {
       conditions.push(eq(schema.projects.status, params.status));
     }
-    
+
+    // Client filter
+    if (params.clientId) {
+      conditions.push(eq(schema.projects.clientId, params.clientId));
+    }
+
     // Risk level filter
     if (params.riskLevel && params.riskLevel !== 'all') {
       conditions.push(eq(schema.projects.riskLevel, params.riskLevel));
     }
-    
+
     // User role filter (my projects / owner / stakeholder / member)
     if (params.userId && params.role && params.role !== 'all') {
       // Get project IDs where user has the specified role
       let projectIds: string[] = [];
-      
+
       if (params.role === 'owner') {
         // User is the project owner OR has owner high-level role
         const ownedProjects = await db.select({ id: schema.projects.id })
@@ -635,7 +730,7 @@ export class DatabaseStorage implements IStorage {
           ...teamMemberProjects.map(r => r.projectId)
         ])];
       }
-      
+
       if (projectIds.length > 0) {
         conditions.push(inArray(schema.projects.id, projectIds));
       } else {
@@ -643,39 +738,39 @@ export class DatabaseStorage implements IStorage {
         return { data: [], total: 0, limit, offset };
       }
     }
-    
+
     // Favorites filter
     if (params.favoriteOnly && params.userId) {
       const favorites = await db.select({ projectId: schema.projectFavorites.projectId })
         .from(schema.projectFavorites)
         .where(eq(schema.projectFavorites.userId, params.userId));
       const favoriteProjectIds = favorites.map(f => f.projectId);
-      
+
       if (favoriteProjectIds.length > 0) {
         conditions.push(inArray(schema.projects.id, favoriteProjectIds));
       } else {
         return { data: [], total: 0, limit, offset };
       }
     }
-    
+
     // Build where clause
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    
+
     // Get total count
     const [{ count: totalCount }] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(schema.projects)
       .where(whereClause);
-    
+
     // Build query with sorting
-    let query = db.select().from(schema.projects).where(whereClause);
-    
+    let query: any = db.select().from(schema.projects).where(whereClause);
+
     // Apply sorting
     const sortField = params.sortField || 'name';
     const sortDir = params.sortDirection || 'asc';
-    
+
     if (sortField === 'name') {
-      query = sortDir === 'asc' 
+      query = sortDir === 'asc'
         ? query.orderBy(sql`${schema.projects.name} ASC`)
         : query.orderBy(sql`${schema.projects.name} DESC`);
     } else if (sortField === 'status') {
@@ -695,25 +790,24 @@ export class DatabaseStorage implements IStorage {
       query = sortDir === 'asc'
         ? query.orderBy(sql`${schema.projects.progress} ASC NULLS LAST`)
         : query.orderBy(sql`${schema.projects.progress} DESC NULLS LAST`);
-    } else if (sortField === 'client') {
-      query = sortDir === 'asc'
-        ? query.orderBy(sql`${schema.projects.client} ASC NULLS LAST`)
-        : query.orderBy(sql`${schema.projects.client} DESC NULLS LAST`);
     }
-    
+
     // Apply pagination
     const data = await query.limit(limit).offset(offset);
-    
+
     return { data, total: totalCount, limit, offset };
   }
-  
+
   async getProjectById(id: string): Promise<Project | undefined> {
     const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id));
     return project;
   }
   async createProject(project: InsertProject): Promise<Project> {
     const id = (project as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projects).values({ ...project, id }).returning();
+    const [created] = await db.insert(schema.projects).values({
+      ...project,
+      id
+    } as any).returning();
     return created;
   }
   async updateProject(id: string, project: Partial<Project>): Promise<Project> {
@@ -725,19 +819,19 @@ export class DatabaseStorage implements IStorage {
     // Order: milestone_task_links → tasks → sprint-related → sprints → milestones → 
     //        epics → deliverables → stages → assignments → project
     // NOTE: Tasks must be deleted BEFORE sprints because tasks have FK to sprints (sprintId)
-    
+
     await db.transaction(async (tx) => {
       // 1. Delete milestone task links for this project (references tasks)
       await tx.delete(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.projectId, id));
-      
+
       // 2. Delete tasks for this project FIRST (comments, attachments, history cascade automatically)
       // Tasks have FK to sprints, so must be deleted before sprints
       await tx.delete(schema.tasks).where(eq(schema.tasks.projectId, id));
-      
+
       // 3. Get sprints for this project to delete related sprint data
       const sprints = await tx.select().from(schema.sprints).where(eq(schema.sprints.projectId, id));
       const sprintIds = sprints.map(s => s.id);
-      
+
       // 4. Delete sprint-related entities
       if (sprintIds.length > 0) {
         for (const sprintId of sprintIds) {
@@ -751,41 +845,41 @@ export class DatabaseStorage implements IStorage {
           await tx.delete(schema.sprintMembers).where(eq(schema.sprintMembers.sprintId, sprintId));
         }
       }
-      
+
       // 5. Delete sprints for this project (now safe - no tasks reference them)
       await tx.delete(schema.sprints).where(eq(schema.sprints.projectId, id));
-      
+
       // 6. Delete milestones for this project (scope rules cascade automatically)
       await tx.delete(schema.milestones).where(eq(schema.milestones.projectId, id));
-      
+
       // 7. Get deliverables for this project to find epics
       const deliverables = await tx.select().from(schema.deliverables).where(eq(schema.deliverables.projectId, id));
       const deliverableIds = deliverables.map(d => d.id);
-      
+
       // 8. Delete epics belonging to these deliverables
       if (deliverableIds.length > 0) {
         for (const deliverableId of deliverableIds) {
           await tx.delete(schema.epics).where(eq(schema.epics.deliverableId, deliverableId));
         }
       }
-      
+
       // 9. Delete deliverables for this project
       await tx.delete(schema.deliverables).where(eq(schema.deliverables.projectId, id));
-      
+
       // 10. Delete project stages for this project
       await tx.delete(schema.projectStages).where(eq(schema.projectStages.projectId, id));
-      
+
       // 11. Role assignments are linked to roles, not projects directly - skip
-      
+
       // 12. Delete project task types for this project
       await tx.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, id));
-      
+
       // 13. Delete project task statuses for this project
       await tx.delete(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.projectId, id));
-      
+
       // 14. Delete project settings for this project
       await tx.delete(schema.projectSettings).where(eq(schema.projectSettings.projectId, id));
-      
+
       // 15. Finally delete the project itself
       await tx.delete(schema.projects).where(eq(schema.projects.id, id));
     });
@@ -803,12 +897,12 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.deliverables).where(eq(schema.deliverables.projectId, projectId));
   }
   async createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    
+    const id = (deliverable as any).id || crypto.randomUUID();
+
     // Default dates from parent project if not provided
     let startDate = deliverable.startDate;
     let dueDate = deliverable.dueDate;
-    
+
     if ((!startDate || !dueDate) && deliverable.projectId) {
       const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, deliverable.projectId));
       if (project) {
@@ -816,18 +910,18 @@ export class DatabaseStorage implements IStorage {
         if (!dueDate) dueDate = project.deadline;
       }
     }
-    
+
     // Fallback to today if still no dates
     const today = new Date().toISOString().split('T')[0];
     if (!startDate) startDate = today;
     if (!dueDate) dueDate = today;
-    
-    const [created] = await db.insert(schema.deliverables).values({ 
-      ...deliverable, 
+
+    const [created] = await db.insert(schema.deliverables).values({
+      ...deliverable,
       id,
       startDate,
-      dueDate 
-    }).returning();
+      dueDate
+    } as any).returning();
     return created;
   }
   async updateDeliverable(id: string, deliverable: Partial<Deliverable>): Promise<Deliverable> {
@@ -850,31 +944,32 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.epics).where(eq(schema.epics.deliverableId, deliverableId));
   }
   async createEpic(epic: InsertEpic): Promise<Epic> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    
+    const id = (epic as any).id || crypto.randomUUID();
+
     // Default dates from parent deliverable if not provided
     let startDate = epic.startDate;
     let endDate = epic.endDate;
-    
+
+    // Fallback to today if still no dates
+    const today = new Date().toISOString().split('T')[0];
+
     if ((!startDate || !endDate) && epic.deliverableId) {
       const [deliverable] = await db.select().from(schema.deliverables).where(eq(schema.deliverables.id, epic.deliverableId));
       if (deliverable) {
-        if (!startDate) startDate = deliverable.startDate;
+        if (!startDate) startDate = deliverable.startDate || today;
         if (!endDate) endDate = deliverable.dueDate;
       }
     }
-    
-    // Fallback to today if still no dates
-    const today = new Date().toISOString().split('T')[0];
+
     if (!startDate) startDate = today;
     if (!endDate) endDate = today;
-    
-    const [created] = await db.insert(schema.epics).values({ 
-      ...epic, 
+
+    const [created] = await db.insert(schema.epics).values({
+      ...epic,
       id,
       startDate,
-      endDate 
-    }).returning();
+      endDate
+    } as any).returning();
     return created;
   }
   async updateEpic(id: string, epic: Partial<Epic>): Promise<Epic> {
@@ -895,11 +990,11 @@ export class DatabaseStorage implements IStorage {
   async getTasksByProjectId(projectId: string): Promise<Task[]> {
     return taskRepository.getTasksByProjectId(projectId);
   }
-  async getProjectTasksPaginated(options: { 
-    projectId: string; 
-    page?: number; 
-    limit?: number; 
-    sortBy?: string; 
+  async getProjectTasksPaginated(options: {
+    projectId: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
     sortDirection?: 'asc' | 'desc';
     search?: string;
     statuses?: string[];
@@ -933,13 +1028,28 @@ export class DatabaseStorage implements IStorage {
     });
   }
   async createTask(task: InsertTask): Promise<Task> {
-    return taskRepository.createTask(task);
+    const created = await taskRepository.createTask(task);
+    if (created.projectId) {
+      await this.recalculateProjectProgress(created.projectId);
+    }
+    return created;
   }
   async updateTask(id: string, task: Partial<Task>): Promise<Task> {
-    return taskRepository.updateTask(id, task);
+    console.log(`[STORAGE] updateTask called for task ${id}`, task);
+    const updated = await taskRepository.updateTask(id, task);
+    if (updated.projectId) {
+      console.log(`[STORAGE] Triggering progress recalculation for project ${updated.projectId}`);
+      await this.recalculateProjectProgress(updated.projectId);
+    }
+    return updated;
   }
   async deleteTask(id: string): Promise<void> {
-    return taskRepository.deleteTask(id);
+    const task = await taskRepository.getTaskById(id);
+    const projectId = task?.projectId;
+    await taskRepository.deleteTask(id);
+    if (projectId) {
+      await this.recalculateProjectProgress(projectId);
+    }
   }
 
   // Milestones (delegated to milestone-repository)
@@ -1007,8 +1117,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.activity);
   }
   async createActivity(activity: InsertActivity): Promise<Activity> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.activity).values({ ...activity, id }).returning();
+    const id = (activity as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.activity).values({ ...activity, id } as any).returning();
     return created;
   }
   async deleteActivity(id: string): Promise<void> {
@@ -1027,8 +1137,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.comments).where(eq(schema.comments.taskId, taskId));
   }
   async createComment(comment: InsertComment): Promise<Comment> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.comments).values({ ...comment, id }).returning();
+    const id = (comment as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.comments).values({ ...comment, id } as any).returning();
     return created;
   }
   async updateComment(id: string, comment: Partial<Comment>): Promise<Comment> {
@@ -1051,8 +1161,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.attachments).where(eq(schema.attachments.taskId, taskId));
   }
   async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.attachments).values({ ...attachment, id }).returning();
+    const id = (attachment as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.attachments).values({ ...attachment, id } as any).returning();
     return created;
   }
   async updateAttachment(id: string, attachment: Partial<Attachment>): Promise<Attachment> {
@@ -1075,8 +1185,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.history).where(eq(schema.history.taskId, taskId));
   }
   async createHistory(history: InsertHistory): Promise<History> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.history).values({ ...history, id }).returning();
+    const id = (history as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.history).values({ ...history, id } as any).returning();
     return created;
   }
   async updateHistory(id: string, history: Partial<History>): Promise<History> {
@@ -1096,8 +1206,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(schema.projectRoles).where(eq(schema.projectRoles.projectId, projectId));
   }
   async createProjectRole(role: InsertProjectRole): Promise<ProjectRole> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectRoles).values({ ...role, id }).returning();
+    const id = (role as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectRoles).values({ ...role, id } as any).returning();
     return created;
   }
   async updateProjectRole(id: string, role: Partial<ProjectRole>): Promise<ProjectRole> {
@@ -1108,36 +1218,6 @@ export class DatabaseStorage implements IStorage {
     await db.delete(schema.projectRoles).where(eq(schema.projectRoles.id, id));
   }
 
-  // Role Assignments (Team Members)
-  async getRoleAssignments(): Promise<RoleAssignment[]> {
-    return await db.select().from(schema.roleAssignments);
-  }
-  async getRoleAssignmentById(id: string): Promise<RoleAssignment | undefined> {
-    const [assignment] = await db.select().from(schema.roleAssignments).where(eq(schema.roleAssignments.id, id));
-    return assignment;
-  }
-  async getRoleAssignmentsByRoleId(roleId: string): Promise<RoleAssignment[]> {
-    return await db.select().from(schema.roleAssignments).where(eq(schema.roleAssignments.roleId, roleId));
-  }
-  async getRoleAssignmentsByProjectId(projectId: string): Promise<RoleAssignment[]> {
-    return await db.select().from(schema.roleAssignments).where(eq(schema.roleAssignments.projectId, projectId));
-  }
-  async getRoleAssignmentsByMemberType(projectId: string, memberType: string): Promise<RoleAssignment[]> {
-    return await db.select().from(schema.roleAssignments)
-      .where(and(eq(schema.roleAssignments.projectId, projectId), eq(schema.roleAssignments.memberType, memberType)));
-  }
-  async createRoleAssignment(assignment: InsertRoleAssignment): Promise<RoleAssignment> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.roleAssignments).values({ ...assignment, id }).returning();
-    return created;
-  }
-  async updateRoleAssignment(id: string, assignment: Partial<RoleAssignment>): Promise<RoleAssignment> {
-    const [updated] = await db.update(schema.roleAssignments).set({ ...assignment, updatedAt: new Date() }).where(eq(schema.roleAssignments.id, id)).returning();
-    return updated;
-  }
-  async deleteRoleAssignment(id: string): Promise<void> {
-    await db.delete(schema.roleAssignments).where(eq(schema.roleAssignments.id, id));
-  }
 
   // Project Team Members (unified membership)
   async getAllProjectTeamMembers(): Promise<ProjectTeamMember[]> {
@@ -1160,8 +1240,8 @@ export class DatabaseStorage implements IStorage {
       .where(eq(schema.projectTeamMembers.userId, userId));
   }
   async createProjectTeamMember(member: InsertProjectTeamMember): Promise<ProjectTeamMember> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectTeamMembers).values({ ...member, id }).returning();
+    const id = (member as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectTeamMembers).values({ ...member, id } as any).returning();
     return created;
   }
   async updateProjectTeamMember(id: string, member: Partial<ProjectTeamMember>): Promise<ProjectTeamMember> {
@@ -1184,8 +1264,8 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(schema.projectHighLevelRoles.teamMemberId, teamMemberIds));
   }
   async createHighLevelRole(role: InsertProjectHighLevelRole): Promise<ProjectHighLevelRole> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectHighLevelRoles).values({ ...role, id }).returning();
+    const id = (role as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectHighLevelRoles).values({ ...role, id } as any).returning();
     return created;
   }
   async deleteHighLevelRole(id: string): Promise<void> {
@@ -1207,8 +1287,8 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(schema.executionRoleAssignments.teamMemberId, teamMemberIds));
   }
   async createExecutionRoleAssignment(assignment: InsertExecutionRoleAssignment): Promise<ExecutionRoleAssignment> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.executionRoleAssignments).values({ ...assignment, id }).returning();
+    const id = (assignment as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.executionRoleAssignments).values({ ...assignment, id } as any).returning();
     return created;
   }
   async deleteExecutionRoleAssignment(id: string): Promise<void> {
@@ -1227,8 +1307,8 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createRoleTemplate(template: InsertRoleTemplate): Promise<RoleTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.roleTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.roleTemplates).values({ ...template, id } as any).returning();
     return created;
   }
   async updateRoleTemplate(id: string, template: Partial<RoleTemplate>): Promise<RoleTemplate> {
@@ -1248,8 +1328,8 @@ export class DatabaseStorage implements IStorage {
     return view;
   }
   async createSavedView(view: InsertSavedView): Promise<SavedView> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.savedViews).values({ ...view, id }).returning();
+    const id = (view as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.savedViews).values({ ...view, id } as any).returning();
     return created;
   }
   async updateSavedView(id: string, view: Partial<SavedView>): Promise<SavedView> {
@@ -1269,8 +1349,8 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
   async createGuidanceItem(item: InsertGuidanceItem): Promise<GuidanceItem> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.guidanceItems).values({ ...item, id }).returning();
+    const id = (item as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.guidanceItems).values({ ...item, id } as any).returning();
     return created;
   }
   async updateGuidanceItem(id: string, item: Partial<GuidanceItem>): Promise<GuidanceItem> {
@@ -1292,7 +1372,7 @@ export class DatabaseStorage implements IStorage {
     const [stage] = await db.select().from(schema.projectStages).where(eq(schema.projectStages.id, id));
     return stage;
   }
-  
+
   // Get all epics for a project (through deliverables)
   async getEpicsByProjectId(projectId: string): Promise<Epic[]> {
     const deliverables = await this.getDeliverablesByProjectId(projectId);
@@ -1304,8 +1384,8 @@ export class DatabaseStorage implements IStorage {
     return allEpics;
   }
   async createProjectStage(stage: InsertProjectStage): Promise<ProjectStage> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectStages).values({ ...stage, id }).returning();
+    const id = (stage as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectStages).values({ ...stage, id } as any).returning();
     return created;
   }
   async updateProjectStage(id: string, stage: Partial<ProjectStage>): Promise<ProjectStage> {
@@ -1325,8 +1405,8 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createFrameworkTemplate(template: InsertFrameworkTemplate): Promise<FrameworkTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.frameworkTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.frameworkTemplates).values({ ...template, id } as any).returning();
     return created;
   }
   async updateFrameworkTemplate(id: string, template: Partial<FrameworkTemplate>): Promise<FrameworkTemplate> {
@@ -1346,8 +1426,8 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createStageTemplate(template: InsertStageTemplate): Promise<StageTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.stageTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.stageTemplates).values({ ...template, id } as any).returning();
     return created;
   }
   async updateStageTemplate(id: string, template: Partial<StageTemplate>): Promise<StageTemplate> {
@@ -1367,8 +1447,8 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createProjectTemplate(template: InsertProjectTemplate): Promise<ProjectTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.projectTemplates).values({ ...template, id } as any).returning();
     return created;
   }
   async updateProjectTemplate(id: string, template: Partial<ProjectTemplate>): Promise<ProjectTemplate> {
@@ -1388,8 +1468,8 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createDeliverableTemplate(template: InsertDeliverableTemplate): Promise<DeliverableTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.deliverableTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.deliverableTemplates).values({ ...template, id } as any).returning();
     return created;
   }
   async updateDeliverableTemplate(id: string, template: Partial<DeliverableTemplate>): Promise<DeliverableTemplate> {
@@ -1409,8 +1489,8 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createEpicTemplate(template: InsertEpicTemplate): Promise<EpicTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.epicTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.epicTemplates).values({ ...template, id } as any).returning();
     return created;
   }
   async updateEpicTemplate(id: string, template: Partial<EpicTemplate>): Promise<EpicTemplate> {
@@ -1430,8 +1510,8 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createTaskTemplate(template: InsertTaskTemplate): Promise<TaskTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.taskTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.taskTemplates).values({ ...template, id } as any).returning();
     return created;
   }
   async updateTaskTemplate(id: string, template: Partial<TaskTemplate>): Promise<TaskTemplate> {
@@ -1451,8 +1531,8 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createMappingTemplate(template: InsertMappingTemplate): Promise<MappingTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.mappingTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.mappingTemplates).values({ ...template, id } as any).returning();
     return created;
   }
   async updateMappingTemplate(id: string, template: Partial<MappingTemplate>): Promise<MappingTemplate> {
@@ -1472,8 +1552,11 @@ export class DatabaseStorage implements IStorage {
     return template;
   }
   async createMilestoneTemplate(template: InsertMilestoneTemplate): Promise<MilestoneTemplate> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.milestoneTemplates).values({ ...template, id }).returning();
+    const id = (template as any).id || crypto.randomUUID();
+    const [created] = await db.insert(schema.milestoneTemplates).values({
+      ...template,
+      id
+    } as any).returning();
     return created;
   }
   async updateMilestoneTemplate(id: string, template: Partial<MilestoneTemplate>): Promise<MilestoneTemplate> {
@@ -1565,7 +1648,7 @@ export class DatabaseStorage implements IStorage {
     const [milestonesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.milestones).where(eq(schema.milestones.status, statusLabel));
     const [projectStagesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.projectStages).where(eq(schema.projectStages.status, statusLabel));
     const [workBlocksResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.workBlocks).where(eq(schema.workBlocks.status, statusLabel));
-    
+
     const projects = projectsResult?.count || 0;
     const deliverables = deliverablesResult?.count || 0;
     const epics = epicsResult?.count || 0;
@@ -1574,7 +1657,7 @@ export class DatabaseStorage implements IStorage {
     const milestones = milestonesResult?.count || 0;
     const projectStages = projectStagesResult?.count || 0;
     const workBlocks = workBlocksResult?.count || 0;
-    
+
     return {
       projects,
       deliverables,
@@ -1587,7 +1670,7 @@ export class DatabaseStorage implements IStorage {
       total: projects + deliverables + epics + tasks + sprints + milestones + projectStages + workBlocks
     };
   }
-  
+
   async remapStatus(oldStatus: string, newStatus: string, entityTypes?: string[]): Promise<{
     projects: number;
     deliverables: number;
@@ -1600,9 +1683,9 @@ export class DatabaseStorage implements IStorage {
     total: number;
   }> {
     const shouldUpdate = (type: string) => !entityTypes || entityTypes.length === 0 || entityTypes.includes(type);
-    
+
     let projects = 0, deliverables = 0, epics = 0, tasks = 0, sprints = 0, milestones = 0, projectStages = 0, workBlocks = 0;
-    
+
     if (shouldUpdate('projects')) {
       const result = await db.update(schema.projects).set({ status: newStatus }).where(eq(schema.projects.status, oldStatus));
       projects = result.rowCount || 0;
@@ -1635,7 +1718,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db.update(schema.workBlocks).set({ status: newStatus }).where(eq(schema.workBlocks.status, oldStatus));
       workBlocks = result.rowCount || 0;
     }
-    
+
     return {
       projects,
       deliverables,
@@ -1872,7 +1955,6 @@ export class DatabaseStorage implements IStorage {
         progress: schema.projects.progress,
         startDate: schema.projects.startDate,
         deadline: schema.projects.deadline,
-        client: schema.projects.client,
       })
       .from(schema.projects)
       .where(
@@ -2142,23 +2224,23 @@ export class DatabaseStorage implements IStorage {
   async getThemes(): Promise<Theme[]> {
     return await db.select().from(schema.themes);
   }
-  
+
   async getThemeById(id: string): Promise<Theme | undefined> {
     const [theme] = await db.select().from(schema.themes).where(eq(schema.themes.id, id));
     return theme;
   }
-  
+
   async getActiveTheme(): Promise<Theme | undefined> {
     const [theme] = await db.select().from(schema.themes)
       .where(and(eq(schema.themes.isDefault, true), eq(schema.themes.status, "published")));
     return theme;
   }
-  
+
   async createTheme(theme: InsertTheme & { id: string }): Promise<Theme> {
     const [created] = await db.insert(schema.themes).values(theme).returning();
     return created;
   }
-  
+
   async updateTheme(id: string, theme: Partial<Theme>): Promise<Theme> {
     const [updated] = await db.update(schema.themes)
       .set({ ...theme, updatedAt: new Date() })
@@ -2166,27 +2248,27 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updated;
   }
-  
+
   async deleteTheme(id: string): Promise<void> {
     await db.delete(schema.themes).where(eq(schema.themes.id, id));
   }
-  
+
   async publishTheme(id: string, publishedBy: string): Promise<Theme> {
     const theme = await this.getThemeById(id);
     if (!theme) throw new Error("Theme not found");
     const [updated] = await db.update(schema.themes)
-      .set({ 
-        status: "published", 
-        publishedBy, 
+      .set({
+        status: "published",
+        publishedBy,
         publishedAt: new Date(),
         version: (theme.version || 1) + 1,
-        updatedAt: new Date() 
+        updatedAt: new Date()
       })
       .where(eq(schema.themes.id, id))
       .returning();
     return updated;
   }
-  
+
   async setDefaultTheme(id: string): Promise<Theme> {
     // First, unset any existing default
     await db.update(schema.themes).set({ isDefault: false }).where(eq(schema.themes.isDefault, true));

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../../data/storage";
 import { db } from "../../db";
-import { 
+import {
   insertActivitySchema,
   insertCommentSchema,
   insertAttachmentSchema,
@@ -47,14 +47,14 @@ async function validateAndResolveAssignees(
   const warnings: UnresolvedAssigneeWarning[] = [];
   const validUserIds = new Set<string>();
   const userExistenceCache = new Map<string, boolean>();
-  
+
   const userMappingsBySourceId = new Map<string, UserMappingEntry>();
   if (userMappings) {
     for (const mapping of userMappings) {
       userMappingsBySourceId.set(mapping.sourceId, mapping);
     }
   }
-  
+
   async function checkUserExists(userId: string): Promise<boolean> {
     if (userExistenceCache.has(userId)) {
       return userExistenceCache.get(userId)!;
@@ -69,18 +69,18 @@ async function validateAndResolveAssignees(
       return false;
     }
   }
-  
+
   for (const task of tasks) {
     if (!task.assigneeId) {
       resolvedTasks.set(task.id, null);
       continue;
     }
-    
+
     let finalAssigneeId: string | null = task.assigneeId;
     let warningReason: 'not_found' | 'not_mapped' | 'skipped' | 'invalid' | null = null;
-    
+
     const mapping = userMappingsBySourceId.get(task.assigneeId);
-    
+
     if (mapping) {
       switch (mapping.action) {
         case 'map':
@@ -98,13 +98,13 @@ async function validateAndResolveAssignees(
             finalAssigneeId = null;
           }
           break;
-          
+
         case 'skip':
         case 'unassigned':
           warningReason = 'skipped';
           finalAssigneeId = null;
           break;
-          
+
         case 'create':
           warningReason = 'not_found';
           finalAssigneeId = null;
@@ -119,9 +119,9 @@ async function validateAndResolveAssignees(
         finalAssigneeId = null;
       }
     }
-    
+
     resolvedTasks.set(task.id, finalAssigneeId);
-    
+
     if (warningReason) {
       warnings.push({
         taskId: task.id,
@@ -132,7 +132,7 @@ async function validateAndResolveAssignees(
       });
     }
   }
-  
+
   return { resolvedTasks, warnings, validUserIds };
 }
 
@@ -520,22 +520,22 @@ export function registerImportExportRoutes(
   app.post("/api/tasks/:taskId/subtasks", async (req, res) => {
     try {
       const parentTaskId = req.params.taskId;
-      
+
       // Get parent task to inherit values
       const parentTask = await storage.getTaskById(parentTaskId);
       if (!parentTask) {
         return res.status(404).json({ error: "Parent task not found" });
       }
-      
+
       const projectId = req.body.projectId || parentTask.projectId;
-      
+
       // Determine task type - try to inherit, otherwise get project default
       let taskTypeId = req.body.taskTypeId || parentTask.taskTypeId;
       if (!taskTypeId && projectId) {
         const taskTypes = await storage.getProjectTaskTypesByProjectId(projectId);
         taskTypeId = taskTypes.length > 0 ? taskTypes[0].id : null;
       }
-      
+
       // Build subtask data, inheriting from parent where needed
       const subtaskData = {
         ...req.body,
@@ -550,15 +550,15 @@ export function registerImportExportRoutes(
         stageId: req.body.stageId || parentTask.stageId,
         taskTypeId: taskTypeId,
       };
-      
+
       // Validate with schema
       const validated = insertTaskSchema.parse(subtaskData);
-      
+
       // Server-side validation: Epic is required, Stage and TaskType are optional
       if (!validated.epicId) {
         return res.status(400).json({ error: "Epic is required for subtask creation" });
       }
-      
+
       const subtask = await storage.createTask(validated);
       res.status(201).json(subtask);
     } catch (error: any) {
@@ -685,7 +685,7 @@ export function registerImportExportRoutes(
   app.get("/api/dashboard", async (req, res) => {
     try {
       const range = (req.query.range as string) || 'week';
-      const projectIds = req.query.projectIds 
+      const projectIds = req.query.projectIds
         ? (Array.isArray(req.query.projectIds) ? req.query.projectIds : [req.query.projectIds]) as string[]
         : undefined;
       const assigneeScope = (req.query.assigneeScope as string) || 'all';
@@ -693,18 +693,18 @@ export function registerImportExportRoutes(
 
       const now = new Date();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
+
       // Calculate date ranges based on range parameter
       const getWeekStart = (d: Date) => {
         const day = d.getDay();
         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
         return new Date(d.getFullYear(), d.getMonth(), diff);
       };
-      
+
       const thisWeekStart = getWeekStart(startOfToday);
       const thisWeekEnd = new Date(thisWeekStart);
       thisWeekEnd.setDate(thisWeekEnd.getDate() + 6);
-      
+
       const nextWeekStart = new Date(thisWeekStart);
       nextWeekStart.setDate(nextWeekStart.getDate() + 7);
       const nextWeekEnd = new Date(nextWeekStart);
@@ -749,9 +749,9 @@ export function registerImportExportRoutes(
         let score = 0;
         const deadline = parseDate(task.deadline);
         if (!deadline) return score;
-        
+
         const daysUntilDue = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         // Overdue: +50
         if (daysUntilDue < 0) score += 50;
         // Due in 0-2 days: +30
@@ -760,16 +760,16 @@ export function registerImportExportRoutes(
         else if (daysUntilDue <= 7) score += 20;
         // Due in 8-14 days: +10
         else if (daysUntilDue <= 14) score += 10;
-        
+
         // In progress: +5
         if (task.status === 'In Progress') score += 5;
         // Not started & due ≤7 days: +10
         if (task.status === 'Todo' && daysUntilDue <= 7) score += 10;
-        
+
         // Priority boost
         if (task.priority === 'High') score += 10;
         if (task.priority === 'Critical') score += 20;
-        
+
         return score;
       };
 
@@ -778,14 +778,14 @@ export function registerImportExportRoutes(
         const deadline = parseDate(task.deadline);
         if (!deadline) return false;
         const daysUntilDue = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         // Overdue
         if (daysUntilDue < 0) return true;
         // Due soon but not started
         if (daysUntilDue <= 3 && task.status === 'Todo') return true;
         // Blocked
         if (task.blocked) return true;
-        
+
         return false;
       };
 
@@ -870,15 +870,15 @@ export function registerImportExportRoutes(
       const getMilestoneConfidence = (milestone: typeof allMilestones[0]): 'on_track' | 'at_risk' | 'behind' => {
         const targetDate = parseDate(milestone.targetDate);
         if (!targetDate) return 'at_risk';
-        
+
         const daysUntilDue = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         const progress = milestone.progressPercentComplete || 0;
-        
+
         // Behind if overdue or very low progress with deadline approaching
         if (daysUntilDue < 0 && progress < 100) return 'behind';
         if (daysUntilDue <= 7 && progress < 50) return 'behind';
         if (daysUntilDue <= 14 && progress < 30) return 'at_risk';
-        
+
         return 'on_track';
       };
 
@@ -890,7 +890,7 @@ export function registerImportExportRoutes(
           .map(t => ({ ...t, priorityScore: calculatePriorityScore(t), atRisk: isAtRisk(t) }))
           .sort((a, b) => b.priorityScore - a.priorityScore)
           .slice(0, 3);
-        
+
         const blockedCount = projectTasks.filter(t => t.blocked).length;
         const overdueCount = projectTasks.filter(t => {
           const deadline = parseDate(t.deadline);
@@ -903,8 +903,8 @@ export function registerImportExportRoutes(
           status: project.status,
           blockedCount,
           overdueCount,
-          health: overdueCount > 3 || blockedCount > 2 ? 'critical' : 
-                  overdueCount > 0 || blockedCount > 0 ? 'warning' : 'healthy',
+          health: overdueCount > 3 || blockedCount > 2 ? 'critical' :
+            overdueCount > 0 || blockedCount > 0 ? 'warning' : 'healthy',
           nextMilestone: allMilestones
             .filter(m => m.projectId === project.id)
             .filter(m => {
@@ -1146,25 +1146,25 @@ export function registerImportExportRoutes(
       // Pre-fetch existing entities for FK validation
       const existingUsers = await storage.getUsers();
       existingUsers.forEach(u => existingEntityCache.Users.add(u.id));
-      
+
       const existingProjects = await storage.getProjects();
       existingProjects.forEach(p => existingEntityCache.Projects.add(p.id));
-      
+
       const existingDeliverables = await storage.getDeliverables();
       existingDeliverables.forEach(d => existingEntityCache.Deliverables.add(d.id));
-      
+
       const existingEpics = await storage.getEpics();
       existingEpics.forEach(e => existingEntityCache.Epics.add(e.id));
-      
+
       const existingStages = await storage.getProjectStages();
       existingStages.forEach(s => existingEntityCache.ProjectStages.add(s.id));
-      
+
       const existingSprints = await storage.getSprints();
       existingSprints.forEach(s => existingEntityCache.Sprints.add(s.id));
-      
+
       const existingMilestones = await storage.getMilestones();
       existingMilestones.forEach(m => existingEntityCache.Milestones.add(m.id));
-      
+
       const existingTasks = await storage.getTasks();
       existingTasks.forEach(t => existingEntityCache.Tasks.add(t.id));
 
@@ -1226,7 +1226,7 @@ export function registerImportExportRoutes(
           try {
             const sourceId = row.sourceId || row.id || generateId();
             const newId = generateId();
-            
+
             switch (entityType) {
               case 'Users': {
                 const userData = {
@@ -1439,7 +1439,7 @@ export function registerImportExportRoutes(
                 const validAssigneeId = await validateOwnerId(row.assigneeId);
                 const validMilestoneId = validateForeignKey(row.milestoneId, 'Milestones');
                 const validSprintId = validateForeignKey(row.sprintId, 'Sprints');
-                
+
                 // Log warnings for unmapped FKs but continue (they're nullable in schema)
                 if (row.epicId && !validEpicId) {
                   console.log(`Import: Task "${row.title}" epicId "${row.epicId}" not found, clearing reference`);
@@ -1447,7 +1447,7 @@ export function registerImportExportRoutes(
                 if (row.projectId && !validProjectId) {
                   console.log(`Import: Task "${row.title}" projectId "${row.projectId}" not found, clearing reference`);
                 }
-                
+
                 // Ensure tags is an array
                 let taskTags: string[] = [];
                 if (Array.isArray(row.tags)) {
@@ -1462,7 +1462,7 @@ export function registerImportExportRoutes(
                 }
                 // Validate status against App Defaults
                 const validatedStatus = await storage.validateAndResolveStatus(row.status, "task");
-                
+
                 const taskData = {
                   id: newId,
                   title: row.title || 'Imported Task',
@@ -1558,14 +1558,14 @@ export function registerImportExportRoutes(
       error?: string;
       parentId?: string;
     }> = [];
-    
+
     let projectId: string | null = null;
     let projectName = '';
-    
+
     // Validate payload with Zod schema
     const validationResult = fullProjectCreatePayloadSchema.safeParse(req.body);
     if (!validationResult.success) {
-      const validationErrors = validationResult.error.errors.map(e => 
+      const validationErrors = validationResult.error.errors.map(e =>
         `${e.path.join('.')}: ${e.message}`
       );
       console.error('[FULL-CREATE] Validation failed:', validationErrors);
@@ -1579,12 +1579,12 @@ export function registerImportExportRoutes(
         completedAt: new Date().toISOString()
       });
     }
-    
+
     const payload = validationResult.data;
-    
+
     try {
       projectName = payload.project.name;
-      
+
       // Debug logging for import flow
       console.log('[FULL-CREATE] Received payload:', {
         projectName: payload.project?.name,
@@ -1594,7 +1594,7 @@ export function registerImportExportRoutes(
         rolesCount: payload.roles?.length || 0,
         hasImportMetadata: !!payload.importMetadata
       });
-      
+
       if (payload.deliverables?.length > 0) {
         console.log('[FULL-CREATE] Deliverables:', payload.deliverables.map((d: any) => ({
           id: d.id,
@@ -1602,7 +1602,7 @@ export function registerImportExportRoutes(
           epicsCount: d.epics?.length || 0
         })));
       }
-      
+
       if (payload.stages?.length > 0) {
         console.log('[FULL-CREATE] Stages:', payload.stages.map((s: any) => ({
           id: s.id,
@@ -1610,14 +1610,14 @@ export function registerImportExportRoutes(
           tasksCount: s.tasks?.length || 0
         })));
       }
-      
+
       // Track stage ID mappings (wizard ID -> created ID)
       const stageIdMap = new Map<string, string>();
       const createdStages: Array<{ templateId: string; createdStageId: string }> = [];
-      
+
       // Track sprint ID mappings (payload sprint ID -> created sprint ID)
       const sprintIdMap = new Map<string, string>();
-      
+
       // 1. Create the project
       const newProjectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       try {
@@ -1631,20 +1631,20 @@ export function registerImportExportRoutes(
           frameworkId: payload.project.frameworkId || null,
           sprintDurationWeeks: payload.project.sprintDurationWeeks || null,
           ownerId: payload.project.ownerId || null,
-          client: payload.project.client || null,
+          clientId: payload.project.clientId || null,
           riskLevel: payload.project.riskLevel || null
         };
-        
+
         const project = await storage.createProject(projectData);
         projectId = project.id;
-        
+
         entityResults.push({
           entityType: 'project',
           id: project.id,
           name: project.name,
           success: true
         });
-        
+
         // Create sprints from payload (imported sprints) instead of auto-generating
         const payloadSprints = payload.sprints || [];
         if (payloadSprints.length > 0) {
@@ -1660,13 +1660,13 @@ export function registerImportExportRoutes(
                 status: sprint.status || 'Planned',
                 capacityHours: sprint.capacityHours || null
               });
-              
+
               // Map payload sprint ID to created sprint ID for task linkage
               if (sprint.id) {
                 sprintIdMap.set(sprint.id, createdSprint.id);
               }
               console.log(`[FULL-CREATE] Created sprint: ${sprint.name} (${sprint.id} -> ${createdSprint.id})`);
-              
+
               entityResults.push({
                 entityType: 'sprint',
                 id: createdSprint.id,
@@ -1700,14 +1700,14 @@ export function registerImportExportRoutes(
         // Project creation is critical - can't continue without it
         throw new Error(`Failed to create project: ${e.message}`);
       }
-      
+
       // Get validated default task status from App Defaults
       const defaultTaskStatus = await storage.getDefaultStatusByType("task");
-      
+
       // 2. Create team members with high-level and execution roles (BEFORE stages so assignees exist)
       // First, collect all tasks to validate and resolve their assignee IDs
       const allTasksForValidation: Array<{ id: string; title: string; assigneeId?: string | null }> = [];
-      
+
       (payload.stages || []).forEach((stage: any) => {
         (stage.tasks || []).forEach((task: any) => {
           allTasksForValidation.push({
@@ -1728,26 +1728,26 @@ export function registerImportExportRoutes(
           });
         });
       });
-      
+
       // Validate and resolve all assignee IDs using userMappings
       const { resolvedTasks, warnings: assigneeWarnings, validUserIds } = await validateAndResolveAssignees(
         allTasksForValidation,
         payload.userMappings,
         storage
       );
-      
+
       // Track unresolved assignee warnings
       const unresolvedAssignees: UnresolvedAssigneeWarning[] = assigneeWarnings;
-      
+
       if (assigneeWarnings.length > 0) {
-        console.log(`[FULL-CREATE] ${assigneeWarnings.length} unresolved assignees found:`, 
+        console.log(`[FULL-CREATE] ${assigneeWarnings.length} unresolved assignees found:`,
           assigneeWarnings.map(w => `${w.taskTitle}: ${w.originalAssigneeId} (${w.reason})`));
       }
-      
+
       // Merge validated task assignees with roles - add any missing as 'member' roles
       const roles = payload.roles || [];
       const rolesUserIds = new Set(roles.filter((r: any) => r.userId).map((r: any) => r.userId));
-      
+
       // De-duplicate by userId before creating team members
       const userIdsToAdd = new Set<string>();
       validUserIds.forEach(assigneeId => {
@@ -1755,7 +1755,7 @@ export function registerImportExportRoutes(
           userIdsToAdd.add(assigneeId);
         }
       });
-      
+
       userIdsToAdd.forEach(assigneeId => {
         roles.push({
           id: `role-auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1766,14 +1766,14 @@ export function registerImportExportRoutes(
         });
         console.log(`[FULL-CREATE] Auto-adding validated task assignee ${assigneeId} as team member`);
       });
-      
+
       const addedUserIds = new Set<string>();
       const teamMemberMap = new Map<string, string>(); // userId -> teamMemberId
-      
+
       // 2a. Create project roles from role templates (BEFORE team member creation)
       // This is required because execution_role_assignments.roleId references project_roles.id
       const roleTemplateToProjectRoleMap = new Map<string, string>(); // roleTemplateId -> projectRoleId
-      
+
       // Collect unique roleTypeIds (role template IDs) from the payload
       const uniqueRoleTemplateIds: string[] = [];
       roles.forEach((role: any) => {
@@ -1781,17 +1781,17 @@ export function registerImportExportRoutes(
           uniqueRoleTemplateIds.push(role.roleTypeId);
         }
       });
-      
+
       if (uniqueRoleTemplateIds.length > 0) {
         console.log(`[FULL-CREATE] Creating ${uniqueRoleTemplateIds.length} project roles from templates`);
-        
+
         // Get all role templates to look up names/descriptions
         const allRoleTemplates = await storage.getRoleTemplates();
-        
+
         for (const templateId of uniqueRoleTemplateIds) {
           try {
             const template = allRoleTemplates.find(t => t.id === templateId);
-            
+
             // Create project role using the template data
             // The createProjectRole function returns the created role with its auto-generated ID
             const createdRole = await storage.createProjectRole({
@@ -1803,10 +1803,10 @@ export function registerImportExportRoutes(
               maxAssignees: null,
               permissions: template?.defaultPermissions || []
             });
-            
+
             roleTemplateToProjectRoleMap.set(templateId, createdRole.id);
             console.log(`[FULL-CREATE] Created project role: ${createdRole.name} (${templateId} -> ${createdRole.id})`);
-            
+
             entityResults.push({
               entityType: 'project_role' as EntityType,
               id: createdRole.id,
@@ -1827,17 +1827,17 @@ export function registerImportExportRoutes(
           }
         }
       }
-      
+
       // 2b. Create team members with high-level and execution roles
       if (roles.length > 0) {
         console.log(`[FULL-CREATE] Creating ${roles.length} team members with roles`);
-        
+
         for (const role of roles) {
           if (!role.userId) continue;
-          
+
           try {
             let teamMemberId: string;
-            
+
             // Check if user is already a team member
             if (addedUserIds.has(role.userId)) {
               // Find existing team member
@@ -1858,7 +1858,7 @@ export function registerImportExportRoutes(
               teamMemberId = newTeamMember.id;
               addedUserIds.add(role.userId);
               teamMemberMap.set(role.userId, teamMemberId);
-              
+
               entityResults.push({
                 entityType: 'team_member',
                 id: teamMemberId,
@@ -1867,7 +1867,7 @@ export function registerImportExportRoutes(
                 parentId: projectId!
               });
             }
-            
+
             // Add high-level role if it's a project role (owner, manager, stakeholder, member)
             const highLevelRoleTypes = ['owner', 'manager', 'stakeholder', 'member'];
             if (highLevelRoleTypes.includes(role.roleType?.toLowerCase())) {
@@ -1875,13 +1875,13 @@ export function registerImportExportRoutes(
                 teamMemberId,
                 roleType: role.roleType.toLowerCase()
               });
-              
+
               // If owner, also update project.ownerId
               if (role.roleType.toLowerCase() === 'owner') {
                 await storage.updateProject(projectId!, { ownerId: role.userId });
               }
             }
-            
+
             // Add execution role assignment if roleTypeId is provided
             // Use the mapped project role ID (from role template -> project role mapping)
             // Note: Team members can have both a high-level role (member) AND an execution role
@@ -1910,13 +1910,13 @@ export function registerImportExportRoutes(
           }
         }
       }
-      
+
       // 3. Create stages
       const stages = payload.stages || [];
       for (let i = 0; i < stages.length; i++) {
         const stage = stages[i];
         const newStageId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         try {
           const stageData = {
             id: newStageId,
@@ -1929,11 +1929,11 @@ export function registerImportExportRoutes(
             startDate: stage.startDate || null,
             endDate: stage.endDate || null
           };
-          
+
           await storage.createProjectStage(stageData);
           stageIdMap.set(stage.id, newStageId);
           createdStages.push({ templateId: stage.id, createdStageId: newStageId });
-          
+
           entityResults.push({
             entityType: 'stage',
             id: newStageId,
@@ -1952,23 +1952,23 @@ export function registerImportExportRoutes(
           });
         }
       }
-      
+
       // Get all created stage IDs for epics
       const allStageIds = Array.from(stageIdMap.values());
-      
+
       // 4. Create milestones (BEFORE deliverables/epics/tasks)
       const milestones = payload.milestones || [];
       const milestoneIdMap = new Map<string, string>(); // wizard ID -> created ID
-      
+
       for (const milestone of milestones) {
         const milestoneId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         try {
           const rule = milestone.rule || { scopeType: 'all', completionMode: 'all_tasks', completionTargetPercent: 100 };
-          const resolvedStageId = rule.scopeType === 'stage' && rule.scopeEntityId 
-            ? stageIdMap.get(rule.scopeEntityId) || null 
+          const resolvedStageId = rule.scopeType === 'stage' && rule.scopeEntityId
+            ? stageIdMap.get(rule.scopeEntityId) || null
             : null;
-          
+
           await storage.createMilestone({
             id: milestoneId,
             projectId: projectId!,
@@ -1984,12 +1984,12 @@ export function registerImportExportRoutes(
             isBillingGate: milestone.isBillingGate || false,
             tags: []
           } as any);
-          
+
           // Track milestone ID mapping
           if (milestone.id) {
             milestoneIdMap.set(milestone.id, milestoneId);
           }
-          
+
           entityResults.push({
             entityType: 'milestone',
             id: milestoneId,
@@ -2008,16 +2008,16 @@ export function registerImportExportRoutes(
           });
         }
       }
-      
+
       // 5. Create management deliverable and epics (auto-created)
       // Skip if payload already contains a Management Activities deliverable
       let projectManagementEpicId: string | null = null;
       let productManagementEpicId: string | null = null;
-      
+
       const hasMgmtDeliverable = (payload.deliverables || []).some(
         d => d.title === 'Management Activities' || d.id?.startsWith('d-mgmt-')
       );
-      
+
       if (!hasMgmtDeliverable) {
         try {
           const mgmtDeliverableId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -2032,7 +2032,7 @@ export function registerImportExportRoutes(
             dueDate: payload.project.deadline,
             progress: 0
           } as any);
-          
+
           entityResults.push({
             entityType: 'deliverable',
             id: mgmtDeliverableId,
@@ -2040,7 +2040,7 @@ export function registerImportExportRoutes(
             success: true,
             parentId: projectId!
           });
-          
+
           // Create PM epic
           const pmEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           const pmEpic = await storage.createEpic({
@@ -2056,61 +2056,61 @@ export function registerImportExportRoutes(
             stageIds: allStageIds
           } as any);
           projectManagementEpicId = pmEpic.id;
-        
-        entityResults.push({
-          entityType: 'epic',
-          id: pmEpicId,
-          name: 'Project Management',
-          success: true,
-          parentId: mgmtDeliverableId
-        });
-        
-        // Create Product Management epic
-        const prodEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const prodEpic = await storage.createEpic({
-          id: prodEpicId,
-          deliverableId: mgmtDeliverableId,
-          title: "Product Management",
-          description: "Product requirements, acceptance, and delivery activities",
-          status: "Active",
-          ownerId: payload.project.ownerId || "1",
-          startDate: payload.project.startDate,
-          endDate: payload.project.deadline,
-          progress: 0,
-          stageIds: allStageIds
-        } as any);
-        productManagementEpicId = prodEpic.id;
-        
-        entityResults.push({
-          entityType: 'epic',
-          id: prodEpicId,
-          name: 'Product Management',
-          success: true,
-          parentId: mgmtDeliverableId
-        });
-        
-        // Create Client Management epic
-        const clientEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        await storage.createEpic({
-          id: clientEpicId,
-          deliverableId: mgmtDeliverableId,
-          title: "Client Management",
-          description: "Client communication, stakeholder management, and relationship activities",
-          status: "Active",
-          ownerId: payload.project.ownerId || "1",
-          startDate: payload.project.startDate,
-          endDate: payload.project.deadline,
-          progress: 0,
-          stageIds: allStageIds
-        } as any);
-        
-        entityResults.push({
-          entityType: 'epic',
-          id: clientEpicId,
-          name: 'Client Management',
-          success: true,
-          parentId: mgmtDeliverableId
-        });
+
+          entityResults.push({
+            entityType: 'epic',
+            id: pmEpicId,
+            name: 'Project Management',
+            success: true,
+            parentId: mgmtDeliverableId
+          });
+
+          // Create Product Management epic
+          const prodEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const prodEpic = await storage.createEpic({
+            id: prodEpicId,
+            deliverableId: mgmtDeliverableId,
+            title: "Product Management",
+            description: "Product requirements, acceptance, and delivery activities",
+            status: "Active",
+            ownerId: payload.project.ownerId || "1",
+            startDate: payload.project.startDate,
+            endDate: payload.project.deadline,
+            progress: 0,
+            stageIds: allStageIds
+          } as any);
+          productManagementEpicId = prodEpic.id;
+
+          entityResults.push({
+            entityType: 'epic',
+            id: prodEpicId,
+            name: 'Product Management',
+            success: true,
+            parentId: mgmtDeliverableId
+          });
+
+          // Create Client Management epic
+          const clientEpicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          await storage.createEpic({
+            id: clientEpicId,
+            deliverableId: mgmtDeliverableId,
+            title: "Client Management",
+            description: "Client communication, stakeholder management, and relationship activities",
+            status: "Active",
+            ownerId: payload.project.ownerId || "1",
+            startDate: payload.project.startDate,
+            endDate: payload.project.deadline,
+            progress: 0,
+            stageIds: allStageIds
+          } as any);
+
+          entityResults.push({
+            entityType: 'epic',
+            id: clientEpicId,
+            name: 'Client Management',
+            success: true,
+            parentId: mgmtDeliverableId
+          });
         } catch (e: any) {
           entityResults.push({
             entityType: 'deliverable',
@@ -2122,14 +2122,14 @@ export function registerImportExportRoutes(
           });
         }
       } // End of hasMgmtDeliverable check
-      
+
       // 6. Create business deliverables and epics
       const businessEpics: { id: string; title: string }[] = [];
       const deliverables = payload.deliverables || [];
-      
+
       for (const deliverable of deliverables) {
         const deliverableId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         try {
           const newDeliverable = await storage.createDeliverable({
             id: deliverableId,
@@ -2142,7 +2142,7 @@ export function registerImportExportRoutes(
             dueDate: deliverable.endDate || payload.project.deadline,
             progress: 0
           } as any);
-          
+
           entityResults.push({
             entityType: 'deliverable',
             id: deliverableId,
@@ -2150,12 +2150,12 @@ export function registerImportExportRoutes(
             success: true,
             parentId: projectId!
           });
-          
+
           // Create epics for this deliverable
           if (deliverable.epics?.length > 0) {
             for (const epic of deliverable.epics) {
               const epicId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-              
+
               try {
                 const newEpic = await storage.createEpic({
                   id: epicId,
@@ -2169,9 +2169,9 @@ export function registerImportExportRoutes(
                   progress: 0,
                   stageIds: allStageIds
                 } as any);
-                
+
                 businessEpics.push({ id: newEpic.id, title: epic.title });
-                
+
                 entityResults.push({
                   entityType: 'epic',
                   id: epicId,
@@ -2179,7 +2179,7 @@ export function registerImportExportRoutes(
                   success: true,
                   parentId: deliverableId
                 });
-                
+
                 // Create tasks directly defined on this epic (from Work Breakdown step)
                 if (epic.tasks?.length > 0) {
                   console.log(`[FULL-CREATE] Creating ${epic.tasks.length} tasks for epic "${epic.title}"`);
@@ -2188,12 +2188,12 @@ export function registerImportExportRoutes(
                     try {
                       const resolvedStageId = epicTask.stageId ? stageIdMap.get(epicTask.stageId) || null : null;
                       // Resolve milestone ID if provided
-                      const resolvedMilestoneId = epicTask.milestoneId 
-                        ? milestoneIdMap.get(epicTask.milestoneId) || epicTask.milestoneId 
+                      const resolvedMilestoneId = epicTask.milestoneId
+                        ? milestoneIdMap.get(epicTask.milestoneId) || epicTask.milestoneId
                         : null;
                       // Resolve sprint ID from payload ID to created ID
-                      const resolvedSprintId = epicTask.sprintId 
-                        ? sprintIdMap.get(epicTask.sprintId) || epicTask.sprintId 
+                      const resolvedSprintId = epicTask.sprintId
+                        ? sprintIdMap.get(epicTask.sprintId) || epicTask.sprintId
                         : null;
                       // Resolve assignee ID using validated user mappings
                       const resolvedAssigneeId = resolvedTasks.get(epicTask.id) ?? null;
@@ -2216,7 +2216,7 @@ export function registerImportExportRoutes(
                         taskTypeId: epicTask.taskTypeId || null,
                         tags: epicTask.tags || []
                       } as any);
-                      
+
                       entityResults.push({
                         entityType: 'task',
                         id: epicTaskId,
@@ -2259,7 +2259,7 @@ export function registerImportExportRoutes(
           });
         }
       }
-      
+
       // Build epic ID mapping for imported tasks (wizard epic ID -> created epic ID)
       const epicIdMap = new Map<string, string>();
       for (const deliverable of deliverables) {
@@ -2273,12 +2273,12 @@ export function registerImportExportRoutes(
         }
       }
       console.log('[FULL-CREATE] Epic ID mapping:', Object.fromEntries(epicIdMap));
-      
+
       // 7. Create tasks based on stage task templates
       for (const wizardStage of stages) {
         const createdStage = createdStages.find(cs => cs.templateId === wizardStage.id);
         if (!createdStage) continue;
-        
+
         const tasks = wizardStage.tasks || [];
         for (const taskDraft of tasks) {
           // Handle imported tasks with pre-assigned epic (from Task-Epic Alignment)
@@ -2289,15 +2289,15 @@ export function registerImportExportRoutes(
               const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
               try {
                 // Resolve milestone ID if provided
-                const resolvedMilestoneId = taskDraft.milestoneId 
-                  ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
+                const resolvedMilestoneId = taskDraft.milestoneId
+                  ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId
                   : null;
-                
+
                 // Resolve sprint ID from payload ID to created ID
-                const resolvedSprintId = taskDraft.sprintId 
-                  ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId 
+                const resolvedSprintId = taskDraft.sprintId
+                  ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId
                   : null;
-                
+
                 await storage.createTask({
                   id: taskId,
                   project: projectName,
@@ -2317,7 +2317,7 @@ export function registerImportExportRoutes(
                   taskTypeId: taskDraft.taskTypeId || null,
                   tags: taskDraft.tags || []
                 } as any);
-                
+
                 entityResults.push({
                   entityType: 'task',
                   id: taskId,
@@ -2338,16 +2338,16 @@ export function registerImportExportRoutes(
               continue;
             }
           }
-          
+
           if (taskDraft.scope === 'once') {
             if (productManagementEpicId) {
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
-              const resolvedMilestoneId = taskDraft.milestoneId 
-                ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
+              const resolvedMilestoneId = taskDraft.milestoneId
+                ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId
                 : null;
-              const resolvedSprintId = taskDraft.sprintId 
-                ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId 
+              const resolvedSprintId = taskDraft.sprintId
+                ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId
                 : null;
               try {
                 await storage.createTask({
@@ -2369,7 +2369,7 @@ export function registerImportExportRoutes(
                   taskTypeId: taskDraft.taskTypeId || null,
                   tags: taskDraft.tags || []
                 } as any);
-                
+
                 entityResults.push({
                   entityType: 'task',
                   id: taskId,
@@ -2390,13 +2390,13 @@ export function registerImportExportRoutes(
             }
           } else if (taskDraft.scope === 'per_epic') {
             const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
-            const resolvedMilestoneId = taskDraft.milestoneId 
-              ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
+            const resolvedMilestoneId = taskDraft.milestoneId
+              ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId
               : null;
-            const resolvedSprintId = taskDraft.sprintId 
-              ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId 
+            const resolvedSprintId = taskDraft.sprintId
+              ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId
               : null;
-            
+
             // If there are business epics, create a task for each one
             if (businessEpics.length > 0) {
               for (const businessEpic of businessEpics) {
@@ -2421,7 +2421,7 @@ export function registerImportExportRoutes(
                     taskTypeId: taskDraft.taskTypeId || null,
                     tags: taskDraft.tags || []
                   } as any);
-                  
+
                   entityResults.push({
                     entityType: 'task',
                     id: taskId,
@@ -2464,7 +2464,7 @@ export function registerImportExportRoutes(
                   taskTypeId: taskDraft.taskTypeId || null,
                   tags: taskDraft.tags || []
                 } as any);
-                
+
                 entityResults.push({
                   entityType: 'task',
                   id: taskId,
@@ -2491,11 +2491,11 @@ export function registerImportExportRoutes(
             if (productManagementEpicId) {
               const taskId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
               const taskDeadline = taskDraft.deadline || wizardStage.endDate || payload.project.deadline;
-              const resolvedMilestoneId = taskDraft.milestoneId 
-                ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId 
+              const resolvedMilestoneId = taskDraft.milestoneId
+                ? milestoneIdMap.get(taskDraft.milestoneId) || taskDraft.milestoneId
                 : null;
-              const resolvedSprintId = taskDraft.sprintId 
-                ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId 
+              const resolvedSprintId = taskDraft.sprintId
+                ? sprintIdMap.get(taskDraft.sprintId) || taskDraft.sprintId
                 : null;
               try {
                 await storage.createTask({
@@ -2517,7 +2517,7 @@ export function registerImportExportRoutes(
                   taskTypeId: taskDraft.taskTypeId || null,
                   tags: taskDraft.tags || []
                 } as any);
-                
+
                 entityResults.push({
                   entityType: 'task',
                   id: taskId,
@@ -2539,12 +2539,12 @@ export function registerImportExportRoutes(
           }
         }
       }
-      
+
       // Build summary
       const completedAt = new Date().toISOString();
       const succeeded = entityResults.filter(r => r.success).length;
       const failed = entityResults.filter(r => !r.success).length;
-      
+
       const breakdownByType: Record<string, { total: number; succeeded: number; failed: number }> = {};
       for (const result of entityResults) {
         if (!breakdownByType[result.entityType]) {
@@ -2557,7 +2557,7 @@ export function registerImportExportRoutes(
           breakdownByType[result.entityType].failed++;
         }
       }
-      
+
       const report = {
         projectId,
         projectName,
@@ -2573,16 +2573,16 @@ export function registerImportExportRoutes(
         breakdownByType,
         unresolvedAssignees: unresolvedAssignees.length > 0 ? unresolvedAssignees : undefined
       };
-      
+
       res.status(201).json(report);
     } catch (error: any) {
       console.error("Full project creation error:", error);
-      
+
       // Return partial results even on failure
       const completedAt = new Date().toISOString();
       const succeeded = entityResults.filter(r => r.success).length;
       const failed = entityResults.filter(r => !r.success).length;
-      
+
       const breakdownByType: Record<string, { total: number; succeeded: number; failed: number }> = {};
       for (const result of entityResults) {
         if (!breakdownByType[result.entityType]) {
@@ -2595,7 +2595,7 @@ export function registerImportExportRoutes(
           breakdownByType[result.entityType].failed++;
         }
       }
-      
+
       res.status(500).json({
         projectId,
         projectName,
@@ -2707,7 +2707,7 @@ export function registerImportExportRoutes(
       }
 
       const sql = sqlParts.join('\n');
-      
+
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Content-Disposition', `attachment; filename=nexus_export_${new Date().toISOString().split('T')[0]}.sql`);
       res.send(sql);

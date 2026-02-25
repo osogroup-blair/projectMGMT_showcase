@@ -9,7 +9,7 @@ export interface ProjectData {
   dueDate: string;
   sprintDurationWeeks: number;
   ownerId?: string;
-  client?: string;
+  clientId?: string;
   templateId?: string;
   frameworkId?: string;
 }
@@ -106,16 +106,16 @@ export function calculateStageDates(
   if (stages.length === 0 || !projectStartDate || !projectDueDate) {
     return stages;
   }
-  
+
   const start = new Date(projectStartDate);
   const end = new Date(projectDueDate);
   const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
   const daysPerStage = Math.floor(totalDays / stages.length);
-  
+
   return stages.map((stage, index) => {
     const stageStart = new Date(start);
     stageStart.setDate(stageStart.getDate() + (index * daysPerStage));
-    
+
     const stageEnd = new Date(start);
     if (index === stages.length - 1) {
       // Last stage ends on project due date
@@ -123,7 +123,7 @@ export function calculateStageDates(
     } else {
       stageEnd.setDate(stageEnd.getDate() + ((index + 1) * daysPerStage) - 1);
     }
-    
+
     return {
       ...stage,
       startDate: stageStart.toISOString().split('T')[0],
@@ -244,16 +244,16 @@ export const DEFAULT_SPRINT_DURATION = 2;
 export const DEFAULT_PROJECT_DURATION_WEEKS = 12;
 
 export const CORE_PROJECT_ROLES = [
-  { 
-    templateId: "rt_project_manager", 
-    name: "Project Manager", 
+  {
+    templateId: "rt_project_manager",
+    name: "Project Manager",
     description: "Owns overall project execution, timeline, and stakeholder communication",
     roleType: "Management",
     isCore: true
   },
-  { 
-    templateId: "rt_team_member", 
-    name: "Team Member", 
+  {
+    templateId: "rt_team_member",
+    name: "Team Member",
     description: "General team contributor assigned to project work",
     roleType: "General",
     isCore: true

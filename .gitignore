@@ -6,3 +6,10 @@ vite.config.ts.*
 *.tar.gz
 .env
 attached_assets
+
+# Temporary/Debug Files
+check-hank*.ts
+test-*.js
+test-*.ts
+tsc_output*.txt
+update-seed.ts

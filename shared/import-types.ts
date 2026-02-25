@@ -170,7 +170,7 @@ export const projectDataSchema = z.object({
   frameworkId: z.string().nullable().optional(),
   sprintDurationWeeks: z.number().nullable().optional(),
   ownerId: z.string().nullable().optional(),
-  client: z.string().nullable().optional(),
+  clientId: z.string().nullable().optional(),
   riskLevel: z.string().nullable().optional()
 });
 
@@ -197,12 +197,12 @@ export const fullProjectCreatePayloadSchema = z.object({
 
 export type FullProjectCreatePayload = z.infer<typeof fullProjectCreatePayloadSchema>;
 
-export function validateFullProjectPayload(data: unknown): { 
-  success: true; 
-  data: FullProjectCreatePayload 
-} | { 
-  success: false; 
-  errors: z.ZodError 
+export function validateFullProjectPayload(data: unknown): {
+  success: true;
+  data: FullProjectCreatePayload
+} | {
+  success: false;
+  errors: z.ZodError
 } {
   const result = fullProjectCreatePayloadSchema.safeParse(data);
   if (result.success) {
@@ -255,7 +255,7 @@ export interface SystemUserIdentity {
   externalDisplayName?: string;
 }
 
-export type TaskValidationErrorType = 
+export type TaskValidationErrorType =
   | 'no_epic_reference'
   | 'epic_id_not_found'
   | 'epic_name_not_found'
@@ -286,7 +286,7 @@ export interface TaskValidationSummary {
   results: TaskValidationResult[];
 }
 
-export type SprintValidationErrorType = 
+export type SprintValidationErrorType =
   | 'no_sprint_reference'
   | 'sprint_id_not_found'
   | 'sprint_name_not_found'
@@ -313,10 +313,10 @@ export interface SprintValidationSummary {
   invalidSprintReference: number;
   errorsByType: Record<SprintValidationErrorType, number>;
   results: SprintValidationResult[];
-  sprints: Array<{ 
-    id: string; 
-    name: string; 
-    taskCount: number; 
+  sprints: Array<{
+    id: string;
+    name: string;
+    taskCount: number;
     startDate?: string;
     endDate?: string;
     dateSource?: 'imported' | 'parsed_from_name' | 'calculated';

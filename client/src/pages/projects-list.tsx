@@ -1,15 +1,18 @@
-import { 
+import {
   Project
 } from "@/lib/mock-data";
 import { useUsers, useTasks } from "@/hooks/use-nexus-data";
+import { useClients } from "@/hooks/use-clients";
+import { useClientContext } from "@/contexts/client-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/context/current-user-context";
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Upload, 
-  MoreHorizontal, 
+import { useAuth } from "@/hooks/use-auth";
+import {
+  Search,
+  Filter,
+  Plus,
+  Upload,
+  MoreHorizontal,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -33,13 +36,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -69,10 +72,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useFilteredUsers } from "@/hooks/use-filtered-users";
 
 // Extended Project Interface for this view
 interface ExtendedProject extends Project {
   client: string;
+  clientId?: string | null;
   owner: string;
   ownerId?: string;
   startDate: string;
@@ -85,49 +90,62 @@ export default function ProjectsList() {
   const { toast } = useToast();
   const { data: usersData } = useUsers();
   const { data: tasksData } = useTasks();
+  const { allClients = [] } = useClients();
   const { currentUser } = useCurrentUser();
+  const { activeClientId } = useClientContext();
   const queryClient = useQueryClient();
-  
+
   // Pagination state
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-  
+
   // Filters State (moved up for use in query)
+  const isAdmin = currentUser?.systemRole === "admin";
+  const isManager = currentUser?.systemRole === "manager" || isAdmin;
+
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterRisk, setFilterRisk] = useState<string>("all");
   const [filterFavorites, setFilterFavorites] = useState<boolean>(false);
   const [filterRole, setFilterRole] = useState<string>("my");
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
-  
+
+  // Default non-admins away from "all" if they somehow end up there
+  useEffect(() => {
+    if (!isAdmin && filterRole === "all") {
+      setFilterRole("my");
+    }
+  }, [isAdmin, filterRole]);
+
   // Sorting State
   type SortField = "name" | "client" | "status" | "owner" | "startDate" | "riskLevel" | "progress" | "teamSize";
   type SortDirection = "asc" | "desc";
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, filterStatus, filterRisk, filterFavorites, filterRole, sortField, sortDirection]);
-  
+
   // Paginated projects query with server-side filtering
-  const { 
-    data: paginatedData, 
-    isLoading 
+  const {
+    data: paginatedData,
+    isLoading
   } = useQuery({
     queryKey: [
-      'projects-paginated', 
-      page, 
-      pageSize, 
-      debouncedSearch, 
-      filterStatus, 
-      filterRisk, 
-      filterRole, 
-      filterFavorites, 
-      sortField, 
+      'projects-paginated',
+      page,
+      pageSize,
+      debouncedSearch,
+      filterStatus,
+      filterRisk,
+      filterRole,
+      filterFavorites,
+      sortField,
       sortDirection,
-      currentUser?.id
+      currentUser?.id,
+      activeClientId
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -139,22 +157,23 @@ export default function ProjectsList() {
       if (filterRole !== 'all') params.set('role', filterRole);
       if (filterFavorites) params.set('favoriteOnly', 'true');
       if (currentUser?.id) params.set('userId', currentUser.id);
+      if (activeClientId) params.set('clientId', activeClientId);
       if (sortField !== 'teamSize' && sortField !== 'owner') {
         params.set('sortField', sortField);
         params.set('sortDirection', sortDirection);
       }
-      
+
       const res = await fetch(`/api/projects/paginated?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch projects');
       return res.json() as Promise<{ data: any[]; total: number; limit: number; offset: number }>;
     },
     enabled: !!currentUser?.id,
   });
-  
+
   const projectsData = paginatedData?.data || [];
   const totalProjects = paginatedData?.total || 0;
   const totalPages = Math.ceil(totalProjects / pageSize);
-  
+
   // Project mutations
   const createProjectMutation = useMutation({
     mutationFn: async (project: any) => {
@@ -170,7 +189,7 @@ export default function ProjectsList() {
       queryClient.invalidateQueries({ queryKey: ['projects-paginated'] });
     },
   });
-  
+
   const updateProjectMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
       const res = await fetch(`/api/projects/${id}`, {
@@ -185,7 +204,7 @@ export default function ProjectsList() {
       queryClient.invalidateQueries({ queryKey: ['projects-paginated'] });
     },
   });
-  
+
   const deleteProjectMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
@@ -195,11 +214,11 @@ export default function ProjectsList() {
       queryClient.invalidateQueries({ queryKey: ['projects-paginated'] });
     },
   });
-  
+
   const createProject = (project: any) => createProjectMutation.mutate(project);
   const updateProject = (params: { id: string; updates: any }) => updateProjectMutation.mutate(params);
   const deleteProject = (id: string) => deleteProjectMutation.mutate(id);
-  
+
   // Favorites
   const { data: favorites = [] } = useQuery<{ projectId: string }[]>({
     queryKey: ['favorites', currentUser?.id],
@@ -212,8 +231,8 @@ export default function ProjectsList() {
     enabled: !!currentUser?.id,
   });
 
-  const favoriteProjectIds = useMemo(() => 
-    new Set(favorites.map(f => f.projectId)), 
+  const favoriteProjectIds = useMemo(() =>
+    new Set(favorites.map(f => f.projectId)),
     [favorites]
   );
 
@@ -310,12 +329,12 @@ export default function ProjectsList() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [currentProject, setCurrentProject] = useState<ExtendedProject | null>(null);
-  
+
   // Inline editing state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string | number>("");
-  
+
   const [formData, setFormData] = useState<Partial<ExtendedProject>>({
     name: "",
     client: "",
@@ -349,28 +368,32 @@ export default function ProjectsList() {
 
   // Enrich Data Memo
   const projects = useMemo(() => {
-    return projectsData.map((p: any) => ({
-      ...p,
-      client: p.client || "—",
-      owner: getUserName(p.ownerId),
-      ownerId: p.ownerId,
-      startDate: p.startDate || "",
-      endDate: p.deadline || "",
-      riskLevel: p.riskLevel || "Low",
-      description: p.description || ""
-    })) as ExtendedProject[];
-  }, [projectsData, usersData]);
+    return projectsData.map((p: any) => {
+      const clientObj = allClients.find((c: any) => c.id === p.clientId);
+      return {
+        ...p,
+        client: clientObj ? clientObj.name : (p.client || "—"),
+        clientId: p.clientId,
+        owner: getUserName(p.ownerId),
+        ownerId: p.ownerId,
+        startDate: p.startDate || "",
+        endDate: p.deadline || "",
+        riskLevel: p.riskLevel || "Low",
+        description: p.description || ""
+      } as ExtendedProject;
+    });
+  }, [projectsData, usersData, allClients]);
 
   // Server handles filtering - only apply client-side sorting for owner/teamSize columns
   const filteredProjects = useMemo(() => {
     let result = [...projects];
-    
+
     // Client-side sorting only for fields the server can't sort (owner name, teamSize)
     if (sortField === 'owner' || sortField === 'teamSize') {
       result.sort((a, b) => {
         let aVal: string | number = "";
         let bVal: string | number = "";
-        
+
         if (sortField === "owner") {
           aVal = a.owner.toLowerCase();
           bVal = b.owner.toLowerCase();
@@ -378,13 +401,13 @@ export default function ProjectsList() {
           aVal = teamSizeByProject[a.id] || 0;
           bVal = teamSizeByProject[b.id] || 0;
         }
-        
+
         if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
         if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
         return 0;
       });
     }
-    
+
     return result;
   }, [projects, sortField, sortDirection, teamSizeByProject]);
 
@@ -432,9 +455,9 @@ export default function ProjectsList() {
 
   // Sortable column header component
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <Button 
-      variant="ghost" 
-      size="sm" 
+    <Button
+      variant="ghost"
+      size="sm"
       className="-ml-3 h-8 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
       onClick={() => toggleSort(field)}
       data-testid={`sort-${field}`}
@@ -515,6 +538,12 @@ export default function ProjectsList() {
     cancelInlineEdit();
   };
 
+  const editingProject = useMemo(() =>
+    filteredProjects.find(p => p.id === editingId),
+    [filteredProjects, editingId]);
+
+  const { filteredUsers: validOwnerUsers } = useFilteredUsers(usersData || [], editingProject?.clientId);
+
   const handleInlineKeyDown = (e: React.KeyboardEvent, projectId: string) => {
     if (e.key === "Enter") {
       saveInlineEdit(projectId);
@@ -551,69 +580,75 @@ export default function ProjectsList() {
             <p className="text-muted-foreground text-sm">Manage and track all ongoing projects across the organization.</p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            <Link href="/projects/import">
-              <Button variant="outline" className="gap-2">
-                <Upload className="h-4 w-4" />
-                Import Project
-              </Button>
-            </Link>
-            
-            <Link href="/projects/new">
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Create Project
-                </Button>
-            </Link>
+            {isManager && (
+              <>
+                <Link href="/projects/import">
+                  <Button variant="outline" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import Project
+                  </Button>
+                </Link>
+
+                <Link href="/projects/new">
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create Project
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
         {/* View Toggle & Filters */}
         <div className="flex flex-col gap-4">
           {/* Primary Toggle - My Projects vs All Projects */}
-          <div className="flex items-center justify-between bg-card rounded-lg border border-border shadow-sm overflow-hidden">
-            <button
-              onClick={() => setFilterRole("my")}
-              className={cn(
-                "flex-1 py-3 px-6 text-sm font-medium transition-colors text-center",
-                filterRole !== "all" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="toggle-my-projects"
-            >
-              My Projects
-            </button>
-            <div className="w-px h-8 bg-border" />
-            <button
-              onClick={() => setFilterRole("all")}
-              className={cn(
-                "flex-1 py-3 px-6 text-sm font-medium transition-colors text-center",
-                filterRole === "all" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-              data-testid="toggle-all-projects"
-            >
-              All Projects
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex items-center justify-between bg-card rounded-lg border border-border shadow-sm overflow-hidden mb-4">
+              <button
+                onClick={() => setFilterRole("my")}
+                className={cn(
+                  "flex-1 py-3 px-6 text-sm font-medium transition-colors text-center",
+                  filterRole !== "all"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+                data-testid="toggle-my-projects"
+              >
+                My Projects
+              </button>
+              <div className="w-px h-8 bg-border" />
+              <button
+                onClick={() => setFilterRole("all")}
+                className={cn(
+                  "flex-1 py-3 px-6 text-sm font-medium transition-colors text-center",
+                  filterRole === "all"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+                data-testid="toggle-all-projects"
+              >
+                All Projects
+              </button>
+            </div>
+          )}
 
           {/* Filters Row */}
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 rounded-lg border border-border shadow-sm">
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search projects..." 
+              <Input
+                placeholder="Search projects..."
                 className="pl-9 bg-background"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 data-testid="input-search-projects"
               />
             </div>
-            
+
             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-              <SearchableSelect 
-                value={filterStatus} 
+              <SearchableSelect
+                value={filterStatus}
                 onValueChange={setFilterStatus}
                 className="w-[140px]"
                 placeholder="Status"
@@ -628,8 +663,8 @@ export default function ProjectsList() {
                 data-testid="filter-status"
               />
 
-              <SearchableSelect 
-                value={filterRisk} 
+              <SearchableSelect
+                value={filterRisk}
                 onValueChange={setFilterRisk}
                 className="w-[140px]"
                 placeholder="Risk Level"
@@ -643,8 +678,8 @@ export default function ProjectsList() {
               />
 
               {filterRole !== "all" && (
-                <SearchableSelect 
-                  value={filterRole} 
+                <SearchableSelect
+                  value={filterRole}
                   onValueChange={setFilterRole}
                   className="w-[150px]"
                   placeholder="My Role"
@@ -789,8 +824,8 @@ export default function ProjectsList() {
                         >
                           <Star className={cn(
                             "h-4 w-4 transition-colors",
-                            favoriteProjectIds.has(project.id) 
-                              ? "fill-yellow-400 text-yellow-400" 
+                            favoriteProjectIds.has(project.id)
+                              ? "fill-yellow-400 text-yellow-400"
                               : "text-muted-foreground hover:text-yellow-400"
                           )} />
                         </Button>
@@ -814,21 +849,26 @@ export default function ProjectsList() {
                   </TableCell>
                   {/* Inline Editable Client */}
                   <TableCell>
-                    {editingId === project.id && editingField === "client" ? (
-                      <Input
+                    {editingId === project.id && editingField === "clientId" ? (
+                      <SearchableSelect
                         value={editingValue as string}
-                        onChange={(e) => setEditingValue(e.target.value)}
-                        onKeyDown={(e) => handleInlineKeyDown(e, project.id)}
-                        onBlur={() => saveInlineEdit(project.id)}
-                        className="h-7 text-sm w-32"
-                        autoFocus
-                        placeholder="Client name"
-                        data-testid={`input-inline-client-${project.id}`}
+                        onValueChange={(val) => {
+                          setEditingValue(val);
+                          updateProject({ id: project.id, updates: { clientId: val || null } });
+                          toast({ title: "Updated", description: "Project client has been updated." });
+                          cancelInlineEdit();
+                        }}
+                        className="h-7 w-[160px] text-xs"
+                        placeholder="Select client"
+                        options={[
+                          { value: "", label: "No client" },
+                          ...allClients.map((c: any) => ({ value: c.id, label: c.name }))
+                        ]}
                       />
                     ) : (
-                      <span 
+                      <span
                         className="text-muted-foreground cursor-pointer hover:text-foreground hover:underline"
-                        onClick={() => startInlineEdit(project.id, "client", project.client || "")}
+                        onClick={() => startInlineEdit(project.id, "clientId", project.clientId || "")}
                         data-testid={`text-client-${project.id}`}
                       >
                         {project.client || "—"}
@@ -838,8 +878,8 @@ export default function ProjectsList() {
                   {/* Inline Editable Status */}
                   <TableCell>
                     {editingId === project.id && editingField === "status" ? (
-                      <SearchableSelect 
-                        value={editingValue as string} 
+                      <SearchableSelect
+                        value={editingValue as string}
                         onValueChange={(val) => {
                           setEditingValue(val);
                           updateProject({ id: project.id, updates: { status: val } });
@@ -856,8 +896,8 @@ export default function ProjectsList() {
                         ]}
                       />
                     ) : (
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={cn(
                           "font-normal border-0 px-2 py-0.5 rounded-full text-xs cursor-pointer hover:ring-2 hover:ring-primary/20",
                           project.status === 'In Progress' && "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300",
@@ -888,12 +928,12 @@ export default function ProjectsList() {
                         placeholder="Select owner"
                         options={[
                           { value: "", label: "No owner" },
-                          ...(usersData || []).map((u: any) => ({ value: u.id, label: u.name }))
+                          ...validOwnerUsers.map((u: any) => ({ value: u.id, label: u.name || u.email || u.id }))
                         ]}
                         data-testid={`select-inline-owner-${project.id}`}
                       />
                     ) : (
-                      <span 
+                      <span
                         className="text-sm text-muted-foreground cursor-pointer hover:text-foreground hover:underline"
                         onClick={() => startInlineEdit(project.id, "ownerId", project.ownerId || "")}
                         data-testid={`text-owner-${project.id}`}
@@ -932,7 +972,7 @@ export default function ProjectsList() {
                       </div>
                     ) : (
                       <div className="flex flex-col text-xs text-muted-foreground">
-                        <span 
+                        <span
                           className="flex items-center gap-1 cursor-pointer hover:text-foreground"
                           onClick={() => startInlineEdit(project.id, "startDate", project.startDate || "")}
                           data-testid={`text-startDate-${project.id}`}
@@ -940,7 +980,7 @@ export default function ProjectsList() {
                           <Calendar className="h-3 w-3" />
                           {project.startDate || "Set start"}
                         </span>
-                        <span 
+                        <span
                           className="cursor-pointer hover:text-foreground"
                           onClick={() => startInlineEdit(project.id, "deadline", project.endDate || "")}
                           data-testid={`text-endDate-${project.id}`}
@@ -970,11 +1010,11 @@ export default function ProjectsList() {
                         data-testid={`select-inline-risk-${project.id}`}
                       />
                     ) : (
-                      <div 
+                      <div
                         className={cn(
                           "flex items-center gap-1.5 text-xs font-medium cursor-pointer hover:opacity-70",
                           project.riskLevel === "High" ? "text-red-600" :
-                          project.riskLevel === "Medium" ? "text-amber-600" : "text-green-600"
+                            project.riskLevel === "Medium" ? "text-amber-600" : "text-green-600"
                         )}
                         onClick={() => startInlineEdit(project.id, "riskLevel", project.riskLevel || "Low")}
                         data-testid={`text-risk-${project.id}`}
@@ -982,7 +1022,7 @@ export default function ProjectsList() {
                         <div className={cn(
                           "h-2 w-2 rounded-full",
                           project.riskLevel === "High" ? "bg-red-500" :
-                          project.riskLevel === "Medium" ? "bg-amber-500" : "bg-green-500"
+                            project.riskLevel === "Medium" ? "bg-amber-500" : "bg-green-500"
                         )} />
                         {project.riskLevel}
                       </div>
@@ -1007,7 +1047,7 @@ export default function ProjectsList() {
                         <span className="text-xs text-muted-foreground">%</span>
                       </div>
                     ) : (
-                      <div 
+                      <div
                         className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1"
                         onClick={() => startInlineEdit(project.id, "progress", project.progress || 0)}
                         data-testid={`progress-${project.id}`}
@@ -1051,7 +1091,7 @@ export default function ProjectsList() {
               ))}
             </TableBody>
           </Table>
-          
+
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-4 border-t">
             <div className="flex items-center gap-4">
@@ -1060,7 +1100,7 @@ export default function ProjectsList() {
               </div>
               <div className="flex items-center gap-2">
                 <Label className="text-xs text-muted-foreground">Per page:</Label>
-                <select 
+                <select
                   value={pageSize}
                   onChange={(e) => {
                     setPageSize(Number(e.target.value));
@@ -1077,20 +1117,20 @@ export default function ProjectsList() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={page === 1} 
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
                 onClick={() => setPage(1)}
                 className="h-8 w-8 p-0"
                 data-testid="button-first-page"
               >
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={page === 1} 
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 className="h-8 w-8 p-0"
                 data-testid="button-prev-page"
@@ -1100,9 +1140,9 @@ export default function ProjectsList() {
               <span className="text-xs text-muted-foreground px-2">
                 Page {page} of {totalPages || 1}
               </span>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={page >= totalPages}
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 className="h-8 w-8 p-0"
@@ -1110,9 +1150,9 @@ export default function ProjectsList() {
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 disabled={page >= totalPages}
                 onClick={() => setPage(totalPages)}
                 className="h-8 w-8 p-0"
@@ -1131,7 +1171,7 @@ export default function ProjectsList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the 
+              This action cannot be undone. This will permanently delete the
               <span className="font-semibold"> {currentProject?.name} </span>
               project and all associated data.
             </AlertDialogDescription>
@@ -1151,15 +1191,15 @@ export default function ProjectsList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {selectedIds.size} Project{selectedIds.size !== 1 ? 's' : ''}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the selected 
+              This action cannot be undone. This will permanently delete the selected
               {selectedIds.size === 1 ? ' project ' : ` ${selectedIds.size} projects `}
               and all associated data including deliverables, epics, tasks, and milestones.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleBulkDelete} 
+            <AlertDialogAction
+              onClick={handleBulkDelete}
               className="bg-red-600 hover:bg-red-700"
               data-testid="button-confirm-bulk-delete"
             >
