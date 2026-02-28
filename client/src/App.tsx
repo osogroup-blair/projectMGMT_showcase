@@ -46,6 +46,7 @@ import FrameworkTemplateDetail from "@/pages/admin/framework-template-detail";
 import DataViewerPage from "@/pages/admin/data-viewer";
 import EditUserPage from "@/pages/admin/edit-user";
 import AdminClientDetail from "@/pages/admin/client-detail";
+import TemplateBuilder from "@/pages/admin/template-builder";
 import ProjectTools from "@/pages/project-tools";
 import ImportWizard from "@/pages/import-wizard";
 import ImportUpload from "@/pages/import-upload";
@@ -94,6 +95,7 @@ function ProtectedRoutes() {
       <Route path="/admin/data-viewer" component={DataViewerPage} />
       <Route path="/admin/users/:userId/edit" component={EditUserPage} />
       <Route path="/admin/clients/:clientId" component={AdminClientDetail} />
+      <Route path="/admin/templates/project-builder/new" component={TemplateBuilder} />
       <Route path="/admin/:section" component={AdminHub} />
       <Route path="/admin/templates/stage/:templateId" component={StageTemplateDesigner} />
       <Route path="/admin/templates/frameworks/:frameworkId" component={FrameworkTemplateDetail} />

@@ -815,72 +815,10 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
   async deleteProject(id: string): Promise<void> {
-    // Cascade delete all related entities in a transaction for atomicity
-    // Order: milestone_task_links → tasks → sprint-related → sprints → milestones → 
-    //        epics → deliverables → stages → assignments → project
-    // NOTE: Tasks must be deleted BEFORE sprints because tasks have FK to sprints (sprintId)
-
+    // With onDelete: "cascade" set in the schema, we can simply delete the project
+    // and let the database handle cleaning up all related entities (deliverables,
+    // epics, tasks, milestones, sprints, stages, roles, members, etc.)
     await db.transaction(async (tx) => {
-      // 1. Delete milestone task links for this project (references tasks)
-      await tx.delete(schema.milestoneTaskLinks).where(eq(schema.milestoneTaskLinks.projectId, id));
-
-      // 2. Delete tasks for this project FIRST (comments, attachments, history cascade automatically)
-      // Tasks have FK to sprints, so must be deleted before sprints
-      await tx.delete(schema.tasks).where(eq(schema.tasks.projectId, id));
-
-      // 3. Get sprints for this project to delete related sprint data
-      const sprints = await tx.select().from(schema.sprints).where(eq(schema.sprints.projectId, id));
-      const sprintIds = sprints.map(s => s.id);
-
-      // 4. Delete sprint-related entities
-      if (sprintIds.length > 0) {
-        for (const sprintId of sprintIds) {
-          // Sprint pulse updates
-          await tx.delete(schema.sprintPulseUpdates).where(eq(schema.sprintPulseUpdates.sprintId, sprintId));
-          // Sprint scope targets
-          await tx.delete(schema.sprintScopeTargets).where(eq(schema.sprintScopeTargets.sprintId, sprintId));
-          // Sprint scope events
-          await tx.delete(schema.sprintScopeEvents).where(eq(schema.sprintScopeEvents.sprintId, sprintId));
-          // Sprint members
-          await tx.delete(schema.sprintMembers).where(eq(schema.sprintMembers.sprintId, sprintId));
-        }
-      }
-
-      // 5. Delete sprints for this project (now safe - no tasks reference them)
-      await tx.delete(schema.sprints).where(eq(schema.sprints.projectId, id));
-
-      // 6. Delete milestones for this project (scope rules cascade automatically)
-      await tx.delete(schema.milestones).where(eq(schema.milestones.projectId, id));
-
-      // 7. Get deliverables for this project to find epics
-      const deliverables = await tx.select().from(schema.deliverables).where(eq(schema.deliverables.projectId, id));
-      const deliverableIds = deliverables.map(d => d.id);
-
-      // 8. Delete epics belonging to these deliverables
-      if (deliverableIds.length > 0) {
-        for (const deliverableId of deliverableIds) {
-          await tx.delete(schema.epics).where(eq(schema.epics.deliverableId, deliverableId));
-        }
-      }
-
-      // 9. Delete deliverables for this project
-      await tx.delete(schema.deliverables).where(eq(schema.deliverables.projectId, id));
-
-      // 10. Delete project stages for this project
-      await tx.delete(schema.projectStages).where(eq(schema.projectStages.projectId, id));
-
-      // 11. Role assignments are linked to roles, not projects directly - skip
-
-      // 12. Delete project task types for this project
-      await tx.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, id));
-
-      // 13. Delete project task statuses for this project
-      await tx.delete(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.projectId, id));
-
-      // 14. Delete project settings for this project
-      await tx.delete(schema.projectSettings).where(eq(schema.projectSettings.projectId, id));
-
-      // 15. Finally delete the project itself
       await tx.delete(schema.projects).where(eq(schema.projects.id, id));
     });
   }

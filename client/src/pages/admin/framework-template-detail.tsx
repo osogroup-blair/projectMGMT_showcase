@@ -157,12 +157,12 @@ export default function FrameworkTemplateDetail() {
   const [currentMilestone, setCurrentMilestone] = useState<MilestoneWithRules | null>(null);
   const [selectedStageForMilestone, setSelectedStageForMilestone] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Custom task creation state
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState<any>(null);
   const [selectedStageForTask, setSelectedStageForTask] = useState<string | null>(null);
-  
+
   // Track active tab per expanded stage
   const [stageActiveTabs, setStageActiveTabs] = useState<Record<string, string>>({});
 
@@ -280,18 +280,16 @@ export default function FrameworkTemplateDetail() {
         toast({ title: "Success", description: "Stage updated" });
       } else {
         // Create new stage
-        const newId = `st${Date.now()}`;
-        await createStage({
-          id: newId,
+        const createdStage = await createStage({
           ...currentStage
-        } as StageTemplate);
+        } as any);
 
         // Add to framework
-        if (framework) {
+        if (framework && createdStage?.id) {
           await updateFramework({
             id: framework.id,
             updates: {
-              defaultStages: [...(framework.defaultStages || []), newId]
+              defaultStages: [...(framework.defaultStages || []), createdStage.id]
             }
           });
         }
@@ -404,11 +402,9 @@ export default function FrameworkTemplateDetail() {
         });
         toast({ title: "Success", description: "Milestone updated" });
       } else {
-        const newId = `mt${Date.now()}`;
         await createMilestone({
-          id: newId,
           ...currentMilestone
-        } as MilestoneTemplate);
+        } as any);
         toast({ title: "Success", description: "Milestone created" });
       }
       setIsMilestoneDialogOpen(false);
@@ -465,20 +461,18 @@ export default function FrameworkTemplateDetail() {
         toast({ title: "Success", description: "Task template updated" });
       } else {
         // Create new task and add to stage
-        const newId = `tt${Date.now()}`;
-        await createTask({
-          id: newId,
+        const createdTask = await createTask({
           ...currentTask
-        });
-        
+        } as any);
+
         // Add to stage's defaultTasks
-        if (selectedStageForTask) {
+        if (selectedStageForTask && createdTask?.id) {
           const stage = stageTemplates?.find(s => s.id === selectedStageForTask);
           if (stage) {
             await updateStage({
               id: stage.id,
               updates: {
-                defaultTasks: [...(stage.defaultTasks || []), newId]
+                defaultTasks: [...(stage.defaultTasks || []), createdTask.id]
               }
             });
           }
@@ -1004,8 +998,8 @@ export default function FrameworkTemplateDetail() {
                       type="number"
                       min={0}
                       max={100}
-                      value={currentStage?.startPercent ?? 0}
-                      onChange={(e) => setCurrentStage(prev => ({ ...prev, startPercent: parseInt(e.target.value) || 0 }))}
+                      value={currentStage?.startPercent ?? ""}
+                      onChange={(e) => setCurrentStage(prev => ({ ...prev, startPercent: e.target.value === "" ? undefined as any : Math.min(100, Math.max(0, parseInt(e.target.value))) }))}
                       className="w-20"
                       data-testid="input-stage-start-percent"
                     />
@@ -1020,8 +1014,8 @@ export default function FrameworkTemplateDetail() {
                       type="number"
                       min={0}
                       max={100}
-                      value={currentStage?.endPercent ?? 100}
-                      onChange={(e) => setCurrentStage(prev => ({ ...prev, endPercent: e.target.value === "" ? 100 : parseInt(e.target.value) }))}
+                      value={currentStage?.endPercent ?? ""}
+                      onChange={(e) => setCurrentStage(prev => ({ ...prev, endPercent: e.target.value === "" ? undefined as any : Math.min(100, Math.max(0, parseInt(e.target.value))) }))}
                       className="w-20"
                       data-testid="input-stage-end-percent"
                     />
@@ -1043,7 +1037,7 @@ export default function FrameworkTemplateDetail() {
                   {(currentStage?.defaultTasks || []).length} task(s) selected
                 </span>
               </div>
-              
+
               {/* Add Task Selector */}
               <div className="flex gap-2">
                 <SearchableSelect
@@ -1189,10 +1183,10 @@ export default function FrameworkTemplateDetail() {
                   type="number"
                   min={0}
                   max={100}
-                  value={currentMilestone?.completionTargetPercent || 100}
+                  value={currentMilestone?.completionTargetPercent ?? ""}
                   onChange={(e) => setCurrentMilestone(prev => ({
                     ...prev,
-                    completionTargetPercent: parseInt(e.target.value) || 100
+                    completionTargetPercent: e.target.value === "" ? undefined as any : Math.min(100, Math.max(0, parseInt(e.target.value)))
                   }))}
                 />
               </div>
@@ -1216,10 +1210,10 @@ export default function FrameworkTemplateDetail() {
                   id="offset-days"
                   type="number"
                   className="w-20"
-                  value={currentMilestone?.offsetDays || 0}
+                  value={currentMilestone?.offsetDays ?? ""}
                   onChange={(e) => setCurrentMilestone(prev => ({
                     ...prev,
-                    offsetDays: parseInt(e.target.value) || 0
+                    offsetDays: e.target.value === "" ? undefined as any : parseInt(e.target.value)
                   }))}
                 />
               </div>

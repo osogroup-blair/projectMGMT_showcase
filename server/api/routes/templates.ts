@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../../data/storage";
-import { 
+import {
   insertFrameworkTemplateSchema,
   insertStageTemplateSchema,
   insertProjectTemplateSchema,
@@ -12,6 +12,53 @@ import {
   insertMilestoneTemplateSchema,
   insertTemplateSnippetSchema,
 } from "@shared/schema";
+import { z } from "zod";
+import { db } from "../../db";
+import * as schema from "@shared/schema";
+
+const fullCreateTemplateTaskSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  defaultPriority: z.string().optional(),
+  defaultEstimateHours: z.number().optional(),
+  scope: z.string().optional(),
+  defaultMilestoneId: z.string().optional()
+});
+
+const fullCreateTemplateEpicSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  tasks: z.array(fullCreateTemplateTaskSchema).optional()
+});
+
+const fullCreateTemplateDeliverableSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  epics: z.array(fullCreateTemplateEpicSchema).optional()
+});
+
+const fullCreateTemplateMilestoneSchema = z.object({
+  id: z.string(), // Provisional ID from frontend for mapping tasks
+  name: z.string(),
+  description: z.string().optional(),
+  scopeType: z.string().optional(),
+  completionMode: z.string().optional(),
+  completionTargetPercent: z.number().optional(),
+  isBillingGate: z.boolean().optional(),
+  offsetDays: z.number().optional(),
+  order: z.number().optional()
+});
+
+const fullCreateProjectTemplatePayloadSchema = z.object({
+  projectTemplate: z.object({
+    name: z.string(),
+    description: z.string(),
+    defaultFrameworkId: z.string().nullish(),
+    thumbnail: z.string().nullish()
+  }),
+  deliverables: z.array(fullCreateTemplateDeliverableSchema),
+  milestones: z.array(fullCreateTemplateMilestoneSchema).optional()
+});
 
 export function registerTemplateRoutes(
   app: Express,
@@ -113,6 +160,111 @@ export function registerTemplateRoutes(
   app.delete("/api/projectTemplates/:id", async (req, res) => {
     await storage.deleteProjectTemplate(req.params.id);
     res.status(204).send();
+  });
+
+  // Project Templates - Full Composite Create Flow
+  app.post("/api/templates/project-templates/full-create", async (req, res) => {
+    try {
+      const payload = fullCreateProjectTemplatePayloadSchema.parse(req.body);
+
+      const createdProjectTemplate = await db.transaction(async (tx) => {
+        const userId = getAuthUserId(req);
+
+        // 0. Process Milestones first to generate real IDs for mapping
+        const milestoneIdMap = new Map<string, string>(); // provisionalId -> realDbId
+        const allMilestoneTemplateIds: string[] = [];
+
+        for (const msData of payload.milestones || []) {
+          const realId = `mst${Date.now()}${Math.random().toString(36).substring(7)}`;
+          const [createdMs] = await tx.insert(schema.milestoneTemplates).values({
+            id: realId,
+            name: msData.name,
+            description: msData.description || "",
+            scopeType: msData.scopeType || "deliverable",
+            completionMode: msData.completionMode || "percentage",
+            completionTargetPercent: msData.completionTargetPercent || 100,
+            isBillingGate: msData.isBillingGate || false,
+            offsetDays: msData.offsetDays || 0,
+            order: msData.order || 0
+          }).returning();
+
+          milestoneIdMap.set(msData.id, createdMs.id);
+          allMilestoneTemplateIds.push(createdMs.id);
+        }
+
+        const allDeliverableTemplateIds: string[] = [];
+
+        // 1. Bottom-up creation: D/E/T
+        for (const deliverableData of payload.deliverables) {
+          const allEpicTemplateIds: string[] = [];
+
+          for (const epicData of deliverableData.epics || []) {
+            const allTaskTemplateIds: string[] = [];
+
+            for (const taskData of epicData.tasks || []) {
+              const taskId = `tt${Date.now()}${Math.random().toString(36).substring(7)}`;
+
+              const mappedMilestoneId = taskData.defaultMilestoneId
+                ? milestoneIdMap.get(taskData.defaultMilestoneId) || null
+                : null;
+
+              const [createdTask] = await tx.insert(schema.taskTemplates).values({
+                id: taskId,
+                title: taskData.title,
+                description: taskData.description || "",
+                defaultPriority: taskData.defaultPriority || "Medium",
+                defaultEstimateHours: taskData.defaultEstimateHours || 0,
+                scope: taskData.scope || "per_epic",
+                defaultMilestoneId: mappedMilestoneId
+              }).returning();
+
+              allTaskTemplateIds.push(createdTask.id);
+            }
+
+            const epicId = `et${Date.now()}${Math.random().toString(36).substring(7)}`;
+            const [createdEpic] = await tx.insert(schema.epicTemplates).values({
+              id: epicId,
+              title: epicData.title,
+              description: epicData.description || "",
+              defaultStages: [],
+              defaultTasks: allTaskTemplateIds
+            }).returning();
+
+            allEpicTemplateIds.push(createdEpic.id);
+          }
+
+          const deliverableId = `dt${Date.now()}${Math.random().toString(36).substring(7)}`;
+          const [createdDeliverable] = await tx.insert(schema.deliverableTemplates).values({
+            id: deliverableId,
+            title: deliverableData.title,
+            description: deliverableData.description || "",
+            defaultEpics: allEpicTemplateIds
+          }).returning();
+
+          allDeliverableTemplateIds.push(createdDeliverable.id);
+        }
+
+        // 2. Insert Project Template linked to Deliverables and Milestones
+        const projectTemplateId = `pt${Date.now()}${Math.random().toString(36).substring(7)}`;
+        const [projectTemplate] = await tx.insert(schema.projectTemplates).values({
+          id: projectTemplateId,
+          name: payload.projectTemplate.name,
+          description: payload.projectTemplate.description,
+          defaultFrameworkId: payload.projectTemplate.defaultFrameworkId || null,
+          thumbnail: payload.projectTemplate.thumbnail || null,
+          defaultRoles: [],
+          defaultDeliverables: allDeliverableTemplateIds,
+          defaultMilestones: allMilestoneTemplateIds
+        }).returning();
+
+        return projectTemplate;
+      });
+
+      res.status(201).json(createdProjectTemplate);
+    } catch (error: any) {
+      console.error("Full project template creation failed:", error);
+      res.status(400).json({ error: error.message || "Failed to create complex template structure" });
+    }
   });
 
   // Deliverable Templates
@@ -443,7 +595,7 @@ export function registerTemplateRoutes(
         ]
       }
     };
-    
+
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename="sample-templates.json"');
     res.json(sampleData);
@@ -500,12 +652,12 @@ export function registerTemplateRoutes(
     try {
       const { templates: rawTemplates, mode = "skip" } = req.body;
       // mode: "skip" = skip existing, "overwrite" = update existing
-      
+
       // Support both formats:
       // 1. { templates: { framework: [...], stage: [...] } } - our export format
       // 2. { FrameworkTemplates: [...], StageTemplates: [...] } - root-level PascalCase format
       const source = rawTemplates || req.body;
-      
+
       // Normalize property names: accept both PascalCase (FrameworkTemplates) and lowercase (framework)
       const templates = {
         framework: source?.framework || source?.FrameworkTemplates || [],
@@ -518,7 +670,7 @@ export function registerTemplateRoutes(
         mapping: source?.mapping || source?.MappingTemplates || [],
         milestone: source?.milestone || source?.MilestoneTemplates || [],
       };
-      
+
       const results = {
         framework: { created: 0, updated: 0, skipped: 0 },
         stage: { created: 0, updated: 0, skipped: 0 },
@@ -672,17 +824,17 @@ export function registerTemplateRoutes(
             const sanitized = sanitize ? sanitize(item) : item;
             const fieldValue = sanitized[matchField]?.toLowerCase?.();
             const importedId = item.id;
-            
+
             // Check by ID first, then by name/title
             let existingRecord = existingById.get(sanitized.id);
             if (!existingRecord && fieldValue) {
               existingRecord = existingByField.get(fieldValue);
             }
-            
+
             if (existingRecord) {
               // Record the mapping from imported ID to existing ID
               idMappings[key].set(importedId, existingRecord.id);
-              
+
               if (mode === "overwrite") {
                 // Update using the existing record's ID (not the imported ID)
                 await update(existingRecord.id, { ...sanitized, id: existingRecord.id });
@@ -720,7 +872,7 @@ export function registerTemplateRoutes(
         sanitizeRole,
         "name"
       );
-      
+
       // 2. Second: Tasks (reference roles via assignedRoleId)
       await importTemplates(
         templates.task,
@@ -731,7 +883,7 @@ export function registerTemplateRoutes(
         sanitizeTask,
         "title"
       );
-      
+
       // 3. Third: Mappings (leaf template, no references)
       await importTemplates(
         templates.mapping,
@@ -811,7 +963,7 @@ export function registerTemplateRoutes(
 
       // Log ID mappings for debugging
       console.log('[Import] Stage ID mappings:', Object.fromEntries(idMappings.stage));
-      
+
       // Include errors in response if any occurred
       if (errors.length > 0) {
         console.error(`[Import] ${errors.length} errors occurred during import`);

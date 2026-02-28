@@ -210,7 +210,7 @@ export const milestones = pgTable("milestones", {
   projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description").notNull(),
-  stageId: varchar("stage_id").references(() => projectStages.id),
+  stageId: varchar("stage_id").references(() => projectStages.id, { onDelete: "set null" }),
   targetDate: text("target_date").notNull(),
   status: text("status").notNull().default("planned"),
   ownerId: varchar("owner_id").notNull().references(() => users.id),
@@ -327,16 +327,17 @@ export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
+  project: text("project"),
   projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
-  stageId: varchar("stage_id").references(() => projectStages.id),
+  stageId: varchar("stage_id").references(() => projectStages.id, { onDelete: "set null" }),
   deliverableId: varchar("deliverable_id").references(() => deliverables.id, { onDelete: "cascade" }),
   epicId: varchar("epic_id").references(() => epics.id, { onDelete: "cascade" }),
   status: text("status").notNull().default("BACKLOGGED"),
   assigneeId: varchar("assignee_id").references(() => users.id),
   deadline: text("deadline").notNull(),
   priority: text("priority").notNull().default("Medium"),
-  milestoneId: varchar("milestone_id").references(() => milestones.id),
-  sprintId: varchar("sprint_id").references(() => sprints.id),
+  milestoneId: varchar("milestone_id").references(() => milestones.id, { onDelete: "set null" }),
+  sprintId: varchar("sprint_id").references(() => sprints.id, { onDelete: "set null" }),
   estimateHours: real("estimate_hours"),
   effort: integer("effort"),
   tags: text("tags").array().default([]),
@@ -345,7 +346,7 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   taskTypeId: varchar("task_type_id"),
-  parentTaskId: varchar("parent_task_id"),
+  parentTaskId: varchar("parent_task_id").references((): any => tasks.id, { onDelete: "cascade" }),
   externalRefs: jsonb("external_refs").$type<Array<{ source: string; sourceId: string; url?: string; importedAt: string; metadata?: Record<string, any> }>>(),
   scheduleOverride: boolean("schedule_override").default(false),
   overrideReason: text("override_reason"),
@@ -370,7 +371,7 @@ export const milestoneTaskLinks = pgTable("milestone_task_links", {
   id: varchar("id").primaryKey(),
   milestoneId: varchar("milestone_id").notNull().references(() => milestones.id, { onDelete: "cascade" }),
   taskId: varchar("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
-  projectId: varchar("project_id").references(() => projects.id),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
   source: text("source").notNull(),
   ruleId: varchar("rule_id"),
   locked: boolean("locked").default(false),
@@ -491,7 +492,7 @@ export const guidanceItems = pgTable("guidance_items", {
   title: text("title").notNull(),
   body: text("body").notNull(),
   priority: text("priority").notNull(),
-  stageId: varchar("stage_id").references(() => projectStages.id),
+  stageId: varchar("stage_id").references(() => projectStages.id, { onDelete: "cascade" }),
 });
 
 // Stage Templates
@@ -516,6 +517,7 @@ export const projectTemplates = pgTable("project_templates", {
   defaultFrameworkId: varchar("default_framework_id").references(() => frameworkTemplates.id),
   defaultRoles: text("default_roles").array().notNull().default([]),
   defaultDeliverables: text("default_deliverables").array().default([]),
+  defaultMilestones: text("default_milestones").array().default([]),
   thumbnail: text("thumbnail"),
 });
 
@@ -527,12 +529,12 @@ export const deliverableTemplates = pgTable("deliverable_templates", {
   defaultEpics: text("default_epics").array().notNull().default([]),
 });
 
-// Epic Templates
 export const epicTemplates = pgTable("epic_templates", {
   id: varchar("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
   defaultStages: text("default_stages").array().notNull().default([]),
+  defaultTasks: text("default_tasks").array().notNull().default([]), // For Project Template Builder Work Breakdown
 });
 
 // Task Templates
@@ -545,6 +547,7 @@ export const taskTemplates = pgTable("task_templates", {
   requiredRole: text("required_role"),
   assignedRoleId: varchar("assigned_role_id"),
   scope: text("scope").notNull().default("per_epic"),
+  defaultMilestoneId: varchar("default_milestone_id"), // Links task template directly to a template milestone ID
   assigneeRoleTypeId: varchar("assignee_role_type_id").references(() => roleTypes.id),
 });
 

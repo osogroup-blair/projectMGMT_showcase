@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Home, Layers, Settings, LayoutTemplate, Sliders, Users, Download, Star, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Home, Layers, Settings, LayoutTemplate, Sliders, Users, Download, Star, PanelLeftClose, PanelLeft, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -42,11 +42,11 @@ export function SubNav() {
       const res = await fetch(`/api/favorites?userId=${currentUser.id}`);
       if (!res.ok) return [];
       const favorites = await res.json();
-      
+
       const projectsRes = await fetch('/api/projects');
       if (!projectsRes.ok) return [];
       const projects = await projectsRes.json();
-      
+
       return favorites.map((f: { projectId: string }) => {
         const project = projects.find((p: { id: string; name: string }) => p.id === f.projectId);
         return {
@@ -66,8 +66,8 @@ export function SubNav() {
           className={cn(
             "w-full h-9 font-normal text-sm",
             isCollapsed ? "justify-center px-2" : "justify-start gap-3",
-            isActive 
-              ? "bg-secondary text-primary font-medium shadow-xs" 
+            isActive
+              ? "bg-secondary text-primary font-medium shadow-xs"
               : "text-foreground/70 hover:text-foreground hover:bg-secondary/50"
           )}
           data-testid={`subnav-${label.toLowerCase().replace(/\s+/g, '-')}`}
@@ -178,6 +178,12 @@ export function SubNav() {
                 isActive={location === "/admin/templates"}
               />
               <NavButton
+                href="/admin/templates/project-builder/new"
+                icon={FolderKanban}
+                label="Project Templates"
+                isActive={location === "/admin/templates/project-builder/new"}
+              />
+              <NavButton
                 href="/admin/defaults"
                 icon={Settings}
                 label="App Defaults"
@@ -197,7 +203,7 @@ export function SubNav() {
               />
             </>
           )}
-          
+
           <div className={cn(isAdmin && "mt-2 pt-2 border-t border-border")}>
             <Tooltip>
               <TooltipTrigger asChild>

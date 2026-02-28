@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../../data/storage";
 import { insertTaskSchema } from "@shared/schema";
+import { subtaskService } from "../../services/subtask-service";
 
 export function registerTaskRoutes(
   app: Express,
@@ -137,8 +138,38 @@ export function registerTaskRoutes(
       updates.updatedBy = userId;
 
       // Collect changes to log AFTER successful update
-      const fieldsToTrack = ['status', 'priority', 'assigneeId', 'title', 'description', 'deadline', 'dueDate', 'targetDate', 'effort', 'deliverableId', 'epicId', 'stageId', 'milestoneId', 'sprintId'];
+      const fieldsToTrack = ['status', 'priority', 'assigneeId', 'title', 'description', 'deadline', 'dueDate', 'targetDate', 'effort', 'deliverableId', 'epicId', 'stageId', 'milestoneId', 'sprintId', 'parentTaskId'];
       const changesToLog: Array<{ field: string; oldValue: string; newValue: string }> = [];
+
+      // Action 1.2: Enforce Finish-to-Start logic for dependencies
+      if (updates.status && updates.status !== currentTask.status) {
+        // We'll consider the task 'completed' if the status is typically a done state
+        // To be safe, let's load app settings or check if it's 'DONE' or 'COMPLETED'
+        const appSet = await storage.getAppSettings();
+        const doneStatuses = appSet?.completedTaskStatusIds?.length
+          ? appSet.completedTaskStatusIds
+          : ['DONE', 'COMPLETED', 'RESOLVED', 'CLOSED'];
+
+        if (doneStatuses.includes(updates.status.toUpperCase())) {
+          // Check dependencies
+          const dependencies = await storage.getTaskDependenciesByTaskId(taskId);
+          if (dependencies.length > 0) {
+            // Need to check if the 'dependsOn' tasks are all completed
+            const blockingTasks = [];
+            for (const dep of dependencies) {
+              const depTask = await storage.getTaskById(dep.dependsOnTaskId);
+              if (depTask && !doneStatuses.includes(depTask.status.toUpperCase())) {
+                blockingTasks.push(depTask.title);
+              }
+            }
+            if (blockingTasks.length > 0) {
+              return res.status(400).json({
+                error: `Cannot complete this task. It is blocked by incomplete dependencies: ${blockingTasks.join(', ')}`
+              });
+            }
+          }
+        }
+      }
 
       for (const field of fieldsToTrack) {
         if (field in updates && updates[field] !== (currentTask as any)[field]) {
@@ -158,6 +189,16 @@ export function registerTaskRoutes(
 
       // First, update the task
       const task = await storage.updateTask(taskId, updates);
+
+      // Action 4.1 & 4.2: Progress Rollups for Parent tasks
+      if (updates.status && updates.status !== currentTask.status && currentTask.parentTaskId) {
+        try {
+          // If a subtask's status changes, recalculate its parent's progress
+          await subtaskService.calculateParentProgress(currentTask.parentTaskId);
+        } catch (rollupError) {
+          console.error('Failed to rollup subtask progress:', rollupError);
+        }
+      }
 
       // Only log history AFTER successful update
       for (const change of changesToLog) {

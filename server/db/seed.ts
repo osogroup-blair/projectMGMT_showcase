@@ -410,7 +410,6 @@ export async function seedDatabase() {
             // Seed Users
             const users = [
                   // Internal Service Org Staff
-                  { id: "0", name: "Blair", role: "Super Admin", status: "Online", email: "blair@oso.group", userType: "internal", systemRole: "admin" },
                   { id: "1", name: "Alex the Admin", role: "Project Director", status: "Online", email: "alex.admin@serviceorg.com", userType: "internal", systemRole: "admin" },
                   { id: "2", name: "Bella PM", role: "Project Manager", status: "In Meeting", email: "bella.pm@serviceorg.com", userType: "internal", systemRole: "manager" },
                   { id: "3", name: "Chris Designer", role: "UX Designer", status: "Online", email: "chris.design@serviceorg.com", userType: "internal", systemRole: "member" },
@@ -508,8 +507,8 @@ export async function seedDatabase() {
                   { projectId: "p6", userId: "4", roleType: "member" },
                   { projectId: "p6", userId: "c3_u1", roleType: "stakeholder" },
 
-                  // p7 (Internal - Blair Owner)
-                  { projectId: "p7", userId: "0", roleType: "owner" },
+                  // p7 (Internal - Alex Owner)
+                  { projectId: "p7", userId: "1", roleType: "owner" },
                   { projectId: "p7", userId: "1", roleType: "manager" },
                   { projectId: "p7", userId: "2", roleType: "manager" },
                   { projectId: "p7", userId: "3", roleType: "member" },
@@ -646,7 +645,7 @@ export async function seedDatabase() {
             // Dynamic Task Generation with Deep Associations
             const taskStatusChoices = ["BACKLOG", "TODO", "IN PROGRESS", "IN REVIEW", "DONE"];
             const priorities = ["Low", "Medium", "High", "Critical"];
-            const internalAssignees = ["0", "1", "2", "3", "4", "5"];
+            const internalAssignees = ["1", "2", "3", "4", "5"];
             const clientAssignees: Record<string, string[]> = {
                   "p1": ["c1_u1"], "p2": ["c1_u1"], "p3": ["c2_u1"], "p4": ["c2_u1"], "p5": ["c3_u1"], "p6": ["c3_u1"], "p7": []
             };
@@ -760,7 +759,7 @@ export async function seedDatabase() {
             // Enable Demo Mode
             await storage.updateAppSettings({
                   demoDataReady: true,
-                  demoLoginUserId: "0", // Blair
+                  demoLoginUserId: "1", // Alex the Admin
             });
 
             console.log('Database seeded successfully!');

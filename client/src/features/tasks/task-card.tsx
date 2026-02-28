@@ -18,13 +18,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { UserPlus } from "lucide-react";
-import { 
-  Clock, 
-  Flag, 
-  User, 
+import {
+  Clock,
+  Flag,
+  User,
   Check,
   Pencil,
-  ChevronDown
+  ChevronDown,
+  Link2Off,
+  Link2,
+  Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isValid, parseISO } from "date-fns";
@@ -69,6 +72,10 @@ export interface TaskCardTask {
   epicId?: string;
   stageId?: string;
   milestoneId?: string;
+  blocked?: boolean;
+  blocker?: boolean;
+  subtaskCount?: number;
+  completedSubtaskCount?: number;
 }
 
 export interface TaskCardProps {
@@ -112,7 +119,7 @@ export function TaskCard({
   const [pendingAssigneeId, setPendingAssigneeId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const { statusLabels, getStatusColor, isCompletedStatus } = useTaskStatuses();
-  
+
   const deadlineDate = useMemo(() => safeParseDate(task.deadline), [task.deadline]);
   const isOverdue = deadlineDate && deadlineDate < new Date() && !isCompletedStatus(task.status);
 
@@ -151,9 +158,9 @@ export function TaskCard({
       setAssigneePopoverOpen(false);
       return;
     }
-    
+
     const isTeamMember = !teamMemberUserIds || teamMemberUserIds.includes(userId);
-    
+
     if (!isTeamMember) {
       if (onAddToTeam) {
         setPendingAssigneeId(userId);
@@ -197,7 +204,7 @@ export function TaskCard({
   const isWide = layoutVariant === "one-column";
 
   return (
-    <Card 
+    <Card
       className={cn(
         "group transition-all hover:shadow-md border-l-4",
         isCompletedStatus(task.status) ? "border-l-green-500" : "border-l-primary/50",
@@ -224,7 +231,7 @@ export function TaskCard({
 
               {/* Epic Context */}
               {epicName && (
-                <button 
+                <button
                   className="text-xs text-muted-foreground hover:text-purple-600 hover:underline truncate max-w-[100px] shrink-0"
                   onClick={(e) => { e.stopPropagation(); onOpenEpic?.(task.epicId!); }}
                   aria-label={`Open epic ${epicName}`}
@@ -311,9 +318,9 @@ export function TaskCard({
               {/* Assignee */}
               <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
                 <PopoverTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-7 px-2 gap-1.5"
                     onClick={(e) => e.stopPropagation()}
                     aria-label={assigneeName ? `Assigned to ${assigneeName}` : "Unassigned"}
@@ -375,21 +382,46 @@ export function TaskCard({
             </div>
           </>
         ) : (
-          <>
-            {/* Compact/Grid Layout - Stacked Rows */}
-            {/* Top Row: Status only */}
-            <div className="flex items-center justify-end">
-              <SearchableSelect
-                value={task.status}
-                onValueChange={handleStatusChange}
-                placeholder="Select status"
-                options={statusLabels.map(s => ({ value: s, label: s }))}
-                triggerClassName={cn("h-6 w-auto min-w-[80px] text-[10px] border-0 font-medium px-1.5", getStatusColor(task.status))}
-              />
+          <div className="flex flex-col gap-2">
+            {/* Top Row: Epic, Stage, Status, Dep Icons */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {epicName && (
+                  <button
+                    className="text-[10px] font-medium text-purple-600 bg-purple-50 px-1.5 rounded truncate max-w-[100px] hover:underline"
+                    onClick={(e) => { e.stopPropagation(); onOpenEpic?.(task.epicId!); }}
+                  >
+                    {epicName}
+                  </button>
+                )}
+                {stageName && (
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">
+                    {stageName}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                {task.blocked && <span title="Blocked"><Link2Off className="h-3 w-3 text-red-500" /></span>}
+                {task.blocker && <span title="Blocking others"><Link2 className="h-3 w-3 text-amber-500" /></span>}
+                {task.subtaskCount !== undefined && task.subtaskCount > 0 && (
+                  <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground" title="Subtasks">
+                    <Layers className="h-3 w-3" />
+                    <span>{task.completedSubtaskCount || 0}/{task.subtaskCount}</span>
+                  </div>
+                )}
+                <SearchableSelect
+                  value={task.status}
+                  onValueChange={handleStatusChange}
+                  placeholder="Status"
+                  options={statusLabels.map(s => ({ value: s, label: s }))}
+                  triggerClassName={cn("h-5 w-auto min-w-[70px] text-[9px] border-0 font-medium px-1.5 py-0 h-auto", getStatusColor(task.status))}
+                />
+              </div>
             </div>
 
-            {/* Middle Row: Title with Epic below */}
-            <div className="relative group/title">
+            {/* Middle Row: Title */}
+            <div className="relative group/title min-h-[40px]">
               {isEditingTitle ? (
                 <Input
                   ref={titleInputRef}
@@ -397,31 +429,21 @@ export function TaskCard({
                   onChange={(e) => setEditedTitle(e.target.value)}
                   onBlur={handleTitleSave}
                   onKeyDown={handleTitleKeyDown}
-                  className="h-7 text-sm font-medium"
+                  className="h-7 text-sm font-medium w-full"
                 />
               ) : (
                 <div className="flex items-start gap-1">
-                  <div className="flex-1 min-w-0">
-                    <button
-                      className="text-left font-medium text-sm leading-tight line-clamp-2 hover:text-primary w-full"
-                      onClick={(e) => { e.stopPropagation(); onOpenTask?.(task.id); }}
-                      onDoubleClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
-                    >
-                      {task.title}
-                    </button>
-                    {epicName && (
-                      <button 
-                        className="text-[11px] text-muted-foreground hover:text-purple-600 truncate block max-w-full mt-0.5"
-                        onClick={(e) => { e.stopPropagation(); onOpenEpic?.(task.epicId!); }}
-                      >
-                        {epicName}
-                      </button>
-                    )}
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-5 w-5 opacity-0 group-hover/title:opacity-100 shrink-0"
+                  <button
+                    className="text-left font-medium text-sm leading-snug line-clamp-2 hover:text-primary w-full"
+                    onClick={(e) => { e.stopPropagation(); onOpenTask?.(task.id); }}
+                    onDoubleClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
+                  >
+                    {task.title}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 opacity-0 group-hover/title:opacity-100 shrink-0 -mt-0.5"
                     onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
                   >
                     <Pencil className="h-3 w-3" />
@@ -430,93 +452,72 @@ export function TaskCard({
               )}
             </div>
 
-            {/* Milestone Row (if exists) */}
-            {milestoneName && (
-              <button
-                className="flex items-center gap-1 text-[10px] text-amber-600 hover:underline"
-                onClick={(e) => { e.stopPropagation(); onOpenMilestone?.(task.milestoneId!); }}
-              >
-                <Flag className="h-2.5 w-2.5" />
-                {milestoneName}
-              </button>
-            )}
-
-            {/* Bottom Row: Assignee, Date, Effort, Priority */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/50 gap-2">
-              {/* Assignee */}
-              <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <button 
-                    className="flex items-center gap-1.5 text-xs hover:text-primary"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {assigneeName ? (
-                      <>
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="text-[9px]">
-                            {assigneeName.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-muted-foreground truncate max-w-[60px]">{assigneeName.split(' ')[0]}</span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground italic text-xs">Assign</span>
-                    )}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 p-1" align="start">
-                  <div className="space-y-0.5">
-                    <button
-                      className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2"
-                      onClick={() => handleAssigneeChange("unassigned")}
-                    >
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      Unassigned
-                      {!task.assigneeId && <Check className="h-4 w-4 ml-auto" />}
-                    </button>
-                    {users.map(u => (
-                      <button
-                        key={u.id}
-                        className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2"
-                        onClick={() => handleAssigneeChange(u.id)}
-                      >
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="text-[9px]">{u.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        {u.name}
-                        {task.assigneeId === u.id && <Check className="h-4 w-4 ml-auto" />}
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* Stage */}
-              {stageName && (
-                <Badge variant="outline" className="text-[10px] shrink-0">{stageName}</Badge>
-              )}
+            {/* Bottom Row: Assignee, Date, Effort, Priority, Milestone */}
+            <div className="flex items-center flex-wrap gap-x-3 gap-y-2 pt-1 mt-1 border-t border-border/40 justify-between">
 
               <div className="flex items-center gap-2">
-                {/* Effort */}
-                {!isCompact && (
-                  <SearchableSelect
-                    value={task.effort?.toString() || ""}
-                    onValueChange={handleEffortChange}
-                    placeholder="—"
-                    options={EFFORT_VALUES.map(v => ({ value: v.toString(), label: v.toString() }))}
-                    triggerClassName="h-6 w-[50px] text-[10px] px-1"
-                  />
-                )}
+                {/* Assignee */}
+                <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className="flex items-center gap-1.5 text-xs hover:text-primary shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {assigneeName ? (
+                        <div className="flex items-center gap-1" title={assigneeName}>
+                          <Avatar className="h-5 w-5 border border-border">
+                            <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-medium">
+                              {assigneeName.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          {!isCompact && <span className="text-xs text-muted-foreground truncate max-w-[60px]">{assigneeName.split(' ')[0]}</span>}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" title="Assign">
+                          <div className="h-5 w-5 rounded-full border border-dashed border-muted-foreground/50 flex items-center justify-center">
+                            <User className="h-3 w-3" />
+                          </div>
+                          {!isCompact && <span className="text-[10px] italic">Assign</span>}
+                        </div>
+                      )}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="start">
+                    <div className="space-y-0.5">
+                      <button
+                        className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2"
+                        onClick={() => handleAssigneeChange("unassigned")}
+                      >
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        Unassigned
+                        {!task.assigneeId && <Check className="h-4 w-4 ml-auto" />}
+                      </button>
+                      {users.map(u => (
+                        <button
+                          key={u.id}
+                          className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2"
+                          onClick={() => handleAssigneeChange(u.id)}
+                        >
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-[9px]">{u.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          {u.name}
+                          {task.assigneeId === u.id && <Check className="h-4 w-4 ml-auto" />}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
 
                 {/* Due Date */}
                 <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                   <PopoverTrigger asChild>
                     <button
                       className={cn(
-                        "flex items-center gap-1 text-xs",
-                        isOverdue 
-                          ? "text-red-500 font-medium" 
-                          : "text-muted-foreground"
+                        "flex items-center gap-1 text-[10px] shrink-0 font-medium px-1.5 py-0.5 rounded transition-colors",
+                        isOverdue
+                          ? "text-red-600 bg-red-50 hover:bg-red-100"
+                          : "text-slate-500 hover:bg-slate-100"
                       )}
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -524,7 +525,7 @@ export function TaskCard({
                       {formatDate(deadlineDate, "MMM d")}
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={deadlineDate || undefined}
@@ -533,14 +534,25 @@ export function TaskCard({
                     />
                   </PopoverContent>
                 </Popover>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Effort */}
+                <SearchableSelect
+                  value={task.effort?.toString() || ""}
+                  onValueChange={handleEffortChange}
+                  placeholder="—"
+                  options={EFFORT_VALUES.map(v => ({ value: v.toString(), label: v.toString() }))}
+                  triggerClassName="h-5 w-10 min-w-10 text-[10px] px-1 py-0 h-auto border-transparent hover:border-border text-center justify-center shrink-0 bg-transparent text-muted-foreground font-medium"
+                />
 
                 {/* Priority */}
-                <Badge className={cn("text-[10px] px-1 h-5", PRIORITY_COLORS[task.priority])}>
-                  {task.priority}
+                <Badge className={cn("text-[9px] px-1 py-0 h-4 rounded-sm border-0 font-semibold tracking-wide uppercase shrink-0", PRIORITY_COLORS[task.priority])}>
+                  {task.priority.charAt(0)}
                 </Badge>
               </div>
             </div>
-          </>
+          </div>
         )}
       </CardContent>
 

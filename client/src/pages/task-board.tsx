@@ -179,6 +179,7 @@ export default function TaskBoard() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewType, setViewType] = useState<"board" | "list">("board");
+  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("three-column");
 
   // Filters
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
@@ -364,8 +365,9 @@ export default function TaskBoard() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-9 w-9 rounded-none rounded-l-md", viewType === "board" && "bg-muted")}
-                  onClick={() => setViewType("board")}
+                  className={cn("h-9 w-9 rounded-none rounded-l-md px-0", viewType === "board" && layoutVariant === "three-column" && "bg-muted")}
+                  onClick={() => { setViewType("board"); setLayoutVariant("three-column"); }}
+                  title="3 Column Layout"
                 >
                   <Columns className="h-4 w-4" />
                 </Button>
@@ -373,8 +375,29 @@ export default function TaskBoard() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-9 w-9 rounded-none rounded-r-md", viewType === "list" && "bg-muted")}
+                  className={cn("h-9 w-9 rounded-none px-0", viewType === "board" && layoutVariant === "two-column" && "bg-muted")}
+                  onClick={() => { setViewType("board"); setLayoutVariant("two-column"); }}
+                  title="2 Column Layout"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-full bg-border" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-9 w-9 rounded-none px-0", viewType === "board" && layoutVariant === "one-column" && "bg-muted")}
+                  onClick={() => { setViewType("board"); setLayoutVariant("one-column"); }}
+                  title="1 Column Layout"
+                >
+                  <Rows3 className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-full bg-border" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("h-9 w-9 rounded-none rounded-r-md px-0", viewType === "list" && "bg-muted")}
                   onClick={() => setViewType("list")}
+                  title="List View"
                 >
                   <List className="h-4 w-4" />
                 </Button>
@@ -521,7 +544,10 @@ export default function TaskBoard() {
                       const stageTasks = filteredTasks.filter(t => t.stageId === stage.id);
 
                       return (
-                        <div key={stage.id} className="w-[320px] flex flex-col h-full rounded-xl bg-muted/30 border border-border/50">
+                        <div key={stage.id} className={cn(
+                          "flex flex-col h-full rounded-xl bg-muted/30 border border-border/50 transition-all",
+                          layoutVariant === "one-column" ? "w-[800px]" : layoutVariant === "two-column" ? "w-[480px]" : "w-[320px]"
+                        )}>
                           {/* Column Header */}
                           <div
                             className={cn("p-4 border-b flex items-center justify-between shrink-0 rounded-t-xl cursor-pointer hover:opacity-80 transition-opacity", stage.color)}
@@ -546,59 +572,23 @@ export default function TaskBoard() {
                               const priority = PRIORITY_CONFIG[task.priority];
 
                               return (
-                                <Card
+                                <TaskCard
                                   key={task.id}
-                                  className="shadow-sm hover:shadow-md transition-shadow cursor-pointer group bg-card"
-                                  onClick={() => handleOpenEdit(task)}
-                                >
-                                  <CardContent className="p-3 space-y-3">
-                                    <div className="flex justify-between items-start gap-2">
-                                      <Badge variant="outline" className={cn("text-[10px] h-5 px-1.5 font-medium border-0", priority.color)}>
-                                        {priority.label}
-                                      </Badge>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 -mt-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); /* Menu logic */ }}>
-                                        <MoreHorizontal className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-
-                                    <div>
-                                      <h4 className="font-medium text-sm leading-tight mb-1 line-clamp-2">{task.title}</h4>
-                                      {task.tags && task.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-2">
-                                          {task.tags.map((tag: string) => (
-                                            <span key={tag} className="text-[10px] text-muted-foreground bg-muted px-1 rounded-sm">
-                                              {tag}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-1 border-t border-border/50">
-                                      {assignee ? (
-                                        <div className="flex items-center gap-1.5" title={assignee.name}>
-                                          <Avatar className="h-5 w-5">
-                                            <AvatarFallback className="text-[9px]">{assignee.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                          </Avatar>
-                                          <span className="text-xs text-muted-foreground max-w-[80px] truncate">{assignee.name.split(' ')[0]}</span>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                                          <User className="h-3.5 w-3.5" />
-                                          <span className="text-xs">Unassigned</span>
-                                        </div>
-                                      )}
-
-                                      <div className={cn(
-                                        "flex items-center gap-1 text-xs",
-                                        new Date(task.deadline) < new Date() ? "text-red-500 font-medium" : "text-muted-foreground"
-                                      )}>
-                                        <Clock className="h-3 w-3" />
-                                        <span>{new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
+                                  task={task}
+                                  epicName={getEpic(task.epicId)?.title}
+                                  stageName={stages.find((s: any) => s.id === task.stageId)?.name}
+                                  milestoneName={getMilestone(task.milestoneId)?.name}
+                                  assigneeName={assignee?.name}
+                                  users={users}
+                                  stages={projectStages}
+                                  layoutVariant={layoutVariant}
+                                  onUpdateTask={(taskId, updates) => updateTask({ id: taskId, updates })}
+                                  onOpenEpic={(id) => setLocation(`/projects/${projectId}?tab=epic-${id}`)}
+                                  onOpenMilestone={(id) => setLocation(`/projects/${projectId}?tab=milestone-${id}`)}
+                                  onOpenTask={(id) => handleOpenEdit(task)}
+                                  teamMemberUserIds={teamMemberUserIds}
+                                  onAddToTeam={handleAddToTeam}
+                                />
                               );
                             })}
 
