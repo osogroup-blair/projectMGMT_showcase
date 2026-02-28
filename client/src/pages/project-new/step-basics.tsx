@@ -2,10 +2,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { StepProps, getDefaultDueDate, DEFAULT_PROJECT_DURATION_WEEKS } from "./types";
 import { useEffect, useRef } from "react";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useClients } from "@/hooks/use-clients";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -23,6 +24,8 @@ import { forwardRef, useImperativeHandle } from "react";
 export const StepBasics = forwardRef(({
   projectData,
   setProjectData,
+  projectTemplatesData = [],
+  onTemplateSelect
 }: StepProps, ref) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +99,38 @@ export const StepBasics = forwardRef(({
 
   return (
     <div className="space-y-6">
+      {/* Template Selection Card */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="py-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Layers className="h-5 w-5 text-primary" />
+            Start from a Template (Optional)
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Select a project template to automatically populate deliverables, epics, tasks, stages, milestones, and roles.
+          </p>
+        </CardHeader>
+        <CardContent className="py-0 pb-4">
+          <div className="max-w-md">
+            <SearchableSelect
+              options={projectTemplatesData.map((pt: any) => ({
+                value: pt.id,
+                label: pt.name
+              }))}
+              value={projectData.templateId || ""}
+              onValueChange={(val) => {
+                if (val && onTemplateSelect) {
+                  onTemplateSelect(val);
+                }
+              }}
+              placeholder="Select a project template..."
+              searchPlaceholder="Search templates..."
+              emptyMessage="No project templates found."
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div className="space-y-2">

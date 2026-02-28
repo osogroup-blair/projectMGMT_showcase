@@ -577,7 +577,7 @@ export default function ProjectWizard() {
 
   const hasOrphanedImportedTasks = (): boolean => {
     return stages.some(stage =>
-      stage.tasks.some(task =>
+      stage.tasks?.some(task =>
         task.mappingStatus === 'orphaned' &&
         task.scope === 'per_epic' &&
         !task.assignedEpicId
@@ -981,7 +981,7 @@ export default function ProjectWizard() {
         const frameworkStages = stageTemplateIds
           .map((sid: string) => stageTemplates.find((st: any) => st.id === sid))
           .filter(Boolean)
-          .map((st: any) => ({ ...st, taskCreationMode: 'per_epic' as const }));
+          .map((st: any) => ({ ...st, taskCreationMode: 'per_epic' as const, tasks: [] }));
         setStages(frameworkStages);
 
         // Load milestone templates linked to these stages
@@ -989,9 +989,25 @@ export default function ProjectWizard() {
           (mt: any) => mt.stageTemplateId && stageTemplateIds.includes(mt.stageTemplateId)
         );
 
-        if (linkedMilestoneTemplates.length > 0) {
-          const wizardMilestones: WizardMilestone[] = linkedMilestoneTemplates.map((mt: any, idx: number) => {
-            const linkedStage = frameworkStages.find((stage: any) => stage.id === mt.stageTemplateId);
+        // Also load default milestones directly from the project template
+        const projectMilestoneIds = template.defaultMilestones || [];
+        const projectMilestoneTemplates = milestoneTemplatesData.filter(
+          (mt: any) => projectMilestoneIds.includes(mt.id)
+        );
+
+        // Combine both sets of milestones, avoiding duplicates
+        const uniqueMilestoneTemplates = new Map();
+        [...linkedMilestoneTemplates, ...projectMilestoneTemplates].forEach(mt => {
+          if (!uniqueMilestoneTemplates.has(mt.id)) {
+            uniqueMilestoneTemplates.set(mt.id, mt);
+          }
+        });
+
+        if (uniqueMilestoneTemplates.size > 0) {
+          const wizardMilestones: WizardMilestone[] = Array.from(uniqueMilestoneTemplates.values()).map((mt: any, idx: number) => {
+            const linkedStage = mt.stageTemplateId
+              ? frameworkStages.find((stage: any) => stage.id === mt.stageTemplateId)
+              : undefined;
 
             return {
               id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1026,11 +1042,28 @@ export default function ProjectWizard() {
             epics: (dTemplate.defaultEpics || []).map((eid: string) => {
               const eTemplate = epicTemplates.find((et: any) => et.id === eid);
               if (!eTemplate) return null;
+
+              const epicId = `e-${Date.now()}-${Math.random()}`;
               return {
-                id: `e-${Date.now()}-${Math.random()}`,
+                id: epicId,
                 title: eTemplate.title,
                 description: eTemplate.description,
-                tasks: []
+                tasks: (eTemplate.defaultTasks || []).map((tid: string, tIdx: number) => {
+                  const tTemplate = taskTemplates.find((tt: any) => tt.id === tid);
+                  if (!tTemplate) return null;
+                  return {
+                    id: `t-${Date.now()}-${tIdx}-${Math.random()}`,
+                    title: tTemplate.title,
+                    description: tTemplate.description || "",
+                    priority: tTemplate.defaultPriority || "Medium",
+                    estimateHours: tTemplate.defaultEstimateHours || 0,
+                    scope: tTemplate.scope || "per_epic",
+                    assigneeRoleTypeId: tTemplate.assigneeRoleTypeId,
+                    assignedEpicId: epicId,
+                    assignedEpicTitle: eTemplate.title,
+                    order: tIdx
+                  };
+                }).filter(Boolean)
               };
             }).filter(Boolean)
           };
@@ -1084,7 +1117,7 @@ export default function ProjectWizard() {
       const frameworkStages = stageTemplateIds
         .map((sid: string) => stageTemplates.find((st: any) => st.id === sid))
         .filter(Boolean)
-        .map((st: any) => ({ ...st, taskCreationMode: 'per_epic' as const }));
+        .map((st: any) => ({ ...st, taskCreationMode: 'per_epic' as const, tasks: [] }));
       setStages(frameworkStages);
 
       // Load milestone templates linked to these stages
@@ -1092,9 +1125,30 @@ export default function ProjectWizard() {
         (mt: any) => mt.stageTemplateId && stageTemplateIds.includes(mt.stageTemplateId)
       );
 
-      if (linkedMilestoneTemplates.length > 0) {
-        const wizardMilestones: WizardMilestone[] = linkedMilestoneTemplates.map((mt: any, idx: number) => {
-          const linkedStage = frameworkStages.find((stage: any) => stage.id === mt.stageTemplateId);
+      // Also load default milestones directly from the project template if one is selected
+      let projectMilestoneTemplates: any[] = [];
+      if (projectData.templateId) {
+        const template = projectTemplatesData.find(t => t.id === projectData.templateId);
+        if (template && template.defaultMilestones) {
+          projectMilestoneTemplates = milestoneTemplatesData.filter(
+            (mt: any) => template.defaultMilestones.includes(mt.id)
+          );
+        }
+      }
+
+      // Combine both sets of milestones, avoiding duplicates
+      const uniqueMilestoneTemplates = new Map();
+      [...linkedMilestoneTemplates, ...projectMilestoneTemplates].forEach(mt => {
+        if (!uniqueMilestoneTemplates.has(mt.id)) {
+          uniqueMilestoneTemplates.set(mt.id, mt);
+        }
+      });
+
+      if (uniqueMilestoneTemplates.size > 0) {
+        const wizardMilestones: WizardMilestone[] = Array.from(uniqueMilestoneTemplates.values()).map((mt: any, idx: number) => {
+          const linkedStage = mt.stageTemplateId
+            ? frameworkStages.find((stage: any) => stage.id === mt.stageTemplateId)
+            : undefined;
 
           return {
             id: `ms-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1511,11 +1565,9 @@ export default function ProjectWizard() {
                 title: task.title,
                 description: task.description,
                 priority: task.priority?.toLowerCase() || 'medium',
-                estimateHours: task.estimateHours || 0,
-                stageId: stage.id,
-                milestoneId: task.milestoneId,
-                assigneeId: task.assigneeId,
-                taskTypeId: task.taskTypeId
+                milestoneId: task.milestoneId || undefined,
+                assigneeId: task.assigneeId || undefined,
+                taskTypeId: task.taskTypeId || undefined
               }))
           )
         }))
