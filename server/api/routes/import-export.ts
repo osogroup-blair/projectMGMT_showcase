@@ -1070,6 +1070,7 @@ export function registerImportExportRoutes(
       }
 
       const idMappings: Record<string, Record<string, string>> = {
+        FrameworkTemplates: {},
         Users: {},
         Projects: {},
         ProjectStages: {},
@@ -1084,7 +1085,7 @@ export function registerImportExportRoutes(
       const results: Record<string, { created: number; errors: string[] }> = {};
       const errors: string[] = [];
 
-      const importOrder = ['Users', 'Projects', 'ProjectStages', 'Deliverables', 'Epics', 'Milestones', 'Sprints', 'Tasks', 'Comments'];
+      const importOrder = ['FrameworkTemplates', 'Users', 'Projects', 'ProjectStages', 'Deliverables', 'Epics', 'Milestones', 'Sprints', 'Tasks', 'Comments'];
 
       const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -1101,6 +1102,7 @@ export function registerImportExportRoutes(
 
       // Cache for verified existing entity IDs to avoid repeated lookups
       const existingEntityCache: Record<string, Set<string>> = {
+        FrameworkTemplates: new Set<string>(),
         Users: new Set<string>(),
         Projects: new Set<string>(),
         Deliverables: new Set<string>(),
@@ -1112,6 +1114,9 @@ export function registerImportExportRoutes(
       };
 
       // Pre-fetch existing entities for FK validation
+      const existingFrameworkTemplates = await storage.getFrameworkTemplates();
+      existingFrameworkTemplates.forEach(f => existingEntityCache.FrameworkTemplates.add(f.id));
+
       const existingUsers = await storage.getUsers();
       existingUsers.forEach(u => existingEntityCache.Users.add(u.id));
 
@@ -1193,7 +1198,17 @@ export function registerImportExportRoutes(
         for (const row of rows) {
           try {
             const sourceId = row.sourceId || row.id || generateId();
-            const newId = generateId();
+
+            // Check if the entity already exists in the database
+            if (existingEntityCache[entityType]?.has(sourceId)) {
+              // Add to mappings so that child elements correctly reference the existing parent
+              idMappings[entityType][sourceId] = sourceId;
+              console.log(`Import: Skipping existing ${entityType} with ID ${sourceId}`);
+              results[entityType] = results[entityType] || { created: 0, errors: [] }; // safeguard
+              continue;
+            }
+
+            const newId = sourceId;
 
             switch (entityType) {
               case 'Users': {
@@ -1210,6 +1225,30 @@ export function registerImportExportRoutes(
                 break;
               }
 
+              case 'FrameworkTemplates': {
+                let parsedStages = [];
+                if (Array.isArray(row.defaultStages)) {
+                  parsedStages = row.defaultStages;
+                } else if (typeof row.defaultStages === 'string' && row.defaultStages) {
+                  try {
+                    parsedStages = JSON.parse(row.defaultStages);
+                  } catch {
+                    parsedStages = row.defaultStages.split(',').map((s: string) => s.trim()).filter(Boolean);
+                  }
+                }
+                const frameworkData = {
+                  id: newId,
+                  name: row.name || 'Imported Framework Template',
+                  description: row.description || '',
+                  defaultStages: parsedStages
+                };
+                await storage.createFrameworkTemplate(frameworkData);
+                idMappings.FrameworkTemplates[sourceId] = newId;
+                registerCreatedEntity('FrameworkTemplates', newId);
+                results[entityType].created++;
+                break;
+              }
+
               case 'Projects': {
                 // Build ownerId with fallback chain: validate existing → mapped user → defaults.ownerId → first existing user
                 let projectOwnerId = await validateOwnerId(row.ownerId);
@@ -1219,6 +1258,7 @@ export function registerImportExportRoutes(
                     console.log(`Import: Project "${row.name}" ownerId "${row.ownerId}" not found, using fallback user`);
                   }
                 }
+                const validFrameworkId = validateForeignKey(row.frameworkId, 'FrameworkTemplates');
                 const projectData = {
                   id: newId,
                   name: row.name || 'Imported Project',
@@ -1228,7 +1268,7 @@ export function registerImportExportRoutes(
                   deadline: row.deadline || defaults?.deadline || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
                   progress: row.progress || 0,
                   ownerId: projectOwnerId,
-                  frameworkId: row.frameworkId,
+                  frameworkId: validFrameworkId || null,
                   client: row.client,
                   riskLevel: row.riskLevel,
                   externalRefs: row.externalRefs
