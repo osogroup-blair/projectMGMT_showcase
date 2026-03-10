@@ -755,8 +755,8 @@ export default function ProjectWizard() {
             deadline: projectData.dueDate,
             frameworkId: null,
             sprintDurationWeeks: projectData.sprintDurationWeeks || null,
-            ownerId: projectData.ownerId || null,
-            clientId: projectData.clientId || null,
+            ownerId: (projectData.ownerId && projectData.ownerId !== '0') ? projectData.ownerId : null,
+            clientId: (projectData.clientId && projectData.clientId !== 'Internal' && projectData.clientId !== 'client') ? projectData.clientId : null,
             riskLevel: null
           },
           stages: [],
@@ -765,13 +765,27 @@ export default function ProjectWizard() {
           roles: []
         })
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create project');
+      let report: any;
+      const text = await response.text();
+      try {
+        report = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Server Error (${response.status}): ${text.substring(0, 200)}`);
       }
 
-      const result = await response.json();
+      if (!response.ok && (!report || !report.projectId)) {
+        let errorMsg = report?.fatalError || report?.error || report?.message || 'Failed to create project';
+        if (report?.validationErrors && Array.isArray(report.validationErrors)) {
+          // If Zod validation error
+          const details = report.validationErrors.join(', ');
+          errorMsg = `${errorMsg}. Details: ${details}`;
+        } else if (report?.validationErrors) {
+          errorMsg = `${errorMsg}. Details: ${JSON.stringify(report.validationErrors)}`;
+        }
+        throw new Error(errorMsg);
+      }
+
+      const result = report;
 
       queryClient.invalidateQueries({ queryKey: ['projects'] });
 
@@ -1307,20 +1321,20 @@ export default function ProjectWizard() {
     try {
       const payload: FullProjectCreatePayload = {
         project: {
-          name: projectData.name,
+          name: projectData.name || 'Untitled Project',
           description: projectData.description || '',
           status: 'Upcoming',
           startDate: projectData.startDate || new Date().toISOString().split('T')[0],
           deadline: projectData.dueDate || new Date().toISOString().split('T')[0],
           frameworkId: projectData.frameworkId || null,
           sprintDurationWeeks: projectData.sprintDurationWeeks || 2,
-          ownerId: projectData.ownerId || null,
-          clientId: projectData.clientId || null,
+          ownerId: (projectData.ownerId && projectData.ownerId !== '0') ? projectData.ownerId : null,
+          clientId: (projectData.clientId && projectData.clientId !== 'Internal' && projectData.clientId !== 'client') ? projectData.clientId : null,
           riskLevel: null
         },
         stages: stages.map((stage, index) => ({
-          id: stage.id,
-          name: stage.name,
+          id: stage.id || `stage-${Date.now()}-${index}`,
+          name: stage.name || 'Untitled Stage',
           description: stage.description || '',
           order: index,
           type: stage.type || 'standard',
@@ -1328,7 +1342,7 @@ export default function ProjectWizard() {
           endDate: stage.endDate || undefined,
           tasks: (stage.tasks || []).map((task, taskIndex) => ({
             id: task.id || `task-${Date.now()}-${taskIndex}`,
-            title: task.title,
+            title: task.title || 'Untitled Task',
             description: task.description || '',
             priority: task.priority || 'Medium',
             estimateHours: task.estimateHours || 0,
@@ -1337,7 +1351,7 @@ export default function ProjectWizard() {
             assignedEpicId: task.assignedEpicId,
             assignedEpicTitle: task.assignedEpicTitle,
             mappingStatus: task.mappingStatus,
-            assigneeId: task.assigneeId || undefined,
+            assigneeId: (task.assigneeId && task.assigneeId !== '0') ? task.assigneeId : undefined,
             startDate: task.startDate || stage.startDate || undefined,
             deadline: task.deadline || stage.endDate || undefined,
             status: task.status || undefined,
@@ -1346,27 +1360,27 @@ export default function ProjectWizard() {
           }))
         })),
         deliverables: deliverables.map(del => ({
-          id: del.id,
-          title: del.title,
+          id: del.id || `del-${Date.now()}`,
+          title: del.title || 'Untitled Deliverable',
           description: del.description || '',
-          ownerId: projectData.ownerId || undefined,
+          ownerId: (projectData.ownerId && projectData.ownerId !== '0') ? projectData.ownerId : undefined,
           startDate: del.startDate || undefined,
           endDate: del.endDate || undefined,
           epics: (del.epics || []).map(epic => ({
-            id: epic.id,
-            title: epic.title,
+            id: epic.id || `epic-${Date.now()}`,
+            title: epic.title || 'Untitled Epic',
             description: epic.description || '',
             startDate: epic.startDate || undefined,
             endDate: epic.endDate || undefined,
             tasks: (epic.tasks || []).map((task, taskIndex) => ({
               id: task.id || `epic-task-${Date.now()}-${taskIndex}`,
-              title: task.title,
+              title: task.title || 'Untitled Task',
               description: task.description || '',
               priority: task.priority || 'Medium',
               estimateHours: task.estimateHours || 0,
               stageId: task.stageId || undefined,
               milestoneId: task.milestoneId || undefined,
-              assigneeId: task.assigneeId || undefined,
+              assigneeId: (task.assigneeId && task.assigneeId !== '0') ? task.assigneeId : undefined,
               taskTypeId: task.taskTypeId || undefined,
               order: taskIndex,
               status: task.status || undefined,
@@ -1375,27 +1389,27 @@ export default function ProjectWizard() {
           }))
         })),
         milestones: milestones.map(m => ({
-          id: m.id,
-          name: m.name,
+          id: m.id || `ms-${Date.now()}`,
+          name: m.name || 'Untitled Milestone',
           description: m.description || '',
-          targetDate: m.targetDate,
-          ownerId: m.ownerId,
-          isBillingGate: m.isBillingGate || false,
+          targetDate: m.targetDate || new Date().toISOString().split('T')[0],
+          ownerId: (m.ownerId && m.ownerId !== '0') ? m.ownerId : undefined,
+          isBillingGate: typeof m.isBillingGate === 'boolean' ? m.isBillingGate : String(m.isBillingGate || '').toLowerCase() === 'true',
           rule: m.rule
         })),
         roles: rolesWithAssignees.map(r => ({
-          id: r.id,
+          id: r.id || `role-${Date.now()}`,
           roleType: r.roleType || 'member',
-          roleTypeId: r.roleTypeId || undefined,
-          userId: r.assigneeId || undefined,
+          roleTypeId: r.roleTypeId || r.templateId || undefined,
+          userId: (r.assigneeId && r.assigneeId !== '0') ? r.assigneeId : undefined,
           allocation: 100
         })),
         sprints: sprints.length > 0 ? sprints.map(s => ({
-          id: s.id,
-          name: s.name,
+          id: s.id || `sprint-${Date.now()}`,
+          name: s.name || 'Sprint',
           goal: s.goal || undefined,
-          startDate: s.startDate,
-          endDate: s.endDate,
+          startDate: s.startDate || new Date().toISOString().split('T')[0],
+          endDate: s.endDate || new Date().toISOString().split('T')[0],
           status: s.status || 'planned',
           capacityHours: s.capacityHours || undefined
         })) : undefined,
@@ -1422,10 +1436,24 @@ export default function ProjectWizard() {
         body: JSON.stringify(payload)
       });
 
-      const report: CreationReport = await response.json();
+      let report: any;
+      const text = await response.text();
+      try {
+        report = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Server Error (${response.status}): ${text.substring(0, 200)}`);
+      }
 
-      if (!response.ok && !report.projectId) {
-        throw new Error(report.fatalError || 'Failed to create project');
+      if (!response.ok && (!report || !report.projectId)) {
+        let errorMsg = report?.fatalError || report?.error || report?.message || 'Failed to create project';
+        if (report?.validationErrors && Array.isArray(report.validationErrors)) {
+          // If Zod validation error
+          const details = report.validationErrors.join(', ');
+          errorMsg = `${errorMsg}. Details: ${details}`;
+        } else if (report?.validationErrors) {
+          errorMsg = `${errorMsg}. Details: ${JSON.stringify(report.validationErrors)}`;
+        }
+        throw new Error(errorMsg);
       }
 
       if (isImportMode && importContext?.clearImport) {

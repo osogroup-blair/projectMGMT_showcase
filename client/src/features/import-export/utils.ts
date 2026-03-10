@@ -3,30 +3,30 @@ import { ENTITY_TO_COLLECTION, DEFAULT_STATUS_VALUES } from "./constants";
 export const applyDefaultsForNewRecord = (record: any, entityName: string): any => {
   const now = new Date().toISOString();
   const updated = { ...record };
-  
+
   if (!updated.createdAt && !updated.created_at) {
     updated.createdAt = now;
   }
   if (!updated.updatedAt && !updated.updated_at) {
     updated.updatedAt = now;
   }
-  
+
   const collection = ENTITY_TO_COLLECTION[entityName]?.toLowerCase();
   if (collection && DEFAULT_STATUS_VALUES[collection] && !updated.status) {
     updated.status = DEFAULT_STATUS_VALUES[collection];
   }
-  
-  if ((collection === "projects" || collection === "deliverables" || collection === "epics") && 
-      updated.progress === undefined) {
+
+  if ((collection === "projects" || collection === "deliverables" || collection === "epics") &&
+    updated.progress === undefined) {
     updated.progress = 0;
   }
-  
+
   return updated;
 };
 
 export const normalizeRecord = (record: any, entityName: string): any => {
   const normalized = { ...record };
-  
+
   const arrayFields = ["tags", "stageIds", "defaultStages", "defaultEpics", "defaultTasks", "defaultRoles", "defaultPermissions", "defaultDeliverables", "allowedTaskStatuses", "permissions", "rules", "scopeRules", "defaultScopeRules"];
   for (const field of arrayFields) {
     if (normalized[field] !== undefined && normalized[field] !== null) {
@@ -42,7 +42,7 @@ export const normalizeRecord = (record: any, entityName: string): any => {
       }
     }
   }
-  
+
   const stringFields = ["entryCriteria", "exitCriteria"];
   for (const field of stringFields) {
     if (normalized[field] !== undefined && normalized[field] !== null) {
@@ -53,7 +53,7 @@ export const normalizeRecord = (record: any, entityName: string): any => {
       }
     }
   }
-  
+
   const dateFields = ["updatedAt", "createdAt", "deadline", "startDate", "endDate", "dueDate", "targetDate", "lastEvaluatedAt", "progressLastCalculatedAt"];
   for (const field of dateFields) {
     if (normalized[field] !== undefined && normalized[field] !== null) {
@@ -67,7 +67,7 @@ export const normalizeRecord = (record: any, entityName: string): any => {
       }
     }
   }
-  
+
   return normalized;
 };
 
@@ -110,6 +110,7 @@ export const deserialize = (data: any[]): any[] => {
 export const flattenNestedImport = (nested: any): Record<string, any[]> => {
   const flat: Record<string, any[]> = {
     Projects: [],
+    ProjectRoles: [],
     Deliverables: [],
     Epics: [],
     Tasks: [],
@@ -135,10 +136,50 @@ export const flattenNestedImport = (nested: any): Record<string, any[]> => {
   const projectDatesMap = new Map<string, { startDate: string; deadline: string }>();
 
   if (nested.projects && Array.isArray(nested.projects)) {
+    flat.FullProjectsForCreate = [];
+
     nested.projects.forEach((project: any) => {
-      const { deliverables, milestones, stages, sprints, ...projectData } = project;
+      const { deliverables, milestones, stages, sprints, roles, ...rawProjectData } = project;
+      const projectData = { ...rawProjectData };
+
+      // Sanitize foreign keys that might violate constraints
+      if (projectData.ownerId === '0') delete projectData.ownerId;
+      if (projectData.clientId === 'Internal') delete projectData.clientId;
+      if (projectData.client) delete projectData.client; // Some exports use 'client' instead of 'clientId'
+
+      // Structure for full-create endpoint
+      flat.FullProjectsForCreate.push({
+        project: {
+          name: projectData.name,
+          description: projectData.description || '',
+          status: projectData.status || 'Upcoming',
+          startDate: projectData.startDate,
+          deadline: projectData.deadline,
+          frameworkId: projectData.frameworkId || null,
+          sprintDurationWeeks: projectData.sprintDurationWeeks || null,
+          ownerId: projectData.ownerId || null,
+          clientId: projectData.clientId || null,
+          riskLevel: projectData.riskLevel || null
+        },
+        stages: Array.isArray(stages) ? stages : [],
+        deliverables: Array.isArray(deliverables) ? deliverables : [],
+        milestones: Array.isArray(milestones) ? milestones : [],
+        roles: Array.isArray(roles) ? roles.map((r: any) => ({
+          ...r,
+          roleTypeId: r.roleTypeId || r.templateId
+        })) : [],
+        sprints: Array.isArray(sprints) ? sprints : []
+      });
+
       flat.Projects.push(projectData);
-      
+
+      // Handle project roles integration
+      if (Array.isArray(roles)) {
+        roles.forEach((role: any) => {
+          flat.ProjectRoles.push(role);
+        });
+      }
+
       projectDatesMap.set(project.id, {
         startDate: project.startDate || new Date().toISOString().split('T')[0],
         deadline: project.deadline || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -156,12 +197,12 @@ export const flattenNestedImport = (nested: any): Record<string, any[]> => {
           const { members, scopeEvents, scopeTargets, pulseUpdates, scope_events, scope_targets, pulse_updates, ...sprintData } = sprint;
           existingSprintIds.add(sprint.id);
           flat.Sprints.push(sprintData);
-          
+
           const sprintMembers = members;
           const sprintScopeEvents = scopeEvents || scope_events;
           const sprintScopeTargets = scopeTargets || scope_targets;
           const sprintPulseUpdates = pulseUpdates || pulse_updates;
-          
+
           if (Array.isArray(sprintMembers)) {
             flat.SprintMembers.push(...sprintMembers);
           }
@@ -205,16 +246,16 @@ export const flattenNestedImport = (nested: any): Record<string, any[]> => {
               if (Array.isArray(tasks)) {
                 tasks.forEach((task: any) => {
                   const { dependencies, comments, attachments, history, ...taskData } = task;
-                  
+
                   if (taskData.sprintId) {
                     referencedSprintIds.add(taskData.sprintId);
                   }
                   if (taskData.stageId) {
                     referencedStageIds.add(taskData.stageId);
                   }
-                  
+
                   flat.Tasks.push(taskData);
-                  
+
                   if (Array.isArray(dependencies)) {
                     flat.TaskDependencies.push(...dependencies);
                   }

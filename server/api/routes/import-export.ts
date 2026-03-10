@@ -1577,6 +1577,18 @@ export function registerImportExportRoutes(
         `${e.path.join('.')}: ${e.message}`
       );
       console.error('[FULL-CREATE] Validation failed:', validationErrors);
+
+      // DIAGNOSTICS: Write payload and errors to file
+      const fs = require('fs');
+      try {
+        fs.writeFileSync('C:\\Users\\blair\\OneDrive\\Documents\\projectMGMT\\backend-error-log.json', JSON.stringify({
+          validationErrors,
+          payload: req.body
+        }, null, 2));
+      } catch (e) {
+        console.error('Failed to write debug log', e);
+      }
+
       return res.status(400).json({
         success: false,
         error: 'Invalid payload',
@@ -2602,6 +2614,19 @@ export function registerImportExportRoutes(
         } else {
           breakdownByType[result.entityType].failed++;
         }
+      }
+
+      // DIAGNOSTICS: Write database error
+      const fs = require('fs');
+      try {
+        fs.writeFileSync('C:\\Users\\blair\\OneDrive\\Documents\\projectMGMT\\backend-db-error-log.json', JSON.stringify({
+          error: error.message,
+          stack: error.stack,
+          payload: req.body,
+          entityResults
+        }, null, 2));
+      } catch (e) {
+        console.error('Failed to write db error log', e);
       }
 
       res.status(500).json({

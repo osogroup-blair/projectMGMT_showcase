@@ -86,10 +86,10 @@ export function useImport(activeTab?: ExportTab) {
 
       for (const [entityName, records] of Object.entries(parsedData)) {
         if (!Array.isArray(records)) continue;
-        
+
         const entityErrors: string[] = [];
         const collection = ENTITY_TO_COLLECTION[entityName];
-        
+
         if (!collection) {
           entityErrors.push(`Unknown entity: ${entityName}`);
           preview.push({
@@ -107,17 +107,17 @@ export function useImport(activeTab?: ExportTab) {
         const existingIds: string[] = [];
         let existingCount = 0;
         let newCount = records.length;
-        
+
         try {
           const existingData = await db.getAll(collection as any);
           const existingIdSet = new Set((existingData || []).map((item: any) => item.id));
-          
+
           for (const record of records) {
             if (record.id && existingIdSet.has(record.id)) {
               existingIds.push(record.id);
             }
           }
-          
+
           existingCount = existingIds.length;
           newCount = records.length - existingCount;
         } catch (fetchError: any) {
@@ -177,10 +177,10 @@ export function useImport(activeTab?: ExportTab) {
     setImportState(prev => ({ ...prev, isImporting: true, importProgress: 0 }));
 
     // Check if this is a templates import - use backend bulk import for proper ID remapping
-    const hasTemplateEntities = Object.keys(importState.data).some(key => 
+    const hasTemplateEntities = Object.keys(importState.data).some(key =>
       TEMPLATE_ENTITIES.includes(key)
     );
-    
+
     if (activeTab === "templates" || hasTemplateEntities) {
       // Use backend bulk import endpoint for templates - handles ID remapping for foreign keys
       try {
@@ -189,9 +189,9 @@ export function useImport(activeTab?: ExportTab) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(importState.data),
         });
-        
+
         const result = await response.json();
-        
+
         if (!response.ok || result.errors?.length > 0) {
           const errorMessages = result.errors?.map((e: any) => `${e.type}: ${e.name} - ${e.error}`) || [result.error || "Import failed"];
           setImportState(prev => ({
@@ -207,19 +207,19 @@ export function useImport(activeTab?: ExportTab) {
           });
           return;
         }
-        
+
         // Calculate totals from results
         const totalCreated = Object.values(result.results || {}).reduce((sum: number, r: any) => sum + (r.created || 0), 0);
         const totalUpdated = Object.values(result.results || {}).reduce((sum: number, r: any) => sum + (r.updated || 0), 0);
         const totalSkipped = Object.values(result.results || {}).reduce((sum: number, r: any) => sum + (r.skipped || 0), 0);
-        
+
         setImportState(prev => ({
           ...prev,
           isImporting: false,
           importProgress: 100,
           errors: []
         }));
-        
+
         toast({
           title: "Import Complete",
           description: `Created: ${totalCreated}, Updated: ${totalUpdated}, Skipped: ${totalSkipped}`,
@@ -242,6 +242,39 @@ export function useImport(activeTab?: ExportTab) {
       }
     }
 
+    const importErrors: string[] = [];
+    let updatedCount = 0;
+    let createdCount = 0;
+
+    // Process nested projects via full-create endpoint if available
+    if (importState.data.FullProjectsForCreate && Array.isArray(importState.data.FullProjectsForCreate)) {
+      const projects = importState.data.FullProjectsForCreate;
+      let totalCreated = 0;
+      for (const projectPayload of projects) {
+        try {
+          const response = await fetch('/api/projects/full-create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(projectPayload)
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            importErrors.push(`Project "${projectPayload.project?.name}": ${result.error || 'Creation failed'}`);
+          } else {
+            createdCount++;
+            totalCreated++;
+          }
+        } catch (error: any) {
+          importErrors.push(`Project "${projectPayload.project?.name}": ${error.message}`);
+        }
+      }
+
+      setImportState(prev => ({
+        ...prev,
+        importProgress: 50 // Update progress as partial
+      }));
+    }
+
     // Non-template import: use individual record creation
     const orderedEntities: [string, any[]][] = [];
     for (const entityName of IMPORT_ORDER) {
@@ -257,9 +290,6 @@ export function useImport(activeTab?: ExportTab) {
 
     const totalEntities = orderedEntities.length;
     let processed = 0;
-    const importErrors: string[] = [];
-    let updatedCount = 0;
-    let createdCount = 0;
 
     for (const [entityName, records] of orderedEntities) {
       const collection = ENTITY_TO_COLLECTION[entityName];
