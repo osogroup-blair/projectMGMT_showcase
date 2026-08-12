@@ -1,11 +1,5 @@
-import { db } from "../db";
-import { eq, and, gte, lte, or, isNull, sql, inArray } from "drizzle-orm";
-import * as schema from "@shared/schema";
-import * as userRepository from "./repositories/user-repository";
-import * as taskRepository from "./repositories/task-repository";
-import * as milestoneRepository from "./repositories/milestone-repository";
-import * as sprintRepository from "./repositories/sprint-repository";
-import * as taskDependencyRepository from "./repositories/task-dependency-repository";
+import { firestoreDb as db } from "../db";
+import crypto from "crypto";
 import type {
   User, InsertUser,
   Project, InsertProject,
@@ -59,9 +53,71 @@ import type {
   UserRoleEligibility,
   Client, InsertClient,
   ClientUser, InsertClientUser,
-  AppSettings, InsertAppSettings,
+  AppSettings,
   Theme, InsertTheme,
 } from "@shared/schema";
+
+// Firestore Helper functions
+async function getAllDocs<T>(colName: string): Promise<T[]> {
+  const snapshot = await db.collection(colName).get();
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    for (const key of Object.keys(data)) {
+      if (data[key] && typeof data[key].toDate === 'function') {
+        data[key] = data[key].toDate();
+      }
+    }
+    return { id: doc.id, ...data } as unknown as T;
+  });
+}
+
+async function getDocById<T>(colName: string, id: string): Promise<T | undefined> {
+  const doc = await db.collection(colName).doc(id).get();
+  if (!doc.exists) return undefined;
+  const data = doc.data()!;
+  for (const key of Object.keys(data)) {
+    if (data[key] && typeof data[key].toDate === 'function') {
+      data[key] = data[key].toDate();
+    }
+  }
+  return { id: doc.id, ...data } as unknown as T;
+}
+
+async function createDoc<T>(colName: string, data: any): Promise<T> {
+  const id = data.id || crypto.randomUUID();
+  const cleanData = { ...data };
+  delete cleanData.id;
+  for (const key of Object.keys(cleanData)) {
+    if (cleanData[key] === undefined) {
+      delete cleanData[key];
+    }
+  }
+  const now = new Date();
+  if (!cleanData.createdAt) cleanData.createdAt = now;
+  if (!cleanData.updatedAt) cleanData.updatedAt = now;
+
+  await db.collection(colName).doc(id).set(cleanData);
+  return { id, ...cleanData } as unknown as T;
+}
+
+async function updateDoc<T>(colName: string, id: string, data: any): Promise<T> {
+  const cleanData = { ...data };
+  delete cleanData.id;
+  for (const key of Object.keys(cleanData)) {
+    if (cleanData[key] === undefined) {
+      delete cleanData[key];
+    }
+  }
+  cleanData.updatedAt = new Date();
+  await db.collection(colName).doc(id).update(cleanData);
+  const updated = await getDocById<T>(colName, id);
+  if (!updated) throw new Error(`Document ${id} not found in ${colName}`);
+  return updated;
+}
+
+async function deleteDoc(colName: string, id: string): Promise<void> {
+  await db.collection(colName).doc(id).delete();
+}
 
 export interface IStorage {
   // Users
@@ -212,8 +268,7 @@ export interface IStorage {
   updateProjectRole(id: string, role: Partial<ProjectRole>): Promise<ProjectRole>;
   deleteProjectRole(id: string): Promise<void>;
 
-
-  // Project Team Members (unified membership)
+  // Project Team Members
   getProjectTeamMembers(projectId: string): Promise<ProjectTeamMember[]>;
   getProjectTeamMemberById(id: string): Promise<ProjectTeamMember | undefined>;
   getProjectTeamMemberByUserAndProject(projectId: string, userId: string): Promise<ProjectTeamMember | undefined>;
@@ -372,7 +427,7 @@ export interface IStorage {
   updateRoleType(id: string, roleType: Partial<RoleType>): Promise<RoleType>;
   deleteRoleType(id: string): Promise<void>;
 
-  // Project Task Statuses (project-level overrides)
+  // Project Task Statuses
   getProjectTaskStatuses(): Promise<ProjectTaskStatus[]>;
   getProjectTaskStatusById(id: string): Promise<ProjectTaskStatus | undefined>;
   getProjectTaskStatusesByProjectId(projectId: string): Promise<ProjectTaskStatus[]>;
@@ -455,7 +510,7 @@ export interface IStorage {
   updateTaskType(id: string, taskType: Partial<TaskType>): Promise<TaskType>;
   deleteTaskType(id: string): Promise<void>;
 
-  // Project Task Types (project-level overrides)
+  // Project Task Types
   getProjectTaskTypes(): Promise<ProjectTaskType[]>;
   getProjectTaskTypeById(id: string): Promise<ProjectTaskType | undefined>;
   getProjectTaskTypesByProjectId(projectId: string): Promise<ProjectTaskType[]>;
@@ -482,14 +537,14 @@ export interface IStorage {
   updateTaskDependencyScopeRule(id: string, rule: Partial<TaskDependencyScopeRule>): Promise<TaskDependencyScopeRule>;
   deleteTaskDependencyScopeRule(id: string): Promise<void>;
 
-  // Epic Types (global)
+  // Epic Types
   getEpicTypes(): Promise<EpicType[]>;
   getEpicTypeById(id: string): Promise<EpicType | undefined>;
   createEpicType(epicType: InsertEpicType): Promise<EpicType>;
   updateEpicType(id: string, epicType: Partial<EpicType>): Promise<EpicType>;
   deleteEpicType(id: string): Promise<void>;
 
-  // Deliverable Types (global)
+  // Deliverable Types
   getDeliverableTypes(): Promise<DeliverableType[]>;
   getDeliverableTypeById(id: string): Promise<DeliverableType | undefined>;
   createDeliverableType(deliverableType: InsertDeliverableType): Promise<DeliverableType>;
@@ -508,131 +563,86 @@ export interface IStorage {
   deleteTheme(id: string): Promise<void>;
   publishTheme(id: string, publishedBy: string): Promise<Theme>;
   setDefaultTheme(id: string): Promise<Theme>;
+
+  // Additional aggregation and preference methods
+  getAllProjectTeamMembers(): Promise<ProjectTeamMember[]>;
+  getTasksForUserHome(userId: string): Promise<any[]>;
+  getUpcomingMilestones(): Promise<any[]>;
+  getActiveProjectsWithProgress(): Promise<any[]>;
+  getUserPreferences(userId: string): Promise<UserPreferences | undefined>;
+  updateUserPreferences(userId: string, prefs: any): Promise<UserPreferences>;
+  createUserPreferences(prefs: any): Promise<UserPreferences>;
+  getWorkBlocksByUserAndDate(userId: string, date: string): Promise<WorkBlock[]>;
+  createWorkBlock(block: any): Promise<WorkBlock>;
+  updateWorkBlock(id: string, block: any): Promise<WorkBlock>;
+  deleteWorkBlock(id: string): Promise<void>;
+  getDayPlan(userId: string, date: string): Promise<DayPlan | undefined>;
+  updateDayPlan(userId: string, date: string, plan: any): Promise<DayPlan>;
+  createDayPlan(plan: any): Promise<DayPlan>;
 }
 
 export class DatabaseStorage implements IStorage {
-  // Users (delegated to user-repository)
-  async getUsers(): Promise<User[]> {
-    return userRepository.getUsers();
-  }
-  async getUserById(id: string): Promise<User | undefined> {
-    return userRepository.getUserById(id);
-  }
-  async createUser(user: InsertUser): Promise<User> {
-    return userRepository.createUser(user);
-  }
-  async updateUser(id: string, user: Partial<User>): Promise<User> {
-    return userRepository.updateUser(id, user);
-  }
-  async deleteUser(id: string): Promise<void> {
-    return userRepository.deleteUser(id);
-  }
+  // Users
+  async getUsers(): Promise<User[]> { return getAllDocs<User>("users"); }
+  async getUserById(id: string): Promise<User | undefined> { return getDocById<User>("users", id); }
+  async createUser(user: InsertUser): Promise<User> { return createDoc<User>("users", user); }
+  async updateUser(id: string, user: Partial<User>): Promise<User> { return updateDoc<User>("users", id, user); }
+  async deleteUser(id: string): Promise<void> { await deleteDoc("users", id); }
 
-  // User Identities (delegated to user-repository)
-  async getUserIdentities(): Promise<UserIdentity[]> {
-    return userRepository.getUserIdentities();
-  }
-
+  // Identities
+  async getUserIdentities(): Promise<UserIdentity[]> { return getAllDocs<UserIdentity>("userIdentities"); }
   async getUserIdentitiesByUserId(userId: string): Promise<UserIdentity[]> {
-    return userRepository.getUserIdentitiesByUserId(userId);
+    const all = await this.getUserIdentities();
+    return all.filter(i => i.userId === userId);
   }
-
   async createUserIdentity(identity: InsertUserIdentity): Promise<UserIdentity> {
-    return userRepository.createUserIdentity(identity);
+    return createDoc<UserIdentity>("userIdentities", identity);
   }
+  async deleteUserIdentity(id: string): Promise<void> { await deleteDoc("userIdentities", id); }
 
-  async deleteUserIdentity(id: string): Promise<void> {
-    return userRepository.deleteUserIdentity(id);
-  }
-
-  // --- Clients ---
-  async getAllClients(): Promise<Client[]> {
-    return await db.select().from(schema.clients).orderBy(schema.clients.name);
-  }
-
-  async getClient(id: string): Promise<Client | undefined> {
-    const [client] = await db.select().from(schema.clients).where(eq(schema.clients.id, id));
-    return client;
-  }
-
-  async createClient(client: InsertClient): Promise<Client> {
-    const [created] = await db.insert(schema.clients).values(client).returning();
-    return created;
-  }
-
+  // Clients
+  async getAllClients(): Promise<Client[]> { return getAllDocs<Client>("clients"); }
+  async getClient(id: string): Promise<Client | undefined> { return getDocById<Client>("clients", id); }
+  async createClient(client: InsertClient): Promise<Client> { return createDoc<Client>("clients", client); }
   async updateClient(id: string, client: Partial<Client>): Promise<Client | undefined> {
-    const [updated] = await db
-      .update(schema.clients)
-      .set({ ...client, updatedAt: new Date() })
-      .where(eq(schema.clients.id, id))
-      .returning();
-    return updated;
+    return updateDoc<Client>("clients", id, client);
   }
+  async deleteClient(id: string): Promise<void> { await deleteDoc("clients", id); }
 
-  async deleteClient(id: string): Promise<void> {
-    await db.delete(schema.clients).where(eq(schema.clients.id, id));
-  }
-
-  // --- Client Users ---
+  // Client Users
   async getClientUsers(clientId: string): Promise<ClientUser[]> {
-    return await db.select().from(schema.clientUsers).where(eq(schema.clientUsers.clientId, clientId));
+    const all = await getAllDocs<ClientUser>("clientUsers");
+    return all.filter(cu => cu.clientId === clientId);
   }
-
   async getUserClients(userId: string): Promise<Client[]> {
-    const userClients = await db
-      .select({ client: schema.clients })
-      .from(schema.clientUsers)
-      .innerJoin(schema.clients, eq(schema.clientUsers.clientId, schema.clients.id))
-      .where(eq(schema.clientUsers.userId, userId));
-    return userClients.map(row => row.client);
+    const allClientUsers = await getAllDocs<ClientUser>("clientUsers");
+    const userClientIds = allClientUsers.filter(cu => cu.userId === userId).map(cu => cu.clientId);
+    const allClients = await this.getAllClients();
+    return allClients.filter(c => userClientIds.includes(c.id));
   }
-
   async createClientUser(clientUser: InsertClientUser): Promise<ClientUser> {
-    const [created] = await db.insert(schema.clientUsers).values(clientUser).returning();
-    return created;
+    return createDoc<ClientUser>("clientUsers", clientUser);
   }
-
   async updateClientUserRole(clientId: string, userId: string, role: string): Promise<ClientUser | undefined> {
-    const [updated] = await db
-      .update(schema.clientUsers)
-      .set({ role, updatedAt: new Date() })
-      .where(and(eq(schema.clientUsers.clientId, clientId), eq(schema.clientUsers.userId, userId)))
-      .returning();
-    return updated;
+    const all = await getAllDocs<ClientUser>("clientUsers");
+    const record = all.find(cu => cu.clientId === clientId && cu.userId === userId);
+    if (!record) return undefined;
+    return updateDoc<ClientUser>("clientUsers", record.id, { role });
   }
-
   async deleteClientUser(clientId: string, userId: string): Promise<void> {
-    await db.delete(schema.clientUsers)
-      .where(and(eq(schema.clientUsers.clientId, clientId), eq(schema.clientUsers.userId, userId)));
+    const all = await getAllDocs<ClientUser>("clientUsers");
+    const record = all.find(cu => cu.clientId === clientId && cu.userId === userId);
+    if (record) await deleteDoc("clientUsers", record.id);
   }
 
-  async getProjects(): Promise<Project[]> {
-    return await db.select().from(schema.projects);
+  // Projects
+  async getProjects(): Promise<Project[]> { return getAllDocs<Project>("projects"); }
+  async getProjectById(id: string): Promise<Project | undefined> { return getDocById<Project>("projects", id); }
+  async createProject(project: InsertProject): Promise<Project> { return createDoc<Project>("projects", project); }
+  async updateProject(id: string, project: Partial<Project>): Promise<Project> {
+    return updateDoc<Project>("projects", id, project);
   }
-
-  async recalculateProjectProgress(projectId: string): Promise<void> {
-    if (!projectId) return;
-
-    try {
-      const [result] = await db
-        .select({
-          total: sql<number>`count(*)::int`,
-          completed: sql<number>`count(*) filter (where status = 'DONE')::int`
-        })
-        .from(schema.tasks)
-        .where(eq(schema.tasks.projectId, projectId));
-
-      const progress = result.total > 0
-        ? Math.round((result.completed / result.total) * 100)
-        : 0;
-
-      await db.update(schema.projects)
-        .set({ progress, updatedAt: new Date() })
-        .where(eq(schema.projects.id, projectId));
-    } catch (error) {
-      console.error(`[PROGRESS] Error recalculating progress for ${projectId}:`, error);
-    }
-  }
+  async deleteProject(id: string): Promise<void> { await deleteDoc("projects", id); }
 
   async getProjectsPaginated(params: {
     limit?: number;
@@ -645,289 +655,93 @@ export class DatabaseStorage implements IStorage {
     favoriteOnly?: boolean;
     sortField?: string;
     sortDirection?: 'asc' | 'desc';
-    clientId?: string | null;
   }): Promise<{ data: Project[]; total: number; limit: number; offset: number }> {
-    const limit = params.limit || 25;
-    const offset = params.offset || 0;
-    const conditions: any[] = [];
-
-    // Text search on name and client
+    let list = await this.getProjects();
+    
     if (params.search) {
-      const searchPattern = `%${params.search.toLowerCase()}%`;
-      conditions.push(
-        or(
-          sql`LOWER(${schema.projects.name}) LIKE ${searchPattern}`
-        )
-      );
+      const s = params.search.toLowerCase();
+      list = list.filter(p => p.name.toLowerCase().includes(s) || (p.description && p.description.toLowerCase().includes(s)));
     }
-
-    // Status filter
-    if (params.status && params.status !== 'all') {
-      conditions.push(eq(schema.projects.status, params.status));
+    if (params.status) {
+      list = list.filter(p => p.status === params.status);
     }
-
-    // Client filter
-    if (params.clientId) {
-      conditions.push(eq(schema.projects.clientId, params.clientId));
+    if (params.riskLevel) {
+      list = list.filter(p => p.riskLevel === params.riskLevel);
     }
-
-    // Risk level filter
-    if (params.riskLevel && params.riskLevel !== 'all') {
-      conditions.push(eq(schema.projects.riskLevel, params.riskLevel));
+    if (params.userId) {
+      const team = await getAllDocs<ProjectTeamMember>("projectTeamMembers");
+      const userProjects = team.filter(t => t.userId === params.userId).map(t => t.projectId);
+      list = list.filter(p => p.ownerId === params.userId || userProjects.includes(p.id));
     }
-
-    // User role filter (my projects / owner / stakeholder / member)
-    if (params.userId && params.role && params.role !== 'all') {
-      // Get project IDs where user has the specified role
-      let projectIds: string[] = [];
-
-      if (params.role === 'owner') {
-        // User is the project owner OR has owner high-level role
-        const ownedProjects = await db.select({ id: schema.projects.id })
-          .from(schema.projects)
-          .where(eq(schema.projects.ownerId, params.userId));
-        // Get owner roles via team members join
-        const ownerRoles = await db.select({ projectId: schema.projectTeamMembers.projectId })
-          .from(schema.projectHighLevelRoles)
-          .innerJoin(schema.projectTeamMembers, eq(schema.projectHighLevelRoles.teamMemberId, schema.projectTeamMembers.id))
-          .where(and(
-            eq(schema.projectTeamMembers.userId, params.userId),
-            eq(schema.projectHighLevelRoles.roleType, 'owner')
-          ));
-        projectIds = [...new Set([
-          ...ownedProjects.map(p => p.id),
-          ...ownerRoles.map(r => r.projectId)
-        ])];
-      } else if (params.role === 'stakeholder') {
-        const stakeholderRoles = await db.select({ projectId: schema.projectTeamMembers.projectId })
-          .from(schema.projectHighLevelRoles)
-          .innerJoin(schema.projectTeamMembers, eq(schema.projectHighLevelRoles.teamMemberId, schema.projectTeamMembers.id))
-          .where(and(
-            eq(schema.projectTeamMembers.userId, params.userId),
-            eq(schema.projectHighLevelRoles.roleType, 'stakeholder')
-          ));
-        projectIds = stakeholderRoles.map(r => r.projectId);
-      } else if (params.role === 'member') {
-        const memberRoles = await db.select({ projectId: schema.projectTeamMembers.projectId })
-          .from(schema.projectHighLevelRoles)
-          .innerJoin(schema.projectTeamMembers, eq(schema.projectHighLevelRoles.teamMemberId, schema.projectTeamMembers.id))
-          .where(and(
-            eq(schema.projectTeamMembers.userId, params.userId),
-            eq(schema.projectHighLevelRoles.roleType, 'member')
-          ));
-        projectIds = memberRoles.map(r => r.projectId);
-      } else if (params.role === 'my') {
-        // Any involvement: project owner, team member, or has any high-level role
-        const ownedProjects = await db.select({ id: schema.projects.id })
-          .from(schema.projects)
-          .where(eq(schema.projects.ownerId, params.userId));
-        // Get all projects where user is a team member
-        const teamMemberProjects = await db.select({ projectId: schema.projectTeamMembers.projectId })
-          .from(schema.projectTeamMembers)
-          .where(eq(schema.projectTeamMembers.userId, params.userId));
-        projectIds = [...new Set([
-          ...ownedProjects.map(p => p.id),
-          ...teamMemberProjects.map(r => r.projectId)
-        ])];
-      }
-
-      if (projectIds.length > 0) {
-        conditions.push(inArray(schema.projects.id, projectIds));
-      } else {
-        // No projects match the role filter
-        return { data: [], total: 0, limit, offset };
-      }
-    }
-
-    // Favorites filter
     if (params.favoriteOnly && params.userId) {
-      const favorites = await db.select({ projectId: schema.projectFavorites.projectId })
-        .from(schema.projectFavorites)
-        .where(eq(schema.projectFavorites.userId, params.userId));
-      const favoriteProjectIds = favorites.map(f => f.projectId);
-
-      if (favoriteProjectIds.length > 0) {
-        conditions.push(inArray(schema.projects.id, favoriteProjectIds));
-      } else {
-        return { data: [], total: 0, limit, offset };
-      }
+      const favs = await getAllDocs<ProjectFavorite>("projectFavorites");
+      const favProjectIds = favs.filter(f => f.userId === params.userId).map(f => f.projectId);
+      list = list.filter(p => favProjectIds.includes(p.id));
     }
-
-    // Build where clause
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-    // Get total count
-    const [{ count: totalCount }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(schema.projects)
-      .where(whereClause);
-
-    // Build query with sorting
-    let query: any = db.select().from(schema.projects).where(whereClause);
-
-    // Apply sorting
-    const sortField = params.sortField || 'name';
-    const sortDir = params.sortDirection || 'asc';
-
-    if (sortField === 'name') {
-      query = sortDir === 'asc'
-        ? query.orderBy(sql`${schema.projects.name} ASC`)
-        : query.orderBy(sql`${schema.projects.name} DESC`);
-    } else if (sortField === 'status') {
-      query = sortDir === 'asc'
-        ? query.orderBy(sql`${schema.projects.status} ASC`)
-        : query.orderBy(sql`${schema.projects.status} DESC`);
-    } else if (sortField === 'startDate') {
-      query = sortDir === 'asc'
-        ? query.orderBy(sql`${schema.projects.startDate} ASC NULLS LAST`)
-        : query.orderBy(sql`${schema.projects.startDate} DESC NULLS LAST`);
-    } else if (sortField === 'riskLevel') {
-      // Custom order: Low=1, Medium=2, High=3
-      query = sortDir === 'asc'
-        ? query.orderBy(sql`CASE ${schema.projects.riskLevel} WHEN 'Low' THEN 1 WHEN 'Medium' THEN 2 WHEN 'High' THEN 3 ELSE 4 END ASC`)
-        : query.orderBy(sql`CASE ${schema.projects.riskLevel} WHEN 'Low' THEN 1 WHEN 'Medium' THEN 2 WHEN 'High' THEN 3 ELSE 4 END DESC`);
-    } else if (sortField === 'progress') {
-      query = sortDir === 'asc'
-        ? query.orderBy(sql`${schema.projects.progress} ASC NULLS LAST`)
-        : query.orderBy(sql`${schema.projects.progress} DESC NULLS LAST`);
-    }
-
-    // Apply pagination
-    const data = await query.limit(limit).offset(offset);
-
-    return { data, total: totalCount, limit, offset };
-  }
-
-  async getProjectById(id: string): Promise<Project | undefined> {
-    const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id));
-    return project;
-  }
-  async createProject(project: InsertProject): Promise<Project> {
-    const id = (project as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projects).values({
-      ...project,
-      id
-    } as any).returning();
-    return created;
-  }
-  async updateProject(id: string, project: Partial<Project>): Promise<Project> {
-    const [updated] = await db.update(schema.projects).set(project).where(eq(schema.projects.id, id)).returning();
-    return updated;
-  }
-  async deleteProject(id: string): Promise<void> {
-    // With onDelete: "cascade" set in the schema, we can simply delete the project
-    // and let the database handle cleaning up all related entities (deliverables,
-    // epics, tasks, milestones, sprints, stages, roles, members, etc.)
-    await db.transaction(async (tx) => {
-      await tx.delete(schema.projects).where(eq(schema.projects.id, id));
+    
+    const sortField = params.sortField || "createdAt";
+    const dir = params.sortDirection === "desc" ? -1 : 1;
+    list.sort((a: any, b: any) => {
+      const valA = a[sortField];
+      const valB = b[sortField];
+      if (valA < valB) return -1 * dir;
+      if (valA > valB) return 1 * dir;
+      return 0;
     });
+
+    const total = list.length;
+    const limit = params.limit || 10;
+    const offset = params.offset || 0;
+    const paginated = list.slice(offset, offset + limit);
+
+    return { data: paginated, total, limit, offset };
   }
 
   // Deliverables
-  async getDeliverables(): Promise<Deliverable[]> {
-    return await db.select().from(schema.deliverables);
-  }
-  async getDeliverableById(id: string): Promise<Deliverable | undefined> {
-    const [deliverable] = await db.select().from(schema.deliverables).where(eq(schema.deliverables.id, id));
-    return deliverable;
-  }
+  async getDeliverables(): Promise<Deliverable[]> { return getAllDocs<Deliverable>("deliverables"); }
+  async getDeliverableById(id: string): Promise<Deliverable | undefined> { return getDocById<Deliverable>("deliverables", id); }
   async getDeliverablesByProjectId(projectId: string): Promise<Deliverable[]> {
-    return await db.select().from(schema.deliverables).where(eq(schema.deliverables.projectId, projectId));
+    const all = await this.getDeliverables();
+    return all.filter(d => d.projectId === projectId);
   }
-  async createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable> {
-    const id = (deliverable as any).id || crypto.randomUUID();
-
-    // Default dates from parent project if not provided
-    let startDate = deliverable.startDate;
-    let dueDate = deliverable.dueDate;
-
-    if ((!startDate || !dueDate) && deliverable.projectId) {
-      const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, deliverable.projectId));
-      if (project) {
-        if (!startDate) startDate = project.startDate;
-        if (!dueDate) dueDate = project.deadline;
-      }
-    }
-
-    // Fallback to today if still no dates
-    const today = new Date().toISOString().split('T')[0];
-    if (!startDate) startDate = today;
-    if (!dueDate) dueDate = today;
-
-    const [created] = await db.insert(schema.deliverables).values({
-      ...deliverable,
-      id,
-      startDate,
-      dueDate
-    } as any).returning();
-    return created;
-  }
+  async createDeliverable(deliverable: InsertDeliverable): Promise<Deliverable> { return createDoc<Deliverable>("deliverables", deliverable); }
   async updateDeliverable(id: string, deliverable: Partial<Deliverable>): Promise<Deliverable> {
-    const [updated] = await db.update(schema.deliverables).set(deliverable).where(eq(schema.deliverables.id, id)).returning();
-    return updated;
+    return updateDoc<Deliverable>("deliverables", id, deliverable);
   }
-  async deleteDeliverable(id: string): Promise<void> {
-    await db.delete(schema.deliverables).where(eq(schema.deliverables.id, id));
-  }
+  async deleteDeliverable(id: string): Promise<void> { await deleteDoc("deliverables", id); }
 
   // Epics
-  async getEpics(): Promise<Epic[]> {
-    return await db.select().from(schema.epics);
-  }
-  async getEpicById(id: string): Promise<Epic | undefined> {
-    const [epic] = await db.select().from(schema.epics).where(eq(schema.epics.id, id));
-    return epic;
-  }
+  async getEpics(): Promise<Epic[]> { return getAllDocs<Epic>("epics"); }
+  async getEpicById(id: string): Promise<Epic | undefined> { return getDocById<Epic>("epics", id); }
   async getEpicsByDeliverableId(deliverableId: string): Promise<Epic[]> {
-    return await db.select().from(schema.epics).where(eq(schema.epics.deliverableId, deliverableId));
+    const all = await this.getEpics();
+    return all.filter(e => e.deliverableId === deliverableId);
   }
-  async createEpic(epic: InsertEpic): Promise<Epic> {
-    const id = (epic as any).id || crypto.randomUUID();
-
-    // Default dates from parent deliverable if not provided
-    let startDate = epic.startDate;
-    let endDate = epic.endDate;
-
-    // Fallback to today if still no dates
-    const today = new Date().toISOString().split('T')[0];
-
-    if ((!startDate || !endDate) && epic.deliverableId) {
-      const [deliverable] = await db.select().from(schema.deliverables).where(eq(schema.deliverables.id, epic.deliverableId));
-      if (deliverable) {
-        if (!startDate) startDate = deliverable.startDate || today;
-        if (!endDate) endDate = deliverable.dueDate;
-      }
-    }
-
-    if (!startDate) startDate = today;
-    if (!endDate) endDate = today;
-
-    const [created] = await db.insert(schema.epics).values({
-      ...epic,
-      id,
-      startDate,
-      endDate
-    } as any).returning();
-    return created;
-  }
+  async createEpic(epic: InsertEpic): Promise<Epic> { return createDoc<Epic>("epics", epic); }
   async updateEpic(id: string, epic: Partial<Epic>): Promise<Epic> {
-    const [updated] = await db.update(schema.epics).set(epic).where(eq(schema.epics.id, id)).returning();
-    return updated;
+    return updateDoc<Epic>("epics", id, epic);
   }
-  async deleteEpic(id: string): Promise<void> {
-    await db.delete(schema.epics).where(eq(schema.epics.id, id));
+  async deleteEpic(id: string): Promise<void> { await deleteDoc("epics", id); }
+  async getEpicsByProjectId(projectId: string): Promise<Epic[]> {
+    const dels = await this.getDeliverablesByProjectId(projectId);
+    const delIds = dels.map(d => d.id);
+    const allEpics = await this.getEpics();
+    return allEpics.filter(e => delIds.includes(e.deliverableId));
   }
 
-  // Tasks (delegated to task-repository)
-  async getTasks(): Promise<Task[]> {
-    return taskRepository.getTasks();
-  }
-  async getTaskById(id: string): Promise<Task | undefined> {
-    return taskRepository.getTaskById(id);
-  }
+  // Tasks
+  async getTasks(): Promise<Task[]> { return getAllDocs<Task>("tasks"); }
+  async getTaskById(id: string): Promise<Task | undefined> { return getDocById<Task>("tasks", id); }
   async getTasksByProjectId(projectId: string): Promise<Task[]> {
-    return taskRepository.getTasksByProjectId(projectId);
+    const all = await this.getTasks();
+    return all.filter(t => t.projectId === projectId);
   }
+  async createTask(task: InsertTask): Promise<Task> { return createDoc<Task>("tasks", task); }
+  async updateTask(id: string, task: Partial<Task>): Promise<Task> {
+    return updateDoc<Task>("tasks", id, task);
+  }
+  async deleteTask(id: string): Promise<void> { await deleteDoc("tasks", id); }
+
   async getProjectTasksPaginated(options: {
     projectId: string;
     page?: number;
@@ -945,626 +759,395 @@ export class DatabaseStorage implements IStorage {
     dueDateFrom?: string;
     dueDateTo?: string;
     myTasksOnly?: string;
-  }) {
-    return taskRepository.getProjectTasksPaginated({
-      projectId: options.projectId,
-      page: options.page,
-      limit: options.limit,
-      sortBy: options.sortBy as any,
-      sortDirection: options.sortDirection,
-      search: options.search,
-      statuses: options.statuses,
-      priorities: options.priorities,
-      stageIds: options.stageIds,
-      epicIds: options.epicIds,
-      assigneeIds: options.assigneeIds,
-      sprintIds: options.sprintIds,
-      taskTypeIds: options.taskTypeIds,
-      dueDateFrom: options.dueDateFrom,
-      dueDateTo: options.dueDateTo,
-      myTasksOnly: options.myTasksOnly,
+  }): Promise<{ tasks: Task[]; total: number; page: number; pageSize: number; totalPages: number }> {
+    let list = await this.getTasks();
+    list = list.filter(t => t.projectId === options.projectId);
+
+    if (options.search) {
+      const s = options.search.toLowerCase();
+      list = list.filter(t => t.title.toLowerCase().includes(s) || (t.description && t.description.toLowerCase().includes(s)));
+    }
+    if (options.statuses && options.statuses.length > 0) {
+      list = list.filter(t => options.statuses!.includes(t.status));
+    }
+    if (options.priorities && options.priorities.length > 0) {
+      list = list.filter(t => options.priorities!.includes(t.priority));
+    }
+    if (options.stageIds && options.stageIds.length > 0) {
+      list = list.filter(t => t.stageId && options.stageIds!.includes(t.stageId));
+    }
+    if (options.epicIds && options.epicIds.length > 0) {
+      list = list.filter(t => t.epicId && options.epicIds!.includes(t.epicId));
+    }
+    if (options.assigneeIds && options.assigneeIds.length > 0) {
+      list = list.filter(t => t.assigneeId && options.assigneeIds!.includes(t.assigneeId));
+    }
+    if (options.sprintIds && options.sprintIds.length > 0) {
+      list = list.filter(t => t.sprintId && options.sprintIds!.includes(t.sprintId));
+    }
+    if (options.taskTypeIds && options.taskTypeIds.length > 0) {
+      list = list.filter(t => t.taskTypeId && options.taskTypeIds!.includes(t.taskTypeId));
+    }
+
+    const sortField = options.sortBy || "createdAt";
+    const dir = options.sortDirection === "desc" ? -1 : 1;
+    list.sort((a: any, b: any) => {
+      const valA = a[sortField];
+      const valB = b[sortField];
+      if (valA < valB) return -1 * dir;
+      if (valA > valB) return 1 * dir;
+      return 0;
     });
-  }
-  async createTask(task: InsertTask): Promise<Task> {
-    const created = await taskRepository.createTask(task);
-    if (created.projectId) {
-      await this.recalculateProjectProgress(created.projectId);
-    }
-    return created;
-  }
-  async updateTask(id: string, task: Partial<Task>): Promise<Task> {
-    console.log(`[STORAGE] updateTask called for task ${id}`, task);
-    const updated = await taskRepository.updateTask(id, task);
-    if (updated.projectId) {
-      console.log(`[STORAGE] Triggering progress recalculation for project ${updated.projectId}`);
-      await this.recalculateProjectProgress(updated.projectId);
-    }
-    return updated;
-  }
-  async deleteTask(id: string): Promise<void> {
-    const task = await taskRepository.getTaskById(id);
-    const projectId = task?.projectId;
-    await taskRepository.deleteTask(id);
-    if (projectId) {
-      await this.recalculateProjectProgress(projectId);
-    }
+
+    const total = list.length;
+    const page = options.page || 1;
+    const pageSize = options.limit || 10;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const offset = (page - 1) * pageSize;
+    const paginated = list.slice(offset, offset + pageSize);
+
+    return { tasks: paginated, total, page, pageSize, totalPages };
   }
 
-  // Milestones (delegated to milestone-repository)
-  async getMilestones(): Promise<Milestone[]> {
-    return milestoneRepository.getMilestones();
-  }
-  async getMilestoneById(id: string): Promise<Milestone | undefined> {
-    return milestoneRepository.getMilestoneById(id);
-  }
+  // Milestones
+  async getMilestones(): Promise<Milestone[]> { return getAllDocs<Milestone>("milestones"); }
+  async getMilestoneById(id: string): Promise<Milestone | undefined> { return getDocById<Milestone>("milestones", id); }
   async getMilestonesByProjectId(projectId: string): Promise<Milestone[]> {
-    return milestoneRepository.getMilestonesByProjectId(projectId);
+    const all = await this.getMilestones();
+    return all.filter(m => m.projectId === projectId);
   }
-  async createMilestone(milestone: InsertMilestone): Promise<Milestone> {
-    return milestoneRepository.createMilestone(milestone);
-  }
+  async createMilestone(milestone: InsertMilestone): Promise<Milestone> { return createDoc<Milestone>("milestones", milestone); }
   async updateMilestone(id: string, milestone: Partial<Milestone>): Promise<Milestone> {
-    return milestoneRepository.updateMilestone(id, milestone);
+    return updateDoc<Milestone>("milestones", id, milestone);
   }
-  async deleteMilestone(id: string): Promise<void> {
-    return milestoneRepository.deleteMilestone(id);
-  }
+  async deleteMilestone(id: string): Promise<void> { await deleteDoc("milestones", id); }
 
-  // Milestone Scope Rules (delegated to milestone-repository)
-  async getMilestoneScopeRules(): Promise<MilestoneScopeRule[]> {
-    return milestoneRepository.getMilestoneScopeRules();
-  }
+  // Milestone Scope Rules
+  async getMilestoneScopeRules(): Promise<MilestoneScopeRule[]> { return getAllDocs<MilestoneScopeRule>("milestoneScopeRules"); }
   async getMilestoneScopeRuleById(id: string): Promise<MilestoneScopeRule | undefined> {
-    return milestoneRepository.getMilestoneScopeRuleById(id);
+    return getDocById<MilestoneScopeRule>("milestoneScopeRules", id);
   }
   async getMilestoneScopeRulesByMilestoneId(milestoneId: string): Promise<MilestoneScopeRule[]> {
-    return milestoneRepository.getMilestoneScopeRulesByMilestoneId(milestoneId);
+    const all = await this.getMilestoneScopeRules();
+    return all.filter(r => r.milestoneId === milestoneId);
   }
   async createMilestoneScopeRule(rule: InsertMilestoneScopeRule): Promise<MilestoneScopeRule> {
-    return milestoneRepository.createMilestoneScopeRule(rule);
+    return createDoc<MilestoneScopeRule>("milestoneScopeRules", rule);
   }
   async updateMilestoneScopeRule(id: string, rule: Partial<MilestoneScopeRule>): Promise<MilestoneScopeRule> {
-    return milestoneRepository.updateMilestoneScopeRule(id, rule);
+    return updateDoc<MilestoneScopeRule>("milestoneScopeRules", id, rule);
   }
-  async deleteMilestoneScopeRule(id: string): Promise<void> {
-    return milestoneRepository.deleteMilestoneScopeRule(id);
-  }
+  async deleteMilestoneScopeRule(id: string): Promise<void> { await deleteDoc("milestoneScopeRules", id); }
 
-  // Milestone Task Links (delegated to milestone-repository)
-  async getMilestoneTaskLinks(): Promise<MilestoneTaskLink[]> {
-    return milestoneRepository.getMilestoneTaskLinks();
-  }
+  // Milestone Task Links
+  async getMilestoneTaskLinks(): Promise<MilestoneTaskLink[]> { return getAllDocs<MilestoneTaskLink>("milestoneTaskLinks"); }
   async getMilestoneTaskLinkById(id: string): Promise<MilestoneTaskLink | undefined> {
-    return milestoneRepository.getMilestoneTaskLinkById(id);
+    return getDocById<MilestoneTaskLink>("milestoneTaskLinks", id);
   }
   async getMilestoneTaskLinksByMilestoneId(milestoneId: string): Promise<MilestoneTaskLink[]> {
-    return milestoneRepository.getMilestoneTaskLinksByMilestoneId(milestoneId);
+    const all = await this.getMilestoneTaskLinks();
+    return all.filter(l => l.milestoneId === milestoneId);
   }
   async createMilestoneTaskLink(link: InsertMilestoneTaskLink): Promise<MilestoneTaskLink> {
-    return milestoneRepository.createMilestoneTaskLink(link);
+    return createDoc<MilestoneTaskLink>("milestoneTaskLinks", link);
   }
   async updateMilestoneTaskLink(id: string, link: Partial<MilestoneTaskLink>): Promise<MilestoneTaskLink> {
-    return milestoneRepository.updateMilestoneTaskLink(id, link);
+    return updateDoc<MilestoneTaskLink>("milestoneTaskLinks", id, link);
   }
-  async deleteMilestoneTaskLink(id: string): Promise<void> {
-    return milestoneRepository.deleteMilestoneTaskLink(id);
-  }
+  async deleteMilestoneTaskLink(id: string): Promise<void> { await deleteDoc("milestoneTaskLinks", id); }
 
   // Activity
-  async getActivity(): Promise<Activity[]> {
-    return await db.select().from(schema.activity);
-  }
-  async createActivity(activity: InsertActivity): Promise<Activity> {
-    const id = (activity as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.activity).values({ ...activity, id } as any).returning();
-    return created;
-  }
-  async deleteActivity(id: string): Promise<void> {
-    await db.delete(schema.activity).where(eq(schema.activity.id, id));
-  }
+  async getActivity(): Promise<Activity[]> { return getAllDocs<Activity>("activity"); }
+  async createActivity(activity: InsertActivity): Promise<Activity> { return createDoc<Activity>("activity", activity); }
+  async deleteActivity(id: string): Promise<void> { await deleteDoc("activity", id); }
 
   // Comments
-  async getComments(): Promise<Comment[]> {
-    return await db.select().from(schema.comments);
-  }
-  async getCommentById(id: string): Promise<Comment | undefined> {
-    const [comment] = await db.select().from(schema.comments).where(eq(schema.comments.id, id));
-    return comment;
-  }
+  async getComments(): Promise<Comment[]> { return getAllDocs<Comment>("comments"); }
+  async getCommentById(id: string): Promise<Comment | undefined> { return getDocById<Comment>("comments", id); }
   async getCommentsByTaskId(taskId: string): Promise<Comment[]> {
-    return await db.select().from(schema.comments).where(eq(schema.comments.taskId, taskId));
+    const all = await this.getComments();
+    return all.filter(c => c.taskId === taskId);
   }
-  async createComment(comment: InsertComment): Promise<Comment> {
-    const id = (comment as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.comments).values({ ...comment, id } as any).returning();
-    return created;
-  }
+  async createComment(comment: InsertComment): Promise<Comment> { return createDoc<Comment>("comments", comment); }
   async updateComment(id: string, comment: Partial<Comment>): Promise<Comment> {
-    const [updated] = await db.update(schema.comments).set(comment).where(eq(schema.comments.id, id)).returning();
-    return updated;
+    return updateDoc<Comment>("comments", id, comment);
   }
-  async deleteComment(id: string): Promise<void> {
-    await db.delete(schema.comments).where(eq(schema.comments.id, id));
-  }
+  async deleteComment(id: string): Promise<void> { await deleteDoc("comments", id); }
 
   // Attachments
-  async getAttachments(): Promise<Attachment[]> {
-    return await db.select().from(schema.attachments);
-  }
-  async getAttachmentById(id: string): Promise<Attachment | undefined> {
-    const [attachment] = await db.select().from(schema.attachments).where(eq(schema.attachments.id, id));
-    return attachment;
-  }
+  async getAttachments(): Promise<Attachment[]> { return getAllDocs<Attachment>("attachments"); }
+  async getAttachmentById(id: string): Promise<Attachment | undefined> { return getDocById<Attachment>("attachments", id); }
   async getAttachmentsByTaskId(taskId: string): Promise<Attachment[]> {
-    return await db.select().from(schema.attachments).where(eq(schema.attachments.taskId, taskId));
+    const all = await this.getAttachments();
+    return all.filter(a => a.taskId === taskId);
   }
-  async createAttachment(attachment: InsertAttachment): Promise<Attachment> {
-    const id = (attachment as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.attachments).values({ ...attachment, id } as any).returning();
-    return created;
-  }
+  async createAttachment(attachment: InsertAttachment): Promise<Attachment> { return createDoc<Attachment>("attachments", attachment); }
   async updateAttachment(id: string, attachment: Partial<Attachment>): Promise<Attachment> {
-    const [updated] = await db.update(schema.attachments).set(attachment).where(eq(schema.attachments.id, id)).returning();
-    return updated;
+    return updateDoc<Attachment>("attachments", id, attachment);
   }
-  async deleteAttachment(id: string): Promise<void> {
-    await db.delete(schema.attachments).where(eq(schema.attachments.id, id));
-  }
+  async deleteAttachment(id: string): Promise<void> { await deleteDoc("attachments", id); }
 
   // History
-  async getHistory(): Promise<History[]> {
-    return await db.select().from(schema.history);
-  }
-  async getHistoryById(id: string): Promise<History | undefined> {
-    const [historyItem] = await db.select().from(schema.history).where(eq(schema.history.id, id));
-    return historyItem;
-  }
+  async getHistory(): Promise<History[]> { return getAllDocs<History>("history"); }
+  async getHistoryById(id: string): Promise<History | undefined> { return getDocById<History>("history", id); }
   async getHistoryByTaskId(taskId: string): Promise<History[]> {
-    return await db.select().from(schema.history).where(eq(schema.history.taskId, taskId));
+    const all = await this.getHistory();
+    return all.filter(h => h.taskId === taskId);
   }
-  async createHistory(history: InsertHistory): Promise<History> {
-    const id = (history as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.history).values({ ...history, id } as any).returning();
-    return created;
-  }
+  async createHistory(history: InsertHistory): Promise<History> { return createDoc<History>("history", history); }
   async updateHistory(id: string, history: Partial<History>): Promise<History> {
-    const [updated] = await db.update(schema.history).set(history).where(eq(schema.history.id, id)).returning();
-    return updated;
+    return updateDoc<History>("history", id, history);
   }
 
   // Project Roles
-  async getProjectRoles(): Promise<ProjectRole[]> {
-    return await db.select().from(schema.projectRoles);
-  }
-  async getProjectRoleById(id: string): Promise<ProjectRole | undefined> {
-    const [role] = await db.select().from(schema.projectRoles).where(eq(schema.projectRoles.id, id));
-    return role;
-  }
+  async getProjectRoles(): Promise<ProjectRole[]> { return getAllDocs<ProjectRole>("projectRoles"); }
+  async getProjectRoleById(id: string): Promise<ProjectRole | undefined> { return getDocById<ProjectRole>("projectRoles", id); }
   async getProjectRolesByProjectId(projectId: string): Promise<ProjectRole[]> {
-    return await db.select().from(schema.projectRoles).where(eq(schema.projectRoles.projectId, projectId));
+    const all = await this.getProjectRoles();
+    return all.filter(r => r.projectId === projectId);
   }
-  async createProjectRole(role: InsertProjectRole): Promise<ProjectRole> {
-    const id = (role as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectRoles).values({ ...role, id } as any).returning();
-    return created;
-  }
+  async createProjectRole(role: InsertProjectRole): Promise<ProjectRole> { return createDoc<ProjectRole>("projectRoles", role); }
   async updateProjectRole(id: string, role: Partial<ProjectRole>): Promise<ProjectRole> {
-    const [updated] = await db.update(schema.projectRoles).set({ ...role, updatedAt: new Date() }).where(eq(schema.projectRoles.id, id)).returning();
-    return updated;
+    return updateDoc<ProjectRole>("projectRoles", id, role);
   }
-  async deleteProjectRole(id: string): Promise<void> {
-    await db.delete(schema.projectRoles).where(eq(schema.projectRoles.id, id));
-  }
+  async deleteProjectRole(id: string): Promise<void> { await deleteDoc("projectRoles", id); }
 
-
-  // Project Team Members (unified membership)
-  async getAllProjectTeamMembers(): Promise<ProjectTeamMember[]> {
-    return await db.select().from(schema.projectTeamMembers);
-  }
+  // Project Team Members
   async getProjectTeamMembers(projectId: string): Promise<ProjectTeamMember[]> {
-    return await db.select().from(schema.projectTeamMembers).where(eq(schema.projectTeamMembers.projectId, projectId));
+    const all = await getAllDocs<ProjectTeamMember>("projectTeamMembers");
+    return all.filter(m => m.projectId === projectId);
   }
   async getProjectTeamMemberById(id: string): Promise<ProjectTeamMember | undefined> {
-    const [member] = await db.select().from(schema.projectTeamMembers).where(eq(schema.projectTeamMembers.id, id));
-    return member;
+    return getDocById<ProjectTeamMember>("projectTeamMembers", id);
   }
   async getProjectTeamMemberByUserAndProject(projectId: string, userId: string): Promise<ProjectTeamMember | undefined> {
-    const [member] = await db.select().from(schema.projectTeamMembers)
-      .where(and(eq(schema.projectTeamMembers.projectId, projectId), eq(schema.projectTeamMembers.userId, userId)));
-    return member;
+    const all = await getAllDocs<ProjectTeamMember>("projectTeamMembers");
+    return all.find(m => m.projectId === projectId && m.userId === userId);
   }
   async getProjectTeamMembersByUser(userId: string): Promise<ProjectTeamMember[]> {
-    return await db.select().from(schema.projectTeamMembers)
-      .where(eq(schema.projectTeamMembers.userId, userId));
+    const all = await getAllDocs<ProjectTeamMember>("projectTeamMembers");
+    return all.filter(m => m.userId === userId);
   }
   async createProjectTeamMember(member: InsertProjectTeamMember): Promise<ProjectTeamMember> {
-    const id = (member as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectTeamMembers).values({ ...member, id } as any).returning();
-    return created;
+    return createDoc<ProjectTeamMember>("projectTeamMembers", member);
   }
   async updateProjectTeamMember(id: string, member: Partial<ProjectTeamMember>): Promise<ProjectTeamMember> {
-    const [updated] = await db.update(schema.projectTeamMembers).set({ ...member, updatedAt: new Date() }).where(eq(schema.projectTeamMembers.id, id)).returning();
-    return updated;
+    return updateDoc<ProjectTeamMember>("projectTeamMembers", id, member);
   }
-  async deleteProjectTeamMember(id: string): Promise<void> {
-    await db.delete(schema.projectTeamMembers).where(eq(schema.projectTeamMembers.id, id));
-  }
+  async deleteProjectTeamMember(id: string): Promise<void> { await deleteDoc("projectTeamMembers", id); }
 
   // High-Level Project Roles
   async getHighLevelRoles(teamMemberId: string): Promise<ProjectHighLevelRole[]> {
-    return await db.select().from(schema.projectHighLevelRoles).where(eq(schema.projectHighLevelRoles.teamMemberId, teamMemberId));
+    const all = await getAllDocs<ProjectHighLevelRole>("projectHighLevelRoles");
+    return all.filter(r => r.teamMemberId === teamMemberId);
   }
   async getHighLevelRolesByProject(projectId: string): Promise<ProjectHighLevelRole[]> {
-    const teamMembers = await this.getProjectTeamMembers(projectId);
-    const teamMemberIds = teamMembers.map(tm => tm.id);
-    if (teamMemberIds.length === 0) return [];
-    return await db.select().from(schema.projectHighLevelRoles)
-      .where(inArray(schema.projectHighLevelRoles.teamMemberId, teamMemberIds));
+    const members = await this.getProjectTeamMembers(projectId);
+    const memberIds = members.map(m => m.id);
+    const all = await getAllDocs<ProjectHighLevelRole>("projectHighLevelRoles");
+    return all.filter(r => memberIds.includes(r.teamMemberId));
   }
   async createHighLevelRole(role: InsertProjectHighLevelRole): Promise<ProjectHighLevelRole> {
-    const id = (role as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectHighLevelRoles).values({ ...role, id } as any).returning();
-    return created;
+    return createDoc<ProjectHighLevelRole>("projectHighLevelRoles", role);
   }
-  async deleteHighLevelRole(id: string): Promise<void> {
-    await db.delete(schema.projectHighLevelRoles).where(eq(schema.projectHighLevelRoles.id, id));
-  }
+  async deleteHighLevelRole(id: string): Promise<void> { await deleteDoc("projectHighLevelRoles", id); }
   async deleteHighLevelRolesByTeamMember(teamMemberId: string): Promise<void> {
-    await db.delete(schema.projectHighLevelRoles).where(eq(schema.projectHighLevelRoles.teamMemberId, teamMemberId));
+    const all = await this.getHighLevelRoles(teamMemberId);
+    for (const r of all) {
+      await deleteDoc("projectHighLevelRoles", r.id);
+    }
   }
 
   // Execution Role Assignments
   async getExecutionRoleAssignments(teamMemberId: string): Promise<ExecutionRoleAssignment[]> {
-    return await db.select().from(schema.executionRoleAssignments).where(eq(schema.executionRoleAssignments.teamMemberId, teamMemberId));
+    const all = await getAllDocs<ExecutionRoleAssignment>("executionRoleAssignments");
+    return all.filter(a => a.teamMemberId === teamMemberId);
   }
   async getExecutionRoleAssignmentsByProject(projectId: string): Promise<ExecutionRoleAssignment[]> {
-    const teamMembers = await this.getProjectTeamMembers(projectId);
-    const teamMemberIds = teamMembers.map(tm => tm.id);
-    if (teamMemberIds.length === 0) return [];
-    return await db.select().from(schema.executionRoleAssignments)
-      .where(inArray(schema.executionRoleAssignments.teamMemberId, teamMemberIds));
+    const members = await this.getProjectTeamMembers(projectId);
+    const memberIds = members.map(m => m.id);
+    const all = await getAllDocs<ExecutionRoleAssignment>("executionRoleAssignments");
+    return all.filter(a => memberIds.includes(a.teamMemberId));
   }
   async createExecutionRoleAssignment(assignment: InsertExecutionRoleAssignment): Promise<ExecutionRoleAssignment> {
-    const id = (assignment as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.executionRoleAssignments).values({ ...assignment, id } as any).returning();
-    return created;
+    return createDoc<ExecutionRoleAssignment>("executionRoleAssignments", assignment);
   }
-  async deleteExecutionRoleAssignment(id: string): Promise<void> {
-    await db.delete(schema.executionRoleAssignments).where(eq(schema.executionRoleAssignments.id, id));
-  }
+  async deleteExecutionRoleAssignment(id: string): Promise<void> { await deleteDoc("executionRoleAssignments", id); }
   async deleteExecutionRoleAssignmentsByTeamMember(teamMemberId: string): Promise<void> {
-    await db.delete(schema.executionRoleAssignments).where(eq(schema.executionRoleAssignments.teamMemberId, teamMemberId));
+    const all = await this.getExecutionRoleAssignments(teamMemberId);
+    for (const a of all) {
+      await deleteDoc("executionRoleAssignments", a.id);
+    }
   }
 
   // Role Templates
-  async getRoleTemplates(): Promise<RoleTemplate[]> {
-    return await db.select().from(schema.roleTemplates);
-  }
-  async getRoleTemplateById(id: string): Promise<RoleTemplate | undefined> {
-    const [template] = await db.select().from(schema.roleTemplates).where(eq(schema.roleTemplates.id, id));
-    return template;
-  }
-  async createRoleTemplate(template: InsertRoleTemplate): Promise<RoleTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.roleTemplates).values({ ...template, id } as any).returning();
-    return created;
-  }
+  async getRoleTemplates(): Promise<RoleTemplate[]> { return getAllDocs<RoleTemplate>("roleTemplates"); }
+  async getRoleTemplateById(id: string): Promise<RoleTemplate | undefined> { return getDocById<RoleTemplate>("roleTemplates", id); }
+  async createRoleTemplate(template: InsertRoleTemplate): Promise<RoleTemplate> { return createDoc<RoleTemplate>("roleTemplates", template); }
   async updateRoleTemplate(id: string, template: Partial<RoleTemplate>): Promise<RoleTemplate> {
-    const [updated] = await db.update(schema.roleTemplates).set(template).where(eq(schema.roleTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<RoleTemplate>("roleTemplates", id, template);
   }
-  async deleteRoleTemplate(id: string): Promise<void> {
-    await db.delete(schema.roleTemplates).where(eq(schema.roleTemplates.id, id));
-  }
+  async deleteRoleTemplate(id: string): Promise<void> { await deleteDoc("roleTemplates", id); }
 
   // Saved Views
-  async getSavedViews(): Promise<SavedView[]> {
-    return await db.select().from(schema.savedViews);
-  }
-  async getSavedViewById(id: string): Promise<SavedView | undefined> {
-    const [view] = await db.select().from(schema.savedViews).where(eq(schema.savedViews.id, id));
-    return view;
-  }
-  async createSavedView(view: InsertSavedView): Promise<SavedView> {
-    const id = (view as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.savedViews).values({ ...view, id } as any).returning();
-    return created;
-  }
+  async getSavedViews(): Promise<SavedView[]> { return getAllDocs<SavedView>("savedViews"); }
+  async getSavedViewById(id: string): Promise<SavedView | undefined> { return getDocById<SavedView>("savedViews", id); }
+  async createSavedView(view: InsertSavedView): Promise<SavedView> { return createDoc<SavedView>("savedViews", view); }
   async updateSavedView(id: string, view: Partial<SavedView>): Promise<SavedView> {
-    const [updated] = await db.update(schema.savedViews).set(view).where(eq(schema.savedViews.id, id)).returning();
-    return updated;
+    return updateDoc<SavedView>("savedViews", id, view);
   }
-  async deleteSavedView(id: string): Promise<void> {
-    await db.delete(schema.savedViews).where(eq(schema.savedViews.id, id));
-  }
+  async deleteSavedView(id: string): Promise<void> { await deleteDoc("savedViews", id); }
 
   // Guidance Items
-  async getGuidanceItems(): Promise<GuidanceItem[]> {
-    return await db.select().from(schema.guidanceItems);
-  }
-  async getGuidanceItemById(id: string): Promise<GuidanceItem | undefined> {
-    const [item] = await db.select().from(schema.guidanceItems).where(eq(schema.guidanceItems.id, id));
-    return item;
-  }
-  async createGuidanceItem(item: InsertGuidanceItem): Promise<GuidanceItem> {
-    const id = (item as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.guidanceItems).values({ ...item, id } as any).returning();
-    return created;
-  }
+  async getGuidanceItems(): Promise<GuidanceItem[]> { return getAllDocs<GuidanceItem>("guidanceItems"); }
+  async getGuidanceItemById(id: string): Promise<GuidanceItem | undefined> { return getDocById<GuidanceItem>("guidanceItems", id); }
+  async createGuidanceItem(item: InsertGuidanceItem): Promise<GuidanceItem> { return createDoc<GuidanceItem>("guidanceItems", item); }
   async updateGuidanceItem(id: string, item: Partial<GuidanceItem>): Promise<GuidanceItem> {
-    const [updated] = await db.update(schema.guidanceItems).set(item).where(eq(schema.guidanceItems.id, id)).returning();
-    return updated;
+    return updateDoc<GuidanceItem>("guidanceItems", id, item);
   }
-  async deleteGuidanceItem(id: string): Promise<void> {
-    await db.delete(schema.guidanceItems).where(eq(schema.guidanceItems.id, id));
-  }
+  async deleteGuidanceItem(id: string): Promise<void> { await deleteDoc("guidanceItems", id); }
 
   // Project Stages
-  async getProjectStages(): Promise<ProjectStage[]> {
-    return await db.select().from(schema.projectStages);
-  }
+  async getProjectStages(): Promise<ProjectStage[]> { return getAllDocs<ProjectStage>("projectStages"); }
+  async getProjectStageById(id: string): Promise<ProjectStage | undefined> { return getDocById<ProjectStage>("projectStages", id); }
   async getProjectStagesByProjectId(projectId: string): Promise<ProjectStage[]> {
-    return await db.select().from(schema.projectStages).where(eq(schema.projectStages.projectId, projectId));
+    const all = await this.getProjectStages();
+    return all.filter(s => s.projectId === projectId);
   }
-  async getProjectStageById(id: string): Promise<ProjectStage | undefined> {
-    const [stage] = await db.select().from(schema.projectStages).where(eq(schema.projectStages.id, id));
-    return stage;
-  }
-
-  // Get all epics for a project (through deliverables)
-  async getEpicsByProjectId(projectId: string): Promise<Epic[]> {
-    const deliverables = await this.getDeliverablesByProjectId(projectId);
-    const allEpics: Epic[] = [];
-    for (const del of deliverables) {
-      const epics = await this.getEpicsByDeliverableId(del.id);
-      allEpics.push(...epics);
-    }
-    return allEpics;
-  }
-  async createProjectStage(stage: InsertProjectStage): Promise<ProjectStage> {
-    const id = (stage as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectStages).values({ ...stage, id } as any).returning();
-    return created;
-  }
+  async createProjectStage(stage: InsertProjectStage): Promise<ProjectStage> { return createDoc<ProjectStage>("projectStages", stage); }
   async updateProjectStage(id: string, stage: Partial<ProjectStage>): Promise<ProjectStage> {
-    const [updated] = await db.update(schema.projectStages).set(stage).where(eq(schema.projectStages.id, id)).returning();
-    return updated;
+    return updateDoc<ProjectStage>("projectStages", id, stage);
   }
-  async deleteProjectStage(id: string): Promise<void> {
-    await db.delete(schema.projectStages).where(eq(schema.projectStages.id, id));
-  }
+  async deleteProjectStage(id: string): Promise<void> { await deleteDoc("projectStages", id); }
 
   // Framework Templates
-  async getFrameworkTemplates(): Promise<FrameworkTemplate[]> {
-    return await db.select().from(schema.frameworkTemplates);
-  }
+  async getFrameworkTemplates(): Promise<FrameworkTemplate[]> { return getAllDocs<FrameworkTemplate>("frameworkTemplates"); }
   async getFrameworkTemplateById(id: string): Promise<FrameworkTemplate | undefined> {
-    const [template] = await db.select().from(schema.frameworkTemplates).where(eq(schema.frameworkTemplates.id, id));
-    return template;
+    return getDocById<FrameworkTemplate>("frameworkTemplates", id);
   }
   async createFrameworkTemplate(template: InsertFrameworkTemplate): Promise<FrameworkTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.frameworkTemplates).values({ ...template, id } as any).returning();
-    return created;
+    return createDoc<FrameworkTemplate>("frameworkTemplates", template);
   }
   async updateFrameworkTemplate(id: string, template: Partial<FrameworkTemplate>): Promise<FrameworkTemplate> {
-    const [updated] = await db.update(schema.frameworkTemplates).set(template).where(eq(schema.frameworkTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<FrameworkTemplate>("frameworkTemplates", id, template);
   }
-  async deleteFrameworkTemplate(id: string): Promise<void> {
-    await db.delete(schema.frameworkTemplates).where(eq(schema.frameworkTemplates.id, id));
-  }
+  async deleteFrameworkTemplate(id: string): Promise<void> { await deleteDoc("frameworkTemplates", id); }
 
   // Stage Templates
-  async getStageTemplates(): Promise<StageTemplate[]> {
-    return await db.select().from(schema.stageTemplates);
-  }
-  async getStageTemplateById(id: string): Promise<StageTemplate | undefined> {
-    const [template] = await db.select().from(schema.stageTemplates).where(eq(schema.stageTemplates.id, id));
-    return template;
-  }
-  async createStageTemplate(template: InsertStageTemplate): Promise<StageTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.stageTemplates).values({ ...template, id } as any).returning();
-    return created;
-  }
+  async getStageTemplates(): Promise<StageTemplate[]> { return getAllDocs<StageTemplate>("stageTemplates"); }
+  async getStageTemplateById(id: string): Promise<StageTemplate | undefined> { return getDocById<StageTemplate>("stageTemplates", id); }
+  async createStageTemplate(template: InsertStageTemplate): Promise<StageTemplate> { return createDoc<StageTemplate>("stageTemplates", template); }
   async updateStageTemplate(id: string, template: Partial<StageTemplate>): Promise<StageTemplate> {
-    const [updated] = await db.update(schema.stageTemplates).set(template).where(eq(schema.stageTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<StageTemplate>("stageTemplates", id, template);
   }
-  async deleteStageTemplate(id: string): Promise<void> {
-    await db.delete(schema.stageTemplates).where(eq(schema.stageTemplates.id, id));
-  }
+  async deleteStageTemplate(id: string): Promise<void> { await deleteDoc("stageTemplates", id); }
 
   // Project Templates
-  async getProjectTemplates(): Promise<ProjectTemplate[]> {
-    return await db.select().from(schema.projectTemplates);
-  }
+  async getProjectTemplates(): Promise<ProjectTemplate[]> { return getAllDocs<ProjectTemplate>("projectTemplates"); }
   async getProjectTemplateById(id: string): Promise<ProjectTemplate | undefined> {
-    const [template] = await db.select().from(schema.projectTemplates).where(eq(schema.projectTemplates.id, id));
-    return template;
+    return getDocById<ProjectTemplate>("projectTemplates", id);
   }
   async createProjectTemplate(template: InsertProjectTemplate): Promise<ProjectTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectTemplates).values({ ...template, id } as any).returning();
-    return created;
+    return createDoc<ProjectTemplate>("projectTemplates", template);
   }
   async updateProjectTemplate(id: string, template: Partial<ProjectTemplate>): Promise<ProjectTemplate> {
-    const [updated] = await db.update(schema.projectTemplates).set(template).where(eq(schema.projectTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<ProjectTemplate>("projectTemplates", id, template);
   }
-  async deleteProjectTemplate(id: string): Promise<void> {
-    await db.delete(schema.projectTemplates).where(eq(schema.projectTemplates.id, id));
-  }
+  async deleteProjectTemplate(id: string): Promise<void> { await deleteDoc("projectTemplates", id); }
 
   // Deliverable Templates
-  async getDeliverableTemplates(): Promise<DeliverableTemplate[]> {
-    return await db.select().from(schema.deliverableTemplates);
-  }
+  async getDeliverableTemplates(): Promise<DeliverableTemplate[]> { return getAllDocs<DeliverableTemplate>("deliverableTemplates"); }
   async getDeliverableTemplateById(id: string): Promise<DeliverableTemplate | undefined> {
-    const [template] = await db.select().from(schema.deliverableTemplates).where(eq(schema.deliverableTemplates.id, id));
-    return template;
+    return getDocById<DeliverableTemplate>("deliverableTemplates", id);
   }
   async createDeliverableTemplate(template: InsertDeliverableTemplate): Promise<DeliverableTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.deliverableTemplates).values({ ...template, id } as any).returning();
-    return created;
+    return createDoc<DeliverableTemplate>("deliverableTemplates", template);
   }
   async updateDeliverableTemplate(id: string, template: Partial<DeliverableTemplate>): Promise<DeliverableTemplate> {
-    const [updated] = await db.update(schema.deliverableTemplates).set(template).where(eq(schema.deliverableTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<DeliverableTemplate>("deliverableTemplates", id, template);
   }
-  async deleteDeliverableTemplate(id: string): Promise<void> {
-    await db.delete(schema.deliverableTemplates).where(eq(schema.deliverableTemplates.id, id));
-  }
+  async deleteDeliverableTemplate(id: string): Promise<void> { await deleteDoc("deliverableTemplates", id); }
 
   // Epic Templates
-  async getEpicTemplates(): Promise<EpicTemplate[]> {
-    return await db.select().from(schema.epicTemplates);
-  }
-  async getEpicTemplateById(id: string): Promise<EpicTemplate | undefined> {
-    const [template] = await db.select().from(schema.epicTemplates).where(eq(schema.epicTemplates.id, id));
-    return template;
-  }
-  async createEpicTemplate(template: InsertEpicTemplate): Promise<EpicTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.epicTemplates).values({ ...template, id } as any).returning();
-    return created;
-  }
+  async getEpicTemplates(): Promise<EpicTemplate[]> { return getAllDocs<EpicTemplate>("epicTemplates"); }
+  async getEpicTemplateById(id: string): Promise<EpicTemplate | undefined> { return getDocById<EpicTemplate>("epicTemplates", id); }
+  async createEpicTemplate(template: InsertEpicTemplate): Promise<EpicTemplate> { return createDoc<EpicTemplate>("epicTemplates", template); }
   async updateEpicTemplate(id: string, template: Partial<EpicTemplate>): Promise<EpicTemplate> {
-    const [updated] = await db.update(schema.epicTemplates).set(template).where(eq(schema.epicTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<EpicTemplate>("epicTemplates", id, template);
   }
-  async deleteEpicTemplate(id: string): Promise<void> {
-    await db.delete(schema.epicTemplates).where(eq(schema.epicTemplates.id, id));
-  }
+  async deleteEpicTemplate(id: string): Promise<void> { await deleteDoc("epicTemplates", id); }
 
   // Task Templates
-  async getTaskTemplates(): Promise<TaskTemplate[]> {
-    return await db.select().from(schema.taskTemplates);
-  }
-  async getTaskTemplateById(id: string): Promise<TaskTemplate | undefined> {
-    const [template] = await db.select().from(schema.taskTemplates).where(eq(schema.taskTemplates.id, id));
-    return template;
-  }
-  async createTaskTemplate(template: InsertTaskTemplate): Promise<TaskTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.taskTemplates).values({ ...template, id } as any).returning();
-    return created;
-  }
+  async getTaskTemplates(): Promise<TaskTemplate[]> { return getAllDocs<TaskTemplate>("taskTemplates"); }
+  async getTaskTemplateById(id: string): Promise<TaskTemplate | undefined> { return getDocById<TaskTemplate>("taskTemplates", id); }
+  async createTaskTemplate(template: InsertTaskTemplate): Promise<TaskTemplate> { return createDoc<TaskTemplate>("taskTemplates", template); }
   async updateTaskTemplate(id: string, template: Partial<TaskTemplate>): Promise<TaskTemplate> {
-    const [updated] = await db.update(schema.taskTemplates).set(template).where(eq(schema.taskTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<TaskTemplate>("taskTemplates", id, template);
   }
-  async deleteTaskTemplate(id: string): Promise<void> {
-    await db.delete(schema.taskTemplates).where(eq(schema.taskTemplates.id, id));
-  }
+  async deleteTaskTemplate(id: string): Promise<void> { await deleteDoc("taskTemplates", id); }
 
   // Mapping Templates
-  async getMappingTemplates(): Promise<MappingTemplate[]> {
-    return await db.select().from(schema.mappingTemplates);
-  }
+  async getMappingTemplates(): Promise<MappingTemplate[]> { return getAllDocs<MappingTemplate>("mappingTemplates"); }
   async getMappingTemplateById(id: string): Promise<MappingTemplate | undefined> {
-    const [template] = await db.select().from(schema.mappingTemplates).where(eq(schema.mappingTemplates.id, id));
-    return template;
+    return getDocById<MappingTemplate>("mappingTemplates", id);
   }
   async createMappingTemplate(template: InsertMappingTemplate): Promise<MappingTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.mappingTemplates).values({ ...template, id } as any).returning();
-    return created;
+    return createDoc<MappingTemplate>("mappingTemplates", template);
   }
   async updateMappingTemplate(id: string, template: Partial<MappingTemplate>): Promise<MappingTemplate> {
-    const [updated] = await db.update(schema.mappingTemplates).set(template).where(eq(schema.mappingTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<MappingTemplate>("mappingTemplates", id, template);
   }
-  async deleteMappingTemplate(id: string): Promise<void> {
-    await db.delete(schema.mappingTemplates).where(eq(schema.mappingTemplates.id, id));
-  }
+  async deleteMappingTemplate(id: string): Promise<void> { await deleteDoc("mappingTemplates", id); }
 
   // Milestone Templates
-  async getMilestoneTemplates(): Promise<MilestoneTemplate[]> {
-    return await db.select().from(schema.milestoneTemplates);
-  }
+  async getMilestoneTemplates(): Promise<MilestoneTemplate[]> { return getAllDocs<MilestoneTemplate>("milestoneTemplates"); }
   async getMilestoneTemplateById(id: string): Promise<MilestoneTemplate | undefined> {
-    const [template] = await db.select().from(schema.milestoneTemplates).where(eq(schema.milestoneTemplates.id, id));
-    return template;
+    return getDocById<MilestoneTemplate>("milestoneTemplates", id);
   }
   async createMilestoneTemplate(template: InsertMilestoneTemplate): Promise<MilestoneTemplate> {
-    const id = (template as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.milestoneTemplates).values({
-      ...template,
-      id
-    } as any).returning();
-    return created;
+    return createDoc<MilestoneTemplate>("milestoneTemplates", template);
   }
   async updateMilestoneTemplate(id: string, template: Partial<MilestoneTemplate>): Promise<MilestoneTemplate> {
-    const [updated] = await db.update(schema.milestoneTemplates).set(template).where(eq(schema.milestoneTemplates.id, id)).returning();
-    return updated;
+    return updateDoc<MilestoneTemplate>("milestoneTemplates", id, template);
   }
-  async deleteMilestoneTemplate(id: string): Promise<void> {
-    await db.delete(schema.milestoneTemplates).where(eq(schema.milestoneTemplates.id, id));
-  }
+  async deleteMilestoneTemplate(id: string): Promise<void> { await deleteDoc("milestoneTemplates", id); }
 
   // Template Snippets
-  async getTemplateSnippets(): Promise<TemplateSnippet[]> {
-    return await db.select().from(schema.templateSnippets);
-  }
+  async getTemplateSnippets(): Promise<TemplateSnippet[]> { return getAllDocs<TemplateSnippet>("templateSnippets"); }
   async getTemplateSnippetById(id: string): Promise<TemplateSnippet | undefined> {
-    const [snippet] = await db.select().from(schema.templateSnippets).where(eq(schema.templateSnippets.id, id));
-    return snippet;
+    return getDocById<TemplateSnippet>("templateSnippets", id);
   }
   async createTemplateSnippet(snippet: InsertTemplateSnippet): Promise<TemplateSnippet> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.templateSnippets).values({ ...snippet, id }).returning();
-    return created;
+    return createDoc<TemplateSnippet>("templateSnippets", snippet);
   }
   async updateTemplateSnippet(id: string, snippet: Partial<TemplateSnippet>): Promise<TemplateSnippet> {
-    const [updated] = await db.update(schema.templateSnippets).set(snippet).where(eq(schema.templateSnippets.id, id)).returning();
-    return updated;
+    return updateDoc<TemplateSnippet>("templateSnippets", id, snippet);
   }
-  async deleteTemplateSnippet(id: string): Promise<void> {
-    await db.delete(schema.templateSnippets).where(eq(schema.templateSnippets.id, id));
-  }
+  async deleteTemplateSnippet(id: string): Promise<void> { await deleteDoc("templateSnippets", id); }
 
   // Status Options
-  async getStatusOptions(): Promise<StatusOption[]> {
-    return await db.select().from(schema.statusOptions);
-  }
-  async getStatusOptionById(id: string): Promise<StatusOption | undefined> {
-    const [option] = await db.select().from(schema.statusOptions).where(eq(schema.statusOptions.id, id));
-    return option;
-  }
+  async getStatusOptions(): Promise<StatusOption[]> { return getAllDocs<StatusOption>("statusOptions"); }
+  async getStatusOptionById(id: string): Promise<StatusOption | undefined> { return getDocById<StatusOption>("statusOptions", id); }
   async getStatusOptionsByType(type: string): Promise<StatusOption[]> {
-    return await db.select().from(schema.statusOptions).where(eq(schema.statusOptions.type, type));
+    const all = await this.getStatusOptions();
+    return all.filter(o => o.type === type);
   }
   async getDefaultStatusByType(type: string): Promise<string> {
-    const options = await this.getStatusOptionsByType(type);
-    const defaultOption = options.find(o => o.isDefault);
-    if (defaultOption) return defaultOption.label;
-    if (options.length > 0) return options[0].label;
-    return type === "task" ? "Todo" : "Active";
+    const all = await this.getStatusOptionsByType(type);
+    const def = all.find(o => o.isDefault);
+    return def ? def.label : "Not Started";
   }
   async validateAndResolveStatus(status: string | null | undefined, type: string): Promise<string> {
-    const options = await this.getStatusOptionsByType(type);
-    const validLabels = options.map(o => o.label.toLowerCase());
-    if (status && validLabels.includes(status.toLowerCase())) {
-      const matched = options.find(o => o.label.toLowerCase() === status.toLowerCase());
-      return matched?.label || status;
-    }
-    return this.getDefaultStatusByType(type);
+    if (!status) return this.getDefaultStatusByType(type);
+    const all = await this.getStatusOptionsByType(type);
+    const match = all.find(o => o.label.toLowerCase() === status.toLowerCase());
+    return match ? match.label : this.getDefaultStatusByType(type);
   }
-  async createStatusOption(option: InsertStatusOption): Promise<StatusOption> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.statusOptions).values({ ...option, id }).returning();
-    return created;
-  }
+  async createStatusOption(option: InsertStatusOption): Promise<StatusOption> { return createDoc<StatusOption>("statusOptions", option); }
   async updateStatusOption(id: string, option: Partial<StatusOption>): Promise<StatusOption> {
-    const [updated] = await db.update(schema.statusOptions).set(option).where(eq(schema.statusOptions.id, id)).returning();
-    return updated;
+    return updateDoc<StatusOption>("statusOptions", id, option);
   }
-  async deleteStatusOption(id: string): Promise<void> {
-    await db.delete(schema.statusOptions).where(eq(schema.statusOptions.id, id));
-  }
+  async deleteStatusOption(id: string): Promise<void> { await deleteDoc("statusOptions", id); }
 
   // Status Usage and Remapping
   async getStatusUsageCounts(statusLabel: string): Promise<{
@@ -1578,34 +1161,18 @@ export class DatabaseStorage implements IStorage {
     workBlocks: number;
     total: number;
   }> {
-    const [projectsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.projects).where(eq(schema.projects.status, statusLabel));
-    const [deliverablesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.deliverables).where(eq(schema.deliverables.status, statusLabel));
-    const [epicsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.epics).where(eq(schema.epics.status, statusLabel));
-    const [tasksResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.tasks).where(eq(schema.tasks.status, statusLabel));
-    const [sprintsResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.sprints).where(eq(schema.sprints.status, statusLabel));
-    const [milestonesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.milestones).where(eq(schema.milestones.status, statusLabel));
-    const [projectStagesResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.projectStages).where(eq(schema.projectStages.status, statusLabel));
-    const [workBlocksResult] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.workBlocks).where(eq(schema.workBlocks.status, statusLabel));
-
-    const projects = projectsResult?.count || 0;
-    const deliverables = deliverablesResult?.count || 0;
-    const epics = epicsResult?.count || 0;
-    const tasks = tasksResult?.count || 0;
-    const sprints = sprintsResult?.count || 0;
-    const milestones = milestonesResult?.count || 0;
-    const projectStages = projectStagesResult?.count || 0;
-    const workBlocks = workBlocksResult?.count || 0;
-
+    const tasks = (await this.getTasks()).filter(t => t.status === statusLabel).length;
+    const projects = (await this.getProjects()).filter(p => p.status === statusLabel).length;
+    const deliverables = (await this.getDeliverables()).filter(d => d.status === statusLabel).length;
+    const epics = (await this.getEpics()).filter(e => e.status === statusLabel).length;
+    const sprints = (await this.getSprints()).filter(s => s.status === statusLabel).length;
+    const milestones = (await this.getMilestones()).filter(m => m.status === statusLabel).length;
+    const projectStages = (await this.getProjectStages()).filter(s => s.status === statusLabel).length;
+    
     return {
-      projects,
-      deliverables,
-      epics,
-      tasks,
-      sprints,
-      milestones,
-      projectStages,
-      workBlocks,
-      total: projects + deliverables + epics + tasks + sprints + milestones + projectStages + workBlocks
+      projects, deliverables, epics, tasks, sprints, milestones, projectStages,
+      workBlocks: 0,
+      total: projects + deliverables + epics + tasks + sprints + milestones + projectStages
     };
   }
 
@@ -1620,602 +1187,443 @@ export class DatabaseStorage implements IStorage {
     workBlocks: number;
     total: number;
   }> {
-    const shouldUpdate = (type: string) => !entityTypes || entityTypes.length === 0 || entityTypes.includes(type);
+    const shouldRemap = (type: string) => !entityTypes || entityTypes.includes(type);
+    let counts = { projects: 0, deliverables: 0, epics: 0, tasks: 0, sprints: 0, milestones: 0, projectStages: 0, workBlocks: 0, total: 0 };
 
-    let projects = 0, deliverables = 0, epics = 0, tasks = 0, sprints = 0, milestones = 0, projectStages = 0, workBlocks = 0;
+    if (shouldRemap("project")) {
+      const projects = await this.getProjects();
+      for (const p of projects) {
+        if (p.status === oldStatus) {
+          await this.updateProject(p.id, { status: newStatus });
+          counts.projects++;
+        }
+      }
+    }
+    if (shouldRemap("deliverable")) {
+      const deliverables = await this.getDeliverables();
+      for (const d of deliverables) {
+        if (d.status === oldStatus) {
+          await this.updateDeliverable(d.id, { status: newStatus });
+          counts.deliverables++;
+        }
+      }
+    }
+    if (shouldRemap("epic")) {
+      const epics = await this.getEpics();
+      for (const e of epics) {
+        if (e.status === oldStatus) {
+          await this.updateEpic(e.id, { status: newStatus });
+          counts.epics++;
+        }
+      }
+    }
+    if (shouldRemap("task")) {
+      const tasks = await this.getTasks();
+      for (const t of tasks) {
+        if (t.status === oldStatus) {
+          await this.updateTask(t.id, { status: newStatus });
+          counts.tasks++;
+        }
+      }
+    }
+    if (shouldRemap("sprint")) {
+      const sprints = await this.getSprints();
+      for (const s of sprints) {
+        if (s.status === oldStatus) {
+          await this.updateSprint(s.id, { status: newStatus });
+          counts.sprints++;
+        }
+      }
+    }
+    if (shouldRemap("milestone")) {
+      const milestones = await this.getMilestones();
+      for (const m of milestones) {
+        if (m.status === oldStatus) {
+          await this.updateMilestone(m.id, { status: newStatus });
+          counts.milestones++;
+        }
+      }
+    }
+    if (shouldRemap("stage")) {
+      const stages = await this.getProjectStages();
+      for (const s of stages) {
+        if (s.status === oldStatus) {
+          await this.updateProjectStage(s.id, { status: newStatus });
+          counts.projectStages++;
+        }
+      }
+    }
 
-    if (shouldUpdate('projects')) {
-      const result = await db.update(schema.projects).set({ status: newStatus }).where(eq(schema.projects.status, oldStatus));
-      projects = result.rowCount || 0;
-    }
-    if (shouldUpdate('deliverables')) {
-      const result = await db.update(schema.deliverables).set({ status: newStatus }).where(eq(schema.deliverables.status, oldStatus));
-      deliverables = result.rowCount || 0;
-    }
-    if (shouldUpdate('epics')) {
-      const result = await db.update(schema.epics).set({ status: newStatus }).where(eq(schema.epics.status, oldStatus));
-      epics = result.rowCount || 0;
-    }
-    if (shouldUpdate('tasks')) {
-      const result = await db.update(schema.tasks).set({ status: newStatus }).where(eq(schema.tasks.status, oldStatus));
-      tasks = result.rowCount || 0;
-    }
-    if (shouldUpdate('sprints')) {
-      const result = await db.update(schema.sprints).set({ status: newStatus }).where(eq(schema.sprints.status, oldStatus));
-      sprints = result.rowCount || 0;
-    }
-    if (shouldUpdate('milestones')) {
-      const result = await db.update(schema.milestones).set({ status: newStatus }).where(eq(schema.milestones.status, oldStatus));
-      milestones = result.rowCount || 0;
-    }
-    if (shouldUpdate('projectStages')) {
-      const result = await db.update(schema.projectStages).set({ status: newStatus }).where(eq(schema.projectStages.status, oldStatus));
-      projectStages = result.rowCount || 0;
-    }
-    if (shouldUpdate('workBlocks')) {
-      const result = await db.update(schema.workBlocks).set({ status: newStatus }).where(eq(schema.workBlocks.status, oldStatus));
-      workBlocks = result.rowCount || 0;
-    }
-
-    return {
-      projects,
-      deliverables,
-      epics,
-      tasks,
-      sprints,
-      milestones,
-      projectStages,
-      workBlocks,
-      total: projects + deliverables + epics + tasks + sprints + milestones + projectStages + workBlocks
-    };
+    counts.total = Object.values(counts).reduce((a, b) => a + b, 0) - counts.total;
+    return counts;
   }
 
   // Role Types
-  async getRoleTypes(): Promise<RoleType[]> {
-    return await db.select().from(schema.roleTypes);
-  }
-  async getRoleTypeById(id: string): Promise<RoleType | undefined> {
-    const [roleType] = await db.select().from(schema.roleTypes).where(eq(schema.roleTypes.id, id));
-    return roleType;
-  }
-  async createRoleType(roleType: InsertRoleType): Promise<RoleType> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.roleTypes).values({ ...roleType, id }).returning();
-    return created;
-  }
+  async getRoleTypes(): Promise<RoleType[]> { return getAllDocs<RoleType>("roleTypes"); }
+  async getRoleTypeById(id: string): Promise<RoleType | undefined> { return getDocById<RoleType>("roleTypes", id); }
+  async createRoleType(roleType: InsertRoleType): Promise<RoleType> { return createDoc<RoleType>("roleTypes", roleType); }
   async updateRoleType(id: string, roleType: Partial<RoleType>): Promise<RoleType> {
-    const [updated] = await db.update(schema.roleTypes).set(roleType).where(eq(schema.roleTypes.id, id)).returning();
-    return updated;
+    return updateDoc<RoleType>("roleTypes", id, roleType);
   }
-  async deleteRoleType(id: string): Promise<void> {
-    await db.delete(schema.roleTypes).where(eq(schema.roleTypes.id, id));
-  }
+  async deleteRoleType(id: string): Promise<void> { await deleteDoc("roleTypes", id); }
 
   // Project Task Statuses
-  async getProjectTaskStatuses(): Promise<ProjectTaskStatus[]> {
-    return await db.select().from(schema.projectTaskStatuses).orderBy(schema.projectTaskStatuses.order);
-  }
+  async getProjectTaskStatuses(): Promise<ProjectTaskStatus[]> { return getAllDocs<ProjectTaskStatus>("projectTaskStatuses"); }
   async getProjectTaskStatusById(id: string): Promise<ProjectTaskStatus | undefined> {
-    const [status] = await db.select().from(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.id, id));
-    return status;
+    return getDocById<ProjectTaskStatus>("projectTaskStatuses", id);
   }
   async getProjectTaskStatusesByProjectId(projectId: string): Promise<ProjectTaskStatus[]> {
-    return await db.select().from(schema.projectTaskStatuses)
-      .where(eq(schema.projectTaskStatuses.projectId, projectId))
-      .orderBy(schema.projectTaskStatuses.order);
+    const all = await this.getProjectTaskStatuses();
+    return all.filter(s => s.projectId === projectId);
   }
   async createProjectTaskStatus(status: InsertProjectTaskStatus): Promise<ProjectTaskStatus> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectTaskStatuses).values({ ...status, id }).returning();
-    return created;
+    return createDoc<ProjectTaskStatus>("projectTaskStatuses", status);
   }
   async updateProjectTaskStatus(id: string, status: Partial<ProjectTaskStatus>): Promise<ProjectTaskStatus> {
-    const [updated] = await db.update(schema.projectTaskStatuses).set(status).where(eq(schema.projectTaskStatuses.id, id)).returning();
-    return updated;
+    return updateDoc<ProjectTaskStatus>("projectTaskStatuses", id, status);
   }
-  async deleteProjectTaskStatus(id: string): Promise<void> {
-    await db.delete(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.id, id));
-  }
+  async deleteProjectTaskStatus(id: string): Promise<void> { await deleteDoc("projectTaskStatuses", id); }
   async deleteProjectTaskStatusesByProjectId(projectId: string): Promise<void> {
-    await db.delete(schema.projectTaskStatuses).where(eq(schema.projectTaskStatuses.projectId, projectId));
+    const all = await this.getProjectTaskStatusesByProjectId(projectId);
+    for (const s of all) {
+      await deleteDoc("projectTaskStatuses", s.id);
+    }
   }
 
   // Project Settings
-  async getProjectSettings(): Promise<ProjectSettings[]> {
-    return await db.select().from(schema.projectSettings);
-  }
+  async getProjectSettings(): Promise<ProjectSettings[]> { return getAllDocs<ProjectSettings>("projectSettings"); }
   async getProjectSettingsById(id: string): Promise<ProjectSettings | undefined> {
-    const [settings] = await db.select().from(schema.projectSettings).where(eq(schema.projectSettings.id, id));
-    return settings;
+    return getDocById<ProjectSettings>("projectSettings", id);
   }
   async getProjectSettingsByProjectId(projectId: string): Promise<ProjectSettings | undefined> {
-    const [settings] = await db.select().from(schema.projectSettings).where(eq(schema.projectSettings.projectId, projectId));
-    return settings;
+    const all = await this.getProjectSettings();
+    return all.find(s => s.projectId === projectId);
   }
   async createProjectSettings(settings: InsertProjectSettings): Promise<ProjectSettings> {
-    const id = (arguments[0] as any).id || crypto.randomUUID();
-    const [created] = await db.insert(schema.projectSettings).values({ ...settings, id }).returning();
-    return created;
+    return createDoc<ProjectSettings>("projectSettings", settings);
   }
   async updateProjectSettings(id: string, settings: Partial<ProjectSettings>): Promise<ProjectSettings> {
-    const [updated] = await db.update(schema.projectSettings).set({ ...settings, updatedAt: new Date() }).where(eq(schema.projectSettings.id, id)).returning();
-    return updated;
+    return updateDoc<ProjectSettings>("projectSettings", id, settings);
   }
   async upsertProjectSettings(projectId: string, settings: Partial<InsertProjectSettings>): Promise<ProjectSettings> {
     const existing = await this.getProjectSettingsByProjectId(projectId);
     if (existing) {
-      return await this.updateProjectSettings(existing.id, settings);
-    } else {
-      return await this.createProjectSettings({ projectId, ...settings } as InsertProjectSettings);
+      return this.updateProjectSettings(existing.id, settings);
+    }
+    return this.createProjectSettings({ projectId, ...settings } as InsertProjectSettings);
+  }
+
+  // Sprints
+  async getSprints(): Promise<Sprint[]> { return getAllDocs<Sprint>("sprints"); }
+  async getSprintById(id: string): Promise<Sprint | undefined> { return getDocById<Sprint>("sprints", id); }
+  async getSprintsByProjectId(projectId: string): Promise<Sprint[]> {
+    const all = await this.getSprints();
+    return all.filter(s => s.projectId === projectId);
+  }
+  async createSprint(sprint: InsertSprint): Promise<Sprint> { return createDoc<Sprint>("sprints", sprint); }
+  async updateSprint(id: string, sprint: Partial<Sprint>): Promise<Sprint> {
+    return updateDoc<Sprint>("sprints", id, sprint);
+  }
+  async deleteSprint(id: string): Promise<void> { await deleteDoc("sprints", id); }
+
+  // Sprint Members
+  async getSprintMembers(): Promise<SprintMember[]> { return getAllDocs<SprintMember>("sprintMembers"); }
+  async getSprintMemberById(id: string): Promise<SprintMember | undefined> {
+    return getDocById<SprintMember>("sprintMembers", id);
+  }
+  async getSprintMembersBySprintId(sprintId: string): Promise<SprintMember[]> {
+    const all = await this.getSprintMembers();
+    return all.filter(m => m.sprintId === sprintId);
+  }
+  async createSprintMember(member: InsertSprintMember): Promise<SprintMember> {
+    return createDoc<SprintMember>("sprintMembers", member);
+  }
+  async updateSprintMember(id: string, member: Partial<SprintMember>): Promise<SprintMember> {
+    return updateDoc<SprintMember>("sprintMembers", id, member);
+  }
+  async deleteSprintMember(id: string): Promise<void> { await deleteDoc("sprintMembers", id); }
+
+  // Sprint Scope Events
+  async getSprintScopeEvents(): Promise<SprintScopeEvent[]> { return getAllDocs<SprintScopeEvent>("sprintScopeEvents"); }
+  async getSprintScopeEventsBySprintId(sprintId: string): Promise<SprintScopeEvent[]> {
+    const all = await this.getSprintScopeEvents();
+    return all.filter(e => e.sprintId === sprintId);
+  }
+  async createSprintScopeEvent(event: InsertSprintScopeEvent): Promise<SprintScopeEvent> {
+    return createDoc<SprintScopeEvent>("sprintScopeEvents", event);
+  }
+
+  // Sprint Scope Targets
+  async getSprintScopeTargets(): Promise<SprintScopeTarget[]> { return getAllDocs<SprintScopeTarget>("sprintScopeTargets"); }
+  async getSprintScopeTargetsBySprintId(sprintId: string): Promise<SprintScopeTarget[]> {
+    const all = await this.getSprintScopeTargets();
+    return all.filter(t => t.sprintId === sprintId);
+  }
+  async createSprintScopeTarget(target: InsertSprintScopeTarget): Promise<SprintScopeTarget> {
+    return createDoc<SprintScopeTarget>("sprintScopeTargets", target);
+  }
+  async deleteSprintScopeTarget(id: string): Promise<void> { await deleteDoc("sprintScopeTargets", id); }
+  async deleteSprintScopeTargetsBySprintId(sprintId: string): Promise<void> {
+    const all = await this.getSprintScopeTargetsBySprintId(sprintId);
+    for (const t of all) {
+      await deleteDoc("sprintScopeTargets", t.id);
     }
   }
 
-  // Sprints (delegated to sprint-repository)
-  async getSprints(): Promise<Sprint[]> {
-    return sprintRepository.getSprints();
-  }
-  async getSprintById(id: string): Promise<Sprint | undefined> {
-    return sprintRepository.getSprintById(id);
-  }
-  async getSprintsByProjectId(projectId: string): Promise<Sprint[]> {
-    return sprintRepository.getSprintsByProjectId(projectId);
-  }
-  async createSprint(sprint: InsertSprint): Promise<Sprint> {
-    return sprintRepository.createSprint(sprint);
-  }
-  async updateSprint(id: string, sprint: Partial<Sprint>): Promise<Sprint> {
-    return sprintRepository.updateSprint(id, sprint);
-  }
-  async deleteSprint(id: string): Promise<void> {
-    return sprintRepository.deleteSprint(id);
-  }
-
-  // Sprint Members (delegated to sprint-repository)
-  async getSprintMembers(): Promise<SprintMember[]> {
-    return sprintRepository.getSprintMembers();
-  }
-  async getSprintMemberById(id: string): Promise<SprintMember | undefined> {
-    return sprintRepository.getSprintMemberById(id);
-  }
-  async getSprintMembersBySprintId(sprintId: string): Promise<SprintMember[]> {
-    return sprintRepository.getSprintMembersBySprintId(sprintId);
-  }
-  async createSprintMember(member: InsertSprintMember): Promise<SprintMember> {
-    return sprintRepository.createSprintMember(member);
-  }
-  async updateSprintMember(id: string, member: Partial<SprintMember>): Promise<SprintMember> {
-    return sprintRepository.updateSprintMember(id, member);
-  }
-  async deleteSprintMember(id: string): Promise<void> {
-    return sprintRepository.deleteSprintMember(id);
-  }
-
-  // Sprint Scope Events (delegated to sprint-repository)
-  async getSprintScopeEvents(): Promise<SprintScopeEvent[]> {
-    return sprintRepository.getSprintScopeEvents();
-  }
-  async getSprintScopeEventsBySprintId(sprintId: string): Promise<SprintScopeEvent[]> {
-    return sprintRepository.getSprintScopeEventsBySprintId(sprintId);
-  }
-  async createSprintScopeEvent(event: InsertSprintScopeEvent): Promise<SprintScopeEvent> {
-    return sprintRepository.createSprintScopeEvent(event);
-  }
-
-  // Sprint Scope Targets (delegated to sprint-repository)
-  async getSprintScopeTargets(): Promise<SprintScopeTarget[]> {
-    return sprintRepository.getSprintScopeTargets();
-  }
-  async getSprintScopeTargetsBySprintId(sprintId: string): Promise<SprintScopeTarget[]> {
-    return sprintRepository.getSprintScopeTargetsBySprintId(sprintId);
-  }
-  async createSprintScopeTarget(target: InsertSprintScopeTarget): Promise<SprintScopeTarget> {
-    return sprintRepository.createSprintScopeTarget(target);
-  }
-  async deleteSprintScopeTarget(id: string): Promise<void> {
-    return sprintRepository.deleteSprintScopeTarget(id);
-  }
-  async deleteSprintScopeTargetsBySprintId(sprintId: string): Promise<void> {
-    return sprintRepository.deleteSprintScopeTargetsBySprintId(sprintId);
-  }
-
-  // Sprint Pulse Updates (delegated to sprint-repository)
-  async getSprintPulseUpdates(): Promise<SprintPulseUpdate[]> {
-    return sprintRepository.getSprintPulseUpdates();
-  }
+  // Sprint Pulse Updates
+  async getSprintPulseUpdates(): Promise<SprintPulseUpdate[]> { return getAllDocs<SprintPulseUpdate>("sprintPulseUpdates"); }
   async getSprintPulseUpdatesBySprintId(sprintId: string): Promise<SprintPulseUpdate[]> {
-    return sprintRepository.getSprintPulseUpdatesBySprintId(sprintId);
+    const all = await this.getSprintPulseUpdates();
+    return all.filter(u => u.sprintId === sprintId);
   }
   async getSprintPulseUpdateByUserAndDate(sprintId: string, userId: string, date: string): Promise<SprintPulseUpdate | undefined> {
-    return sprintRepository.getSprintPulseUpdateByUserAndDate(sprintId, userId, date);
+    const all = await this.getSprintPulseUpdates();
+    return all.find(u => u.sprintId === sprintId && u.userId === userId && u.date === date);
   }
   async createSprintPulseUpdate(update: InsertSprintPulseUpdate): Promise<SprintPulseUpdate> {
-    return sprintRepository.createSprintPulseUpdate(update);
+    return createDoc<SprintPulseUpdate>("sprintPulseUpdates", update);
   }
   async updateSprintPulseUpdate(id: string, update: Partial<SprintPulseUpdate>): Promise<SprintPulseUpdate> {
-    return sprintRepository.updateSprintPulseUpdate(id, update);
+    return updateDoc<SprintPulseUpdate>("sprintPulseUpdates", id, update);
   }
-  async deleteSprintPulseUpdate(id: string): Promise<void> {
-    return sprintRepository.deleteSprintPulseUpdate(id);
-  }
+  async deleteSprintPulseUpdate(id: string): Promise<void> { await deleteDoc("sprintPulseUpdates", id); }
 
-  // Home Page Data
-  async getTasksByAssignee(assigneeId: string): Promise<Task[]> {
-    return await db.select().from(schema.tasks).where(eq(schema.tasks.assigneeId, assigneeId));
+  // Project Favorites
+  async getAllProjectFavorites(): Promise<ProjectFavorite[]> { return getAllDocs<ProjectFavorite>("projectFavorites"); }
+  async getProjectFavoritesByUserId(userId: string): Promise<ProjectFavorite[]> {
+    const all = await this.getAllProjectFavorites();
+    return all.filter(f => f.userId === userId);
   }
-
-  async getTasksForUserHome(userId: string): Promise<any[]> {
-    const tasks = await db
-      .select({
-        id: schema.tasks.id,
-        title: schema.tasks.title,
-        description: schema.tasks.description,
-        status: schema.tasks.status,
-        priority: schema.tasks.priority,
-        deadline: schema.tasks.deadline,
-        estimateHours: schema.tasks.estimateHours,
-        projectId: schema.tasks.projectId,
-        projectName: schema.projects.name,
-        epicId: schema.tasks.epicId,
-        epicTitle: schema.epics.title,
-        deliverableId: schema.epics.deliverableId,
-        milestoneId: schema.tasks.milestoneId,
-        assigneeId: schema.tasks.assigneeId,
-      })
-      .from(schema.tasks)
-      .leftJoin(schema.projects, eq(schema.tasks.projectId, schema.projects.id))
-      .leftJoin(schema.epics, eq(schema.tasks.epicId, schema.epics.id))
-      .where(eq(schema.tasks.assigneeId, userId));
-    return tasks;
+  async createProjectFavorite(favorite: InsertProjectFavorite): Promise<ProjectFavorite> {
+    return createDoc<ProjectFavorite>("projectFavorites", favorite);
   }
-
-  async getUpcomingMilestones(): Promise<any[]> {
-    const milestones = await db
-      .select({
-        id: schema.milestones.id,
-        name: schema.milestones.name,
-        targetDate: schema.milestones.targetDate,
-        status: schema.milestones.status,
-        progressPercent: schema.milestones.progressPercent,
-        projectId: schema.milestones.projectId,
-        projectName: schema.projects.name,
-      })
-      .from(schema.milestones)
-      .leftJoin(schema.projects, eq(schema.milestones.projectId, schema.projects.id));
-    return milestones;
+  async deleteProjectFavorite(userId: string, projectId: string): Promise<void> {
+    const all = await this.getAllProjectFavorites();
+    const match = all.find(f => f.userId === userId && f.projectId === projectId);
+    if (match) await deleteDoc("projectFavorites", match.id);
   }
-
-  async getActiveProjectsWithProgress(): Promise<any[]> {
-    const projects = await db
-      .select({
-        id: schema.projects.id,
-        name: schema.projects.name,
-        status: schema.projects.status,
-        progress: schema.projects.progress,
-        startDate: schema.projects.startDate,
-        deadline: schema.projects.deadline,
-      })
-      .from(schema.projects)
-      .where(
-        or(
-          eq(schema.projects.status, 'Active'),
-          eq(schema.projects.status, 'In Progress')
-        )
-      );
-    return projects;
+  async isProjectFavorite(userId: string, projectId: string): Promise<boolean> {
+    const all = await this.getAllProjectFavorites();
+    return all.some(f => f.userId === userId && f.projectId === projectId);
   }
 
   // User Preferences
-  async getAllUserPreferences(): Promise<UserPreferences[]> {
-    return await db.select().from(schema.userPreferences);
-  }
-  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
-    const [prefs] = await db.select().from(schema.userPreferences).where(eq(schema.userPreferences.userId, userId));
-    return prefs;
-  }
-  async createUserPreferences(prefs: InsertUserPreferences): Promise<UserPreferences> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.userPreferences).values({ ...prefs, id }).returning();
-    return created;
-  }
-  async updateUserPreferences(userId: string, prefs: Partial<UserPreferences>): Promise<UserPreferences> {
-    const [updated] = await db.update(schema.userPreferences).set(prefs).where(eq(schema.userPreferences.userId, userId)).returning();
-    return updated;
-  }
+  async getAllUserPreferences(): Promise<UserPreferences[]> { return getAllDocs<UserPreferences>("userPreferences"); }
 
   // Work Blocks
-  async getAllWorkBlocks(): Promise<WorkBlock[]> {
-    return await db.select().from(schema.workBlocks);
-  }
-  async getWorkBlocksByUserAndDate(userId: string, date: string): Promise<WorkBlock[]> {
-    return await db.select().from(schema.workBlocks).where(
-      and(eq(schema.workBlocks.userId, userId), eq(schema.workBlocks.date, date))
-    );
-  }
-  async createWorkBlock(block: InsertWorkBlock): Promise<WorkBlock> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.workBlocks).values({ ...block, id }).returning();
-    return created;
-  }
-  async updateWorkBlock(id: string, block: Partial<WorkBlock>): Promise<WorkBlock> {
-    const [updated] = await db.update(schema.workBlocks).set({ ...block, updatedAt: new Date() }).where(eq(schema.workBlocks.id, id)).returning();
-    return updated;
-  }
-  async deleteWorkBlock(id: string): Promise<void> {
-    await db.delete(schema.workBlocks).where(eq(schema.workBlocks.id, id));
-  }
+  async getAllWorkBlocks(): Promise<WorkBlock[]> { return getAllDocs<WorkBlock>("workBlocks"); }
 
   // Day Plans
-  async getAllDayPlans(): Promise<DayPlan[]> {
-    return await db.select().from(schema.dayPlans);
-  }
-  async getDayPlan(userId: string, date: string): Promise<DayPlan | undefined> {
-    const [plan] = await db.select().from(schema.dayPlans).where(
-      and(eq(schema.dayPlans.userId, userId), eq(schema.dayPlans.date, date))
-    );
-    return plan;
-  }
-  async createDayPlan(plan: InsertDayPlan): Promise<DayPlan> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.dayPlans).values({ ...plan, id }).returning();
-    return created;
-  }
-  async updateDayPlan(userId: string, date: string, plan: Partial<DayPlan>): Promise<DayPlan> {
-    const [updated] = await db.update(schema.dayPlans).set({ ...plan, updatedAt: new Date() }).where(
-      and(eq(schema.dayPlans.userId, userId), eq(schema.dayPlans.date, date))
-    ).returning();
-    return updated;
-  }
-
-  // Project Favorites
-  async getAllProjectFavorites(): Promise<ProjectFavorite[]> {
-    return await db.select().from(schema.projectFavorites);
-  }
-  async getProjectFavoritesByUserId(userId: string): Promise<ProjectFavorite[]> {
-    return await db.select().from(schema.projectFavorites).where(eq(schema.projectFavorites.userId, userId));
-  }
-  async createProjectFavorite(favorite: InsertProjectFavorite): Promise<ProjectFavorite> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.projectFavorites).values({ ...favorite, id }).returning();
-    return created;
-  }
-  async deleteProjectFavorite(userId: string, projectId: string): Promise<void> {
-    await db.delete(schema.projectFavorites).where(
-      and(eq(schema.projectFavorites.userId, userId), eq(schema.projectFavorites.projectId, projectId))
-    );
-  }
-  async isProjectFavorite(userId: string, projectId: string): Promise<boolean> {
-    const [favorite] = await db.select().from(schema.projectFavorites).where(
-      and(eq(schema.projectFavorites.userId, userId), eq(schema.projectFavorites.projectId, projectId))
-    );
-    return !!favorite;
-  }
-
-  // Task Types (global)
-  async getTaskTypes(): Promise<TaskType[]> {
-    return await db.select().from(schema.taskTypes);
-  }
-  async getTaskTypeById(id: string): Promise<TaskType | undefined> {
-    const [taskType] = await db.select().from(schema.taskTypes).where(eq(schema.taskTypes.id, id));
-    return taskType;
-  }
-  async createTaskType(taskType: InsertTaskType): Promise<TaskType> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.taskTypes).values({ ...taskType, id }).returning();
-    return created;
-  }
-  async updateTaskType(id: string, taskType: Partial<TaskType>): Promise<TaskType> {
-    const [updated] = await db.update(schema.taskTypes).set(taskType).where(eq(schema.taskTypes.id, id)).returning();
-    return updated;
-  }
-  async deleteTaskType(id: string): Promise<void> {
-    await db.delete(schema.taskTypes).where(eq(schema.taskTypes.id, id));
-  }
-
-  // Project Task Types (project-level overrides)
-  async getProjectTaskTypes(): Promise<ProjectTaskType[]> {
-    return await db.select().from(schema.projectTaskTypes);
-  }
-  async getProjectTaskTypeById(id: string): Promise<ProjectTaskType | undefined> {
-    const [projectTaskType] = await db.select().from(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.id, id));
-    return projectTaskType;
-  }
-  async getProjectTaskTypesByProjectId(projectId: string): Promise<ProjectTaskType[]> {
-    return await db.select().from(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, projectId));
-  }
-  async createProjectTaskType(projectTaskType: InsertProjectTaskType): Promise<ProjectTaskType> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.projectTaskTypes).values({ ...projectTaskType, id }).returning();
-    return created;
-  }
-  async updateProjectTaskType(id: string, projectTaskType: Partial<ProjectTaskType>): Promise<ProjectTaskType> {
-    const [updated] = await db.update(schema.projectTaskTypes).set(projectTaskType).where(eq(schema.projectTaskTypes.id, id)).returning();
-    return updated;
-  }
-  async deleteProjectTaskType(id: string): Promise<void> {
-    await db.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.id, id));
-  }
-  async deleteProjectTaskTypesByProjectId(projectId: string): Promise<void> {
-    await db.delete(schema.projectTaskTypes).where(eq(schema.projectTaskTypes.projectId, projectId));
-  }
-
-  // Task Dependencies (delegated to task-repository)
-  async getTaskDependencies(): Promise<TaskDependency[]> {
-    return taskRepository.getTaskDependencies();
-  }
-  async getTaskDependencyById(id: string): Promise<TaskDependency | undefined> {
-    return taskRepository.getTaskDependencyById(id);
-  }
-  async getTaskDependenciesByTaskId(taskId: string): Promise<TaskDependency[]> {
-    return taskRepository.getTaskDependenciesByTaskId(taskId);
-  }
-  async getDependentTasksByTaskId(taskId: string): Promise<TaskDependency[]> {
-    return taskRepository.getDependentTasksByTaskId(taskId);
-  }
-  async createTaskDependency(dependency: InsertTaskDependency): Promise<TaskDependency> {
-    return taskRepository.createTaskDependency(dependency);
-  }
-  async updateTaskDependency(id: string, dependency: Partial<TaskDependency>): Promise<TaskDependency> {
-    return taskDependencyRepository.updateTaskDependency(id, dependency);
-  }
-  async deleteTaskDependency(id: string): Promise<void> {
-    return taskRepository.deleteTaskDependency(id);
-  }
-  async deleteTaskDependenciesByTaskId(taskId: string): Promise<void> {
-    return taskRepository.deleteTaskDependenciesByTaskId(taskId);
-  }
-
-  // Task Dependency Scope Rules (delegated to task-dependency-repository)
-  async getTaskDependencyScopeRules(): Promise<TaskDependencyScopeRule[]> {
-    return taskDependencyRepository.getTaskDependencyScopeRules();
-  }
-  async getTaskDependencyScopeRuleById(id: string): Promise<TaskDependencyScopeRule | undefined> {
-    return taskDependencyRepository.getTaskDependencyScopeRuleById(id);
-  }
-  async getTaskDependencyScopeRulesByTaskId(taskId: string): Promise<TaskDependencyScopeRule[]> {
-    return taskDependencyRepository.getTaskDependencyScopeRulesByTaskId(taskId);
-  }
-  async createTaskDependencyScopeRule(rule: InsertTaskDependencyScopeRule): Promise<TaskDependencyScopeRule> {
-    return taskDependencyRepository.createTaskDependencyScopeRule(rule);
-  }
-  async updateTaskDependencyScopeRule(id: string, rule: Partial<TaskDependencyScopeRule>): Promise<TaskDependencyScopeRule> {
-    return taskDependencyRepository.updateTaskDependencyScopeRule(id, rule);
-  }
-  async deleteTaskDependencyScopeRule(id: string): Promise<void> {
-    return taskDependencyRepository.deleteTaskDependencyScopeRule(id);
-  }
-
-  // Epic Types (global)
-  async getEpicTypes(): Promise<EpicType[]> {
-    return await db.select().from(schema.epicTypes);
-  }
-  async getEpicTypeById(id: string): Promise<EpicType | undefined> {
-    const [epicType] = await db.select().from(schema.epicTypes).where(eq(schema.epicTypes.id, id));
-    return epicType;
-  }
-  async createEpicType(epicType: InsertEpicType): Promise<EpicType> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.epicTypes).values({ ...epicType, id }).returning();
-    return created;
-  }
-  async updateEpicType(id: string, epicType: Partial<EpicType>): Promise<EpicType> {
-    const [updated] = await db.update(schema.epicTypes).set(epicType).where(eq(schema.epicTypes.id, id)).returning();
-    return updated;
-  }
-  async deleteEpicType(id: string): Promise<void> {
-    await db.delete(schema.epicTypes).where(eq(schema.epicTypes.id, id));
-  }
-
-  // Deliverable Types (global)
-  async getDeliverableTypes(): Promise<DeliverableType[]> {
-    return await db.select().from(schema.deliverableTypes);
-  }
-  async getDeliverableTypeById(id: string): Promise<DeliverableType | undefined> {
-    const [deliverableType] = await db.select().from(schema.deliverableTypes).where(eq(schema.deliverableTypes.id, id));
-    return deliverableType;
-  }
-  async createDeliverableType(deliverableType: InsertDeliverableType): Promise<DeliverableType> {
-    const id = crypto.randomUUID();
-    const [created] = await db.insert(schema.deliverableTypes).values({ ...deliverableType, id }).returning();
-    return created;
-  }
-  async updateDeliverableType(id: string, deliverableType: Partial<DeliverableType>): Promise<DeliverableType> {
-    const [updated] = await db.update(schema.deliverableTypes).set(deliverableType).where(eq(schema.deliverableTypes.id, id)).returning();
-    return updated;
-  }
-  async deleteDeliverableType(id: string): Promise<void> {
-    await db.delete(schema.deliverableTypes).where(eq(schema.deliverableTypes.id, id));
-  }
-
-  // Subtasks (delegated to task-repository)
-  async getSubtasksByParentId(parentTaskId: string): Promise<Task[]> {
-    return taskRepository.getSubtasksByParentId(parentTaskId);
-  }
+  async getAllDayPlans(): Promise<DayPlan[]> { return getAllDocs<DayPlan>("dayPlans"); }
 
   // User Role Eligibility
-  async getUserRoleEligibility(): Promise<UserRoleEligibility[]> {
-    return await db.select().from(schema.userRoleEligibility);
-  }
+  async getUserRoleEligibility(): Promise<UserRoleEligibility[]> { return getAllDocs<UserRoleEligibility>("userRoleEligibility"); }
 
   // App Settings
   async getAppSettings(): Promise<AppSettings | undefined> {
-    const [settings] = await db.select().from(schema.appSettings).where(eq(schema.appSettings.id, "default"));
-    return settings;
+    const all = await getAllDocs<AppSettings>("appSettings");
+    return all[0];
   }
-
   async updateAppSettings(settings: Partial<AppSettings>): Promise<AppSettings> {
     const existing = await this.getAppSettings();
     if (existing) {
-      const [updated] = await db.update(schema.appSettings)
-        .set({ ...settings, updatedAt: new Date() })
-        .where(eq(schema.appSettings.id, "default"))
-        .returning();
-      return updated;
-    } else {
-      const [created] = await db.insert(schema.appSettings)
-        .values({ id: "default", ...settings })
-        .returning();
-      return created;
+      return updateDoc<AppSettings>("appSettings", existing.id, settings);
+    }
+    return createDoc<AppSettings>("appSettings", settings);
+  }
+
+  // Task Types
+  async getTaskTypes(): Promise<TaskType[]> { return getAllDocs<TaskType>("taskTypes"); }
+  async getTaskTypeById(id: string): Promise<TaskType | undefined> { return getDocById<TaskType>("taskTypes", id); }
+  async createTaskType(taskType: InsertTaskType): Promise<TaskType> { return createDoc<TaskType>("taskTypes", taskType); }
+  async updateTaskType(id: string, taskType: Partial<TaskType>): Promise<TaskType> {
+    return updateDoc<TaskType>("taskTypes", id, taskType);
+  }
+  async deleteTaskType(id: string): Promise<void> { await deleteDoc("taskTypes", id); }
+
+  // Project Task Types
+  async getProjectTaskTypes(): Promise<ProjectTaskType[]> { return getAllDocs<ProjectTaskType>("projectTaskTypes"); }
+  async getProjectTaskTypeById(id: string): Promise<ProjectTaskType | undefined> {
+    return getDocById<ProjectTaskType>("projectTaskTypes", id);
+  }
+  async getProjectTaskTypesByProjectId(projectId: string): Promise<ProjectTaskType[]> {
+    const all = await this.getProjectTaskTypes();
+    return all.filter(t => t.projectId === projectId);
+  }
+  async createProjectTaskType(projectTaskType: InsertProjectTaskType): Promise<ProjectTaskType> {
+    return createDoc<ProjectTaskType>("projectTaskTypes", projectTaskType);
+  }
+  async updateProjectTaskType(id: string, projectTaskType: Partial<ProjectTaskType>): Promise<ProjectTaskType> {
+    return updateDoc<ProjectTaskType>("projectTaskTypes", id, projectTaskType);
+  }
+  async deleteProjectTaskType(id: string): Promise<void> { await deleteDoc("projectTaskTypes", id); }
+  async deleteProjectTaskTypesByProjectId(projectId: string): Promise<void> {
+    const all = await this.getProjectTaskTypesByProjectId(projectId);
+    for (const t of all) {
+      await deleteDoc("projectTaskTypes", t.id);
     }
   }
 
+  // Task Dependencies
+  async getTaskDependencies(): Promise<TaskDependency[]> { return getAllDocs<TaskDependency>("taskDependencies"); }
+  async getTaskDependencyById(id: string): Promise<TaskDependency | undefined> {
+    return getDocById<TaskDependency>("taskDependencies", id);
+  }
+  async getTaskDependenciesByTaskId(taskId: string): Promise<TaskDependency[]> {
+    const all = await this.getTaskDependencies();
+    return all.filter(d => d.taskId === taskId);
+  }
+  async getDependentTasksByTaskId(taskId: string): Promise<TaskDependency[]> {
+    const all = await this.getTaskDependencies();
+    return all.filter(d => d.dependsOnTaskId === taskId);
+  }
+  async createTaskDependency(dependency: InsertTaskDependency): Promise<TaskDependency> {
+    return createDoc<TaskDependency>("taskDependencies", dependency);
+  }
+  async updateTaskDependency(id: string, dependency: Partial<TaskDependency>): Promise<TaskDependency> {
+    return updateDoc<TaskDependency>("taskDependencies", id, dependency);
+  }
+  async deleteTaskDependency(id: string): Promise<void> { await deleteDoc("taskDependencies", id); }
+  async deleteTaskDependenciesByTaskId(taskId: string): Promise<void> {
+    const all = await this.getTaskDependenciesByTaskId(taskId);
+    for (const d of all) {
+      await deleteDoc("taskDependencies", d.id);
+    }
+  }
+
+  // Task Dependency Scope Rules
+  async getTaskDependencyScopeRules(): Promise<TaskDependencyScopeRule[]> {
+    return getAllDocs<TaskDependencyScopeRule>("taskDependencyScopeRules");
+  }
+  async getTaskDependencyScopeRuleById(id: string): Promise<TaskDependencyScopeRule | undefined> {
+    return getDocById<TaskDependencyScopeRule>("taskDependencyScopeRules", id);
+  }
+  async getTaskDependencyScopeRulesByTaskId(taskId: string): Promise<TaskDependencyScopeRule[]> {
+    const all = await this.getTaskDependencyScopeRules();
+    return all.filter(r => r.taskId === taskId);
+  }
+  async createTaskDependencyScopeRule(rule: InsertTaskDependencyScopeRule): Promise<TaskDependencyScopeRule> {
+    return createDoc<TaskDependencyScopeRule>("taskDependencyScopeRules", rule);
+  }
+  async updateTaskDependencyScopeRule(id: string, rule: Partial<TaskDependencyScopeRule>): Promise<TaskDependencyScopeRule> {
+    return updateDoc<TaskDependencyScopeRule>("taskDependencyScopeRules", id, rule);
+  }
+  async deleteTaskDependencyScopeRule(id: string): Promise<void> { await deleteDoc("taskDependencyScopeRules", id); }
+
+  // Epic Types
+  async getEpicTypes(): Promise<EpicType[]> { return getAllDocs<EpicType>("epicTypes"); }
+  async getEpicTypeById(id: string): Promise<EpicType | undefined> { return getDocById<EpicType>("epicTypes", id); }
+  async createEpicType(epicType: InsertEpicType): Promise<EpicType> { return createDoc<EpicType>("epicTypes", epicType); }
+  async updateEpicType(id: string, epicType: Partial<EpicType>): Promise<EpicType> {
+    return updateDoc<EpicType>("epicTypes", id, epicType);
+  }
+  async deleteEpicType(id: string): Promise<void> { await deleteDoc("epicTypes", id); }
+
+  // Deliverable Types
+  async getDeliverableTypes(): Promise<DeliverableType[]> { return getAllDocs<DeliverableType>("deliverableTypes"); }
+  async getDeliverableTypeById(id: string): Promise<DeliverableType | undefined> {
+    return getDocById<DeliverableType>("deliverableTypes", id);
+  }
+  async createDeliverableType(deliverableType: InsertDeliverableType): Promise<DeliverableType> {
+    return createDoc<DeliverableType>("deliverableTypes", deliverableType);
+  }
+  async updateDeliverableType(id: string, deliverableType: Partial<DeliverableType>): Promise<DeliverableType> {
+    return updateDoc<DeliverableType>("deliverableTypes", id, deliverableType);
+  }
+  async deleteDeliverableType(id: string): Promise<void> { await deleteDoc("deliverableTypes", id); }
+
+  // Subtasks
+  async getSubtasksByParentId(parentTaskId: string): Promise<Task[]> {
+    const all = await this.getTasks();
+    return all.filter(t => t.parentTaskId === parentTaskId);
+  }
+
   // Themes
-  async getThemes(): Promise<Theme[]> {
-    return await db.select().from(schema.themes);
-  }
-
-  async getThemeById(id: string): Promise<Theme | undefined> {
-    const [theme] = await db.select().from(schema.themes).where(eq(schema.themes.id, id));
-    return theme;
-  }
-
+  async getThemes(): Promise<Theme[]> { return getAllDocs<Theme>("themes"); }
+  async getThemeById(id: string): Promise<Theme | undefined> { return getDocById<Theme>("themes", id); }
   async getActiveTheme(): Promise<Theme | undefined> {
-    const [theme] = await db.select().from(schema.themes)
-      .where(and(eq(schema.themes.isDefault, true), eq(schema.themes.status, "published")));
-    return theme;
+    const all = await this.getThemes();
+    return all.find(t => t.status === "published" || t.isDefault);
   }
-
-  async createTheme(theme: InsertTheme & { id: string }): Promise<Theme> {
-    const [created] = await db.insert(schema.themes).values(theme).returning();
-    return created;
-  }
-
+  async createTheme(theme: InsertTheme & { id: string }): Promise<Theme> { return createDoc<Theme>("themes", theme); }
   async updateTheme(id: string, theme: Partial<Theme>): Promise<Theme> {
-    const [updated] = await db.update(schema.themes)
-      .set({ ...theme, updatedAt: new Date() })
-      .where(eq(schema.themes.id, id))
-      .returning();
-    return updated;
+    return updateDoc<Theme>("themes", id, theme);
   }
-
-  async deleteTheme(id: string): Promise<void> {
-    await db.delete(schema.themes).where(eq(schema.themes.id, id));
-  }
-
+  async deleteTheme(id: string): Promise<void> { await deleteDoc("themes", id); }
   async publishTheme(id: string, publishedBy: string): Promise<Theme> {
-    const theme = await this.getThemeById(id);
-    if (!theme) throw new Error("Theme not found");
-    const [updated] = await db.update(schema.themes)
-      .set({
-        status: "published",
-        publishedBy,
-        publishedAt: new Date(),
-        version: (theme.version || 1) + 1,
-        updatedAt: new Date()
-      })
-      .where(eq(schema.themes.id, id))
-      .returning();
-    return updated;
+    // Unpublish all other themes first
+    const all = await this.getThemes();
+    for (const t of all) {
+      if (t.status === "published") {
+        await updateDoc("themes", t.id, { status: "draft" });
+      }
+    }
+    return updateDoc<Theme>("themes", id, { status: "published", publishedBy, publishedAt: new Date() });
+  }
+  async setDefaultTheme(id: string): Promise<Theme> {
+    const all = await this.getThemes();
+    for (const t of all) {
+      if (t.isDefault) {
+        await updateDoc("themes", t.id, { isDefault: false });
+      }
+    }
+    return updateDoc<Theme>("themes", id, { isDefault: true });
   }
 
-  async setDefaultTheme(id: string): Promise<Theme> {
-    // First, unset any existing default
-    await db.update(schema.themes).set({ isDefault: false }).where(eq(schema.themes.isDefault, true));
-    // Then set the new default
-    const [updated] = await db.update(schema.themes)
-      .set({ isDefault: true, updatedAt: new Date() })
-      .where(eq(schema.themes.id, id))
-      .returning();
-    return updated;
+  // Additional aggregation and preference methods
+  async getAllProjectTeamMembers(): Promise<ProjectTeamMember[]> {
+    return getAllDocs<ProjectTeamMember>("projectTeamMembers");
+  }
+  async getTasksForUserHome(userId: string): Promise<any[]> {
+    const allTasks = await this.getTasks();
+    return allTasks.filter(t => t.assigneeId === userId);
+  }
+  async getUpcomingMilestones(): Promise<any[]> {
+    const allMilestones = await this.getMilestones();
+    return allMilestones.filter(m => m.status === "planned");
+  }
+  async getActiveProjectsWithProgress(): Promise<any[]> {
+    const allProjects = await this.getProjects();
+    return allProjects.filter(p => p.status === "Execution" || p.status === "In Progress");
+  }
+  async getUserPreferences(userId: string): Promise<UserPreferences | undefined> {
+    const all = await this.getAllUserPreferences();
+    return all.find(p => p.userId === userId);
+  }
+  async updateUserPreferences(userId: string, prefs: any): Promise<UserPreferences> {
+    const existing = await this.getUserPreferences(userId);
+    if (existing) {
+      return updateDoc<UserPreferences>("userPreferences", existing.id, prefs);
+    }
+    return createDoc<UserPreferences>("userPreferences", { userId, ...prefs });
+  }
+  async createUserPreferences(prefs: any): Promise<UserPreferences> {
+    return createDoc<UserPreferences>("userPreferences", prefs);
+  }
+  async getWorkBlocksByUserAndDate(userId: string, date: string): Promise<WorkBlock[]> {
+    const all = await this.getAllWorkBlocks();
+    return all.filter(b => b.userId === userId && b.date === date);
+  }
+  async createWorkBlock(block: any): Promise<WorkBlock> {
+    return createDoc<WorkBlock>("workBlocks", block);
+  }
+  async updateWorkBlock(id: string, block: any): Promise<WorkBlock> {
+    return updateDoc<WorkBlock>("workBlocks", id, block);
+  }
+  async deleteWorkBlock(id: string): Promise<void> {
+    await deleteDoc("workBlocks", id);
+  }
+  async getDayPlan(userId: string, date: string): Promise<DayPlan | undefined> {
+    const all = await this.getAllDayPlans();
+    return all.find(p => p.userId === userId && p.date === date);
+  }
+  async updateDayPlan(userId: string, date: string, plan: any): Promise<DayPlan> {
+    const existing = await this.getDayPlan(userId, date);
+    if (!existing) throw new Error("Day plan not found");
+    return updateDoc<DayPlan>("dayPlans", existing.id, plan);
+  }
+  async createDayPlan(plan: any): Promise<DayPlan> {
+    return createDoc<DayPlan>("dayPlans", plan);
   }
 }
 

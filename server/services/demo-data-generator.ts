@@ -537,8 +537,9 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
         const existingUsers = await storage.getUsers();
         const existing = existingUsers.find(u => u.id === userData.id);
         if (!existing) {
-          // Create new user
+          // Create new user with the deterministic demo ID
           const user = await storage.createUser({
+            id: userData.id,
             email: userData.email,
             firstName: userData.firstName,
             lastName: userData.lastName,
@@ -546,8 +547,7 @@ export async function generateDemoData(clearFirst: boolean = true): Promise<Demo
             jobTitle: userData.jobTitle,
             systemRole: userData.systemRole,
           } as any);
-          await storage.updateUser(user.id, { id: userData.id } as any);
-          demoUsers.push({ ...user, id: userData.id });
+          demoUsers.push(user);
           result.created.users = (result.created.users || 0) + 1;
         } else {
           // Update existing user with current demo data (handles name changes)
