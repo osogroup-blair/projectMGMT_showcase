@@ -1,6 +1,7 @@
-import { initializeApp, getApps } from "firebase-admin/app";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import crypto from "crypto";
+import fs from "fs";
 
 if (!process.env.FIREBASE_PROJECT_ID) {
   process.env.FIREBASE_PROJECT_ID = "demo-projectmgmt";
@@ -11,9 +12,28 @@ console.log("- FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID);
 console.log("- FIRESTORE_EMULATOR_HOST:", process.env.FIRESTORE_EMULATOR_HOST);
 
 if (getApps().length === 0) {
-  initializeApp({
+  const config: any = {
     projectId: process.env.FIREBASE_PROJECT_ID,
-  });
+  };
+
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (serviceAccountJson) {
+    try {
+      const serviceAccount = JSON.parse(serviceAccountJson);
+      config.credential = cert(serviceAccount);
+      console.log("- Credentials loaded from FIREBASE_SERVICE_ACCOUNT_JSON env variable");
+    } catch (err: any) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:", err.message);
+    }
+  } else {
+    const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (credPath && fs.existsSync(credPath)) {
+      console.log("- GOOGLE_APPLICATION_CREDENTIALS loaded from:", credPath);
+      config.credential = cert(credPath);
+    }
+  }
+
+  initializeApp(config);
 }
 
 // Actual Firestore database instance

@@ -13,3 +13,7 @@ test-*.js
 test-*.ts
 tsc_output*.txt
 update-seed.ts
+
+# Firebase Credentials
+*-firebase-adminsdk-*.json
+project-simple-7478e-firebase-adminsdk-fbsvc-b543a0e30b.json
