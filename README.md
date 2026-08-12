@@ -4,7 +4,7 @@ A structural service-delivery operating system that models project hierarchies, 
 
 ### Try it
 
-*   **Live Demo**: [https://project-simple-7478e.web.app](https://project-simple-7478e.web.app)
+*   **Live Demo**: [https://project-simple--project-simple-7478e.us-central1.hosted.app/](https://project-simple--project-simple-7478e.us-central1.hosted.app/)
 *   **Repository**: [GitHub Repository](https://github.com/osogroup-blair/projectMGMT_showcase)
 *   **Architecture**: [System Architecture](#system-architecture)
 
