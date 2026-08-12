@@ -1,6 +1,6 @@
-# 🚀 Nexus: Enterprise Service Delivery Workspace
+# 🚀 Project Simple: The Enterprise Service Delivery Workspace
 
-**Nexus** is an enterprise-grade project management workspace designed specifically for service delivery organizations. Built to solve WBS (Work Breakdown Structure) visualization, client resource tracking, and theme personalization, it transitions the traditional model of heavy SQL systems into a modern serverless architecture powered by **Google Cloud Firestore**.
+**Project Simple** is an enterprise-grade project management workspace designed specifically for service delivery organizations. Built to solve WBS (Work Breakdown Structure) visualization, client resource tracking, and theme personalization, it transitions the traditional model of heavy SQL systems into a modern serverless architecture powered by **Google Cloud Firestore**.
 
 ---
 
