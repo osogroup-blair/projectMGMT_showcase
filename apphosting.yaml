@@ -4,9 +4,11 @@ runConfig:
   memoryMiB: 512
 
 env:
-  - variable: NODE_ENV
-    value: production
   - variable: FIREBASE_PROJECT_ID
     value: project-simple-7478e
   - variable: SESSION_SECRET
     value: production-session-secret-mgmt-987654321
+  - variable: NODE_ENV
+    value: production
+    availability:
+      - RUNTIME
