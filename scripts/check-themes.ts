@@ -1,10 +1,8 @@
-import { db, pool } from "../server/db";
-import { themes } from "@shared/schema";
+import { storage } from "../server/data/storage";
 
 async function check() {
-    const allThemes = await db.select().from(themes);
+    const allThemes = await storage.getThemes();
     console.log("Found themes:", allThemes.map(t => t.name));
-    pool.end();
 }
 
 check();

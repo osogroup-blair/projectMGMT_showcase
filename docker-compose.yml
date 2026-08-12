@@ -10,24 +10,16 @@
 
 services:
   # PostgreSQL Database
+  # Firebase Local Emulator
   db:
-    image: postgres:16-alpine
-    container_name: prodCo-db
+    image: spine3/firebase-emulator:latest
+    container_name: prodCo-firestore-emulator
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-prodCo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prodCo_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-prodCo}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/init:/docker-entrypoint-initdb.d  # SQL files here run on first start
     ports:
-      - "${DB_PORT:-5432}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-prodCo}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "8082:8080" # Firestore port
+      - "4000:4000" # Emulator suite UI
+    environment:
+      - GSE_EMULATORS=firestore
 
   # prodCo Workspace Application (uncommented for production/Docker-only deployment)
   app:

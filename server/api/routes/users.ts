@@ -145,7 +145,7 @@ export function registerUserRoutes(
       const exportData = {
         exportedAt: new Date().toISOString(),
         exportVersion: "1.0",
-        sourceInstance: process.env.REPL_SLUG || "prodCo-workspace",
+        sourceInstance: process.env.INSTANCE_NAME || "prodCo-workspace",
         Users: usersWithIdentities,
       };
 

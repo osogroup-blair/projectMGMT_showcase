@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from "express";
 import { SystemRole, UserPermission } from "@shared/contracts/user-management";
-import { authStorage } from "../replit_integrations/auth/storage";
+import { authStorage } from "../integrations/auth/storage";
 import { getUserPermissions } from "../services/roles-permissions-service";
 
 export function requireAuth(): RequestHandler {

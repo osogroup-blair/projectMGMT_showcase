@@ -1,17 +1,43 @@
 import passport from "passport";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
-import connectPg from "connect-pg-simple";
+import { firestoreDb } from "../../db";
+
+class FirestoreStore extends session.Store {
+  get = (sid: string, callback: (err: any, session?: session.SessionData | null) => void) => {
+    firestoreDb.collection("sessions").doc(sid).get()
+      .then(doc => {
+        if (!doc.exists) return callback(null, null);
+        const data = doc.data();
+        if (data && data.expire && new Date(data.expire) < new Date()) {
+          this.destroy(sid, () => {});
+          return callback(null, null);
+        }
+        callback(null, data ? JSON.parse(data.sess) : null);
+      })
+      .catch(err => callback(err));
+  };
+
+  set = (sid: string, sess: session.SessionData, callback: (err?: any) => void) => {
+    const expire = sess.cookie.expires ? new Date(sess.cookie.expires) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    firestoreDb.collection("sessions").doc(sid).set({
+      sess: JSON.stringify(sess),
+      expire: expire.toISOString()
+    })
+      .then(() => callback(null))
+      .catch(err => callback(err));
+  };
+
+  destroy = (sid: string, callback: (err?: any) => void) => {
+    firestoreDb.collection("sessions").doc(sid).delete()
+      .then(() => callback(null))
+      .catch(err => callback(err));
+  };
+}
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  const sessionStore = new FirestoreStore();
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,

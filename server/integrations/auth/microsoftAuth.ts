@@ -285,9 +285,9 @@ export async function setupMicrosoftAuth(app: Express) {
 
     const registeredStrategies = new Set<string>();
 
-    // Helper to get the full host from request (handles Replit proxy headers)
+    // Helper to get the full host from request (handles proxy headers)
     const getFullHost = (req: any): string => {
-      // Prefer x-forwarded-host for proxied requests (Replit)
+      // Prefer x-forwarded-host for proxied requests
       const forwardedHost = req.headers['x-forwarded-host'];
       if (forwardedHost) {
         return Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost;

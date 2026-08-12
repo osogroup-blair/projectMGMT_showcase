@@ -15,7 +15,7 @@ function convertDates(data: any): any {
 }
 
 // Interface for auth storage operations
-// (IMPORTANT) These user operations are mandatory for Replit Auth.
+// (IMPORTANT) These user operations are mandatory for Session Auth.
 export interface IAuthStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -47,10 +47,10 @@ class AuthStorage implements IAuthStorage {
       const existingById = await this.getUser(userData.id);
       if (existingById) {
         const updateData = {
-          email: existingById.email || userData.email,
-          firstName: existingById.firstName || userData.firstName,
-          lastName: existingById.lastName || userData.lastName,
-          profileImageUrl: existingById.profileImageUrl || userData.profileImageUrl,
+          email: (existingById.email || userData.email) ?? null,
+          firstName: (existingById.firstName || userData.firstName) ?? null,
+          lastName: (existingById.lastName || userData.lastName) ?? null,
+          profileImageUrl: (existingById.profileImageUrl || userData.profileImageUrl) ?? null,
           name: existingById.name || name,
           updatedAt: new Date(),
         };
@@ -64,11 +64,11 @@ class AuthStorage implements IAuthStorage {
       const existingUserByEmail = await this.getUserByEmail(userData.email);
       if (existingUserByEmail) {
         const updateData = {
-          firstName: existingUserByEmail.firstName || userData.firstName,
-          lastName: existingUserByEmail.lastName || userData.lastName,
-          profileImageUrl: existingUserByEmail.profileImageUrl || userData.profileImageUrl,
+          firstName: (existingUserByEmail.firstName || userData.firstName) ?? null,
+          lastName: (existingUserByEmail.lastName || userData.lastName) ?? null,
+          profileImageUrl: (existingUserByEmail.profileImageUrl || userData.profileImageUrl) ?? null,
           name: existingUserByEmail.name || name,
-          externalId: existingUserByEmail.externalId || userData.id,
+          externalId: (existingUserByEmail.externalId || userData.id) ?? null,
           updatedAt: new Date(),
         };
         await firestoreDb.collection("users").doc(existingUserByEmail.id).update(updateData);

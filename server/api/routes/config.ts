@@ -15,7 +15,7 @@ import {
   setMicrosoftAllowedDomains,
   getGoogleAuthConfig,
   setGoogleAuthEnabled
-} from "../../replit_integrations/auth";
+} from "../../integrations/auth";
 
 export function registerConfigRoutes(
   app: Express,

@@ -64,6 +64,8 @@ export async function seedRolesAndPermissions(): Promise<{ roles: number; permis
   let permissionsCreated = 0;
   let mappingsCreated = 0;
 
+  console.log("DEBUG systemRoles import:", systemRoles);
+
   const existingRoles = await db.select().from(systemRoles);
   const existingPermissions = await db.select().from(systemPermissions);
 

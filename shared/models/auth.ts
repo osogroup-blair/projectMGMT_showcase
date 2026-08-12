@@ -68,3 +68,35 @@ export type InsertAppSetting = typeof appSettings.$inferInsert;
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+ z.object({}); // dummy reference for zod
+import { z } from "zod";
+export const insertUserSchema = z.object({
+  id: z.string().optional(),
+  email: z.string().email().optional().nullable(),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  profileImageUrl: z.string().optional().nullable(),
+  authProvider: z.string().default("microsoft"),
+  microsoftId: z.string().optional().nullable(),
+  googleId: z.string().optional().nullable(),
+  userType: z.string().default("internal"),
+  name: z.string().optional().nullable(),
+  jobTitle: z.string().optional().nullable(),
+  status: z.string().default("Offline"),
+  avatar: z.string().optional().nullable(),
+  systemRole: z.string().default("member"),
+  permissions: z.array(z.string()).default([]),
+  roleTemplateIds: z.array(z.string()).default([]),
+  externalId: z.string().optional().nullable(),
+  importSource: z.string().optional().nullable(),
+  importedAt: z.date().optional().nullable(),
+  lastLogin: z.date().optional().nullable(),
+  loginCount: z.number().default(0),
+});
+export const insertAppSettingSchema = z.object({
+  id: z.string().optional(),
+  key: z.string(),
+  value: z.any().optional(),
+  description: z.string().optional().nullable(),
+  updatedBy: z.string().optional().nullable(),
+});

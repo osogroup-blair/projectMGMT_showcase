@@ -4,9 +4,10 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { connectWithRetry, isDatabaseConnected, setDatabaseReady } from "../db";
 import { isApplicationReady } from "./readiness";
-import { setupSessionAuth, registerAuthRoutes, setupMicrosoftAuth, setupGoogleAuth } from "../replit_integrations/auth";
+import { setupSessionAuth, registerAuthRoutes, setupMicrosoftAuth, setupGoogleAuth } from "../integrations/auth";
 import { generateDemoData } from "../services/demo-data-generator";
 import { storage } from "../data/storage";
+import { seedAppDefaults } from "../db/seed-app-defaults";
 
 const app = express();
 const httpServer = createServer(app);
@@ -175,9 +176,10 @@ app.use((req, res, next) => {
         backgroundRetry();
       }
 
-      // Auto-seed demo data if database is empty
+      // Ensure application defaults and themes are seeded
       if (dbConnected) {
         try {
+          await seedAppDefaults();
           const projects = await storage.getProjects();
           const users = await storage.getUsers();
           const hasDemoData = users.some((u: any) => u.id?.startsWith('demo-'));

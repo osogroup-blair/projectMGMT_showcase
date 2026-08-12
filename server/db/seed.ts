@@ -1,8 +1,10 @@
 import { storage } from "../data/storage";
+import { seedAppDefaults } from "./seed-app-defaults";
 
 export async function seedDatabase() {
       try {
             console.log('Starting database seed...');
+            await seedAppDefaults();
 
             // Seed Task Types (global defaults)
             const taskTypes = [

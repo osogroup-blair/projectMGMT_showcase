@@ -1,6 +1,4 @@
-import { db, pool } from "../server/db";
-import { themes } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { storage } from "../server/data/storage";
 import crypto from "crypto";
 
 const CYBERPUNK_THEME = {
@@ -645,23 +643,21 @@ const WARM_PAPER_THEME = {
     },
 };
 
-async function seed() {
+export async function seedThemes() {
     console.log("Checking if themes exist...");
+    const existingThemes = await storage.getThemes();
+    const existingNames = new Set(existingThemes.map(t => t.name));
 
     const themesToSeed = [CYBERPUNK_THEME, NATURE_THEME, CORPORATE_THEME, BLACK_AND_WHITE_THEME, GRAYSCALE_THEME, WARM_PAPER_THEME];
 
     for (const themeData of themesToSeed) {
-        const existing = await db.query.themes.findFirst({
-            where: eq(themes.name, themeData.name),
-        });
-
-        if (existing) {
+        if (existingNames.has(themeData.name)) {
             console.log(`Theme "${themeData.name}" already exists. Skipping.`);
         } else {
             console.log(`Adding theme "${themeData.name}"...`);
-            await db.insert(themes).values({
+            await storage.createTheme({
                 id: crypto.randomUUID(),
-                ...themeData,
+                ...themeData as any,
                 version: 1,
             });
             console.log(`Theme "${themeData.name}" added successfully.`);
@@ -669,11 +665,11 @@ async function seed() {
     }
 
     console.log("Theme seeding completed.");
-    pool.end();
 }
 
-seed().catch((err) => {
-    console.error("Error seeding themes:", err);
-    pool.end();
-    process.exit(1);
-});
+if (process.argv[1] && process.argv[1].includes("seed-themes")) {
+    seedThemes().catch((err) => {
+        console.error("Error seeding themes:", err);
+        process.exit(1);
+    });
+}

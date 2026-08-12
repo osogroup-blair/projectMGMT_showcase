@@ -2,7 +2,6 @@ import type { Express } from "express";
 import crypto from "crypto";
 import { storage } from "../../data/storage";
 import { insertClientSchema, insertClientUserSchema } from "@shared/schema";
-import * as userRepository from "../../data/repositories/user-repository";
 
 export function registerClientRoutes(app: Express) {
     // --- Client Routes ---
@@ -104,7 +103,7 @@ export function registerClientRoutes(app: Express) {
             const clientUser = await storage.createClientUser(validated);
 
             // Explicitly cast user to "client" type when assigned to a client
-            await userRepository.updateUser(validated.userId, { userType: "client" });
+            await storage.updateUser(validated.userId, { userType: "client" });
 
             res.status(201).json(clientUser);
         } catch (error: any) {
